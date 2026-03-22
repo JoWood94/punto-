@@ -27,34 +27,41 @@ export class NoteService {
   private db: RawFirestore;
 
   constructor() {
-    // Use existing Firebase app or initialize a new one
     const app: FirebaseApp = getApps().length ? getApp() : initializeApp(environment.firebase);
     this.db = getFirestore(app);
+    console.log('[NoteService] Firestore initialized, app:', app.name);
   }
 
   async createNote(noteData: Partial<Note>): Promise<any> {
     const uid = this.authService.getCurrentUserId();
     if (!uid) throw new Error('Not authenticated');
 
+    console.log('[NoteService] createNote for uid:', uid);
     const notesRef = collection(this.db, 'notes');
-    return addDoc(notesRef, {
+    const result = await addDoc(notesRef, {
       ...noteData,
       uid,
       createdAt: Date.now()
     });
+    console.log('[NoteService] Note created with ID:', result.id);
+    return result;
   }
 
   getNotes(): Observable<Note[]> {
     return this.authService.user$.pipe(
       switchMap(user => {
+        console.log('[NoteService] user$ emitted:', user?.uid || 'null');
         if (!user) return of([]);
         const notesRef = collection(this.db, 'notes');
         const q = query(notesRef, where('uid', '==', user.uid));
         return new Observable<Note[]>(subscriber => {
+          console.log('[NoteService] Subscribing to onSnapshot for uid:', user.uid);
           const unsubscribe = onSnapshot(q, (snapshot) => {
             const notes = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Note));
+            console.log('[NoteService] onSnapshot received', notes.length, 'notes. fromCache:', snapshot.metadata.fromCache, 'hasPendingWrites:', snapshot.metadata.hasPendingWrites);
             subscriber.next(notes);
           }, (error) => {
+            console.error('[NoteService] onSnapshot ERROR:', error.code, error.message);
             subscriber.error(error);
           });
           return () => unsubscribe();
@@ -63,13 +70,17 @@ export class NoteService {
     );
   }
 
-  updateNote(id: string, data: Partial<Note>) {
+  async updateNote(id: string, data: Partial<Note>) {
+    console.log('[NoteService] updateNote:', id);
     const noteRef = doc(this.db, `notes/${id}`);
-    return updateDoc(noteRef, data);
+    await updateDoc(noteRef, data);
+    console.log('[NoteService] Note updated:', id);
   }
 
-  deleteNote(id: string) {
+  async deleteNote(id: string) {
+    console.log('[NoteService] deleteNote:', id);
     const noteRef = doc(this.db, `notes/${id}`);
-    return deleteDoc(noteRef);
+    await deleteDoc(noteRef);
+    console.log('[NoteService] Note deleted:', id);
   }
 }
