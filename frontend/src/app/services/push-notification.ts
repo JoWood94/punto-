@@ -1,6 +1,7 @@
 import { Injectable, inject, Injector, runInInjectionContext } from '@angular/core';
 import { Messaging, getToken, onMessage } from '@angular/fire/messaging';
-import { Firestore, doc, setDoc, arrayUnion } from '@angular/fire/firestore';
+import { getFirestore, doc, setDoc, arrayUnion } from 'firebase/firestore';
+import { getApp, getApps, initializeApp } from 'firebase/app';
 import { AuthService } from './auth';
 import { environment } from '../../environments/environment';
 
@@ -10,8 +11,12 @@ import { environment } from '../../environments/environment';
 export class PushNotificationService {
   private messaging = inject(Messaging);
   private injector = inject(Injector);
-  private db = inject(Firestore);
   private authService = inject(AuthService);
+
+  private get db() {
+    const app = getApps().length ? getApp() : initializeApp(environment.firebase);
+    return getFirestore(app);
+  }
 
   async requestPermission(): Promise<string | null> {
     try {
