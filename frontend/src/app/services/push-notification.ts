@@ -1,5 +1,7 @@
 import { Injectable, inject, Injector, runInInjectionContext } from '@angular/core';
 import { Messaging, getToken, onMessage } from '@angular/fire/messaging';
+import { Firestore, doc, setDoc, arrayUnion } from '@angular/fire/firestore';
+import { AuthService } from './auth';
 import { environment } from '../../environments/environment';
 
 @Injectable({
@@ -8,6 +10,8 @@ import { environment } from '../../environments/environment';
 export class PushNotificationService {
   private messaging = inject(Messaging);
   private injector = inject(Injector);
+  private db = inject(Firestore);
+  private authService = inject(AuthService);
 
   async requestPermission(): Promise<string | null> {
     try {
@@ -26,6 +30,13 @@ export class PushNotificationService {
           serviceWorkerRegistration: registration
         }));
         console.log('Firebase Cloud Messaging Token:', token);
+        
+        const uid = this.authService.getCurrentUserId();
+        if (uid && token) {
+           const userRef = doc(this.db, `users/${uid}`);
+           await setDoc(userRef, { fcmTokens: arrayUnion(token) }, { merge: true });
+        }
+        
         return token;
       } else {
         console.warn('Push Notification permission denied. Le notifiche sono disabilitate.');

@@ -230,13 +230,16 @@ export class NoteEditorComponent implements OnInit, OnChanges {
         d.setSeconds(0);
         d.setMilliseconds(0);
         this.note.reminderTime = d.getTime();
+        this.note.reminderStatus = 'pending';
       } else if (this.reminderDate) {
         const d = new Date(this.reminderDate);
         d.setHours(12);
         d.setMinutes(0);
         this.note.reminderTime = d.getTime();
+        this.note.reminderStatus = 'pending';
       } else {
         this.note.reminderTime = null;
+        this.note.reminderStatus = null;
       }
 
       const payload: any = { ...this.note };

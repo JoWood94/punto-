@@ -16,6 +16,7 @@ export interface Note {
   lat?: number;
   lon?: number;
   reminderTime: number | null; 
+  reminderStatus?: 'pending' | 'sent' | null; 
   color: string;
   createdAt: number;
 }
