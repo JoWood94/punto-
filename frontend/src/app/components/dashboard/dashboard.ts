@@ -54,8 +54,12 @@ export class DashboardComponent implements OnInit {
       this.isMobile = result.matches;
     });
 
-    await this.pushService.requestPermission();
-    this.pushService.listenForMessages();
+    // Push notifications: non-blocking, fail gracefully
+    this.pushService.requestPermission().then(() => {
+      this.pushService.listenForMessages();
+    }).catch(() => {
+      console.warn('Push notifications non disponibili in questo browser.');
+    });
   }
 
   async logout() {

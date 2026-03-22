@@ -20,7 +20,7 @@ messaging.onBackgroundMessage((payload) => {
   const notificationTitle = payload.notification.title || 'Nuovo Promemoria da punto!';
   const notificationOptions = {
     body: payload.notification.body,
-    icon: '/punto_icon.png'
+    icon: 'punto_icon.png'
   };
 
   self.registration.showNotification(notificationTitle, notificationOptions);
