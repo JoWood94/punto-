@@ -65,11 +65,10 @@
   margin-top: 16px;
 
   button.format-active {
-    background-color: rgba(98, 0, 238, 0.12);
-    color: #6200ee;
+    background-color: color-mix(in srgb, var(--mat-sys-primary) 15%, transparent);
 
     mat-icon {
-      color: #6200ee;
+      color: var(--mat-sys-primary);
     }
   }
 }

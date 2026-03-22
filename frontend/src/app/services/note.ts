@@ -1,7 +1,9 @@
-import { Injectable, inject, Injector, runInInjectionContext } from '@angular/core';
-import { Firestore, collection, doc, collectionData, addDoc, updateDoc, deleteDoc, query, where } from '@angular/fire/firestore';
+import { Injectable, inject } from '@angular/core';
+import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
+import { getFirestore, collection, doc, addDoc, updateDoc, deleteDoc, query, where, onSnapshot, Firestore as RawFirestore } from 'firebase/firestore';
 import { Observable, of, switchMap } from 'rxjs';
 import { AuthService } from './auth';
+import { environment } from '../../environments/environment';
 
 export interface Note {
   id?: string;
@@ -21,21 +23,24 @@ export interface Note {
   providedIn: 'root'
 })
 export class NoteService {
-  private firestore: Firestore = inject(Firestore);
   private authService: AuthService = inject(AuthService);
-  private injector = inject(Injector);
+  private db: RawFirestore;
+
+  constructor() {
+    // Use existing Firebase app or initialize a new one
+    const app: FirebaseApp = getApps().length ? getApp() : initializeApp(environment.firebase);
+    this.db = getFirestore(app);
+  }
 
   async createNote(noteData: Partial<Note>): Promise<any> {
     const uid = this.authService.getCurrentUserId();
     if (!uid) throw new Error('Not authenticated');
 
-    return runInInjectionContext(this.injector, () => {
-      const notesRef = collection(this.firestore, 'notes');
-      return addDoc(notesRef, {
-        ...noteData,
-        uid,
-        createdAt: Date.now()
-      });
+    const notesRef = collection(this.db, 'notes');
+    return addDoc(notesRef, {
+      ...noteData,
+      uid,
+      createdAt: Date.now()
     });
   }
 
@@ -43,26 +48,28 @@ export class NoteService {
     return this.authService.user$.pipe(
       switchMap(user => {
         if (!user) return of([]);
-        return runInInjectionContext(this.injector, () => {
-          const notesRef = collection(this.firestore, 'notes');
-          const q = query(notesRef, where('uid', '==', user.uid));
-          return collectionData(q, { idField: 'id' }) as Observable<Note[]>;
+        const notesRef = collection(this.db, 'notes');
+        const q = query(notesRef, where('uid', '==', user.uid));
+        return new Observable<Note[]>(subscriber => {
+          const unsubscribe = onSnapshot(q, (snapshot) => {
+            const notes = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Note));
+            subscriber.next(notes);
+          }, (error) => {
+            subscriber.error(error);
+          });
+          return () => unsubscribe();
         });
       })
     );
   }
 
   updateNote(id: string, data: Partial<Note>) {
-    return runInInjectionContext(this.injector, () => {
-      const noteRef = doc(this.firestore, `notes/${id}`);
-      return updateDoc(noteRef, data);
-    });
+    const noteRef = doc(this.db, `notes/${id}`);
+    return updateDoc(noteRef, data);
   }
 
   deleteNote(id: string) {
-    return runInInjectionContext(this.injector, () => {
-      const noteRef = doc(this.firestore, `notes/${id}`);
-      return deleteDoc(noteRef);
-    });
+    const noteRef = doc(this.db, `notes/${id}`);
+    return deleteDoc(noteRef);
   }
 }
