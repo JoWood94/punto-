@@ -1,0 +1,89 @@
+{
+  "configVersion": 1,
+  "timestamp": 1774210339183,
+  "index": "/punto-/index.html",
+  "assetGroups": [
+    {
+      "name": "app",
+      "installMode": "prefetch",
+      "updateMode": "prefetch",
+      "cacheQueryOptions": {
+        "ignoreVary": true
+      },
+      "urls": [
+        "/punto-/favicon.ico",
+        "/punto-/firebase-messaging-sw.js",
+        "/punto-/index.html",
+        "/punto-/main-BMNV73F2.js",
+        "/punto-/manifest.webmanifest",
+        "/punto-/polyfills-DOYHMSTV.js",
+        "/punto-/styles-7Y6ISDU6.css"
+      ],
+      "patterns": []
+    },
+    {
+      "name": "assets",
+      "installMode": "lazy",
+      "updateMode": "prefetch",
+      "cacheQueryOptions": {
+        "ignoreVary": true
+      },
+      "urls": [
+        "/punto-/favicon.png",
+        "/punto-/icons/icon-128x128.png",
+        "/punto-/icons/icon-144x144.png",
+        "/punto-/icons/icon-152x152.png",
+        "/punto-/icons/icon-192x192.png",
+        "/punto-/icons/icon-384x384.png",
+        "/punto-/icons/icon-512x512.png",
+        "/punto-/icons/icon-72x72.png",
+        "/punto-/icons/icon-96x96.png",
+        "/punto-/logo.png",
+        "/punto-/punto_icon.png",
+        "/punto-/punto_logo.png"
+      ],
+      "patterns": []
+    }
+  ],
+  "dataGroups": [],
+  "hashTable": {
+    "/punto-/favicon.ico": "9219548b30e76d9ebb3aba8f2da12dd71cdc0668",
+    "/punto-/favicon.png": "9219548b30e76d9ebb3aba8f2da12dd71cdc0668",
+    "/punto-/firebase-messaging-sw.js": "ad87b29e7803d4d13a64a038e14b6eddeb7ab607",
+    "/punto-/icons/icon-128x128.png": "f912963bdc6d5a38d8f1dd0afbaab2ce8d657acb",
+    "/punto-/icons/icon-144x144.png": "b155fd5f2fd5d2ea7760721063003c4cd95fd783",
+    "/punto-/icons/icon-152x152.png": "eae6e0f0c8afb8aaae339e2a569b43e9238e5e6c",
+    "/punto-/icons/icon-192x192.png": "15c4180454633880d98674aa7394656196c91584",
+    "/punto-/icons/icon-384x384.png": "94a915751ef6c9282df9aea405ad679230631814",
+    "/punto-/icons/icon-512x512.png": "1de182f76f7329dfa8f9fcdd1fdcdd695bea6a99",
+    "/punto-/icons/icon-72x72.png": "aa88a6096bd973be7f6d7a5489bfa6bc2463f8c4",
+    "/punto-/icons/icon-96x96.png": "7fb8f59c30ce2ff12c700321a0b39e14b3dc8f95",
+    "/punto-/index.html": "723cd5c0b95b5f169d7ee931dbd145758283f7b3",
+    "/punto-/logo.png": "50e5173b6c75239a66f5231d52cc911c2349c8a8",
+    "/punto-/main-BMNV73F2.js": "322a9cb7323b86a2831ee8f843de22baafba1ac0",
+    "/punto-/manifest.webmanifest": "c64c2b6f1c48a2c447b55d0fd962fb84e47b0340",
+    "/punto-/polyfills-DOYHMSTV.js": "319677ff7765c7c037e3df2d2078e2407d4b85d6",
+    "/punto-/punto_icon.png": "9219548b30e76d9ebb3aba8f2da12dd71cdc0668",
+    "/punto-/punto_logo.png": "50e5173b6c75239a66f5231d52cc911c2349c8a8",
+    "/punto-/styles-7Y6ISDU6.css": "4f540ac898ee2ee71958044b15a2215793f618eb"
+  },
+  "navigationUrls": [
+    {
+      "positive": true,
+      "regex": "^\\/.*$"
+    },
+    {
+      "positive": false,
+      "regex": "^\\/(?:.+\\/)?[^/]*\\.[^/]*$"
+    },
+    {
+      "positive": false,
+      "regex": "^\\/(?:.+\\/)?[^/]*__[^/]*$"
+    },
+    {
+      "positive": false,
+      "regex": "^\\/(?:.+\\/)?[^/]*__[^/]*\\/.*$"
+    }
+  ],
+  "navigationRequestStrategy": "performance"
+}
