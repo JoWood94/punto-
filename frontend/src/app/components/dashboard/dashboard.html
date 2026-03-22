@@ -50,12 +50,12 @@
         <mat-icon>arrow_back</mat-icon>
       </button>
       
-      <img src="punto_logo.png" alt="punto! logo" class="header-logo" />
+      <img src="punto_logo_no_bg.png" alt="punto! logo" class="header-logo" />
       
       <span class="spacer"></span>
       
-      <button mat-icon-button [matMenuTriggerFor]="userMenu" aria-label="Menu utente">
-        <mat-icon>account_circle</mat-icon>
+      <button mat-icon-button [matMenuTriggerFor]="userMenu" aria-label="Impostazioni" matTooltip="Impostazioni">
+        <mat-icon>settings</mat-icon>
       </button>
 
       <mat-menu #userMenu="matMenu">
