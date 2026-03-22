@@ -20,6 +20,28 @@
         <p>Nessuna nota trovata.</p>
       </div>
     </mat-nav-list>
+
+    <div class="sidenav-footer">
+      <button mat-icon-button [matMenuTriggerFor]="sidenavMenu" matTooltip="Impostazioni">
+        <mat-icon>settings</mat-icon>
+      </button>
+      <mat-menu #sidenavMenu="matMenu">
+        <button mat-menu-item [matMenuTriggerFor]="sideThemeMenu">
+          <mat-icon>palette</mat-icon>
+          <span>Scegli Tema</span>
+        </button>
+        <button mat-menu-item (click)="logout()">
+          <mat-icon>logout</mat-icon>
+          <span>Esci</span>
+        </button>
+      </mat-menu>
+      <mat-menu #sideThemeMenu="matMenu">
+        <button mat-menu-item *ngFor="let color of themeColors" (click)="changeThemeColor(color)">
+          <div class="color-circle" [style.backgroundColor]="color"></div>
+          Applica Tema
+        </button>
+      </mat-menu>
+    </div>
   </mat-sidenav>
 
   <mat-sidenav-content class="dashboard-content" *ngIf="!isMobile || activeNote !== undefined">
