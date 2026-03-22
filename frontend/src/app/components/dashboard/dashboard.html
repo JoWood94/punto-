@@ -11,12 +11,15 @@
     </div>
     
     <mat-nav-list class="notes-list" *ngIf="notes$ | async as notes">
-      <a mat-list-item *ngFor="let note of notes" (click)="selectNote(note)" [class.active-note]="activeNote?.id === note.id">
-        <span matListItemTitle>{{ note.title || 'Nuova Nota' }}</span>
-        <button mat-icon-button matListItemMeta (click)="deleteNote(note, $event)" matTooltip="Elimina">
-          <mat-icon>delete</mat-icon>
-        </button>
-      </a>
+      <ng-container *ngFor="let note of notes">
+        <a mat-list-item (click)="selectNote(note)" [class.active-note]="activeNote?.id === note.id">
+          <span matListItemTitle>{{ note.title || 'Nuova Nota' }}</span>
+          <button mat-icon-button matListItemMeta (click)="deleteNote(note, $event)" matTooltip="Elimina">
+            <mat-icon>delete</mat-icon>
+          </button>
+        </a>
+        <mat-divider></mat-divider>
+      </ng-container>
       <div class="empty-state" *ngIf="notes.length === 0">
         <mat-icon>note_add</mat-icon>
         <p>Nessuna nota trovata.</p>
