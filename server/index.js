@@ -4,15 +4,25 @@ const cron = require('node-cron');
 const fs = require('fs');
 
 // Initialize Firebase Admin SDK
-// You will need to download your Project's serviceAccountKey.json from Firebase Console -> Project Settings -> Service Accounts -> Generate new private key
 const serviceAccountPath = './serviceAccountKey.json';
 
-if (fs.existsSync(serviceAccountPath)) {
+if (process.env.FIREBASE_SERVICE_ACCOUNT) {
+  try {
+    const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+    admin.initializeApp({
+      credential: admin.credential.cert(serviceAccount)
+    });
+    console.log("Firebase Admin initialized using GitHub Secrets (FIREBASE_SERVICE_ACCOUNT)");
+  } catch(e) {
+    console.error("Errore nel parsing del SECRET di Github FIREBASE_SERVICE_ACCOUNT:", e);
+    process.exit(1);
+  }
+} else if (fs.existsSync(serviceAccountPath)) {
   const serviceAccount = require(serviceAccountPath);
   admin.initializeApp({
     credential: admin.credential.cert(serviceAccount)
   });
-  console.log("Firebase Admin initialized using serviceAccountKey.json");
+  console.log("Firebase Admin initialized using locale serviceAccountKey.json");
 } else {
   console.log("ATTENZIONE: Nessun serviceAccountKey.json trovato nella cartella server/.");
   console.log("Il server tenterà di usare le variabili d'ambiente di default di Google.");
@@ -22,12 +32,9 @@ if (fs.existsSync(serviceAccountPath)) {
 const db = admin.firestore();
 const messaging = admin.messaging();
 
-console.log("Server di notifica avviato. Esecuzione cron job attiva...");
-
-// Run every minute
-cron.schedule('* * * * *', async () => {
+async function checkAndSendReminders() {
   const now = Date.now();
-  console.log(`[${new Date().toISOString()}] Controllo promemoria...`);
+  console.log(`[${new Date().toISOString()}] Controllo promemoria in sospeso...`);
   
   try {
     const notesSnapshot = await db.collection('notes')
@@ -35,6 +42,7 @@ cron.schedule('* * * * *', async () => {
       .get();
 
     if (notesSnapshot.empty) {
+      console.log("Nessun promemoria in sospeso ora.");
       return;
     }
 
@@ -111,6 +119,20 @@ cron.schedule('* * * * *', async () => {
       console.log(`Inviate ${sentCount} notifiche con successo.`);
     }
   } catch (error) {
-    console.error("Errore durante l'esecuzione del cron job:", error);
+    console.error("Errore durante l'esecuzione del controllo:", error);
   }
-});
+}
+
+if (process.env.GITHUB_ACTIONS === 'true') {
+  console.log("Ambiente GitHub Actions rilevato...");
+  checkAndSendReminders().then(() => {
+    console.log("Run GHA terminato correttamente.");
+    process.exit(0);
+  }).catch(err => {
+    console.error(err);
+    process.exit(1);
+  });
+} else {
+  console.log("Avvio del server di test locale 24/7. Cron job ogni minuto...");
+  cron.schedule('* * * * *', checkAndSendReminders);
+}

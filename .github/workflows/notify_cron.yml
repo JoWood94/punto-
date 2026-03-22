@@ -1,0 +1,30 @@
+name: Send Firebase Push Notifications (Cron)
+
+on:
+  schedule:
+    # Esegue ogni 5 minuti (il minimo permesso da GitHub Actions gratuito)
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+
+jobs:
+  check_reminders:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          
+      - name: Install dependencies
+        working-directory: ./server
+        run: npm install
+
+      - name: Run Reminder Script
+        working-directory: ./server
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          GITHUB_ACTIONS: "true"
+        run: node index.js
