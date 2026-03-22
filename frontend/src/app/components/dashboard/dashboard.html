@@ -2,9 +2,10 @@
   
   <mat-sidenav mode="side" [opened]="!isMobile || activeNote === undefined" class="notes-sidenav" [class.mobile-full]="isMobile">
     <div style="display: flex; flex-direction: column; height: 100%;">
-      <div class="sidenav-header">
-      <h2>Le mie Note</h2>
-      <button mat-icon-button (click)="openNoteEditor()" color="primary" matTooltip="Nuova Nota">
+      <div class="sidenav-header" [class.mobile-header]="isMobile">
+      <h2 *ngIf="!isMobile">Le mie Note</h2>
+      <img src="punto_logo_no_bg.png" alt="punto! logo" class="mobile-logo" *ngIf="isMobile" />
+      <button mat-icon-button (click)="openNoteEditor()" color="primary" matTooltip="Nuova Nota" [class.mobile-actions]="isMobile">
         <mat-icon>add</mat-icon>
       </button>
     </div>
