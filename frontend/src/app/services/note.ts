@@ -1,6 +1,7 @@
 import { Injectable, inject, Injector, runInInjectionContext } from '@angular/core';
 import { Firestore, collectionData } from '@angular/fire/firestore';
 import { collection, doc, addDoc, updateDoc, deleteDoc, query, where, getFirestore } from 'firebase/firestore';
+import { getApp } from 'firebase/app';
 import { Observable, of, switchMap } from 'rxjs';
 import { AuthService } from './auth';
 
@@ -27,7 +28,7 @@ export class NoteService {
   private injector = inject(Injector);
 
   private get rawFirestore() {
-    return getFirestore();
+    return getFirestore(getApp());
   }
 
   async createNote(noteData: Partial<Note>): Promise<any> {
