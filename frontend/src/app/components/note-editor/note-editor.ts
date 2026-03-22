@@ -223,10 +223,13 @@ export class NoteEditorComponent implements OnInit, OnChanges {
     try {
       this.note.content = this.editorRef.nativeElement.innerHTML;
       if (this.reminderDate && this.reminderTimeStr) {
-        const [hours, minutes] = this.reminderTimeStr.split(':').map(Number);
+        let [hours, minutes] = this.reminderTimeStr.split(':').map(Number);
+        
+        minutes = Math.round((minutes || 0) / 5) * 5;
+
         const d = new Date(this.reminderDate);
         d.setHours(hours || 0);
-        d.setMinutes(minutes || 0);
+        d.setMinutes(minutes);
         d.setSeconds(0);
         d.setMilliseconds(0);
         this.note.reminderTime = d.getTime();
