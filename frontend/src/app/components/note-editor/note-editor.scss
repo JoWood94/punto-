@@ -60,9 +60,16 @@
 .rich-text-toolbar {
   display: flex;
   align-items: center;
-  padding: 8px 0;
+  padding: 8px 16px;
+  background: var(--mat-sys-surface-container-low);
   border-top: 1px solid rgba(0,0,0,0.05);
-  margin-top: 16px;
+  margin-top: 0;
+  overflow-x: auto;
+  flex-shrink: 0;
+  
+  &::-webkit-scrollbar {
+    display: none;
+  }
 
   button.format-active {
     background-color: color-mix(in srgb, var(--mat-sys-primary) 15%, transparent);
@@ -167,4 +174,6 @@
   gap: 8px;
   background: var(--mat-sys-surface-container-low);
   border-top: 1px solid rgba(0,0,0,0.05);
+  flex-shrink: 0;
+  z-index: 10;
 }
