@@ -1,6 +1,6 @@
 import { Injectable, inject } from '@angular/core';
 import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
-import { getFirestore, collection, doc, addDoc, updateDoc, deleteDoc, query, where, onSnapshot, Firestore as RawFirestore } from 'firebase/firestore';
+import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, collection, doc, addDoc, updateDoc, deleteDoc, query, where, onSnapshot, Firestore as RawFirestore } from 'firebase/firestore';
 import { Observable, of, switchMap } from 'rxjs';
 import { AuthService } from './auth';
 import { environment } from '../../environments/environment';
@@ -28,8 +28,21 @@ export class NoteService {
 
   constructor() {
     const app: FirebaseApp = getApps().length ? getApp() : initializeApp(environment.firebase);
-    this.db = getFirestore(app);
-    console.log('[NoteService] Firestore initialized, app:', app.name);
+    
+    // Initialize Firestore with IndexedDB persistence so data survives page refreshes
+    try {
+      this.db = initializeFirestore(app, {
+        localCache: persistentLocalCache({
+          tabManager: persistentMultipleTabManager()
+        })
+      });
+      console.log('[NoteService] Firestore initialized with IndexedDB persistence');
+    } catch (e) {
+      // If already initialized (e.g. HMR), get existing instance
+      const { getFirestore } = require('firebase/firestore');
+      this.db = getFirestore(app);
+      console.log('[NoteService] Firestore already initialized, using existing instance');
+    }
   }
 
   async createNote(noteData: Partial<Note>): Promise<any> {

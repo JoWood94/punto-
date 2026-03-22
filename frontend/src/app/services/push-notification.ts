@@ -13,8 +13,17 @@ export class PushNotificationService {
     try {
       const permission = await Notification.requestPermission();
       if (permission === 'granted') {
+        // Determine the correct service worker path based on base href
+        const baseHref = document.querySelector('base')?.getAttribute('href') || '/';
+        const swUrl = `${baseHref}firebase-messaging-sw.js`;
+        
+        // Register the service worker at the correct path
+        const registration = await navigator.serviceWorker.register(swUrl);
+        console.log('[Push] Service worker registered at:', swUrl);
+        
         const token = await runInInjectionContext(this.injector, () => getToken(this.messaging, {
-          vapidKey: environment.firebase.vapidKey 
+          vapidKey: environment.firebase.vapidKey,
+          serviceWorkerRegistration: registration
         }));
         console.log('Firebase Cloud Messaging Token:', token);
         return token;
@@ -23,7 +32,7 @@ export class PushNotificationService {
         return null;
       }
     } catch (err) {
-      console.error('Error getting push token. Probabilmente mancano le credenziali vere su environments.ts:', err);
+      console.error('Error getting push token:', err);
       return null;
     }
   }
@@ -34,7 +43,7 @@ export class PushNotificationService {
       if (Notification.permission === 'granted') {
          new Notification(payload.notification?.title || 'Promemoria da punto!', {
             body: payload.notification?.body,
-            icon: '/icons/icon-192x192.png'
+            icon: 'icons/icon-192x192.png'
          });
       }
     });
