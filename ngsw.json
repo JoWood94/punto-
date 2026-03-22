@@ -1,6 +1,6 @@
 {
   "configVersion": 1,
-  "timestamp": 1774220767950,
+  "timestamp": 1774220816382,
   "index": "/punto-/index.html",
   "assetGroups": [
     {
@@ -48,8 +48,8 @@
   ],
   "dataGroups": [],
   "hashTable": {
-    "/punto-/favicon.ico": "9219548b30e76d9ebb3aba8f2da12dd71cdc0668",
-    "/punto-/favicon.png": "9219548b30e76d9ebb3aba8f2da12dd71cdc0668",
+    "/punto-/favicon.ico": "415829b5752ce96ea3219572f2586e5b4cb97c22",
+    "/punto-/favicon.png": "415829b5752ce96ea3219572f2586e5b4cb97c22",
     "/punto-/firebase-messaging-sw.js": "76ffab1e9bc94edf225251860385dc41e4a02f85",
     "/punto-/icons/icon-128x128.png": "2ecbe6aa5de58cef16d0e5b6b07c1dbb07b86b32",
     "/punto-/icons/icon-144x144.png": "ad513c81da3b8d687b551b972a597ca2301c7ebf",
@@ -59,7 +59,7 @@
     "/punto-/icons/icon-512x512.png": "1d0dca84b88ca338038789aed60aa218b88bcc72",
     "/punto-/icons/icon-72x72.png": "1649d9b2eb36d94382aaafa3fb51be37b9b55161",
     "/punto-/icons/icon-96x96.png": "a13f8797c66d29f1c4463004b80e62cc9f7aad4c",
-    "/punto-/index.html": "62d9489cc5f482dc81c4c7309d301b7f92cdc2ce",
+    "/punto-/index.html": "c2a41380226806d09002ebf752ad189bc6bd61ee",
     "/punto-/logo.png": "50e5173b6c75239a66f5231d52cc911c2349c8a8",
     "/punto-/main-JQBC3O2F.js": "c2920043cb8997807226f49fc9c8d6280ad144b6",
     "/punto-/manifest.webmanifest": "c64c2b6f1c48a2c447b55d0fd962fb84e47b0340",
