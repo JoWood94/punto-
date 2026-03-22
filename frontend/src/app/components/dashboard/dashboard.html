@@ -2,9 +2,10 @@
   
   <mat-sidenav mode="side" [opened]="!isMobile || activeNote === undefined" class="notes-sidenav" [class.mobile-full]="isMobile">
     <div style="display: flex; flex-direction: column; height: 100%;">
-      <div class="sidenav-header" [class.mobile-header]="isMobile">
+      <div class="sidenav-header" [class.mobile-header]="isMobile" style="position: relative;">
       <h2 *ngIf="!isMobile">Le mie Note</h2>
-      <img src="punto_logo_no_bg.png" alt="punto! logo" class="mobile-logo" *ngIf="isMobile" />
+      <img src="punto_logo_no_bg.png" alt="punto! logo" class="mobile-center-logo" *ngIf="isMobile" />
+      <span class="spacer" *ngIf="isMobile"></span>
       <button mat-icon-button (click)="openNoteEditor()" color="primary" matTooltip="Nuova Nota" [class.mobile-actions]="isMobile">
         <mat-icon>add</mat-icon>
       </button>
@@ -35,12 +36,13 @@
   </mat-sidenav>
 
   <mat-sidenav-content class="dashboard-content" *ngIf="!isMobile || activeNote !== undefined">
-    <mat-toolbar class="app-header">
+    <mat-toolbar class="app-header" style="position: relative;">
       <button mat-icon-button (click)="closeEditor()" class="back-button" *ngIf="isMobile" aria-label="Torna indietro">
         <mat-icon>arrow_back</mat-icon>
       </button>
       
-      <img src="punto_logo_no_bg.png" alt="punto! logo" class="header-logo" />
+      <img src="punto_logo_no_bg.png" alt="punto! logo" class="mobile-center-logo" *ngIf="isMobile" />
+      <img src="punto_logo_no_bg.png" alt="punto! logo" class="header-logo" *ngIf="!isMobile" />
       
       <span class="spacer"></span>
       
