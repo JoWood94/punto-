@@ -1,4 +1,4 @@
-import { Injectable, inject } from '@angular/core';
+import { Injectable, inject, Injector, runInInjectionContext } from '@angular/core';
 import { Messaging, getToken, onMessage } from '@angular/fire/messaging';
 import { environment } from '../../environments/environment';
 
@@ -7,14 +7,15 @@ import { environment } from '../../environments/environment';
 })
 export class PushNotificationService {
   private messaging = inject(Messaging);
+  private injector = inject(Injector);
 
   async requestPermission(): Promise<string | null> {
     try {
       const permission = await Notification.requestPermission();
       if (permission === 'granted') {
-        const token = await getToken(this.messaging, {
+        const token = await runInInjectionContext(this.injector, () => getToken(this.messaging, {
           vapidKey: environment.firebase.vapidKey 
-        });
+        }));
         console.log('Firebase Cloud Messaging Token:', token);
         return token;
       } else {

@@ -1,5 +1,5 @@
 import { Injectable, inject } from '@angular/core';
-import { Auth, authState, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, User } from '@angular/fire/auth';
+import { Auth, authState, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, User, OAuthProvider, signInWithPopup, sendPasswordResetEmail } from '@angular/fire/auth';
 import { Observable } from 'rxjs';
 
 @Injectable({
@@ -20,8 +20,19 @@ export class AuthService {
     return createUserWithEmailAndPassword(this.auth, email, pass);
   }
 
+  resetPassword(email: string) {
+    return sendPasswordResetEmail(this.auth, email);
+  }
+
   logout() {
     return signOut(this.auth);
+  }
+
+  async loginWithApple() {
+    const provider = new OAuthProvider('apple.com');
+    // provider.addScope('email');
+    // provider.addScope('name');
+    return signInWithPopup(this.auth, provider);
   }
   
   getCurrentUserId(): string | null {

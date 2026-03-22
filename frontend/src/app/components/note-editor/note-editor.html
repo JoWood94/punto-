@@ -1,60 +1,105 @@
-<h2 mat-dialog-title>{{ data.note ? 'Modifica Nota' : 'Nuova Nota' }}</h2>
+<div class="editor-header">
+  <input class="title-input-raw" [(ngModel)]="note.title" placeholder="Titolo">
+  <button mat-icon-button (click)="closeEditor.emit()" aria-label="Torna indietro" matTooltip="Chiudi">
+    <mat-icon>close</mat-icon>
+  </button>
+</div>
 
-<mat-dialog-content>
-  <div class="editor-form">
-    <mat-form-field appearance="outline" class="full-width title-input">
-      <mat-label>Titolo</mat-label>
-      <input matInput [(ngModel)]="note.title" placeholder="Inserisci il titolo della nota">
-    </mat-form-field>
+<div class="editor-content">
+  <div class="rich-text-wrapper">
+    <div class="rich-text-editor" #editor contenteditable="true" placeholder="Scrivi i tuoi appunti qui..."
+         (keyup)="updateFormatState()" (mouseup)="updateFormatState()" (touchend)="updateFormatState()"></div>
+    
 
-    <div class="rich-text-wrapper">
-      <div class="rich-text-toolbar">
-        <button mat-icon-button (click)="execCommand('bold')" type="button" tabindex="-1"><mat-icon>format_bold</mat-icon></button>
-        <button mat-icon-button (click)="execCommand('italic')" type="button" tabindex="-1"><mat-icon>format_italic</mat-icon></button>
-        <button mat-icon-button (click)="execCommand('insertUnorderedList')" type="button" tabindex="-1"><mat-icon>format_list_bulleted</mat-icon></button>
+
+    <div class="metadata-section" *ngIf="activeSection === 'location' || note.address">
+      <mat-form-field appearance="outline" class="full-width" *ngIf="!note.address || isEditingAddress">
+        <mat-label>Cerca Indirizzo</mat-label>
+        <input matInput type="text" [matAutocomplete]="autoAddress" (input)="onAddressInput($event)" [(ngModel)]="addressSearchQuery">
+        <button mat-icon-button matSuffix *ngIf="note.address" (click)="isEditingAddress = false" type="button" matTooltip="Annulla"><mat-icon>close</mat-icon></button>
+        <mat-autocomplete #autoAddress="matAutocomplete" [displayWith]="displayAddress" (optionSelected)="selectAddress($event.option.value)">
+          <mat-option *ngFor="let option of addressOptions" [value]="option">
+            {{ option.display_name }}
+          </mat-option>
+        </mat-autocomplete>
+      </mat-form-field>
+      
+      <div *ngIf="note.address && !isEditingAddress" class="selected-address-view">
+        <div class="address-label">
+          <mat-icon color="primary">place</mat-icon>
+          <span class="address-text">{{ note.address }}</span>
+          <button mat-icon-button (click)="openMaps()" matTooltip="Apri OSM"><mat-icon>open_in_new</mat-icon></button>
+          <button mat-icon-button (click)="isEditingAddress = true" matTooltip="Modifica"><mat-icon>edit</mat-icon></button>
+          <button mat-icon-button color="warn" (click)="removeAddress()" matTooltip="Rimuovi"><mat-icon>delete</mat-icon></button>
+        </div>
+        <div class="map-preview" *ngIf="mapIframeUrl">
+          <iframe width="100%" height="200" frameborder="0" scrolling="no" marginheight="0" marginwidth="0" [src]="mapIframeUrl"></iframe>
+        </div>
       </div>
-      <div class="rich-text-editor full-width" #editor contenteditable="true" placeholder="Scrivi i tuoi appunti qui..."></div>
     </div>
 
-    <!-- Tags via Angular Material Chips -->
-    <mat-form-field appearance="outline" class="full-width margin-top">
-      <mat-label>Tag</mat-label>
-      <mat-chip-grid #chipGrid aria-label="Inserisci tag">
-        <mat-chip-row *ngFor="let tag of note.tags" (removed)="removeTag(tag)">
-          {{tag}}
-          <button matChipRemove [attr.aria-label]="'rimuovi ' + tag">
-            <mat-icon>cancel</mat-icon>
-          </button>
-        </mat-chip-row>
-        <input placeholder="Aggiungi un nuovo tag..."
-               [matChipInputFor]="chipGrid"
-               [matChipInputSeparatorKeyCodes]="separatorKeysCodes"
-               (matChipInputTokenEnd)="addTag($event)">
-      </mat-chip-grid>
-    </mat-form-field>
+    <div class="metadata-section" *ngIf="activeSection === 'reminder' || reminderDate">
+      <div class="reminder-inputs">
+        <mat-form-field appearance="outline" class="flex-field">
+          <mat-label>Data promemoria</mat-label>
+          <input matInput [matDatepicker]="picker" [(ngModel)]="reminderDate">
+          <mat-datepicker-toggle matIconSuffix [for]="picker"></mat-datepicker-toggle>
+          <mat-datepicker #picker></mat-datepicker>
+        </mat-form-field>
 
-    <!-- Mappa / Indirizzo -->
-    <div class="address-container">
-      <mat-form-field appearance="outline" class="full-width">
-        <mat-label>Indirizzo o Luogo (Mappe)</mat-label>
-        <input matInput [(ngModel)]="note.address" placeholder="Es: Via Roma 1, Milano">
-        <button mat-icon-button matSuffix *ngIf="note.address" (click)="openMaps()" type="button" matTooltip="Apri su OpenStreetMap">
-          <mat-icon>map</mat-icon>
+        <mat-form-field appearance="outline" class="flex-field time-field">
+          <mat-label>Ora</mat-label>
+          <input matInput type="time" [(ngModel)]="reminderTimeStr">
+          <mat-icon matSuffix>schedule</mat-icon>
+        </mat-form-field>
+        
+        <button mat-icon-button color="warn" (click)="clearReminder()" matTooltip="Rimuovi" class="remove-btn"><mat-icon>delete</mat-icon></button>
+      </div>
+    </div>
+
+    <div class="metadata-section checklist-section" *ngIf="activeSection === 'checklist' || (note.checklist && note.checklist.length > 0)">
+      <div class="checklist-items">
+        <div class="checklist-item" *ngFor="let item of note.checklist; let i = index">
+          <mat-checkbox [(ngModel)]="item.done" color="primary"></mat-checkbox>
+          <input class="checklist-input" [class.done]="item.done" [(ngModel)]="item.text" />
+          <button mat-icon-button color="warn" (click)="removeChecklistItem(i)"><mat-icon>close</mat-icon></button>
+        </div>
+      </div>
+      <mat-form-field appearance="outline" class="full-width margin-top">
+        <mat-label>Aggiungi una voce (es. Latte, Uova...)</mat-label>
+        <input matInput [(ngModel)]="newChecklistItemText" (keyup.enter)="addChecklistItem()">
+        <button mat-icon-button matSuffix color="primary" (click)="addChecklistItem()" [disabled]="!newChecklistItemText.trim()">
+          <mat-icon>add</mat-icon>
         </button>
       </mat-form-field>
     </div>
 
-    <!-- Promemoria -->
-    <mat-form-field appearance="outline" class="full-width">
-      <mat-label>Imposta Promemoria (Push Notification)</mat-label>
-      <input matInput type="datetime-local" [(ngModel)]="reminderDateStr">
-      <mat-icon matSuffix color="primary">notifications_active</mat-icon>
-    </mat-form-field>
-  </div>
-</mat-dialog-content>
+    <div class="rich-text-toolbar">
+      <button mat-icon-button (mousedown)="$event.preventDefault()" (click)="execCommand('bold')" type="button" tabindex="-1" [color]="isBold ? 'primary' : ''"><mat-icon>format_bold</mat-icon></button>
+      <button mat-icon-button (mousedown)="$event.preventDefault()" (click)="execCommand('italic')" type="button" tabindex="-1" [color]="isItalic ? 'primary' : ''"><mat-icon>format_italic</mat-icon></button>
+      <button mat-icon-button (mousedown)="$event.preventDefault()" (click)="execCommand('insertUnorderedList')" type="button" tabindex="-1" [color]="isList ? 'primary' : ''"><mat-icon>format_list_bulleted</mat-icon></button>
+      
+      <span class="spacer"></span>
+      
+      <div class="toolbar-divider"></div>
 
-<mat-dialog-actions align="end">
-  <button mat-button *ngIf="data.note" color="warn" (click)="deleteNote()">Elimina</button>
-  <button mat-button mat-dialog-close>Annulla</button>
-  <button mat-flat-button color="primary" (click)="save()">Salva</button>
-</mat-dialog-actions>
+
+      <button mat-icon-button (click)="toggleSection('location')" type="button" tabindex="-1" [color]="activeSection === 'location' ? 'primary' : ''" matTooltip="Luogo">
+        <mat-icon>place</mat-icon>
+      </button>
+      <button mat-icon-button (click)="toggleSection('reminder')" type="button" tabindex="-1" [color]="activeSection === 'reminder' ? 'primary' : ''" matTooltip="Promemoria">
+        <mat-icon>notifications</mat-icon>
+      </button>
+      <button mat-icon-button (click)="toggleSection('checklist')" type="button" tabindex="-1" [color]="activeSection === 'checklist' ? 'primary' : ''" matTooltip="Checklist">
+        <mat-icon>check_box</mat-icon>
+      </button>
+    </div>
+  </div>
+</div>
+
+<div class="editor-actions">
+  <button mat-button *ngIf="selectedNote" color="warn" (click)="deleteNote()">Elimina</button>
+  <span class="spacer"></span>
+  <button mat-button (click)="closeEditor.emit()">Annulla</button>
+  <button mat-flat-button color="primary" (click)="save()" [disabled]="!note.title || !note.title.trim()">Salva</button>
+</div>

@@ -3,7 +3,16 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "ng serve",
+      "name": "Esegui in Brave (ng serve)",
+      "type": "chrome",
+      "request": "launch",
+      "preLaunchTask": "npm: start",
+      "url": "http://localhost:4200/",
+      "runtimeExecutable": "/Applications/Brave Browser.app/Contents/MacOS/Brave Browser",
+      "userDataDir": false
+    },
+    {
+      "name": "Esegui in Chrome (ng serve)",
       "type": "chrome",
       "request": "launch",
       "preLaunchTask": "npm: start",

@@ -1,0 +1,36 @@
+2026/03/22-20:51:28.780 7e73b Reusing MANIFEST /Users/giuseppebosco/Developer/Antigravity Playgrounds/younotes/.vscode/.brave-profile/Default/IndexedDB/http_localhost_4200.indexeddb.leveldb/MANIFEST-000001
+2026/03/22-20:51:28.780 7e73b Recovering log #16
+2026/03/22-20:51:28.780 7e73b Reusing old log /Users/giuseppebosco/Developer/Antigravity Playgrounds/younotes/.vscode/.brave-profile/Default/IndexedDB/http_localhost_4200.indexeddb.leveldb/000016.log 
+2026/03/22-20:51:28.794 7e754 Level-0 table #20: started
+2026/03/22-20:51:28.795 7e754 Level-0 table #20: 8451 bytes OK
+2026/03/22-20:51:28.796 7e754 Delete type=0 #16
+2026/03/22-20:51:28.797 7e73b Manual compaction at level-0 from '\x00\x0e\x00\x00\x00' @ 72057594037927935 : 1 .. '\x00\x0f\x00\x00\x00' @ 0 : 0; will stop at '\x00\x0e\x00\x00\x05' @ 452 : 1
+2026/03/22-20:51:28.797 7e73b Compacting 1@0 + 1@1 files
+2026/03/22-20:51:28.799 7e73b Generated table #21@0: 61 keys, 3048 bytes
+2026/03/22-20:51:28.799 7e73b Compacted 1@0 + 1@1 files => 3048 bytes
+2026/03/22-20:51:28.800 7e73b compacted to: files[ 0 1 1 0 0 0 0 ]
+2026/03/22-20:51:28.800 7e73b Delete type=2 #20
+2026/03/22-20:51:28.800 7e73b Manual compaction at level-0 from '\x00\x0e\x00\x00\x05' @ 452 : 1 .. '\x00\x0f\x00\x00\x00' @ 0 : 0; will stop at (end)
+2026/03/22-20:51:29.278 7e755 Manual compaction at level-0 from '\x00\x0f\x00\x00\x00' @ 72057594037927935 : 1 .. '\x00\x10\x00\x00\x00' @ 0 : 0; will stop at (end)
+2026/03/22-20:51:29.926 7e73b Level-0 table #23: started
+2026/03/22-20:51:29.929 7e73b Level-0 table #23: 3678 bytes OK
+2026/03/22-20:51:29.931 7e73b Delete type=2 #17
+2026/03/22-20:51:29.931 7e73b Delete type=0 #19
+2026/03/22-20:51:29.931 7e73b Manual compaction at level-0 from '\x00\x10\x00\x00\x00' @ 72057594037927935 : 1 .. '\x00\x11\x00\x00\x00' @ 0 : 0; will stop at '\x00\x10\x00\x00\x05' @ 530 : 1
+2026/03/22-20:51:29.931 7e73b Compacting 1@0 + 1@1 files
+2026/03/22-20:51:29.933 7e73b Generated table #24@0: 78 keys, 3167 bytes
+2026/03/22-20:51:29.933 7e73b Compacted 1@0 + 1@1 files => 3167 bytes
+2026/03/22-20:51:29.935 7e73b compacted to: files[ 0 1 1 0 0 0 0 ]
+2026/03/22-20:51:29.936 7e73b Delete type=2 #23
+2026/03/22-20:51:29.936 7e73b Manual compaction at level-0 from '\x00\x10\x00\x00\x05' @ 530 : 1 .. '\x00\x11\x00\x00\x00' @ 0 : 0; will stop at (end)
+2026/03/22-20:51:29.989 7e73b Level-0 table #26: started
+2026/03/22-20:51:29.990 7e73b Level-0 table #26: 3159 bytes OK
+2026/03/22-20:51:29.991 7e73b Delete type=2 #21
+2026/03/22-20:51:29.991 7e73b Delete type=0 #22
+2026/03/22-20:51:29.991 7e73b Manual compaction at level-0 from '\x00\x11\x00\x00\x00' @ 72057594037927935 : 1 .. '\x00\x12\x00\x00\x00' @ 0 : 0; will stop at '\x00\x11\x00\x00\x05' @ 561 : 1
+2026/03/22-20:51:29.991 7e73b Compacting 1@0 + 1@1 files
+2026/03/22-20:51:29.993 7e73b Generated table #27@0: 86 keys, 3268 bytes
+2026/03/22-20:51:29.993 7e73b Compacted 1@0 + 1@1 files => 3268 bytes
+2026/03/22-20:51:29.994 7e73b compacted to: files[ 0 1 1 0 0 0 0 ]
+2026/03/22-20:51:29.994 7e73b Delete type=2 #26
+2026/03/22-20:51:29.994 7e73b Manual compaction at level-0 from '\x00\x11\x00\x00\x05' @ 561 : 1 .. '\x00\x12\x00\x00\x00' @ 0 : 0; will stop at (end)

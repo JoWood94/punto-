@@ -46,4 +46,14 @@ body {
   margin: 0;
   height: 100%;
 }
+
+/* --- App Aesthetic Shadows --- */
+.mat-mdc-card, .mat-mdc-dialog-surface, .mat-mdc-menu-panel, .mat-mdc-button.mat-mdc-raised-button {
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.06), 0 4px 10px rgba(0, 0, 0, 0.03) !important;
+  border: none !important;
+}
+
+.mat-mdc-card {
+  border-radius: 28px !important;
+}
 /* You can add global styles to this file, and also import other style files */
