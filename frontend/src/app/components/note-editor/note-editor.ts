@@ -137,8 +137,10 @@ export class NoteEditorComponent implements OnInit, OnChanges {
   }
 
   execCommand(command: string) {
+    this.editorRef.nativeElement.focus();
     document.execCommand(command, false, '');
-    this.updateFormatState();
+    // Delay state check to let the DOM update
+    setTimeout(() => this.updateFormatState(), 0);
   }
 
   displayAddress(option: any): string {
@@ -250,12 +252,19 @@ export class NoteEditorComponent implements OnInit, OnChanges {
       }
       this.closeEditor.emit();
     } catch (e: any) {
-      console.error(e);
-      let errMsg = e.message;
-      if (e.message?.includes('Missing or insufficient permissions')) {
-        errMsg = "Permessi Negati! Firebase Security Rules è in 'Locked Mode'. Abilita le modifiche in console Firebase -> Firestore -> Regole.";
+      console.error('Errore durante il salvataggio:', e);
+      let errMsg = e?.message || 'Errore sconosciuto';
+      if (errMsg.includes('Missing or insufficient permissions')) {
+        errMsg = "Permessi Negati! Abilita le modifiche in console Firebase -> Firestore -> Regole.";
+      } else if (errMsg.includes('Type does not match')) {
+        errMsg = 'Errore di compatibilità Firebase SDK. Ricarica la pagina e riprova.';
+      } else if (errMsg.includes('Failed to fetch') || errMsg.includes('network')) {
+        errMsg = 'Errore di rete. Controlla la connessione e riprova.';
       }
-      this.snackBar.open("Errore Firebase: " + errMsg, "Chiudi", {duration: 8000});
+      this.snackBar.open('Errore salvataggio: ' + errMsg, 'Chiudi', {
+        duration: 10000,
+        panelClass: ['error-snackbar']
+      });
     }
   }
 
