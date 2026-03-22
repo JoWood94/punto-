@@ -1,7 +1,8 @@
 <mat-sidenav-container class="dashboard-container">
   
   <mat-sidenav mode="side" [opened]="!isMobile || activeNote === undefined" class="notes-sidenav" [class.mobile-full]="isMobile">
-    <div class="sidenav-header">
+    <div style="display: flex; flex-direction: column; height: 100%;">
+      <div class="sidenav-header">
       <h2>Le mie Note</h2>
       <button mat-icon-button (click)="openNoteEditor()" color="primary" matTooltip="Nuova Nota">
         <mat-icon>add</mat-icon>
@@ -21,7 +22,7 @@
       </div>
     </mat-nav-list>
 
-    <div class="sidenav-footer">
+    <div class="sidenav-footer" *ngIf="isMobile">
       <button mat-icon-button [matMenuTriggerFor]="sidenavMenu" matTooltip="Impostazioni">
         <mat-icon>settings</mat-icon>
       </button>
@@ -41,6 +42,7 @@
           Applica Tema
         </button>
       </mat-menu>
+    </div>
     </div>
   </mat-sidenav>
 
