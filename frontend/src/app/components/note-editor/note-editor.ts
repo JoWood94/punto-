@@ -1,4 +1,4 @@
-import { Component, Input, Output, EventEmitter, inject, OnInit, OnChanges, SimpleChanges, ViewChild, ElementRef } from '@angular/core';
+import { Component, Input, Output, EventEmitter, inject, OnInit, OnChanges, SimpleChanges, ViewChild, ElementRef, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -67,6 +67,7 @@ export class NoteEditorComponent implements OnInit, OnChanges {
   private noteService = inject(NoteService);
   private snackBar = inject(MatSnackBar);
   private sanitizer = inject(DomSanitizer);
+  private cdr = inject(ChangeDetectorRef);
 
   @ViewChild('editor', { static: true }) editorRef!: ElementRef;
 
@@ -133,6 +134,7 @@ export class NoteEditorComponent implements OnInit, OnChanges {
       this.isBold = document.queryCommandState('bold');
       this.isItalic = document.queryCommandState('italic');
       this.isList = document.queryCommandState('insertUnorderedList');
+      this.cdr.detectChanges();
     }
   }
 
