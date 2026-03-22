@@ -63,6 +63,15 @@
   padding: 8px 0;
   border-top: 1px solid rgba(0,0,0,0.05);
   margin-top: 16px;
+
+  button.format-active {
+    background-color: rgba(98, 0, 238, 0.12);
+    color: #6200ee;
+
+    mat-icon {
+      color: #6200ee;
+    }
+  }
 }
 
 .toolbar-divider {

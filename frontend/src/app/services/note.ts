@@ -1,7 +1,5 @@
 import { Injectable, inject, Injector, runInInjectionContext } from '@angular/core';
-import { Firestore, collectionData } from '@angular/fire/firestore';
-import { collection, doc, addDoc, updateDoc, deleteDoc, query, where, getFirestore } from 'firebase/firestore';
-import { getApp } from 'firebase/app';
+import { Firestore, collection, doc, collectionData, addDoc, updateDoc, deleteDoc, query, where } from '@angular/fire/firestore';
 import { Observable, of, switchMap } from 'rxjs';
 import { AuthService } from './auth';
 
@@ -27,19 +25,17 @@ export class NoteService {
   private authService: AuthService = inject(AuthService);
   private injector = inject(Injector);
 
-  private get rawFirestore() {
-    return getFirestore(getApp());
-  }
-
   async createNote(noteData: Partial<Note>): Promise<any> {
     const uid = this.authService.getCurrentUserId();
     if (!uid) throw new Error('Not authenticated');
 
-    const notesRef = collection(this.rawFirestore, 'notes');
-    return addDoc(notesRef, {
-      ...noteData,
-      uid,
-      createdAt: Date.now()
+    return runInInjectionContext(this.injector, () => {
+      const notesRef = collection(this.firestore, 'notes');
+      return addDoc(notesRef, {
+        ...noteData,
+        uid,
+        createdAt: Date.now()
+      });
     });
   }
 
@@ -48,7 +44,7 @@ export class NoteService {
       switchMap(user => {
         if (!user) return of([]);
         return runInInjectionContext(this.injector, () => {
-          const notesRef = collection(this.rawFirestore, 'notes');
+          const notesRef = collection(this.firestore, 'notes');
           const q = query(notesRef, where('uid', '==', user.uid));
           return collectionData(q, { idField: 'id' }) as Observable<Note[]>;
         });
@@ -57,12 +53,16 @@ export class NoteService {
   }
 
   updateNote(id: string, data: Partial<Note>) {
-    const noteRef = doc(this.rawFirestore, `notes/${id}`);
-    return updateDoc(noteRef, data);
+    return runInInjectionContext(this.injector, () => {
+      const noteRef = doc(this.firestore, `notes/${id}`);
+      return updateDoc(noteRef, data);
+    });
   }
 
   deleteNote(id: string) {
-    const noteRef = doc(this.rawFirestore, `notes/${id}`);
-    return deleteDoc(noteRef);
+    return runInInjectionContext(this.injector, () => {
+      const noteRef = doc(this.firestore, `notes/${id}`);
+      return deleteDoc(noteRef);
+    });
   }
 }

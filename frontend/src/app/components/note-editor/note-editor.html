@@ -75,9 +75,9 @@
     </div>
 
     <div class="rich-text-toolbar">
-      <button mat-icon-button (mousedown)="$event.preventDefault()" (click)="execCommand('bold')" type="button" tabindex="-1" [color]="isBold ? 'primary' : ''"><mat-icon>format_bold</mat-icon></button>
-      <button mat-icon-button (mousedown)="$event.preventDefault()" (click)="execCommand('italic')" type="button" tabindex="-1" [color]="isItalic ? 'primary' : ''"><mat-icon>format_italic</mat-icon></button>
-      <button mat-icon-button (mousedown)="$event.preventDefault()" (click)="execCommand('insertUnorderedList')" type="button" tabindex="-1" [color]="isList ? 'primary' : ''"><mat-icon>format_list_bulleted</mat-icon></button>
+      <button mat-icon-button (mousedown)="$event.preventDefault()" (click)="execCommand('bold')" type="button" tabindex="-1" [class.format-active]="isBold"><mat-icon>format_bold</mat-icon></button>
+      <button mat-icon-button (mousedown)="$event.preventDefault()" (click)="execCommand('italic')" type="button" tabindex="-1" [class.format-active]="isItalic"><mat-icon>format_italic</mat-icon></button>
+      <button mat-icon-button (mousedown)="$event.preventDefault()" (click)="execCommand('insertUnorderedList')" type="button" tabindex="-1" [class.format-active]="isList"><mat-icon>format_list_bulleted</mat-icon></button>
       
       <span class="spacer"></span>
       
