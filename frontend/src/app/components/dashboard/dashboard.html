@@ -24,25 +24,9 @@
     </mat-nav-list>
 
     <div class="sidenav-footer" *ngIf="isMobile">
-      <button mat-icon-button [matMenuTriggerFor]="sidenavMenu" matTooltip="Impostazioni">
-        <mat-icon>settings</mat-icon>
+      <button mat-icon-button (click)="logout()" aria-label="Esci" matTooltip="Logout" color="warn">
+        <mat-icon>logout</mat-icon>
       </button>
-      <mat-menu #sidenavMenu="matMenu">
-        <button mat-menu-item [matMenuTriggerFor]="sideThemeMenu">
-          <mat-icon>palette</mat-icon>
-          <span>Scegli Tema</span>
-        </button>
-        <button mat-menu-item (click)="logout()">
-          <mat-icon>logout</mat-icon>
-          <span>Esci</span>
-        </button>
-      </mat-menu>
-      <mat-menu #sideThemeMenu="matMenu">
-        <button mat-menu-item *ngFor="let color of themeColors" (click)="changeThemeColor(color)">
-          <div class="color-circle" [style.backgroundColor]="color"></div>
-          Applica Tema
-        </button>
-      </mat-menu>
     </div>
     </div>
   </mat-sidenav>
@@ -57,27 +41,9 @@
       
       <span class="spacer"></span>
       
-      <button mat-icon-button [matMenuTriggerFor]="userMenu" aria-label="Impostazioni" matTooltip="Impostazioni">
-        <mat-icon>settings</mat-icon>
+      <button mat-icon-button (click)="logout()" *ngIf="!isMobile" aria-label="Esci" matTooltip="Logout" color="warn">
+        <mat-icon>logout</mat-icon>
       </button>
-
-      <mat-menu #userMenu="matMenu">
-        <button mat-menu-item [matMenuTriggerFor]="themeMenu">
-          <mat-icon>palette</mat-icon>
-          <span>Scegli Tema</span>
-        </button>
-        <button mat-menu-item (click)="logout()">
-          <mat-icon>logout</mat-icon>
-          <span>Esci</span>
-        </button>
-      </mat-menu>
-
-      <mat-menu #themeMenu="matMenu">
-        <button mat-menu-item *ngFor="let color of themeColors" (click)="changeThemeColor(color)">
-          <div class="color-circle" [style.backgroundColor]="color"></div>
-          Applica Tema
-        </button>
-      </mat-menu>
     </mat-toolbar>
 
     <div class="editor-wrapper" *ngIf="activeNote !== undefined">

@@ -37,10 +37,8 @@ import { BreakpointObserver, Breakpoints } from '@angular/cdk/layout';
   styleUrls: ['./dashboard.scss']
 })
 export class DashboardComponent implements OnInit {
-  private authService = inject(AuthService);
-  private noteService = inject(NoteService);
-  private router = inject(Router);
-  private pushService = inject(PushNotificationService);
+  private authService: AuthService = inject(AuthService);
+  private router: Router = inject(Router);
   private breakpointObserver = inject(BreakpointObserver);
   private snackBar = inject(MatSnackBar);
 
@@ -52,13 +50,33 @@ export class DashboardComponent implements OnInit {
   activeNote?: Note | null = undefined;
   isMobile = false;
 
+  constructor(
+    private noteService: NoteService,
+    private pushService: PushNotificationService
+  ) {}
+
   async ngOnInit() {
+    this.checkMobile();
+    window.addEventListener('resize', () => this.checkMobile());
+    
+    if (window.visualViewport) {
+      const setVh = () => {
+        // Usa l'altezza della visualViewport per evitare che la tastiera virtuale nasconda il contenuto
+        document.documentElement.style.setProperty('--vh', `${window.visualViewport!.height}px`);
+        
+        // Fix iOS Safari bounce/scroll stuck bug on blur
+        if (document.body.scrollTop > 0) {
+           window.scrollTo(0, 0);
+        }
+      };
+      
+      window.visualViewport.addEventListener('resize', setVh);
+      window.visualViewport.addEventListener('scroll', setVh);
+      setVh();
+    }
+
     this.notes$ = this.noteService.getNotes();
     
-    this.breakpointObserver.observe([Breakpoints.Handset]).subscribe(result => {
-      this.isMobile = result.matches;
-    });
-
     // Push notifications: non-blocking, fail gracefully
     this.pushService.requestPermission().then(() => {
       this.pushService.listenForMessages();
@@ -67,9 +85,16 @@ export class DashboardComponent implements OnInit {
     });
   }
 
-  async logout() {
-    await this.authService.logout();
-    this.router.navigate(['/login']);
+  private checkMobile() {
+    this.breakpointObserver.observe([Breakpoints.Handset]).subscribe(result => {
+      this.isMobile = result.matches;
+    });
+  }
+
+  logout() {
+    this.authService.logout().then(() => {
+      this.router.navigate(['/login']);
+    });
   }
 
   openNoteEditor() {
