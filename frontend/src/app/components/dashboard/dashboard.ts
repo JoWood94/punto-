@@ -10,6 +10,8 @@ import { MatCardModule } from '@angular/material/card';
 import { MatMenuModule } from '@angular/material/menu';
 import { MatSidenavModule, MatSidenav } from '@angular/material/sidenav';
 import { MatListModule } from '@angular/material/list';
+import { MatTooltipModule } from '@angular/material/tooltip';
+import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { NoteEditorComponent } from '../note-editor/note-editor';
 import { Observable } from 'rxjs';
 import { PushNotificationService } from '../../services/push-notification';
@@ -27,6 +29,8 @@ import { BreakpointObserver, Breakpoints } from '@angular/cdk/layout';
     MatMenuModule,
     MatSidenavModule,
     MatListModule,
+    MatTooltipModule,
+    MatSnackBarModule,
     NoteEditorComponent
   ],
   templateUrl: './dashboard.html',
@@ -38,6 +42,7 @@ export class DashboardComponent implements OnInit {
   private router = inject(Router);
   private pushService = inject(PushNotificationService);
   private breakpointObserver = inject(BreakpointObserver);
+  private snackBar = inject(MatSnackBar);
 
   @ViewChild('sidenav') sidenav!: MatSidenav;
 
@@ -77,6 +82,20 @@ export class DashboardComponent implements OnInit {
 
   closeEditor() {
     this.activeNote = undefined;
+  }
+
+  async deleteNote(note: Note, event: Event) {
+    event.stopPropagation();
+    if (!note.id) return;
+    try {
+      await this.noteService.deleteNote(note.id);
+      if (this.activeNote?.id === note.id) {
+        this.activeNote = undefined;
+      }
+      this.snackBar.open('Nota eliminata', 'Chiudi', { duration: 3000 });
+    } catch (e: any) {
+      this.snackBar.open('Errore eliminazione: ' + e.message, 'Chiudi', { duration: 5000 });
+    }
   }
 
   changeThemeColor(color: string) {

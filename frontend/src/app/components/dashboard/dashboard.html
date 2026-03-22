@@ -11,7 +11,9 @@
     <mat-nav-list class="notes-list" *ngIf="notes$ | async as notes">
       <a mat-list-item *ngFor="let note of notes" (click)="selectNote(note)" [class.active-note]="activeNote?.id === note.id">
         <span matListItemTitle>{{ note.title || 'Nuova Nota' }}</span>
-        <span matListItemLine class="note-preview-text" [innerHTML]="note.content"></span>
+        <button mat-icon-button matListItemMeta (click)="deleteNote(note, $event)" matTooltip="Elimina">
+          <mat-icon>delete</mat-icon>
+        </button>
       </a>
       <div class="empty-state" *ngIf="notes.length === 0">
         <mat-icon>note_add</mat-icon>
