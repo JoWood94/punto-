@@ -49,7 +49,7 @@
 
         <mat-form-field appearance="outline" class="flex-field time-field">
           <mat-label>Ora</mat-label>
-          <input matInput type="time" [(ngModel)]="reminderTimeStr" step="300">
+          <input matInput type="time" [(ngModel)]="reminderTimeStr" step="300" (change)="onTimeChange()" (blur)="onTimeChange()">
           <mat-icon matSuffix>schedule</mat-icon>
         </mat-form-field>
         

@@ -92,6 +92,12 @@ export class NoteEditorComponent implements OnInit, OnChanges {
       this.note = { ...this.selectedNote };
       if (this.note.reminderTime) {
          const d = new Date(this.note.reminderTime);
+         // Arrotonda ai 5 minuti più vicini in caricamento per sicurezza
+         const roundedMinutes = Math.round(d.getMinutes() / 5) * 5;
+         d.setMinutes(roundedMinutes);
+         d.setSeconds(0);
+         d.setMilliseconds(0);
+         
          this.reminderDate = d;
          const hours = d.getHours().toString().padStart(2, '0');
          const minutes = d.getMinutes().toString().padStart(2, '0');
@@ -121,11 +127,28 @@ export class NoteEditorComponent implements OnInit, OnChanges {
       this.activeSection = section;
       if (section === 'reminder' && !this.reminderDate) {
          const now = new Date();
+         // Arrotonda l'ora attuale ai 5 min più vicini
+         const minutes = Math.round(now.getMinutes() / 5) * 5;
+         now.setMinutes(minutes);
+         now.setSeconds(0);
+         
          this.reminderDate = now;
-         const hours = now.getHours().toString().padStart(2, '0');
-         const minutes = now.getMinutes().toString().padStart(2, '0');
-         this.reminderTimeStr = `${hours}:${minutes}`;
+         const h = now.getHours().toString().padStart(2, '0');
+         const m = now.getMinutes().toString().padStart(2, '0');
+         this.reminderTimeStr = `${h}:${m}`;
       }
+    }
+  }
+
+  onTimeChange() {
+    if (this.reminderTimeStr) {
+      let [hours, minutes] = this.reminderTimeStr.split(':').map(Number);
+      minutes = Math.round((minutes || 0) / 5) * 5;
+      if (minutes === 60) {
+        minutes = 0;
+        hours = (hours + 1) % 24;
+      }
+      this.reminderTimeStr = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
     }
   }
 
