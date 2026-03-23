@@ -124,6 +124,25 @@
   border: 1px solid rgba(0,0,0,0.1);
 }
 
+.time-select-container {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+
+  .hour-select, .minute-select {
+    width: 80px;
+    ::ng-deep .mat-mdc-form-field-subscript-wrapper {
+        display: none;
+    }
+  }
+
+  .time-separator {
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: var(--mdc-outlined-text-field-label-text-color);
+  }
+}
 .reminder-inputs {
   display: flex;
   gap: 16px;

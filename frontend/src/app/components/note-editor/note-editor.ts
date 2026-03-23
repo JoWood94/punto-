@@ -11,6 +11,7 @@ import { MatNativeDateModule } from '@angular/material/core';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatAutocompleteModule } from '@angular/material/autocomplete';
 import { MatCheckboxModule } from '@angular/material/checkbox';
+import { MatSelectModule } from '@angular/material/select';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { NoteService, Note } from '../../services/note';
 
@@ -29,7 +30,8 @@ import { NoteService, Note } from '../../services/note';
     MatAutocompleteModule,
     MatCheckboxModule,
     MatDatepickerModule,
-    MatNativeDateModule
+    MatNativeDateModule,
+    MatSelectModule
   ],
   templateUrl: './note-editor.html',
   styleUrls: ['./note-editor.scss']
@@ -54,7 +56,12 @@ export class NoteEditorComponent implements OnInit, OnChanges {
   isList = false;
 
   reminderDate: Date | null = null;
-  reminderTimeStr: string = '';
+  reminderTimeStr: string = ''; // Retired but kept for legacy/compatibility if needed
+  selectedHour: string = '12';
+  selectedMinute: string = '00';
+  
+  hoursList = Array.from({length: 24}, (_, i) => i.toString().padStart(2, '0'));
+  minutesList = ['00', '05', '10', '15', '20', '25', '30', '35', '40', '45', '50', '55'];
   
   activeSection: 'location' | 'reminder' | 'checklist' | null = null;
   newChecklistItemText = '';
@@ -99,12 +106,12 @@ export class NoteEditorComponent implements OnInit, OnChanges {
          d.setMilliseconds(0);
          
          this.reminderDate = d;
-         const hours = d.getHours().toString().padStart(2, '0');
-         const minutes = d.getMinutes().toString().padStart(2, '0');
-         this.reminderTimeStr = `${hours}:${minutes}`;
+         this.selectedHour = d.getHours().toString().padStart(2, '0');
+         this.selectedMinute = d.getMinutes().toString().padStart(2, '0');
       } else {
          this.reminderDate = null;
-         this.reminderTimeStr = '';
+         this.selectedHour = '12';
+         this.selectedMinute = '00';
       }
       if (this.note.lat && this.note.lon) {
         this.generateMapUrl(this.note.lat, this.note.lon);
@@ -133,24 +140,14 @@ export class NoteEditorComponent implements OnInit, OnChanges {
          now.setSeconds(0);
          
          this.reminderDate = now;
-         const h = now.getHours().toString().padStart(2, '0');
-         const m = now.getMinutes().toString().padStart(2, '0');
-         this.reminderTimeStr = `${h}:${m}`;
+         this.selectedHour = now.getHours().toString().padStart(2, '0');
+         this.selectedMinute = now.getMinutes().toString().padStart(2, '0');
       }
     }
   }
 
-  onTimeChange() {
-    if (this.reminderTimeStr) {
-      let [hours, minutes] = this.reminderTimeStr.split(':').map(Number);
-      minutes = Math.round((minutes || 0) / 5) * 5;
-      if (minutes === 60) {
-        minutes = 0;
-        hours = (hours + 1) % 24;
-      }
-      this.reminderTimeStr = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
-    }
-  }
+  // Retired, using discrete selects now
+  onTimeChange() {}
 
   updateFormatState() {
     if (typeof document !== 'undefined') {
@@ -245,22 +242,15 @@ export class NoteEditorComponent implements OnInit, OnChanges {
   async save() {
     try {
       this.note.content = this.editorRef.nativeElement.innerHTML;
-      if (this.reminderDate && this.reminderTimeStr) {
-        let [hours, minutes] = this.reminderTimeStr.split(':').map(Number);
+      if (this.reminderDate) {
+        const hours = parseInt(this.selectedHour);
+        const minutes = parseInt(this.selectedMinute);
         
-        minutes = Math.round((minutes || 0) / 5) * 5;
-
         const d = new Date(this.reminderDate);
-        d.setHours(hours || 0);
+        d.setHours(hours);
         d.setMinutes(minutes);
         d.setSeconds(0);
         d.setMilliseconds(0);
-        this.note.reminderTime = d.getTime();
-        this.note.reminderStatus = 'pending';
-      } else if (this.reminderDate) {
-        const d = new Date(this.reminderDate);
-        d.setHours(12);
-        d.setMinutes(0);
         this.note.reminderTime = d.getTime();
         this.note.reminderStatus = 'pending';
       } else {

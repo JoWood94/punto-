@@ -47,11 +47,21 @@
           <mat-datepicker #picker></mat-datepicker>
         </mat-form-field>
 
-        <mat-form-field appearance="outline" class="flex-field time-field">
-          <mat-label>Ora</mat-label>
-          <input matInput type="time" [(ngModel)]="reminderTimeStr" step="300" (change)="onTimeChange()" (blur)="onTimeChange()">
-          <mat-icon matSuffix>schedule</mat-icon>
-        </mat-form-field>
+        <div class="time-select-container">
+          <mat-form-field appearance="outline" class="hour-select">
+            <mat-label>Ora</mat-label>
+            <mat-select [(ngModel)]="selectedHour">
+              <mat-option *ngFor="let h of hoursList" [value]="h">{{h}}</mat-option>
+            </mat-select>
+          </mat-form-field>
+          <span class="time-separator">:</span>
+          <mat-form-field appearance="outline" class="minute-select">
+            <mat-label>Min</mat-label>
+            <mat-select [(ngModel)]="selectedMinute">
+              <mat-option *ngFor="let m of minutesList" [value]="m">{{m}}</mat-option>
+            </mat-select>
+          </mat-form-field>
+        </div>
         
         <button mat-icon-button color="warn" (click)="clearReminder()" matTooltip="Rimuovi" class="remove-btn"><mat-icon>delete</mat-icon></button>
       </div>
