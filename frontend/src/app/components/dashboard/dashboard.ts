@@ -60,18 +60,12 @@ export class DashboardComponent implements OnInit {
     window.addEventListener('resize', () => this.checkMobile());
     
     if (window.visualViewport) {
+      const vv = window.visualViewport;
       const setVh = () => {
-        // Usa l'altezza della visualViewport per evitare che la tastiera virtuale nasconda il contenuto
-        document.documentElement.style.setProperty('--vh', `${window.visualViewport!.height}px`);
-        
-        // Fix iOS Safari bounce/scroll stuck bug on blur
-        if (document.body.scrollTop > 0) {
-           window.scrollTo(0, 0);
-        }
+        document.documentElement.style.setProperty('--vh', `${vv.height}px`);
       };
-      
-      window.visualViewport.addEventListener('resize', setVh);
-      window.visualViewport.addEventListener('scroll', setVh);
+      vv.addEventListener('resize', setVh);
+      vv.addEventListener('scroll', setVh);
       setVh();
     }
 

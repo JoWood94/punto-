@@ -5,8 +5,16 @@
 // custom components at https://material.angular.dev/guide/theming
 @use '@angular/material' as mat;
 
+html, body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  position: fixed;
+  width: 100%;
+}
+
 html {
-  height: 100dvh;
   @include mat.theme(
     (
       color: (
@@ -43,8 +51,6 @@ body {
   background-color: var(--punto-bg);
   color: var(--punto-text);
   font: var(--mat-sys-body-medium);
-  margin: 0;
-  height: 100dvh;
 }
 
 /* --- App Aesthetic Shadows --- */
