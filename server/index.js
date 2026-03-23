@@ -12,9 +12,10 @@ if (process.env.FIREBASE_SERVICE_ACCOUNT) {
     admin.initializeApp({
       credential: admin.credential.cert(serviceAccount)
     });
-    console.log("Firebase Admin initialized using GitHub Secrets (FIREBASE_SERVICE_ACCOUNT)");
+    console.log("Firebase Admin inizializzato correttamente tramite GitHub Secret.");
   } catch(e) {
-    console.error("Errore nel parsing del SECRET di Github FIREBASE_SERVICE_ACCOUNT:", e);
+    console.error("ERRORE CRITICO: Il formato del SECRET 'FIREBASE_SERVICE_ACCOUNT' non è un JSON valido.");
+    console.error("Dettaglio errore parsing:", e.message);
     process.exit(1);
   }
 } else if (fs.existsSync(serviceAccountPath)) {
@@ -22,11 +23,18 @@ if (process.env.FIREBASE_SERVICE_ACCOUNT) {
   admin.initializeApp({
     credential: admin.credential.cert(serviceAccount)
   });
-  console.log("Firebase Admin initialized using locale serviceAccountKey.json");
+  console.log("Firebase Admin inizializzato tramite serviceAccountKey.json locale.");
 } else {
-  console.log("ATTENZIONE: Nessun serviceAccountKey.json trovato nella cartella server/.");
-  console.log("Il server tenterà di usare le variabili d'ambiente di default di Google.");
-  admin.initializeApp();
+  console.error("ERRORE: Nessuna credenziale Firebase trovata!");
+  console.log("Assicurati che 'FIREBASE_SERVICE_ACCOUNT' sia impostato nei GitHub Secrets (per GHA)");
+  console.log("o che 'server/serviceAccountKey.json' sia presente (per esecuzione locale).");
+  
+  if (process.env.GITHUB_ACTIONS === 'true') {
+    process.exit(1);
+  } else {
+    console.log("Tentativo di inizializzazione predefinita (GCP/ADC)...");
+    admin.initializeApp();
+  }
 }
 
 const db = admin.firestore();
@@ -117,9 +125,12 @@ async function checkAndSendReminders() {
     await Promise.all(updates);
     if (sentCount > 0) {
       console.log(`Inviate ${sentCount} notifiche con successo.`);
+    } else {
+      console.log("Nessun promemoria da inviare in questo slot temporale.");
     }
   } catch (error) {
-    console.error("Errore durante l'esecuzione del controllo:", error);
+    console.error("Errore durante l'esecuzione del controllo promemoria:", error);
+    throw error; // Rilancia per far fallire il GHA correttamente
   }
 }
 
