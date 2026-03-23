@@ -31,6 +31,12 @@
   border-bottom: 1px solid rgba(0,0,0,0.05);
   
   h2 { margin: 0; font-size: 1.2rem; font-weight: 500; }
+
+  &.mobile-header {
+    height: 80px !important;
+    padding: 0 20px !important;
+    flex-shrink: 0;
+  }
 }
 
 .notes-list {
@@ -77,8 +83,18 @@
 
 .app-header {
   box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-  z-index: 10;
+  z-index: 100;
   background: var(--mat-sys-surface) !important;
+  position: sticky;
+  top: 0;
+  flex-shrink: 0;
+  
+  &.mat-toolbar {
+    height: 80px;
+    @media (max-width: 599.98px) {
+      height: 80px;
+    }
+  }
 }
 
 .header-logo {
@@ -154,19 +170,19 @@
   }
 
   ::ng-deep .notes-list {
-    --mdc-list-list-item-one-line-container-height: 96px;
+    --mdc-list-list-item-one-line-container-height: 110px;
     
     mat-list-item {
-      padding: 16px 0;
+      padding: 20px 0;
     }
 
     .mat-mdc-list-item-title {
-      font-size: 1.45rem !important;
+      font-size: 1.55rem !important;
       font-weight: 500;
     }
     
     button {
-      transform: scale(1.4);
+      transform: scale(1.5);
     }
   }
 }
