@@ -12,6 +12,16 @@
       "webRoot": "${workspaceFolder}/frontend"
     },
     {
+      "name": "Esegui in Brave (Network, 192.168.1.5)",
+      "type": "chrome",
+      "request": "launch",
+      "preLaunchTask": "npm: start:open frontend",
+      "url": "https://192.168.1.5:4200/",
+      "runtimeExecutable": "/Applications/Brave Browser.app/Contents/MacOS/Brave Browser",
+      "userDataDir": "${workspaceFolder}/.vscode/.brave-profile",
+      "webRoot": "${workspaceFolder}/frontend"
+    },
+    {
       "name": "Esegui in Chrome (ng serve)",
       "type": "chrome",
       "request": "launch",

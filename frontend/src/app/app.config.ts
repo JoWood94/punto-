@@ -7,6 +7,12 @@ import { getAuth, provideAuth } from '@angular/fire/auth';
 import { getMessaging, provideMessaging } from '@angular/fire/messaging';
 import { environment } from '../environments/environment';
 import { provideServiceWorker } from '@angular/service-worker';
+import { LOCALE_ID } from '@angular/core';
+import { registerLocaleData } from '@angular/common';
+import localeIt from '@angular/common/locales/it';
+import { MAT_DATE_LOCALE } from '@angular/material/core';
+
+registerLocaleData(localeIt);
 
 export const appConfig: ApplicationConfig = {
   providers: [
@@ -19,5 +25,7 @@ export const appConfig: ApplicationConfig = {
       enabled: !isDevMode(),
       registrationStrategy: 'registerWhenStable:30000',
     }),
+    { provide: LOCALE_ID, useValue: 'it-IT' },
+    { provide: MAT_DATE_LOCALE, useValue: 'it-IT' },
   ],
 };

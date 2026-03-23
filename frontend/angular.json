@@ -59,6 +59,13 @@
         },
         "serve": {
           "builder": "@angular/build:dev-server",
+          "options": {
+            "host": "0.0.0.0",
+            "ssl": true,
+            "sslKey": "ssl/server.key",
+            "sslCert": "ssl/server.crt",
+            "allowedHosts": ["192.168.1.5", "localhost"]
+          },
           "configurations": {
             "production": {
               "buildTarget": "frontend:build:production"

@@ -1,37 +1,40 @@
 <mat-sidenav-container class="dashboard-container">
-  
-  <mat-sidenav mode="side" [opened]="!isMobile || activeNote === undefined" class="notes-sidenav" [class.mobile-full]="isMobile">
+
+  <mat-sidenav mode="side" [opened]="!isMobile || activeNote === undefined" class="notes-sidenav"
+    [class.mobile-full]="isMobile">
     <div style="display: flex; flex-direction: column; height: 100%;">
       <div class="sidenav-header" [class.mobile-header]="isMobile" style="position: relative;">
-      <h2 *ngIf="!isMobile">Le mie Note</h2>
-      <img src="punto_logo_no_bg.png" alt="punto! logo" class="mobile-center-logo" *ngIf="isMobile" />
-      <span class="spacer" *ngIf="isMobile"></span>
-      <button mat-icon-button (click)="openNoteEditor()" color="primary" matTooltip="Nuova Nota" [class.mobile-actions]="isMobile">
-        <mat-icon>add</mat-icon>
-      </button>
-    </div>
-    
-    <mat-nav-list class="notes-list" *ngIf="notes$ | async as notes">
-      <ng-container *ngFor="let note of notes">
-        <a mat-list-item (click)="selectNote(note)" [class.active-note]="activeNote?.id === note.id">
-          <span matListItemTitle>{{ note.title || 'Nuova Nota' }}</span>
-          <button mat-icon-button matListItemMeta (click)="deleteNote(note, $event)" matTooltip="Elimina">
-            <mat-icon>delete</mat-icon>
-          </button>
-        </a>
-        <mat-divider></mat-divider>
-      </ng-container>
-      <div class="empty-state" *ngIf="notes.length === 0">
-        <mat-icon>note_add</mat-icon>
-        <p>Nessuna nota trovata.</p>
+        <h2 *ngIf="!isMobile">Le mie Note</h2>
+        <img src="punto_logo_no_bg.png" alt="punto! logo" class="mobile-center-logo" *ngIf="isMobile" />
+        <span class="spacer" *ngIf="isMobile"></span>
+        <button mat-icon-button (click)="openNoteEditor()" color="primary" matTooltip="Nuova Nota"
+          [class.mobile-actions]="isMobile">
+          <mat-icon>add</mat-icon>
+        </button>
       </div>
-    </mat-nav-list>
 
-    <div class="sidenav-footer" *ngIf="isMobile">
-      <button mat-icon-button (click)="logout()" aria-label="Esci" matTooltip="Logout" color="warn">
-        <mat-icon>logout</mat-icon>
-      </button>
-    </div>
+      <mat-nav-list class="notes-list" *ngIf="notes$ | async as notes">
+        <ng-container *ngFor="let note of notes">
+          <a mat-list-item (click)="selectNote(note)" [class.active-note]="activeNote?.id === note.id"
+            class="single-note">
+            <span matListItemTitle>{{ note.title || 'Nuova Nota' }}</span>
+            <button mat-icon-button matListItemMeta (click)="deleteNote(note, $event)" matTooltip="Elimina">
+              <mat-icon>delete</mat-icon>
+            </button>
+          </a>
+          <mat-divider></mat-divider>
+        </ng-container>
+        <div class="empty-state" *ngIf="notes.length === 0">
+          <mat-icon>note_add</mat-icon>
+          <p>Nessuna nota trovata.</p>
+        </div>
+      </mat-nav-list>
+
+      <div class="sidenav-footer" *ngIf="isMobile">
+        <button mat-icon-button (click)="logout()" aria-label="Esci" matTooltip="Logout" color="warn">
+          <mat-icon>logout</mat-icon>
+        </button>
+      </div>
     </div>
   </mat-sidenav>
 
@@ -40,24 +43,22 @@
       <button mat-icon-button (click)="closeEditor()" class="back-button" *ngIf="isMobile" aria-label="Torna indietro">
         <mat-icon>arrow_back</mat-icon>
       </button>
-      
+
       <img src="punto_logo_no_bg.png" alt="punto! logo" class="mobile-center-logo" *ngIf="isMobile" />
       <img src="punto_logo_no_bg.png" alt="punto! logo" class="header-logo" *ngIf="!isMobile" />
-      
+
       <span class="spacer"></span>
-      
+
       <button mat-icon-button (click)="logout()" *ngIf="!isMobile" aria-label="Esci" matTooltip="Logout" color="warn">
         <mat-icon>logout</mat-icon>
       </button>
     </mat-toolbar>
 
     <div class="editor-wrapper" *ngIf="activeNote !== undefined">
-      <app-note-editor 
-        [selectedNote]="activeNote" 
-        (closeEditor)="closeEditor()">
+      <app-note-editor [selectedNote]="activeNote" (closeEditor)="closeEditor()">
       </app-note-editor>
     </div>
-    
+
     <div class="no-selection-state" *ngIf="activeNote === undefined && !isMobile">
       <mat-icon>edit_document</mat-icon>
       <h2>Seleziona una nota o creane una nuova</h2>

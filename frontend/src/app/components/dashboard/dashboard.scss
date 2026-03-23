@@ -8,7 +8,7 @@
 .notes-sidenav {
   width: 320px;
   background: var(--punto-bg);
-  border-right: 1px solid rgba(0,0,0,0.05);
+  border-right: 1px solid rgba(0, 0, 0, 0.05);
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -19,7 +19,7 @@
   padding: 12px 16px;
   display: flex;
   justify-content: flex-end;
-  border-top: 1px solid rgba(0,0,0,0.05);
+  border-top: 1px solid rgba(0, 0, 0, 0.05);
   background: var(--punto-bg);
 }
 
@@ -28,9 +28,13 @@
   align-items: center;
   justify-content: space-between;
   padding: 16px 16px;
-  border-bottom: 1px solid rgba(0,0,0,0.05);
-  
-  h2 { margin: 0; font-size: 1.2rem; font-weight: 500; }
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+
+  h2 {
+    margin: 0;
+    font-size: 1.2rem;
+    font-weight: 500;
+  }
 
   &.mobile-header {
     height: 80px !important;
@@ -44,9 +48,9 @@
   flex: 1;
   overflow-y: auto;
   padding: 8px;
-  
+
   .active-note {
-    background: rgba(0,0,0,0.06);
+    background: rgba(0, 0, 0, 0.06);
     border-radius: 8px;
     margin-bottom: 4px;
     font-weight: 500;
@@ -59,7 +63,12 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  * { display: inline; } /* Previene tag come P nel rich text dalla mandare a capo il testo nella list */
+
+  * {
+    display: inline;
+  }
+
+  /* Previene tag come P nel rich text dalla mandare a capo il testo nella list */
 }
 
 .empty-state {
@@ -69,8 +78,14 @@
   padding: 32px;
   color: var(--mat-sys-on-surface-variant);
   text-align: center;
-  
-  mat-icon { font-size: 48px; width: 48px; height: 48px; margin-bottom: 16px; opacity: 0.3; }
+
+  mat-icon {
+    font-size: 48px;
+    width: 48px;
+    height: 48px;
+    margin-bottom: 16px;
+    opacity: 0.3;
+  }
 }
 
 .dashboard-content {
@@ -82,15 +97,16 @@
 }
 
 .app-header {
-  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
   z-index: 100;
   background: var(--mat-sys-surface) !important;
   position: sticky;
   top: 0;
   flex-shrink: 0;
-  
+
   &.mat-toolbar {
     height: 80px;
+
     @media (max-width: 599.98px) {
       height: 80px;
     }
@@ -103,10 +119,17 @@
   margin-left: 20px;
 }
 
-.spacer { flex: 1; }
+.spacer {
+  flex: 1;
+}
 
 .color-circle {
-  width: 24px; height: 24px; border-radius: 50%; display: inline-block; margin-right: 8px; vertical-align: middle;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: inline-block;
+  margin-right: 8px;
+  vertical-align: middle;
 }
 
 .editor-wrapper {
@@ -116,18 +139,18 @@
   display: flex;
   justify-content: center;
   align-items: flex-start;
-  
+
   @media (max-width: 599.98px) {
     padding: 0;
   }
-  
+
   app-note-editor {
     width: 100%;
     max-width: 800px;
     height: auto;
     max-height: 100%;
     box-shadow: 0 16px 40px rgba(0, 0, 0, 0.06), 0 4px 10px rgba(0, 0, 0, 0.03) !important;
-    
+
     @media (max-width: 599.98px) {
       height: 100%;
       max-height: 100%;
@@ -144,9 +167,19 @@
   align-items: center;
   justify-content: center;
   color: var(--mat-sys-on-surface-variant);
-  
-  mat-icon { font-size: 64px; width: 64px; height: 64px; margin-bottom: 16px; opacity: 0.3; }
-  h2 { font-weight: 300; margin-bottom: 24px; }
+
+  mat-icon {
+    font-size: 64px;
+    width: 64px;
+    height: 64px;
+    margin-bottom: 16px;
+    opacity: 0.3;
+  }
+
+  h2 {
+    font-weight: 300;
+    margin-bottom: 24px;
+  }
 }
 
 .mobile-center-logo {
@@ -176,7 +209,7 @@
   .sidenav-footer {
     padding-bottom: 48px;
     padding-right: 24px;
-    
+
     button {
       transform: scale(1.4);
     }
@@ -184,7 +217,7 @@
 
   ::ng-deep .notes-list {
     --mdc-list-list-item-one-line-container-height: 160px;
-    
+
     mat-list-item {
       padding: 32px 0;
     }
@@ -193,11 +226,16 @@
       font-size: 1.55rem !important;
       font-weight: 500;
     }
-    
+
     button {
       transform: scale(1.5);
     }
   }
+}
+
+.single-note {
+  height: 4rem !important;
+
 }
 
 .back-button {

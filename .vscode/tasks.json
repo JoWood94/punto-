@@ -24,6 +24,28 @@
       }
     },
     {
+      "label": "npm: start:open frontend",
+      "type": "npm",
+      "script": "start:open",
+      "options": {
+        "cwd": "${workspaceFolder}/frontend"
+      },
+      "isBackground": true,
+      "problemMatcher": {
+        "owner": "typescript",
+        "pattern": "$tsc",
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": {
+            "regexp": "Changes detected"
+          },
+          "endsPattern": {
+            "regexp": "bundle generation (complete|failed)"
+          }
+        }
+      }
+    },
+    {
       "label": "npm: test frontend",
       "type": "npm",
       "script": "test",
