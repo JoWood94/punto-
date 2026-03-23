@@ -44,14 +44,13 @@
 .rich-text-wrapper {
   display: flex;
   flex-direction: column;
-  min-height: 400px;
+  min-height: 100px;
 }
 
 .rich-text-editor {
-  flex: 1;
   padding: 8px 0;
   outline: none;
-  min-height: 200px;
+  min-height: 40px;
   font-size: 1rem;
   line-height: 1.5;
   color: var(--punto-text);
