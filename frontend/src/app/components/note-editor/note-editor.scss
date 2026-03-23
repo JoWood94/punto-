@@ -5,6 +5,10 @@
   background: var(--punto-bg);
   border-radius: 24px;
   overflow: hidden;
+  
+  @media (max-width: 599.98px) {
+    border-radius: 0;
+  }
 }
 
 .editor-header {

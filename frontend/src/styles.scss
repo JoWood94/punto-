@@ -6,12 +6,13 @@
 @use '@angular/material' as mat;
 
 html, body {
-  height: 100%;
   margin: 0;
   padding: 0;
+  height: 100%;
   overflow: hidden;
-  position: fixed;
-  width: 100%;
+  background: var(--mat-sys-background);
+  color: var(--mat-sys-on-background);
+  font-family: 'Roboto', sans-serif;
 }
 
 html {

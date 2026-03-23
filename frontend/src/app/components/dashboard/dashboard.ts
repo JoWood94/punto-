@@ -63,6 +63,10 @@ export class DashboardComponent implements OnInit {
       const vv = window.visualViewport;
       const setVh = () => {
         document.documentElement.style.setProperty('--vh', `${vv.height}px`);
+        // Se il viewport è traslato (es. scrollato dalla tastiera), riportalo a zero
+        if (vv.offsetTop > 0) {
+          window.scrollTo(0, 0);
+        }
       };
       vv.addEventListener('resize', setVh);
       vv.addEventListener('scroll', setVh);
