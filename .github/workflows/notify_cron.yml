@@ -2,8 +2,8 @@ name: Send Firebase Push Notifications (Cron)
 
 on:
   schedule:
-    # Esegue ogni 5 minuti (il minimo permesso da GitHub Actions gratuito)
-    - cron: '*/5 * * * *'
+    # Esegue ai minuti dritti multipli di 5 (5, 10, 15, ... 55)
+    - cron: '5-55/5 * * * *'
   workflow_dispatch:
 
 env:
@@ -13,6 +13,9 @@ jobs:
   check_reminders:
     runs-on: ubuntu-latest
     steps:
+      - name: Log server time
+        run: echo "Server UTC time: $(date -u)"
+
       - name: Checkout Repository
         uses: actions/checkout@v4
 
