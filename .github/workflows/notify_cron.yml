@@ -14,7 +14,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Log server time
-        run: echo "Server UTC time: $(date -u)"
+        run: |
+          echo "Server UTC time: $(date -u)"
 
       - name: Checkout Repository
         uses: actions/checkout@v4
