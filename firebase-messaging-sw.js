@@ -17,9 +17,10 @@ const messaging = firebase.messaging();
 
 messaging.onBackgroundMessage((payload) => {
   console.log('Ricevuto messaggio FCM in background: ', payload);
-  const notificationTitle = payload.notification.title || 'Nuovo Promemoria da punto!';
+  // Legge da payload.data (data-only message) per evitare duplicati
+  const notificationTitle = payload.data?.title || 'Nuovo Promemoria da punto!';
   const notificationOptions = {
-    body: payload.notification.body,
+    body: payload.data?.body || '',
     icon: 'punto_icon.png'
   };
 
