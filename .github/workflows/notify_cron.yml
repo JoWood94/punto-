@@ -2,8 +2,8 @@ name: Send Firebase Push Notifications (Cron)
 
 on:
   schedule:
-    # Esegue ai minuti dritti multipli di 5 (5, 10, 15, ... 55)
-    - cron: '5-55/5 * * * *'
+    # Ogni 5 minuti (0, 5, 10, ..., 55) — nota: GitHub throttle su repo pubblici può ritardare fino a ~1h
+    - cron: '*/5 * * * *'
   workflow_dispatch:
 
 env:
@@ -27,7 +27,7 @@ jobs:
           
       - name: Install dependencies
         working-directory: ./server
-        run: npm install
+        run: npm ci
 
       - name: Run Reminder Script
         working-directory: ./server

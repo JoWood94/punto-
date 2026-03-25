@@ -87,25 +87,27 @@
   </div>
 </div>
 
-<div class="rich-text-toolbar">
-  <button mat-icon-button (mousedown)="$event.preventDefault()" (click)="execCommand('bold')" type="button" tabindex="-1" [class.format-active]="isBold"><mat-icon>format_bold</mat-icon></button>
-  <button mat-icon-button (mousedown)="$event.preventDefault()" (click)="execCommand('italic')" type="button" tabindex="-1" [class.format-active]="isItalic"><mat-icon>format_italic</mat-icon></button>
-  <button mat-icon-button (mousedown)="$event.preventDefault()" (click)="execCommand('insertUnorderedList')" type="button" tabindex="-1" [class.format-active]="isList"><mat-icon>format_list_bulleted</mat-icon></button>
-  
-  <span class="spacer"></span>
-  
-  <div class="toolbar-divider"></div>
+<div class="toolbar-scroll-container">
+  <div class="rich-text-toolbar">
+    <button mat-icon-button (mousedown)="$event.preventDefault()" (click)="execCommand('bold')" type="button" tabindex="-1" [class.format-active]="isBold"><mat-icon>format_bold</mat-icon></button>
+    <button mat-icon-button (mousedown)="$event.preventDefault()" (click)="execCommand('italic')" type="button" tabindex="-1" [class.format-active]="isItalic"><mat-icon>format_italic</mat-icon></button>
+    <button mat-icon-button (mousedown)="$event.preventDefault()" (click)="execCommand('insertUnorderedList')" type="button" tabindex="-1" [class.format-active]="isList"><mat-icon>format_list_bulleted</mat-icon></button>
+
+    <span class="spacer"></span>
+
+    <div class="toolbar-divider"></div>
 
 
-  <button mat-icon-button (click)="toggleSection('location')" type="button" tabindex="-1" [color]="activeSection === 'location' ? 'primary' : ''" matTooltip="Luogo">
-    <mat-icon>place</mat-icon>
-  </button>
-  <button mat-icon-button (click)="toggleSection('reminder')" type="button" tabindex="-1" [color]="activeSection === 'reminder' ? 'primary' : ''" matTooltip="Promemoria">
-    <mat-icon>notifications</mat-icon>
-  </button>
-  <button mat-icon-button (click)="toggleSection('checklist')" type="button" tabindex="-1" [color]="activeSection === 'checklist' ? 'primary' : ''" matTooltip="Checklist">
-    <mat-icon>check_box</mat-icon>
-  </button>
+    <button mat-icon-button (click)="toggleSection('location')" type="button" tabindex="-1" [color]="activeSection === 'location' ? 'primary' : ''" matTooltip="Luogo">
+      <mat-icon>place</mat-icon>
+    </button>
+    <button mat-icon-button (click)="toggleSection('reminder')" type="button" tabindex="-1" [color]="activeSection === 'reminder' ? 'primary' : ''" matTooltip="Promemoria">
+      <mat-icon>notifications</mat-icon>
+    </button>
+    <button mat-icon-button (click)="toggleSection('checklist')" type="button" tabindex="-1" [color]="activeSection === 'checklist' ? 'primary' : ''" matTooltip="Checklist">
+      <mat-icon>check_box</mat-icon>
+    </button>
+  </div>
 </div>
 
 <div class="editor-actions">

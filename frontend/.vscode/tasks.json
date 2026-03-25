@@ -12,7 +12,7 @@
         "background": {
           "activeOnStart": true,
           "beginsPattern": {
-            "regexp": "Changes detected"
+            "regexp": "(Building...|Changes detected)"
           },
           "endsPattern": {
             "regexp": "bundle generation (complete|failed)"

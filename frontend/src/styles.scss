@@ -29,38 +29,96 @@ html {
 }
 
 :root {
-  /* Logo Grayscale Colors */
-  --punto-text: #a8a8a8;
-  --punto-bg: #ffffff;
-  
-  --mat-sys-primary: var(--punto-text);
-  --mat-sys-on-primary: #ffffff;
-  --mat-sys-surface: var(--punto-bg);
-  --mat-sys-on-surface: var(--punto-text);
-  --mat-sys-on-surface-variant: #bcbcbc;
-  --mat-sys-background: var(--punto-bg);
+  /* Palette primaria — blu-indaco M3 Expressive */
+  --punto-primary:              #4A6CF7;
+  --punto-primary-container:    #E8EDFF;
+  --punto-on-primary:           #FFFFFF;
+  --punto-on-primary-container: #001257;
 
-  --mdc-theme-primary: var(--punto-text);
-  --mdc-theme-on-primary: #ffffff;
-  --mdc-theme-surface: var(--punto-bg);
-  --mdc-theme-on-surface: var(--punto-text);
-  --mdc-theme-background: var(--punto-bg);
+  /* Testo e superficie — mantenuti per retrocompatibilità */
+  --punto-text: #1C1B1F;
+  --punto-bg:   #FFFBFE;
+
+  /* Override token M3 — palette primaria */
+  --mat-sys-primary:             var(--punto-primary);
+  --mat-sys-primary-container:   var(--punto-primary-container);
+  --mat-sys-on-primary:          var(--punto-on-primary);
+  --mat-sys-on-primary-container: var(--punto-on-primary-container);
+
+  /* Override token M3 — superfici e testo */
+  --mat-sys-surface:             #FFFBFE;
+  --mat-sys-on-surface:          #1C1B1F;
+  --mat-sys-on-surface-variant:  #49454F;
+  --mat-sys-surface-variant:     #E7E0EC;
+  --mat-sys-outline:             #79747E;
+  --mat-sys-outline-variant:     #CAC4D0;
+  --mat-sys-background:          #FFFBFE;
+  --mat-sys-on-background:       #1C1B1F;
+
+  /* Override token MDC legacy — allineamento */
+  --mdc-theme-primary:    var(--punto-primary);
+  --mdc-theme-on-primary: var(--punto-on-primary);
+  --mdc-theme-surface:    #FFFBFE;
+  --mdc-theme-on-surface: #1C1B1F;
+  --mdc-theme-background: #FFFBFE;
 }
 
 body {
   color-scheme: light;
-  background-color: var(--punto-bg);
-  color: var(--punto-text);
+  background-color: var(--mat-sys-background);
+  color: var(--mat-sys-on-surface);
   font: var(--mat-sys-body-medium);
 }
 
-/* --- App Aesthetic Shadows --- */
-.mat-mdc-card, .mat-mdc-dialog-surface, .mat-mdc-menu-panel, .mat-mdc-button.mat-mdc-raised-button {
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.06), 0 4px 10px rgba(0, 0, 0, 0.03) !important;
-  border: none !important;
+/* --- M3 Elevation Tokens --- */
+:root {
+  /* M3 elevation shadow levels — luce da sinistra-alto, penombra soft */
+  --punto-shadow-1: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --punto-shadow-2: 0 2px 8px rgba(0, 0, 0, 0.06), 0 1px 3px rgba(0, 0, 0, 0.04);
+  --punto-shadow-3: 0 4px 16px rgba(0, 0, 0, 0.07), 0 2px 6px rgba(0, 0, 0, 0.04);
+  --punto-shadow-4: 0 8px 24px rgba(0, 0, 0, 0.08), 0 3px 8px rgba(0, 0, 0, 0.04);
+  --punto-shadow-card: 0 16px 40px rgba(0, 0, 0, 0.06), 0 4px 10px rgba(0, 0, 0, 0.03);
+
+  /* M3 Shape Scale */
+  --punto-shape-xs:   4px;
+  --punto-shape-sm:   8px;
+  --punto-shape-md:   12px;
+  --punto-shape-lg:   16px;
+  --punto-shape-xl:   24px;
+  --punto-shape-full: 9999px;
+
+  /* M3 Motion */
+  --punto-easing-standard:    cubic-bezier(0.2, 0, 0, 1);
+  --punto-easing-decelerate:  cubic-bezier(0, 0, 0, 1);
+  --punto-easing-accelerate:  cubic-bezier(0.3, 0, 1, 1);
+  --punto-duration-short1:    50ms;
+  --punto-duration-short2:    100ms;
+  --punto-duration-medium1:   200ms;
+  --punto-duration-medium2:   300ms;
+  --punto-duration-long1:     450ms;
+
+  /* M3 Disabled/placeholder opacity */
+  --punto-opacity-disabled:   0.38;
 }
 
+/* mat-card: elevation livello 1 (surface tinted) + shape large */
 .mat-mdc-card {
-  border-radius: 28px !important;
+  box-shadow: var(--punto-shadow-card);
+  border-radius: var(--punto-shape-xl);
+}
+
+/* dialog: elevation livello 3 */
+.mat-mdc-dialog-surface {
+  box-shadow: var(--punto-shadow-4);
+}
+
+/* menu: elevation livello 2 */
+.mat-mdc-menu-panel {
+  box-shadow: var(--punto-shadow-3);
+}
+
+/* raised button: elevation livello 1, senza override !important */
+.mat-mdc-button.mat-mdc-raised-button {
+  box-shadow: var(--punto-shadow-2);
 }
 /* You can add global styles to this file, and also import other style files */

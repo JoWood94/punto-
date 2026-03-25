@@ -47,21 +47,26 @@ export class PushNotificationService {
         console.warn('Push Notification permission denied. Le notifiche sono disabilitate.');
         return null;
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error getting push token:', err);
+      if (err.name === 'AbortError') {
+        console.warn('Push registration failed. Suggerimento: Se usi Brave, disabilita gli "Shields" o controlla le impostazioni di Privacy per consentire il servizio di push di Google.');
+      }
       return null;
     }
   }
 
   listenForMessages() {
-    onMessage(this.messaging, (payload) => {
-      console.log('Push Message received in foreground. ', payload);
-      if (Notification.permission === 'granted') {
-         new Notification(payload.notification?.title || 'Promemoria da punto!', {
-            body: payload.notification?.body,
-            icon: 'icons/icon-192x192.png'
-         });
-      }
+    runInInjectionContext(this.injector, () => {
+      onMessage(this.messaging, (payload) => {
+        console.log('Push Message received in foreground. ', payload);
+        if (Notification.permission === 'granted') {
+           new Notification(payload.notification?.title || 'Promemoria da punto!', {
+              body: payload.notification?.body,
+              icon: 'icons/icon-192x192.png'
+           });
+        }
+      });
     });
   }
 }

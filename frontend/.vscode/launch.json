@@ -7,16 +7,27 @@
       "type": "chrome",
       "request": "launch",
       "preLaunchTask": "npm: start",
-      "url": "http://localhost:4200/",
+      "url": "https://192.168.1.5:4200/",
       "runtimeExecutable": "/Applications/Brave Browser.app/Contents/MacOS/Brave Browser",
-      "userDataDir": false
+      "userDataDir": "${workspaceFolder}/.vscode/.brave-profile",
+      "webRoot": "${workspaceFolder}/frontend/src",
+      "resolveSourceMapLocations": [
+        "${workspaceFolder}/**",
+        "!**/node_modules/**",
+        "!**/dist/**"
+      ],
+      "skipFiles": [
+        "<node_internals>/**",
+        "**/node_modules/**",
+        "**/dist/import/**"
+      ]
     },
     {
       "name": "Esegui in Chrome (ng serve)",
       "type": "chrome",
       "request": "launch",
       "preLaunchTask": "npm: start",
-      "url": "http://localhost:4200/"
+      "url": "https://localhost:4200/"
     },
     {
       "name": "ng test",

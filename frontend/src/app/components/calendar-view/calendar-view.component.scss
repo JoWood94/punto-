@@ -1,0 +1,393 @@
+// ─── Container ───────────────────────────────────────────────
+.calendar-view {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+  background: var(--mat-app-background-color, #fafafa);
+}
+
+// ─── Header ──────────────────────────────────────────────────
+.calendar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+  flex-wrap: wrap;
+  gap: 8px;
+  flex-shrink: 0;
+
+  .nav-controls {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+
+    .header-label {
+      font-size: 15px;
+      font-weight: 500;
+      min-width: 200px;
+      text-align: center;
+      text-transform: capitalize;
+      color: rgba(0, 0, 0, 0.8);
+    }
+
+    .today-btn {
+      margin-left: 8px;
+      height: 32px;
+      line-height: 30px;
+      font-size: 13px;
+    }
+  }
+
+  .view-toggle {
+    height: 36px;
+
+    ::ng-deep .mat-button-toggle {
+      font-size: 13px;
+    }
+  }
+}
+
+// ─── Month view ──────────────────────────────────────────────
+.month-view {
+  flex: 1;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.week-headers {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+  flex-shrink: 0;
+
+  .week-header {
+    text-align: center;
+    padding: 8px 4px;
+    font-size: 11px;
+    font-weight: 600;
+    color: rgba(0, 0, 0, 0.45);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+}
+
+.month-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  grid-auto-rows: minmax(72px, 1fr);
+  flex: 1;
+
+  .day-cell {
+    border-right: 1px solid rgba(0, 0, 0, 0.06);
+    border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+    padding: 4px;
+    min-height: 72px;
+    transition: background 0.12s;
+    cursor: default;
+
+    &.has-notes {
+      cursor: pointer;
+
+      &:hover {
+        background: rgba(0, 0, 0, 0.025);
+      }
+    }
+
+    &.other-month {
+      background: rgba(0, 0, 0, 0.012);
+
+      .day-number {
+        color: rgba(0, 0, 0, 0.22) !important;
+      }
+    }
+
+    &.today .day-number {
+      background: var(--mdc-theme-primary, #1976d2);
+      color: white !important;
+      border-radius: 50%;
+      font-weight: 600;
+    }
+
+    .day-number {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 24px;
+      height: 24px;
+      font-size: 12px;
+      font-weight: 500;
+      color: rgba(0, 0, 0, 0.65);
+      margin-bottom: 3px;
+    }
+
+    .day-notes {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .note-chip {
+      font-size: 10px;
+      color: white;
+      padding: 2px 5px;
+      border-radius: 3px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      cursor: pointer;
+      line-height: 16px;
+
+      &:hover {
+        filter: brightness(0.88);
+      }
+    }
+
+    .more-notes {
+      font-size: 10px;
+      color: rgba(0, 0, 0, 0.45);
+      padding: 1px 4px;
+    }
+  }
+}
+
+// ─── Week view ───────────────────────────────────────────────
+.week-view {
+  flex: 1;
+  overflow: auto;
+}
+
+.week-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  min-height: 100%;
+
+  .week-day-col {
+    border-right: 1px solid rgba(0, 0, 0, 0.06);
+
+    &:last-child { border-right: none; }
+
+    &.today {
+      background: rgba(25, 118, 210, 0.04);
+    }
+
+    .week-day-header {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 12px 4px 8px;
+      border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+      cursor: pointer;
+      transition: background 0.12s;
+
+      &:hover { background: rgba(0, 0, 0, 0.03); }
+
+      .week-day-name {
+        font-size: 10px;
+        font-weight: 600;
+        color: rgba(0, 0, 0, 0.45);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        text-transform: capitalize;
+      }
+
+      .week-day-number {
+        font-size: 20px;
+        font-weight: 300;
+        color: rgba(0, 0, 0, 0.65);
+        width: 32px;
+        height: 32px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 50%;
+        margin-top: 2px;
+
+        &.today-circle {
+          background: var(--mdc-theme-primary, #1976d2);
+          color: white;
+          font-weight: 600;
+        }
+      }
+    }
+
+    .week-day-notes {
+      padding: 4px;
+
+      .note-card {
+        background: white;
+        border-left: 3px solid;
+        border-radius: 4px;
+        padding: 4px 6px;
+        margin-bottom: 4px;
+        cursor: pointer;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        transition: box-shadow 0.12s, transform 0.12s;
+
+        &:hover {
+          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+          transform: translateY(-1px);
+        }
+
+        .note-time {
+          font-size: 10px;
+          color: rgba(0, 0, 0, 0.45);
+          display: block;
+          margin-bottom: 1px;
+        }
+
+        .note-title {
+          font-size: 11px;
+          font-weight: 500;
+          color: rgba(0, 0, 0, 0.8);
+          display: block;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+      }
+    }
+  }
+}
+
+// ─── Day view ────────────────────────────────────────────────
+.day-view {
+  flex: 1;
+  overflow: auto;
+  padding: 20px 24px;
+
+  .day-notes-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    max-width: 640px;
+    margin: 0 auto;
+
+    .day-note-item {
+      background: white;
+      border-left: 4px solid;
+      border-radius: 8px;
+      padding: 14px 16px;
+      cursor: pointer;
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+      display: flex;
+      gap: 16px;
+      transition: box-shadow 0.12s, transform 0.12s;
+
+      &:hover {
+        box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12);
+        transform: translateY(-1px);
+      }
+
+      .day-note-time {
+        font-size: 13px;
+        font-weight: 600;
+        color: rgba(0, 0, 0, 0.45);
+        min-width: 46px;
+        padding-top: 2px;
+        flex-shrink: 0;
+      }
+
+      .day-note-content {
+        flex: 1;
+        min-width: 0;
+
+        .day-note-title {
+          font-size: 15px;
+          font-weight: 500;
+          color: rgba(0, 0, 0, 0.85);
+          margin-bottom: 4px;
+        }
+
+        .day-note-preview {
+          font-size: 13px;
+          color: rgba(0, 0, 0, 0.55);
+          overflow: hidden;
+          max-height: 38px;
+          display: -webkit-box;
+          -webkit-box-orient: vertical;
+          -webkit-line-clamp: 2;
+
+          p { margin: 0; }
+        }
+      }
+    }
+  }
+
+  .empty-day-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 280px;
+    color: rgba(0, 0, 0, 0.28);
+    user-select: none;
+
+    mat-icon {
+      font-size: 56px;
+      width: 56px;
+      height: 56px;
+      margin-bottom: 16px;
+    }
+
+    p {
+      font-size: 15px;
+      margin: 0;
+    }
+  }
+}
+
+// ─── Mobile ──────────────────────────────────────────────────
+@media (max-width: 599.98px) {
+  .calendar-header {
+    padding: 8px 10px;
+    flex-direction: column;
+    align-items: flex-start;
+
+    .nav-controls .header-label {
+      min-width: 0;
+      font-size: 13px;
+    }
+
+    .view-toggle {
+      align-self: stretch;
+
+      ::ng-deep .mat-button-toggle {
+        flex: 1;
+      }
+    }
+  }
+
+  .month-grid .day-cell {
+    min-height: 52px;
+    padding: 2px;
+
+    .day-number { font-size: 10px; width: 20px; height: 20px; }
+    .note-chip  { font-size: 9px; padding: 1px 3px; }
+  }
+
+  .week-grid .week-day-col .week-day-header {
+    padding: 8px 2px 4px;
+
+    .week-day-name   { font-size: 8px; }
+    .week-day-number { font-size: 15px; width: 26px; height: 26px; }
+  }
+
+  .week-grid .week-day-col .week-day-notes .note-card {
+    .note-time  { font-size: 9px; }
+    .note-title { font-size: 10px; }
+  }
+
+  .day-view {
+    padding: 12px 14px;
+
+    .day-notes-list .day-note-item {
+      flex-direction: column;
+      gap: 4px;
+
+      .day-note-time { min-width: 0; }
+    }
+  }
+}

@@ -1,34 +1,70 @@
 <mat-sidenav-container class="dashboard-container">
 
-  <mat-sidenav mode="side" [opened]="!isMobile || activeNote === undefined" class="notes-sidenav"
+  <mat-sidenav mode="side" [opened]="currentMainView === 'list' && (!isMobile || activeNote === undefined)" class="notes-sidenav"
     [class.mobile-full]="isMobile">
     <div style="display: flex; flex-direction: column; height: 100%;">
       <div class="sidenav-header" [class.mobile-header]="isMobile" style="position: relative;">
         <h2 *ngIf="!isMobile">Le mie Note</h2>
         <img src="punto_logo_no_bg.png" alt="punto! logo" class="mobile-center-logo" *ngIf="isMobile" />
         <span class="spacer" *ngIf="isMobile"></span>
-        <button mat-icon-button (click)="openNoteEditor()" color="primary" matTooltip="Nuova Nota"
+        <button mat-icon-button
+          (click)="currentMainView = 'calendar'; activeNote = undefined"
+          *ngIf="isMobile"
+          matTooltip="Vista Calendario"
           [class.mobile-actions]="isMobile">
+          <mat-icon>calendar_month</mat-icon>
+        </button>
+        <!-- Su mobile rimane l'icon button nell'header; su desktop c'è il FAB in fondo alla lista -->
+        <button mat-icon-button (click)="openNoteEditor()" color="primary" matTooltip="Nuova Nota"
+          *ngIf="isMobile" [class.mobile-actions]="isMobile">
           <mat-icon>add</mat-icon>
         </button>
       </div>
 
-      <mat-nav-list class="notes-list" *ngIf="notes$ | async as notes">
-        <ng-container *ngFor="let note of notes">
+      <div class="search-bar-wrapper">
+        <mat-form-field appearance="outline" class="search-field">
+          <mat-icon matPrefix>search</mat-icon>
+          <mat-label>Cerca note</mat-label>
+          <input matInput [(ngModel)]="searchQuery" (ngModelChange)="onSearchChange()" placeholder="Titolo o contenuto..." />
+          <button mat-icon-button matSuffix *ngIf="searchQuery" (click)="clearSearch()" type="button" aria-label="Cancella ricerca">
+            <mat-icon>close</mat-icon>
+          </button>
+        </mat-form-field>
+      </div>
+
+      <mat-nav-list class="notes-list">
+        <ng-container *ngFor="let note of filteredNotes">
           <a mat-list-item (click)="selectNote(note)" [class.active-note]="activeNote?.id === note.id"
             class="single-note">
-            <span matListItemTitle>{{ note.title || 'Nuova Nota' }}</span>
-            <button mat-icon-button matListItemMeta (click)="deleteNote(note, $event)" matTooltip="Elimina">
-              <mat-icon>delete</mat-icon>
+            <span matListItemTitle class="note-item-title">{{ note.title || 'Nuova Nota' }}</span>
+            <span matListItemLine class="note-item-preview" *ngIf="note.content" [innerHTML]="note.content"></span>
+            <button mat-icon-button matListItemMeta (click)="deleteNote(note, $event)" matTooltip="Elimina" class="delete-btn">
+              <mat-icon>delete_outline</mat-icon>
             </button>
           </a>
           <mat-divider></mat-divider>
         </ng-container>
-        <div class="empty-state" *ngIf="notes.length === 0">
-          <mat-icon>note_add</mat-icon>
-          <p>Nessuna nota trovata.</p>
+        <div class="empty-state" *ngIf="filteredNotes.length === 0 && !searchQuery">
+          <mat-icon>edit_note</mat-icon>
+          <p>Ancora nessuna nota.</p>
+          <button mat-flat-button color="primary" (click)="openNoteEditor()">
+            <mat-icon>add</mat-icon>
+            Nuova nota
+          </button>
+        </div>
+        <div class="empty-state" *ngIf="filteredNotes.length === 0 && searchQuery">
+          <mat-icon>search_off</mat-icon>
+          <p>Nessun risultato per "{{ searchQuery }}".</p>
         </div>
       </mat-nav-list>
+
+      <!-- M3 Extended FAB — solo desktop, rimpiazza il vecchio icon button "+" nell'header -->
+      <div class="sidenav-fab-area" *ngIf="!isMobile">
+        <button mat-fab extended color="primary" (click)="openNoteEditor()" class="new-note-fab">
+          <mat-icon>edit</mat-icon>
+          Nuova Nota
+        </button>
+      </div>
 
       <div class="sidenav-footer" *ngIf="isMobile">
         <button mat-icon-button (click)="logout()" aria-label="Esci" matTooltip="Logout" color="warn">
@@ -38,9 +74,9 @@
     </div>
   </mat-sidenav>
 
-  <mat-sidenav-content class="dashboard-content" *ngIf="!isMobile || activeNote !== undefined">
+  <mat-sidenav-content class="dashboard-content" *ngIf="!isMobile || activeNote !== undefined || currentMainView === 'calendar'">
     <mat-toolbar class="app-header" style="position: relative;">
-      <button mat-icon-button (click)="closeEditor()" class="back-button" *ngIf="isMobile" aria-label="Torna indietro">
+      <button mat-icon-button (click)="handleBackButton()" class="back-button" *ngIf="isMobile" aria-label="Torna indietro">
         <mat-icon>arrow_back</mat-icon>
       </button>
 
@@ -49,17 +85,31 @@
 
       <span class="spacer"></span>
 
+      <mat-button-toggle-group [value]="currentMainView" (change)="currentMainView = $event.value; activeNote = undefined" class="view-toggle-group" *ngIf="!isMobile" aria-label="Vista">
+        <mat-button-toggle value="list" matTooltip="Lista note">
+          <mat-icon>notes</mat-icon>
+        </mat-button-toggle>
+        <mat-button-toggle value="calendar" matTooltip="Calendario">
+          <mat-icon>calendar_month</mat-icon>
+        </mat-button-toggle>
+      </mat-button-toggle-group>
+
       <button mat-icon-button (click)="logout()" *ngIf="!isMobile" aria-label="Esci" matTooltip="Logout" color="warn">
         <mat-icon>logout</mat-icon>
       </button>
     </mat-toolbar>
 
-    <div class="editor-wrapper" *ngIf="activeNote !== undefined">
+    <div class="editor-wrapper editor-enter" *ngIf="activeNote !== undefined">
       <app-note-editor [selectedNote]="activeNote" (closeEditor)="closeEditor()">
       </app-note-editor>
     </div>
 
-    <div class="no-selection-state" *ngIf="activeNote === undefined && !isMobile">
+    <div class="calendar-wrapper" *ngIf="currentMainView === 'calendar' && activeNote === undefined">
+      <app-calendar-view [notes]="allNotes" (noteSelected)="onCalendarNoteSelected($event)">
+      </app-calendar-view>
+    </div>
+
+    <div class="no-selection-state" *ngIf="currentMainView === 'list' && activeNote === undefined && !isMobile">
       <mat-icon>edit_document</mat-icon>
       <h2>Seleziona una nota o creane una nuova</h2>
       <button mat-flat-button color="primary" (click)="openNoteEditor()">Nuova Nota</button>

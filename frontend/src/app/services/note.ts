@@ -29,24 +29,23 @@ export class NoteService {
   private db: RawFirestore;
 
   constructor() {
+    // We use a try/catch and check for existing apps to avoid re-initialization warnings
+    // and ensure we are in sync with AngularFire's internal state.
     const app: FirebaseApp = getApps().length ? getApp() : initializeApp(environment.firebase);
     
-    // Ensure Auth is linked to the same app so Firestore sends auth tokens
+    // Auth and Firestore should be obtained via the same app instance
     const auth = getAuth(app);
-    console.log('[NoteService] Auth linked. Current user:', auth.currentUser?.uid || 'none yet (will restore)');
-
-    // Initialize Firestore with IndexedDB persistence
+    
     try {
+      // Using initializeFirestore with persistent storage
       this.db = initializeFirestore(app, {
         localCache: persistentLocalCache({
           tabManager: persistentMultipleTabManager()
         })
       });
-      console.log('[NoteService] Firestore initialized with IndexedDB persistence');
     } catch (e) {
-      // Already initialized (e.g. by AngularFire Messaging), use existing
+      // If already initialized (common with HMR or concurrent service initialization), just get the instance
       this.db = getFirestore(app);
-      console.log('[NoteService] Using existing Firestore instance');
     }
   }
 

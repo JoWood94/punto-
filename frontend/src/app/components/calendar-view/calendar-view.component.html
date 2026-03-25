@@ -1,0 +1,93 @@
+<div class="calendar-view">
+
+  <!-- ── Header ── -->
+  <div class="calendar-header">
+    <div class="nav-controls">
+      <button mat-icon-button (click)="navigate(-1)" matTooltip="Precedente" aria-label="Precedente">
+        <mat-icon>chevron_left</mat-icon>
+      </button>
+      <span class="header-label">{{ headerLabel }}</span>
+      <button mat-icon-button (click)="navigate(1)" matTooltip="Successivo" aria-label="Successivo">
+        <mat-icon>chevron_right</mat-icon>
+      </button>
+      <button mat-stroked-button class="today-btn" (click)="goToToday()">Oggi</button>
+    </div>
+
+    <mat-button-toggle-group [value]="viewType" (change)="setView($event.value)" class="view-toggle" aria-label="Vista calendario">
+      <mat-button-toggle value="day">Giorno</mat-button-toggle>
+      <mat-button-toggle value="week">Settimana</mat-button-toggle>
+      <mat-button-toggle value="month">Mese</mat-button-toggle>
+    </mat-button-toggle-group>
+  </div>
+
+  <!-- ── Month view ── -->
+  <div class="month-view" *ngIf="viewType === 'month'">
+    <div class="week-headers">
+      <div class="week-header" *ngFor="let h of weekHeaders">{{ h }}</div>
+    </div>
+    <div class="month-grid">
+      <div class="day-cell"
+           *ngFor="let day of calendarDays"
+           [class.other-month]="!day.isCurrentMonth"
+           [class.today]="day.isToday"
+           [class.has-notes]="day.notes.length > 0"
+           (click)="day.notes.length > 0 ? selectDay(day) : null">
+        <span class="day-number">{{ day.date.getDate() }}</span>
+        <div class="day-notes">
+          <div class="note-chip"
+               *ngFor="let note of day.notes.slice(0, 2)"
+               [style.background-color]="note.color || 'var(--mdc-theme-primary, #1976d2)'"
+               (click)="selectNote(note, $event)"
+               [matTooltip]="note.title">
+            {{ note.title | slice:0:18 }}{{ note.title.length > 18 ? '…' : '' }}
+          </div>
+          <div class="more-notes" *ngIf="day.notes.length > 2">+{{ day.notes.length - 2 }} altre</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Week view ── -->
+  <div class="week-view" *ngIf="viewType === 'week'">
+    <div class="week-grid">
+      <div class="week-day-col"
+           *ngFor="let day of weekDays"
+           [class.today]="day.isToday">
+        <div class="week-day-header" (click)="selectDay(day)">
+          <span class="week-day-name">{{ day.date.toLocaleDateString('it-IT', {weekday:'short'}) }}</span>
+          <span class="week-day-number" [class.today-circle]="day.isToday">{{ day.date.getDate() }}</span>
+        </div>
+        <div class="week-day-notes">
+          <div class="note-card"
+               *ngFor="let note of day.notes"
+               [style.border-left-color]="note.color || 'var(--mdc-theme-primary, #1976d2)'"
+               (click)="selectNote(note, $event)">
+            <span class="note-time">{{ formatTime(note.reminderTime) }}</span>
+            <span class="note-title">{{ note.title }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Day view ── -->
+  <div class="day-view" *ngIf="viewType === 'day'">
+    <div class="day-notes-list" *ngIf="dayNotes.length > 0">
+      <div class="day-note-item"
+           *ngFor="let note of dayNotes"
+           [style.border-left-color]="note.color || 'var(--mdc-theme-primary, #1976d2)'"
+           (click)="selectNote(note, $event)">
+        <div class="day-note-time">{{ formatTime(note.reminderTime) }}</div>
+        <div class="day-note-content">
+          <div class="day-note-title">{{ note.title }}</div>
+          <div class="day-note-preview" [innerHTML]="note.content"></div>
+        </div>
+      </div>
+    </div>
+    <div class="empty-day-state" *ngIf="dayNotes.length === 0">
+      <mat-icon>event_available</mat-icon>
+      <p>Nessuna nota con promemoria in questo giorno</p>
+    </div>
+  </div>
+
+</div>

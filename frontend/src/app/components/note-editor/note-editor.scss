@@ -3,9 +3,9 @@
   flex-direction: column;
   height: 100%;
   background: var(--punto-bg);
-  border-radius: 24px;
+  border-radius: var(--punto-shape-xl, 24px);
   overflow: hidden;
-  
+
   @media (max-width: 599.98px) {
     border-radius: 0;
   }
@@ -25,9 +25,17 @@
   border: none;
   outline: none;
   background: transparent;
-  color: var(--punto-text);
+  color: var(--mat-sys-on-surface);
+  transition: box-shadow var(--punto-duration-medium1, 200ms) var(--punto-easing-standard, cubic-bezier(0.2, 0, 0, 1));
+
   &::placeholder {
-    color: rgba(0,0,0,0.3);
+    color: color-mix(in srgb, var(--mat-sys-on-surface) 30%, transparent);
+  }
+
+  /* Focus visibile: sottolineatura sottile M3-style con primario */
+  &:focus {
+    outline: none;
+    box-shadow: 0 2px 0 0 var(--mat-sys-primary);
   }
 }
 
@@ -47,16 +55,53 @@
   min-height: 100px;
 }
 
+/* Contenitore toolbar con fade ai bordi per segnalare overflow */
+.toolbar-scroll-container {
+  position: relative;
+  flex-shrink: 0;
+
+  /* Fade sinistro */
+  &::before,
+  &::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 20px;
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  &::before {
+    left: 0;
+    background: linear-gradient(to right, var(--mat-sys-surface-container-low), transparent);
+  }
+
+  &::after {
+    right: 0;
+    background: linear-gradient(to left, var(--mat-sys-surface-container-low), transparent);
+  }
+}
+
 .rich-text-editor {
   padding: 8px 0;
   outline: none;
   min-height: 40px;
   font-size: 1rem;
   line-height: 1.5;
-  color: var(--punto-text);
+  color: var(--mat-sys-on-surface);
+  border-radius: var(--punto-shape-xs, 4px);
+  transition: box-shadow var(--punto-duration-medium1, 200ms) var(--punto-easing-standard, cubic-bezier(0.2, 0, 0, 1));
+
   &:empty:before {
     content: attr(placeholder);
-    color: rgba(0, 0, 0, 0.4);
+    color: color-mix(in srgb, var(--mat-sys-on-surface) 40%, transparent);
+  }
+
+  /* Focus visibile: ring sottile che non disturba il layout */
+  &:focus {
+    outline: none;
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--mat-sys-primary) 20%, transparent);
   }
 }
 
@@ -65,20 +110,39 @@
   align-items: center;
   padding: 8px 16px;
   background: var(--mat-sys-surface-container-low);
-  border-top: 1px solid rgba(0,0,0,0.05);
+  border-top: 1px solid var(--mat-sys-outline-variant);
   margin-top: 0;
   overflow-x: auto;
   flex-shrink: 0;
-  
+  /* Scroll momentum fluido su iOS/Android */
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth;
+  /* Scrollbar sottile visibile su desktop, nascosta su mobile */
+  scrollbar-width: thin;
+  scrollbar-color: var(--mat-sys-outline-variant) transparent;
+
   &::-webkit-scrollbar {
-    display: none;
+    height: 3px;
   }
 
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: var(--mat-sys-outline-variant);
+    border-radius: var(--punto-shape-full, 9999px);
+  }
+
+  /* Fade gradient ai bordi per indicare overflow */
+  position: relative;
+  /* Il fade è gestito tramite pseudo-elementi sul wrapper .rich-text-wrapper */
+
   button.format-active {
-    background-color: color-mix(in srgb, var(--mat-sys-primary) 15%, transparent);
+    background-color: var(--punto-primary-container);
 
     mat-icon {
-      color: var(--mat-sys-primary);
+      color: var(--punto-on-primary-container);
     }
   }
 }
@@ -86,7 +150,7 @@
 .toolbar-divider {
   width: 1px;
   height: 24px;
-  background: rgba(0,0,0,0.1);
+  background: var(--mat-sys-outline-variant);
   margin: 0 8px;
 }
 
@@ -104,7 +168,7 @@
 .address-label {
   display: flex;
   align-items: center;
-  color: var(--punto-text);
+  color: var(--mat-sys-on-surface);
   font-weight: 500;
   
   .address-text {
@@ -117,10 +181,10 @@
 }
 
 .map-preview {
-  border-radius: 8px;
+  border-radius: var(--punto-shape-sm, 8px);
   overflow: hidden;
   margin-top: 8px;
-  border: 1px solid rgba(0,0,0,0.1);
+  border: 1px solid var(--mat-sys-outline-variant);
 }
 
 .time-select-container {
@@ -139,7 +203,7 @@
   .time-separator {
     font-size: 1.5rem;
     font-weight: bold;
-    color: var(--mdc-outlined-text-field-label-text-color);
+    color: var(--mat-sys-on-surface-variant);
   }
 }
 .reminder-inputs {
@@ -177,9 +241,9 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  background: rgba(0,0,0,0.03);
+  background: color-mix(in srgb, var(--mat-sys-on-surface) 3%, transparent);
   padding: 4px 8px;
-  border-radius: 8px;
+  border-radius: var(--punto-shape-sm, 8px);
 
   .checklist-input {
     flex: 1;
@@ -187,10 +251,18 @@
     background: transparent;
     outline: none;
     font-size: 1rem;
-    color: var(--punto-text);
+    color: var(--mat-sys-on-surface);
+    transition: box-shadow var(--punto-duration-medium1, 200ms) var(--punto-easing-standard, cubic-bezier(0.2, 0, 0, 1));
+
     &.done {
       text-decoration: line-through;
       opacity: 0.6;
+    }
+
+    /* Focus visibile */
+    &:focus {
+      outline: none;
+      box-shadow: 0 1px 0 0 var(--mat-sys-primary);
     }
   }
 }
@@ -200,7 +272,7 @@
   padding: 16px 24px;
   gap: 8px;
   background: var(--mat-sys-surface-container-low);
-  border-top: 1px solid rgba(0,0,0,0.05);
+  border-top: 1px solid var(--mat-sys-outline-variant);
   flex-shrink: 0;
   z-index: 10;
 }
