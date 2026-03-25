@@ -99,6 +99,14 @@ body {
 
   /* M3 Disabled/placeholder opacity */
   --punto-opacity-disabled:   0.38;
+
+  /* M3 Spacing Scale */
+  --punto-space-xs:  4px;
+  --punto-space-sm:  8px;
+  --punto-space-md:  12px;
+  --punto-space-lg:  16px;
+  --punto-space-xl:  24px;
+  --punto-space-2xl: 32px;
 }
 
 /* mat-card: elevation livello 1 (surface tinted) + shape large */

@@ -369,7 +369,10 @@
   cursor: grab;
   opacity: 0;
   color: var(--mat-sys-on-surface-variant);
-  transition: opacity var(--punto-duration-medium1, 200ms) var(--punto-easing-standard, cubic-bezier(0.2, 0, 0, 1));
+  border-radius: 50%;
+  transition:
+    opacity var(--punto-duration-medium1, 200ms) var(--punto-easing-standard, cubic-bezier(0.2, 0, 0, 1)),
+    background 200ms var(--punto-easing-standard, cubic-bezier(0.2, 0, 0, 1));
   margin-top: 2px;
 
   mat-icon {
@@ -378,7 +381,12 @@
     height: 16px;
   }
 
-  &:active { cursor: grabbing; opacity: 1 !important; }
+  &:hover { background: color-mix(in srgb, var(--mat-sys-on-surface) 8%, transparent); }
+  &:active {
+    cursor: grabbing;
+    opacity: 1 !important;
+    background: color-mix(in srgb, var(--mat-sys-on-surface) 12%, transparent);
+  }
 }
 
 // Contenuto del blocco — occupa tutto lo spazio rimanente
@@ -395,7 +403,10 @@
 .remove-block-btn {
   flex-shrink: 0;
   opacity: 0;
-  transition: opacity var(--punto-duration-medium1, 200ms) var(--punto-easing-standard, cubic-bezier(0.2, 0, 0, 1));
+  border-radius: 50%;
+  transition:
+    opacity var(--punto-duration-medium1, 200ms) var(--punto-easing-standard, cubic-bezier(0.2, 0, 0, 1)),
+    background 200ms var(--punto-easing-standard, cubic-bezier(0.2, 0, 0, 1));
   margin-top: 2px;
   width: 32px !important;
   height: 32px !important;
@@ -405,6 +416,9 @@
     width: 16px;
     height: 16px;
   }
+
+  &:hover { background: color-mix(in srgb, var(--mat-sys-on-surface) 8%, transparent); }
+  &:active { background: color-mix(in srgb, var(--mat-sys-on-surface) 12%, transparent); }
 }
 
 // ─── Block label row (icona + label) ─────────────────────────
@@ -559,7 +573,10 @@
 .edit-link-btn {
   flex-shrink: 0;
   opacity: 0;
-  transition: opacity var(--punto-duration-medium1, 200ms) var(--punto-easing-standard, cubic-bezier(0.2, 0, 0, 1));
+  border-radius: 50%;
+  transition:
+    opacity var(--punto-duration-medium1, 200ms) var(--punto-easing-standard, cubic-bezier(0.2, 0, 0, 1)),
+    background 200ms var(--punto-easing-standard, cubic-bezier(0.2, 0, 0, 1));
   width: 32px !important;
   height: 32px !important;
 
@@ -568,24 +585,29 @@
     width: 16px;
     height: 16px;
   }
+
+  &:hover { background: color-mix(in srgb, var(--mat-sys-on-surface) 8%, transparent); }
+  &:active { background: color-mix(in srgb, var(--mat-sys-on-surface) 12%, transparent); }
 }
 
 // Link cliccabile — pill-shaped con sfondo primario sottile
 .link-anchor {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 6px 8px;
-  border-radius: var(--punto-shape-sm, 8px);
-  text-decoration: underline;
+  padding: 7px 14px 7px 10px;
+  border-radius: var(--punto-shape-full, 9999px);
+  text-decoration: none;
+  background: color-mix(in srgb, var(--punto-primary) 10%, transparent);
   color: var(--punto-primary);
+  font-size: 0.875rem;
   font-weight: 500;
   max-width: 100%;
   overflow: hidden;
   transition: background var(--punto-duration-medium1, 200ms) var(--punto-easing-standard, cubic-bezier(0.2, 0, 0, 1));
 
   &:hover {
-    background: color-mix(in srgb, var(--punto-primary) 8%, transparent);
+    background: color-mix(in srgb, var(--punto-primary) 16%, transparent);
   }
 }
 

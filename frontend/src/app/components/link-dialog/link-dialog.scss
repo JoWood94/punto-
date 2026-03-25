@@ -1,0 +1,30 @@
+:host {
+  display: block;
+  min-width: 320px;
+  max-width: 480px;
+}
+
+.dialog-title-icon {
+  vertical-align: middle;
+  margin-right: 8px;
+  color: var(--punto-primary);
+  font-size: 20px;
+  width: 20px;
+  height: 20px;
+}
+
+.full-width {
+  width: 100%;
+
+  // Rimuove lo spazio subscript per campi senza errore attivo
+  &:not(:last-child) {
+    margin-bottom: 4px;
+  }
+}
+
+mat-dialog-content {
+  display: flex;
+  flex-direction: column;
+  padding-top: 8px;
+  gap: 8px;
+}

@@ -1,0 +1,32 @@
+<h2 mat-dialog-title>
+  <mat-icon class="dialog-title-icon">link</mat-icon>
+  Collegamento
+</h2>
+
+<mat-dialog-content>
+  <mat-form-field appearance="outline" class="full-width">
+    <mat-label>URL</mat-label>
+    <input matInput type="url" [(ngModel)]="data.url"
+           placeholder="https://…"
+           (paste)="onUrlPaste($event)"
+           required>
+    <mat-icon matSuffix>public</mat-icon>
+    <mat-error *ngIf="!data.url.trim()">URL obbligatorio</mat-error>
+  </mat-form-field>
+
+  <mat-form-field appearance="outline" class="full-width">
+    <mat-label>Testo visualizzato (opzionale)</mat-label>
+    <input matInput [(ngModel)]="data.label"
+           placeholder="es. Apri documento">
+    <mat-hint>Se vuoto, viene mostrato l'URL</mat-hint>
+  </mat-form-field>
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <button mat-button (click)="dialogRef.close(null)">Annulla</button>
+  <button mat-flat-button color="primary"
+          [disabled]="!data.url.trim()"
+          (click)="confirm()">
+    <mat-icon>check</mat-icon> Conferma
+  </button>
+</mat-dialog-actions>

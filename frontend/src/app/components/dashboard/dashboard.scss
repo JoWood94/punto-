@@ -198,6 +198,10 @@
   color: var(--mat-sys-on-surface-variant);
   border-radius: var(--punto-shape-full, 9999px) !important;
   min-width: 0;
+  transition: background 200ms var(--punto-easing-standard, cubic-bezier(0.2, 0, 0, 1));
+
+  &:hover { background: color-mix(in srgb, var(--mat-sys-on-surface) 8%, transparent); }
+  &:active { background: color-mix(in srgb, var(--mat-sys-on-surface) 12%, transparent); }
 }
 
 // ─── Note item — pin state ───────────────────────────────────
@@ -225,10 +229,16 @@
 
 .pin-btn {
   opacity: 0;
-  transition: opacity var(--punto-duration-medium1, 200ms) var(--punto-easing-standard, cubic-bezier(0.2, 0, 0, 1));
+  border-radius: 50%;
+  transition:
+    opacity var(--punto-duration-medium1, 200ms) var(--punto-easing-standard, cubic-bezier(0.2, 0, 0, 1)),
+    background 200ms var(--punto-easing-standard, cubic-bezier(0.2, 0, 0, 1));
   color: var(--mat-sys-on-surface-variant);
 
   @media (max-width: 599.98px) { opacity: 1; }
+
+  &:hover { background: color-mix(in srgb, var(--mat-sys-on-surface) 8%, transparent); }
+  &:active { background: color-mix(in srgb, var(--mat-sys-on-surface) 12%, transparent); }
 
   &.pin-active {
     opacity: 1 !important;

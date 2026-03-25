@@ -104,7 +104,7 @@
 .month-grid {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
-  grid-auto-rows: minmax(72px, 1fr);
+  grid-auto-rows: minmax(80px, 1fr);
   flex: 1;
 
   .day-cell {
@@ -157,18 +157,43 @@
     }
 
     .note-chip {
+      display: flex;
+      align-items: center;
+      gap: 2px;
       font-size: 10px;
       color: white;
       padding: 2px 5px;
       border-radius: 3px;
       overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
       cursor: pointer;
       line-height: 16px;
 
       &:hover {
         filter: brightness(0.88);
+      }
+
+      .chip-bell {
+        font-size: 10px !important;
+        width: 10px;
+        height: 10px;
+        flex-shrink: 0;
+        color: inherit;
+      }
+
+      .chip-title {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        flex: 1;
+      }
+
+      &.note-chip-reminder {
+        color: white;
+        font-weight: 500;
+      }
+
+      &:not(.note-chip-reminder) {
+        color: var(--mat-sys-on-secondary-container, #21005d);
       }
     }
 
@@ -388,7 +413,7 @@
   }
 
   .month-grid .day-cell {
-    min-height: 52px;
+    min-height: 56px;
     padding: 2px;
 
     .day-number { font-size: 10px; width: 20px; height: 20px; }

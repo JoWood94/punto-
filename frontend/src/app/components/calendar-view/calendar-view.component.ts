@@ -103,8 +103,21 @@ export class CalendarViewComponent implements OnChanges {
     this.dayNotes = this.getNotesForDay(this.currentDate);
   }
 
+  hasReminder(note: Note): boolean {
+    return !!note.reminderTime;
+  }
+
+  private getNoteDate(note: Note): Date | null {
+    if (note.reminderTime) return new Date(note.reminderTime);
+    if (note.createdAt)    return new Date(note.createdAt);
+    return null;
+  }
+
   private getNotesForDay(date: Date): Note[] {
-    return this.notes.filter(n => n.reminderTime && this.isSameDay(new Date(n.reminderTime), date));
+    return this.notes.filter(n => {
+      const d = this.getNoteDate(n);
+      return d && this.isSameDay(d, date);
+    });
   }
 
   private isSameDay(a: Date, b: Date): boolean {
