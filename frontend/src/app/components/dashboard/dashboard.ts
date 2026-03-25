@@ -22,6 +22,7 @@ import { NoteEditorComponent } from '../note-editor/note-editor';
 import { CalendarViewComponent } from '../calendar-view/calendar-view.component';
 import { ConfirmDialogComponent } from '../confirm-dialog/confirm-dialog';
 import { Observable, Subscription, firstValueFrom } from 'rxjs';
+import { Location } from '@angular/common';
 import { PushNotificationService } from '../../services/push-notification';
 import { BreakpointObserver, Breakpoints } from '@angular/cdk/layout';
 
@@ -54,6 +55,7 @@ import { BreakpointObserver, Breakpoints } from '@angular/cdk/layout';
 export class DashboardComponent implements OnInit, OnDestroy {
   private authService: AuthService = inject(AuthService);
   private router: Router = inject(Router);
+  private location: Location = inject(Location);
   private breakpointObserver = inject(BreakpointObserver);
   private snackBar = inject(MatSnackBar);
   private dialog = inject(MatDialog);

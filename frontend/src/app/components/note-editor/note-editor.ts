@@ -422,7 +422,8 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewChecked 
       },
       err => {
         this.uploadProgress.delete(blockIndex);
-        this.snackBar.open('Errore upload: ' + err.message, 'Chiudi', { duration: 5000 });
+        console.error('[Storage] Upload error:', err.code, err.message, err);
+        this.snackBar.open('Errore upload: ' + (err.code ?? err.message), 'Chiudi', { duration: 8000 });
         this.cdr.detectChanges();
       },
       async () => {

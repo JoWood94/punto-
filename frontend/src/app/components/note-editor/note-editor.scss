@@ -3,12 +3,8 @@
   flex-direction: column;
   height: 100%;
   background: var(--punto-bg);
-  border-radius: var(--punto-shape-xl, 24px);
+  border-radius: 0;
   overflow: hidden;
-
-  @media (max-width: 599.98px) {
-    border-radius: 0;
-  }
 }
 
 .editor-header {
@@ -457,31 +453,34 @@
 }
 
 // ─── Reminder block ──────────────────────────────────────────
-// Layout sempre colonna: data su riga propria, poi ora+ripeti sulla riga sotto
+// ─── Reminder block ──────────────────────────────────────────
+// Desktop: tutto su una riga (Data | Ore | : | Min | Ripeti)
+// Mobile: Data / [Ore Min] / Ripeti — colonne separate
 .reminder-inputs {
   display: flex;
-  flex-direction: column;
+  flex-wrap: nowrap;
   gap: 8px;
+  align-items: flex-end;
 }
 
 .date-field {
-  width: 100%;
+  flex: 2;
+  min-width: 0;
   ::ng-deep .mat-mdc-form-field-subscript-wrapper { display: none; }
 }
 
-// Riga: ore:min + ripeti (sempre orizzontale)
 .time-recurrence-row {
+  width: 100%;
   display: flex;
   align-items: flex-end;
   gap: 8px;
-  flex-wrap: wrap;
+  flex-shrink: 0;
 }
 
 .time-row {
   display: flex;
   align-items: center;
   gap: 4px;
-  flex-shrink: 0;
 }
 
 .time-sep {
@@ -495,7 +494,6 @@
 .minute-field {
   width: 96px !important;
   min-width: 0 !important;
-  flex-shrink: 0;
   ::ng-deep {
     .mdc-text-field { min-width: 0 !important; }
     .mat-mdc-form-field-subscript-wrapper { display: none; }
@@ -503,9 +501,41 @@
 }
 
 .recurrence-field {
-  flex: 1;
-  min-width: 120px;
+  width: 140px;
   ::ng-deep .mat-mdc-form-field-subscript-wrapper { display: none; }
+}
+
+@media (max-width: 599.98px) {
+  // Mobile: colonna — ogni riga separata
+  .reminder-inputs {
+    flex-wrap: wrap;
+  }
+
+  .date-field {
+    flex: 0 0 100%;
+  }
+
+  .time-recurrence-row {
+    flex: 0 0 100%;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  // Ore e Min si espandono a tutta la riga (50%+50%)
+  .time-row {
+    width: 100%;
+  }
+
+  .hour-field,
+  .minute-field {
+    flex: 1 !important;
+    width: auto !important;
+  }
+
+  // Ripeti occupa tutta la riga
+  .recurrence-field {
+    width: 100%;
+  }
 }
 
 // ─── Image block ─────────────────────────────────────────────

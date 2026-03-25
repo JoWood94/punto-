@@ -41,7 +41,7 @@ export class LoginComponent {
       } else {
         await this.authService.login(this.email, this.password);
       }
-      this.router.navigate(['/dashboard']);
+      this.router.navigate(['/dashboard'], { replaceUrl: true });
     } catch (error: any) {
       this.snackBar.open(error.message, 'Chiudi', { duration: 5000 });
     }
@@ -64,7 +64,7 @@ export class LoginComponent {
   async loginWithApple() {
     try {
       await this.authService.loginWithApple();
-      this.router.navigate(['/dashboard']);
+      this.router.navigate(['/dashboard'], { replaceUrl: true });
     } catch (error: any) {
       this.snackBar.open(error.message, 'Chiudi', { duration: 5000 });
     }
