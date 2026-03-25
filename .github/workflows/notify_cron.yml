@@ -1,9 +1,7 @@
 name: Send Firebase Push Notifications (Cron)
 
 on:
-  schedule:
-    # Ogni 5 minuti (0, 5, 10, ..., 55) — nota: GitHub throttle su repo pubblici può ritardare fino a ~1h
-    - cron: '*/5 * * * *'
+  # Schedule rimosso: triggering esterno via cron-job.org ogni 5 min (workflow_dispatch)
   workflow_dispatch:
 
 env:
