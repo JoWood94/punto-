@@ -43,8 +43,6 @@
   max-width: 160px;
   height: auto;
   margin-bottom: 8px;
-  mix-blend-mode: multiply; /* Rende lo sfondo grigio-chiaro invisibile */
-  filter: contrast(1.5) brightness(1.15); /* Brucia il grigio del background fino al bianco puro */
 }
 
 .subtitle {

@@ -1,6 +1,6 @@
 import {
   Component, Input, Output, EventEmitter, inject, OnInit, OnChanges,
-  SimpleChanges, ViewChildren, QueryList, ElementRef, ChangeDetectorRef, AfterViewChecked
+  SimpleChanges, ViewChildren, ViewChild, QueryList, ElementRef, ChangeDetectorRef, AfterViewChecked
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -52,6 +52,7 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewChecked 
 
   /** Collects only #textBlockEl refs (one per text block, in ngFor order). */
   @ViewChildren('textBlockEl') textBlockEls!: QueryList<ElementRef<HTMLElement>>;
+  @ViewChild('editorContent') editorContent!: ElementRef<HTMLElement>;
 
   note: Partial<Note> & { blocks: NoteBlock[]; tags: string[] } = {
     title: '',
@@ -153,6 +154,13 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewChecked 
     this.textBlocksNeedInit = true;
   }
 
+  private scrollEditorToBottom() {
+    setTimeout(() => {
+      const el = this.editorContent?.nativeElement;
+      if (el) el.scrollTop = el.scrollHeight;
+    }, 50);
+  }
+
   // ─── Block Management ───────────────────────────────────────────────────────
 
   addBlock(type: NoteBlock['type'], afterIndex?: number) {
@@ -195,6 +203,7 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewChecked 
       ...this.note.blocks.slice(insertAt)
     ];
     this.textBlocksNeedInit = true;
+    this.scrollEditorToBottom();
   }
 
   addBlockAfterActive(type: NoteBlock['type']) {
@@ -220,6 +229,7 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewChecked 
       ...this.note.blocks.slice(insertAt)
     ];
     this.textBlocksNeedInit = true;
+    this.scrollEditorToBottom();
   }
 
   /** Riapre il dialog per modificare un LinkBlock esistente. */
@@ -314,7 +324,10 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewChecked 
   // ─── Checklist Block ────────────────────────────────────────────────────────
 
   addChecklistItem(block: ChecklistBlock, text: string) {
-    if (text.trim()) block.items.push({ text: text.trim(), done: false });
+    if (text.trim()) {
+      block.items.push({ text: text.trim(), done: false });
+      this.scrollEditorToBottom();
+    }
   }
 
   removeChecklistItem(block: ChecklistBlock, index: number) {

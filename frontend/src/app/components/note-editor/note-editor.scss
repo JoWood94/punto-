@@ -269,8 +269,14 @@
   background: color-mix(in srgb, var(--mat-sys-on-surface) 3%, transparent);
   padding: 4px 8px;
   border-radius: var(--punto-shape-sm, 8px);
+  touch-action: manipulation;
 
   &:hover .remove-item-btn { opacity: 0.6; }
+
+  // Previene il doppio-tap necessario per spuntare la checkbox su mobile
+  ::ng-deep .mdc-checkbox {
+    touch-action: manipulation;
+  }
 
   .checklist-input {
     flex: 1;
@@ -302,11 +308,17 @@
   transition: opacity var(--punto-duration-medium1, 200ms) var(--punto-easing-standard, cubic-bezier(0.2, 0, 0, 1));
   width: 32px !important;
   height: 32px !important;
+  line-height: 32px !important;
+  margin-left: auto;
 
   mat-icon {
     font-size: 16px;
     width: 16px;
     height: 16px;
+  }
+
+  @media (max-width: 599.98px) {
+    opacity: 0.5; // sempre visibile su mobile (no hover)
   }
 }
 
@@ -444,24 +456,31 @@
   flex: 1;
 }
 
-// ─── Reminder block — layout compatto su una riga ────────────
+// ─── Reminder block ──────────────────────────────────────────
+// Layout sempre colonna: data su riga propria, poi ora+ripeti sulla riga sotto
 .reminder-inputs {
   display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  align-items: flex-end;
+  flex-direction: column;
+  gap: 8px;
 }
 
 .date-field {
-  flex: 1;
-  min-width: 120px;
+  width: 100%;
   ::ng-deep .mat-mdc-form-field-subscript-wrapper { display: none; }
+}
+
+// Riga: ore:min + ripeti (sempre orizzontale)
+.time-recurrence-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
 .time-row {
   display: flex;
   align-items: center;
-  gap: 2px;
+  gap: 4px;
   flex-shrink: 0;
 }
 
@@ -469,18 +488,23 @@
   font-size: 1.1rem;
   font-weight: 300;
   color: var(--mat-sys-on-surface-variant);
-  padding-bottom: 2px;
+  padding-bottom: 4px;
 }
 
 .hour-field,
 .minute-field {
-  width: 60px;
-  ::ng-deep .mat-mdc-form-field-subscript-wrapper { display: none; }
+  width: 96px !important;
+  min-width: 0 !important;
+  flex-shrink: 0;
+  ::ng-deep {
+    .mdc-text-field { min-width: 0 !important; }
+    .mat-mdc-form-field-subscript-wrapper { display: none; }
+  }
 }
 
 .recurrence-field {
-  width: 130px;
-  flex-shrink: 0;
+  flex: 1;
+  min-width: 120px;
   ::ng-deep .mat-mdc-form-field-subscript-wrapper { display: none; }
 }
 

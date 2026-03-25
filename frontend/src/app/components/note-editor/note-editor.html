@@ -5,7 +5,7 @@
   </button>
 </div>
 
-<div class="editor-content">
+<div class="editor-content" #editorContent>
 
   <!-- ── Block list with drag-and-drop ── -->
   <div cdkDropList (cdkDropListDropped)="onBlockDrop($event)" class="blocks-container">
@@ -130,31 +130,34 @@
               <mat-datepicker #picker></mat-datepicker>
             </mat-form-field>
 
-            <div class="time-row">
-              <mat-form-field appearance="outline" class="hour-field">
-                <mat-label>Ore</mat-label>
-                <mat-select [(ngModel)]="$any(block).hour">
-                  <mat-option *ngFor="let h of hoursList" [value]="h">{{ h }}</mat-option>
-                </mat-select>
-              </mat-form-field>
-              <span class="time-sep">:</span>
-              <mat-form-field appearance="outline" class="minute-field">
-                <mat-label>Min</mat-label>
-                <mat-select [(ngModel)]="$any(block).minute">
-                  <mat-option *ngFor="let m of minutesList" [value]="m">{{ m }}</mat-option>
+            <!-- Ore:Min e Ripeti raggruppati — rimangono sulla stessa riga su mobile -->
+            <div class="time-recurrence-row">
+              <div class="time-row">
+                <mat-form-field appearance="outline" class="hour-field">
+                  <mat-label>Ore</mat-label>
+                  <mat-select [(ngModel)]="$any(block).hour">
+                    <mat-option *ngFor="let h of hoursList" [value]="h">{{ h }}</mat-option>
+                  </mat-select>
+                </mat-form-field>
+                <span class="time-sep">:</span>
+                <mat-form-field appearance="outline" class="minute-field">
+                  <mat-label>Min</mat-label>
+                  <mat-select [(ngModel)]="$any(block).minute">
+                    <mat-option *ngFor="let m of minutesList" [value]="m">{{ m }}</mat-option>
+                  </mat-select>
+                </mat-form-field>
+              </div>
+
+              <mat-form-field appearance="outline" class="recurrence-field">
+                <mat-label>Ripeti</mat-label>
+                <mat-select [(ngModel)]="$any(block).recurrence">
+                  <mat-option value="none">Mai</mat-option>
+                  <mat-option value="daily">Ogni giorno</mat-option>
+                  <mat-option value="weekly">Ogni settimana</mat-option>
+                  <mat-option value="monthly">Ogni mese</mat-option>
                 </mat-select>
               </mat-form-field>
             </div>
-
-            <mat-form-field appearance="outline" class="recurrence-field">
-              <mat-label>Ripeti</mat-label>
-              <mat-select [(ngModel)]="$any(block).recurrence">
-                <mat-option value="none">Mai</mat-option>
-                <mat-option value="daily">Ogni giorno</mat-option>
-                <mat-option value="weekly">Ogni settimana</mat-option>
-                <mat-option value="monthly">Ogni mese</mat-option>
-              </mat-select>
-            </mat-form-field>
           </div>
         </div>
       </ng-container>

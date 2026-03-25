@@ -37,7 +37,7 @@
           <div class="note-chip"
                *ngFor="let note of day.notes.slice(0, 3)"
                [class.note-chip-reminder]="hasReminder(note)"
-               [style.background-color]="note.color || (hasReminder(note) ? 'var(--punto-primary, #4A6CF7)' : 'var(--mat-sys-secondary-container, #e8def8)')"
+               [style.background-color]="(note.color && note.color !== 'default' ? note.color : null) || (hasReminder(note) ? 'var(--punto-primary, #4A6CF7)' : 'var(--mat-sys-secondary-container, #e8def8)')"
                (click)="selectNote(note, $event)"
                [matTooltip]="(note.title || 'Nota senza titolo') + (hasReminder(note) ? ' 🔔' : '')">
             <mat-icon class="chip-bell" *ngIf="hasReminder(note)">notifications</mat-icon>
