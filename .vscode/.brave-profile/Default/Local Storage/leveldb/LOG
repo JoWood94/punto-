@@ -1,3 +1,6 @@
-2026/03/23-18:41:56.185 42134 Reusing MANIFEST /Users/giuseppebosco/Developer/Antigravity Playgrounds/younotes/.vscode/.brave-profile/Default/Local Storage/leveldb/MANIFEST-000001
-2026/03/23-18:41:56.191 42134 Recovering log #4
-2026/03/23-18:41:56.191 42134 Reusing old log /Users/giuseppebosco/Developer/Antigravity Playgrounds/younotes/.vscode/.brave-profile/Default/Local Storage/leveldb/000004.log 
+2026/03/25-13:09:27.463 2217b4 Reusing MANIFEST /Users/giuseppebosco/Developer/punto/.vscode/.brave-profile/Default/Local Storage/leveldb/MANIFEST-000001
+2026/03/25-13:09:27.468 2217b4 Recovering log #7
+2026/03/25-13:09:27.468 2217b4 Reusing old log /Users/giuseppebosco/Developer/punto/.vscode/.brave-profile/Default/Local Storage/leveldb/000007.log 
+2026/03/25-14:53:28.041 2217b7 Level-0 table #11: started
+2026/03/25-14:53:28.044 2217b7 Level-0 table #11: 7265 bytes OK
+2026/03/25-14:53:28.047 2217b7 Delete type=0 #7

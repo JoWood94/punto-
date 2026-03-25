@@ -1,10 +1,16 @@
+// Il componente Angular è inline di default: forziamo block + full height
+:host {
+  display: block;
+  height: 100%;
+}
+
 // ─── Container ───────────────────────────────────────────────
 .calendar-view {
   display: flex;
   flex-direction: column;
   height: 100%;
   overflow: hidden;
-  background: var(--mat-app-background-color, #fafafa);
+  background: var(--mat-sys-background, #fafafa);
 }
 
 // ─── Header ──────────────────────────────────────────────────
@@ -37,14 +43,35 @@
       height: 32px;
       line-height: 30px;
       font-size: 13px;
+      border-radius: var(--punto-shape-full, 9999px) !important;
     }
   }
 
   .view-toggle {
     height: 36px;
+    border-radius: var(--punto-shape-full, 9999px) !important;
+    overflow: hidden;
+    border: 1px solid var(--mat-sys-outline-variant) !important;
 
-    ::ng-deep .mat-button-toggle {
-      font-size: 13px;
+    ::ng-deep {
+      .mat-button-toggle {
+        font-size: 13px;
+        border: none !important;
+        background: transparent;
+
+        & + .mat-button-toggle {
+          border-left: none !important;
+        }
+
+        &.mat-button-toggle-checked {
+          background: var(--punto-primary-container);
+
+          .mat-button-toggle-label-content {
+            color: var(--punto-on-primary-container);
+            font-weight: 600;
+          }
+        }
+      }
     }
   }
 }
@@ -105,8 +132,8 @@
     }
 
     &.today .day-number {
-      background: var(--mdc-theme-primary, #1976d2);
-      color: white !important;
+      background: var(--punto-primary);
+      color: var(--punto-on-primary) !important;
       border-radius: 50%;
       font-weight: 600;
     }
@@ -196,7 +223,7 @@
       .week-day-number {
         font-size: 20px;
         font-weight: 300;
-        color: rgba(0, 0, 0, 0.65);
+        color: var(--mat-sys-on-surface-variant);
         width: 32px;
         height: 32px;
         display: flex;
@@ -206,8 +233,8 @@
         margin-top: 2px;
 
         &.today-circle {
-          background: var(--mdc-theme-primary, #1976d2);
-          color: white;
+          background: var(--punto-primary);
+          color: var(--punto-on-primary);
           font-weight: 600;
         }
       }

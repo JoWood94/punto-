@@ -29,11 +29,11 @@ html {
 }
 
 :root {
-  /* Palette primaria — blu-indaco M3 Expressive */
-  --punto-primary:              #4A6CF7;
-  --punto-primary-container:    #E8EDFF;
+  /* Palette primaria — nero/antracite M3 minimal */
+  --punto-primary:              #1C1B1F;
+  --punto-primary-container:    #EEECF0;
   --punto-on-primary:           #FFFFFF;
-  --punto-on-primary-container: #001257;
+  --punto-on-primary-container: #1C1B1F;
 
   /* Testo e superficie — mantenuti per retrocompatibilità */
   --punto-text: #1C1B1F;
@@ -49,7 +49,7 @@ html {
   --mat-sys-surface:             #FFFBFE;
   --mat-sys-on-surface:          #1C1B1F;
   --mat-sys-on-surface-variant:  #49454F;
-  --mat-sys-surface-variant:     #E7E0EC;
+  --mat-sys-surface-variant:     #EEECF0;
   --mat-sys-outline:             #79747E;
   --mat-sys-outline-variant:     #CAC4D0;
   --mat-sys-background:          #FFFBFE;

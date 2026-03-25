@@ -40,6 +40,22 @@ if (process.env.FIREBASE_SERVICE_ACCOUNT) {
 const db = admin.firestore();
 const messaging = admin.messaging();
 
+/**
+ * Calcola il prossimo orario di promemoria in base alla ricorrenza.
+ * @param {number} currentTime - Timestamp attuale del promemoria (ms)
+ * @param {string} recurrence - 'daily' | 'weekly' | 'monthly'
+ * @returns {number} - Prossimo timestamp (ms)
+ */
+function calculateNextReminder(currentTime, recurrence) {
+  const d = new Date(currentTime);
+  switch (recurrence) {
+    case 'daily':   d.setDate(d.getDate() + 1);     break;
+    case 'weekly':  d.setDate(d.getDate() + 7);     break;
+    case 'monthly': d.setMonth(d.getMonth() + 1);   break;
+  }
+  return d.getTime();
+}
+
 async function checkAndSendReminders() {
   const now = Date.now();
   console.log(`[${new Date().toISOString()}] Controllo promemoria in sospeso...`);
@@ -119,7 +135,34 @@ async function checkAndSendReminders() {
         }
       }
       
-      updates.push(doc.ref.update({ reminderStatus: 'sent' }));
+      // Ricorrenza: rischedulare invece di segnare come 'sent'
+      const recurrence = note.recurrence ?? 'none';
+      if (recurrence !== 'none' && note.reminderTime) {
+        const nextTime = calculateNextReminder(note.reminderTime, recurrence);
+        const updatePayload = { reminderStatus: 'pending', reminderTime: nextTime };
+
+        // Aggiorna anche il ReminderBlock nell'array blocks (nuovo formato)
+        if (note.blocks && Array.isArray(note.blocks)) {
+          updatePayload.blocks = note.blocks.map(b => {
+            if (b.type === 'reminder') {
+              return { ...b, time: nextTime, status: 'pending' };
+            }
+            return b;
+          });
+        }
+        updates.push(doc.ref.update(updatePayload));
+        console.log(`Promemoria ricorrente (${recurrence}) rischedulato a ${new Date(nextTime).toISOString()}`);
+      } else {
+        const updatePayload = { reminderStatus: 'sent' };
+        // Aggiorna anche il ReminderBlock nell'array blocks (nuovo formato)
+        if (note.blocks && Array.isArray(note.blocks)) {
+          updatePayload.blocks = note.blocks.map(b => {
+            if (b.type === 'reminder') return { ...b, status: 'sent' };
+            return b;
+          });
+        }
+        updates.push(doc.ref.update(updatePayload));
+      }
     }
 
     await Promise.all(updates);

@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { AuthService } from '../../services/auth';
-import { NoteService, Note } from '../../services/note';
+import { NoteService, Note, getNotePreview, getChecklistProgress } from '../../services/note';
 import { MatToolbarModule } from '@angular/material/toolbar';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
@@ -16,9 +16,12 @@ import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatInputModule } from '@angular/material/input';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatButtonToggleModule } from '@angular/material/button-toggle';
+import { MatDialogModule, MatDialog } from '@angular/material/dialog';
+import { MatChipsModule } from '@angular/material/chips';
 import { NoteEditorComponent } from '../note-editor/note-editor';
 import { CalendarViewComponent } from '../calendar-view/calendar-view.component';
-import { Observable, Subscription } from 'rxjs';
+import { ConfirmDialogComponent } from '../confirm-dialog/confirm-dialog';
+import { Observable, Subscription, firstValueFrom } from 'rxjs';
 import { PushNotificationService } from '../../services/push-notification';
 import { BreakpointObserver, Breakpoints } from '@angular/cdk/layout';
 
@@ -40,6 +43,8 @@ import { BreakpointObserver, Breakpoints } from '@angular/cdk/layout';
     MatInputModule,
     MatFormFieldModule,
     MatButtonToggleModule,
+    MatDialogModule,
+    MatChipsModule,
     NoteEditorComponent,
     CalendarViewComponent
   ],
@@ -51,6 +56,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
   private router: Router = inject(Router);
   private breakpointObserver = inject(BreakpointObserver);
   private snackBar = inject(MatSnackBar);
+  private dialog = inject(MatDialog);
 
   @ViewChild('sidenav') sidenav!: MatSidenav;
 
@@ -61,12 +67,13 @@ export class DashboardComponent implements OnInit, OnDestroy {
   isMobile = false;
   currentMainView: 'list' | 'calendar' = 'list';
 
-  /** Tutte le note ricevute dallo stream Firestore */
   allNotes: Note[] = [];
-  /** Note filtrate e ordinate, usate nel template */
   filteredNotes: Note[] = [];
-  /** Query di ricerca digitata dall'utente */
   searchQuery = '';
+
+  // TODO: tags disabilitati temporaneamente
+  // allTags: string[] = [];
+  // selectedTags: string[] = [];
 
   private notesSub?: Subscription;
 
@@ -76,18 +83,14 @@ export class DashboardComponent implements OnInit, OnDestroy {
   ) {}
 
   async ngOnInit() {
-    // Synchronous initial check to avoid NG0100
     this.isMobile = this.breakpointObserver.isMatched([Breakpoints.Handset]);
     this.checkMobile();
-    
+
     if (window.visualViewport) {
       const vv = window.visualViewport;
       const setVh = () => {
         document.documentElement.style.setProperty('--vh', `${vv.height}px`);
-        // Se il viewport è traslato (es. scrollato dalla tastiera), riportalo a zero
-        if (vv.offsetTop > 0) {
-          window.scrollTo(0, 0);
-        }
+        if (vv.offsetTop > 0) window.scrollTo(0, 0);
       };
       vv.addEventListener('resize', setVh);
       vv.addEventListener('scroll', setVh);
@@ -96,13 +99,12 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
     this.notes$ = this.noteService.getNotes();
 
-    // Sottoscrizione locale per mantenere allNotes aggiornato e applicare filtri/ordinamento
     this.notesSub = this.notes$.subscribe(notes => {
       this.allNotes = notes;
+      // this.updateAllTags(); // TODO: tags disabilitati temporaneamente
       this.applyFilter();
     });
 
-    // Push notifications: non-blocking, fail gracefully
     this.pushService.requestPermission().then(() => {
       this.pushService.listenForMessages();
     }).catch(() => {
@@ -112,88 +114,98 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   private checkMobile() {
     this.breakpointObserver.observe([Breakpoints.Handset]).subscribe(result => {
-      // Use microtask to ensure change detection has finished if this happens mid-cycle
-      Promise.resolve().then(() => {
-        this.isMobile = result.matches;
-      });
+      Promise.resolve().then(() => { this.isMobile = result.matches; });
     });
   }
 
-  ngOnDestroy() {
-    this.notesSub?.unsubscribe();
-  }
+  ngOnDestroy() { this.notesSub?.unsubscribe(); }
 
-  /**
-   * Filtra le note per titolo o contenuto (testo plain, senza HTML)
-   * e le ordina per data di creazione discendente (più recente prima).
-   */
+  // TODO: tags disabilitati temporaneamente
+  // private updateAllTags() { ... }
+  // toggleTagFilter(tag: string) { ... }
+  // isTagSelected(tag: string): boolean { ... }
+  // clearTagFilters() { ... }
+
+  // ─── Filtering & Sorting ────────────────────────────────────────────────────
+
   applyFilter() {
     const q = this.searchQuery.trim().toLowerCase();
     let result = this.allNotes;
 
+    // Text search (title + content)
     if (q) {
       result = result.filter(note => {
         const titleMatch = (note.title || '').toLowerCase().includes(q);
-        // Rimuove i tag HTML per cercare nel contenuto plain
-        const plainContent = (note.content || '').replace(/<[^>]*>/g, ' ').toLowerCase();
-        const contentMatch = plainContent.includes(q);
-        return titleMatch || contentMatch;
+        const plain = getNotePreview(note).toLowerCase();
+        return titleMatch || plain.includes(q);
       });
     }
 
-    // Ordina per createdAt discendente (più recente prima)
-    result = [...result].sort((a, b) => (b.createdAt ?? 0) - (a.createdAt ?? 0));
+    // TODO: tag filter disabilitato temporaneamente
+    // if (this.selectedTags.length > 0) { ... }
+
+    // Sort: pinned first, then by createdAt descending
+    result = [...result].sort((a, b) => {
+      const pinDiff = (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0);
+      if (pinDiff !== 0) return pinDiff;
+      return (b.createdAt ?? 0) - (a.createdAt ?? 0);
+    });
 
     this.filteredNotes = result;
   }
 
-  onSearchChange() {
-    this.applyFilter();
+  onSearchChange() { this.applyFilter(); }
+  clearSearch() { this.searchQuery = ''; this.applyFilter(); }
+
+  // ─── Note preview helpers (used in template) ────────────────────────────────
+
+  getNotePreview(note: Note): string { return getNotePreview(note); }
+
+  getChecklistProgress(note: Note): { done: number; total: number } | null {
+    return getChecklistProgress(note);
   }
 
-  clearSearch() {
-    this.searchQuery = '';
-    this.applyFilter();
-  }
+  // ─── Pin ────────────────────────────────────────────────────────────────────
 
-  logout() {
-    this.authService.logout().then(() => {
-      this.router.navigate(['/login']);
-    });
-  }
-
-  openNoteEditor() {
-    this.activeNote = null;
-  }
-
-  selectNote(note: Note) {
-    this.activeNote = note;
-  }
-
-  closeEditor() {
-    this.activeNote = undefined;
-  }
-
-  handleBackButton() {
-    if (this.activeNote !== undefined) {
-      this.activeNote = undefined;
-    } else {
-      this.currentMainView = 'list';
+  async togglePin(note: Note, event: Event) {
+    event.stopPropagation();
+    if (!note.id) return;
+    try {
+      await this.noteService.updateNote(note.id, { pinned: !note.pinned });
+    } catch (e: any) {
+      this.snackBar.open('Errore: ' + e.message, 'Chiudi', { duration: 3000 });
     }
   }
 
-  onCalendarNoteSelected(note: Note) {
-    this.activeNote = note;
+  // ─── Navigation ─────────────────────────────────────────────────────────────
+
+  logout() { this.authService.logout().then(() => this.router.navigate(['/login'])); }
+  openNoteEditor() { this.activeNote = null; }
+  selectNote(note: Note) { this.activeNote = note; }
+  closeEditor() { this.activeNote = undefined; }
+  handleBackButton() {
+    if (this.activeNote !== undefined) this.activeNote = undefined;
+    else this.currentMainView = 'list';
   }
+  onCalendarNoteSelected(note: Note) { this.activeNote = note; }
+
+  // ─── Delete ─────────────────────────────────────────────────────────────────
 
   async deleteNote(note: Note, event: Event) {
     event.stopPropagation();
     if (!note.id) return;
+    const ref = this.dialog.open(ConfirmDialogComponent, {
+      data: {
+        title: 'Elimina nota',
+        message: `Vuoi eliminare "${note.title || 'Nuova Nota'}"? L'operazione non è reversibile.`,
+        confirmLabel: 'Elimina'
+      }
+    });
+    const confirmed = await firstValueFrom(ref.afterClosed());
+    if (!confirmed) return;
     try {
       await this.noteService.deleteNote(note.id);
-      if (this.activeNote?.id === note.id) {
-        this.activeNote = undefined;
-      }
+      if (this.activeNote?.id === note.id) this.activeNote = undefined;
       this.snackBar.open('Nota eliminata', 'Chiudi', { duration: 3000 });
     } catch (e: any) {
       this.snackBar.open('Errore eliminazione: ' + e.message, 'Chiudi', { duration: 5000 });

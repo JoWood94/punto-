@@ -14,13 +14,13 @@
           [class.mobile-actions]="isMobile">
           <mat-icon>calendar_month</mat-icon>
         </button>
-        <!-- Su mobile rimane l'icon button nell'header; su desktop c'è il FAB in fondo alla lista -->
         <button mat-icon-button (click)="openNoteEditor()" color="primary" matTooltip="Nuova Nota"
           *ngIf="isMobile" [class.mobile-actions]="isMobile">
           <mat-icon>add</mat-icon>
         </button>
       </div>
 
+      <!-- Search bar -->
       <div class="search-bar-wrapper">
         <mat-form-field appearance="outline" class="search-field">
           <mat-icon matPrefix>search</mat-icon>
@@ -32,18 +32,76 @@
         </mat-form-field>
       </div>
 
+      <!-- TODO: tag filter disabilitato temporaneamente
+      <div class="tag-filters" *ngIf="allTags.length > 0">
+        <mat-chip-set aria-label="Filtra per etichetta">
+          <mat-chip *ngFor="let tag of allTags"
+                    [class.tag-chip-active]="isTagSelected(tag)"
+                    (click)="toggleTagFilter(tag)"
+                    class="tag-filter-chip">
+            #{{ tag }}
+          </mat-chip>
+        </mat-chip-set>
+        <button mat-button *ngIf="selectedTags.length > 0"
+                (click)="clearTagFilters()" class="clear-tags-btn" type="button">
+          <mat-icon>filter_alt_off</mat-icon> Rimuovi filtri
+        </button>
+      </div>
+      -->
+
+      <!-- Notes list -->
       <mat-nav-list class="notes-list">
         <ng-container *ngFor="let note of filteredNotes">
           <a mat-list-item (click)="selectNote(note)" [class.active-note]="activeNote?.id === note.id"
-            class="single-note">
+            class="single-note" [class.note-pinned]="note.pinned">
+
+            <!-- Pin indicator -->
+            <mat-icon matListItemIcon class="pin-icon" *ngIf="note.pinned" color="primary">push_pin</mat-icon>
+
             <span matListItemTitle class="note-item-title">{{ note.title || 'Nuova Nota' }}</span>
-            <span matListItemLine class="note-item-preview" *ngIf="note.content" [innerHTML]="note.content"></span>
-            <button mat-icon-button matListItemMeta (click)="deleteNote(note, $event)" matTooltip="Elimina" class="delete-btn">
-              <mat-icon>delete_outline</mat-icon>
-            </button>
+
+            <!-- Content preview (from first text block) -->
+            <span matListItemLine class="note-item-preview"
+                  *ngIf="getNotePreview(note) as preview"
+                  [innerHTML]="preview">
+            </span>
+
+            <!-- TODO: tags disabilitati temporaneamente
+            <div matListItemLine class="note-tags-row" *ngIf="note.tags && note.tags.length > 0">
+              <span class="note-tag-badge" *ngFor="let tag of note.tags">#{{ tag }}</span>
+            </div>
+            -->
+
+            <!-- Checklist progress -->
+            <div matListItemLine class="note-checklist-progress"
+                 *ngIf="getChecklistProgress(note) as progress">
+              <mat-icon class="progress-icon">check_circle</mat-icon>
+              <span class="progress-text">{{ progress.done }}/{{ progress.total }}</span>
+              <div class="progress-bar-track">
+                <div class="progress-bar-fill"
+                     [style.width.%]="(progress.done / progress.total) * 100">
+                </div>
+              </div>
+            </div>
+
+            <!-- Actions: pin + delete -->
+            <div matListItemMeta class="note-meta-actions">
+              <button mat-icon-button
+                      (click)="togglePin(note, $event)"
+                      [matTooltip]="note.pinned ? 'Rimuovi pin' : 'Fissa nota'"
+                      class="pin-btn"
+                      [class.pin-active]="note.pinned">
+                <mat-icon>push_pin</mat-icon>
+              </button>
+              <button mat-icon-button (click)="deleteNote(note, $event)" matTooltip="Elimina" class="delete-btn">
+                <mat-icon>delete_outline</mat-icon>
+              </button>
+            </div>
           </a>
           <mat-divider></mat-divider>
         </ng-container>
+
+        <!-- Empty states -->
         <div class="empty-state" *ngIf="filteredNotes.length === 0 && !searchQuery">
           <mat-icon>edit_note</mat-icon>
           <p>Ancora nessuna nota.</p>
@@ -54,17 +112,9 @@
         </div>
         <div class="empty-state" *ngIf="filteredNotes.length === 0 && searchQuery">
           <mat-icon>search_off</mat-icon>
-          <p>Nessun risultato per "{{ searchQuery }}".</p>
+          <p>Nessun risultato.</p>
         </div>
       </mat-nav-list>
-
-      <!-- M3 Extended FAB — solo desktop, rimpiazza il vecchio icon button "+" nell'header -->
-      <div class="sidenav-fab-area" *ngIf="!isMobile">
-        <button mat-fab extended color="primary" (click)="openNoteEditor()" class="new-note-fab">
-          <mat-icon>edit</mat-icon>
-          Nuova Nota
-        </button>
-      </div>
 
       <div class="sidenav-footer" *ngIf="isMobile">
         <button mat-icon-button (click)="logout()" aria-label="Esci" matTooltip="Logout" color="warn">
@@ -87,7 +137,7 @@
 
       <mat-button-toggle-group [value]="currentMainView" (change)="currentMainView = $event.value; activeNote = undefined" class="view-toggle-group" *ngIf="!isMobile" aria-label="Vista">
         <mat-button-toggle value="list" matTooltip="Lista note">
-          <mat-icon>notes</mat-icon>
+          <mat-icon>view_list</mat-icon>
         </mat-button-toggle>
         <mat-button-toggle value="calendar" matTooltip="Calendario">
           <mat-icon>calendar_month</mat-icon>
@@ -114,5 +164,14 @@
       <h2>Seleziona una nota o creane una nuova</h2>
       <button mat-flat-button color="primary" (click)="openNoteEditor()">Nuova Nota</button>
     </div>
+
+    <!-- FAB fuori dal drawer: position:fixed funziona correttamente -->
+    <div class="sidenav-fab-area" *ngIf="!isMobile && activeNote === undefined">
+      <button mat-fab extended color="primary" (click)="openNoteEditor()" class="new-note-fab">
+        <mat-icon>edit</mat-icon>
+        Nuova Nota
+      </button>
+    </div>
   </mat-sidenav-content>
+
 </mat-sidenav-container>

@@ -1,118 +1,351 @@
 <div class="editor-header">
-  <input class="title-input-raw" [(ngModel)]="note.title" placeholder="Titolo">
-  <button mat-icon-button (click)="closeEditor.emit()" aria-label="Torna indietro" matTooltip="Chiudi">
+  <input class="title-input-raw" [(ngModel)]="note.title" placeholder="Titolo" />
+  <button mat-icon-button (click)="closeEditor.emit()" aria-label="Chiudi" matTooltip="Chiudi">
     <mat-icon>close</mat-icon>
   </button>
 </div>
 
 <div class="editor-content">
-  <div class="rich-text-wrapper">
-    <div class="rich-text-editor" #editor contenteditable="true" placeholder="Scrivi i tuoi appunti qui..."
-         (keyup)="updateFormatState()" (mouseup)="updateFormatState()" (touchend)="updateFormatState()"></div>
-    
 
+  <!-- ── Block list with drag-and-drop ── -->
+  <div cdkDropList (cdkDropListDropped)="onBlockDrop($event)" class="blocks-container">
 
-    <div class="metadata-section" *ngIf="activeSection === 'location' || note.address">
-      <mat-form-field appearance="outline" class="full-width" *ngIf="!note.address || isEditingAddress">
-        <mat-label>Cerca Indirizzo</mat-label>
-        <input matInput type="text" [matAutocomplete]="autoAddress" (input)="onAddressInput($event)" [(ngModel)]="addressSearchQuery">
-        <button mat-icon-button matSuffix *ngIf="note.address" (click)="isEditingAddress = false" type="button" matTooltip="Annulla"><mat-icon>close</mat-icon></button>
-        <mat-autocomplete #autoAddress="matAutocomplete" [displayWith]="displayAddress" (optionSelected)="selectAddress($event.option.value)">
-          <mat-option *ngFor="let option of addressOptions" [value]="option">
-            {{ option.display_name }}
-          </mat-option>
-        </mat-autocomplete>
-      </mat-form-field>
-      
-      <div *ngIf="note.address && !isEditingAddress" class="selected-address-view">
-        <div class="address-label">
-          <mat-icon color="primary">place</mat-icon>
-          <span class="address-text">{{ note.address }}</span>
-          <button mat-icon-button (click)="openMaps()" matTooltip="Apri OSM"><mat-icon>open_in_new</mat-icon></button>
-          <button mat-icon-button (click)="isEditingAddress = true" matTooltip="Modifica"><mat-icon>edit</mat-icon></button>
-          <button mat-icon-button color="warn" (click)="removeAddress()" matTooltip="Rimuovi"><mat-icon>delete</mat-icon></button>
-        </div>
-        <div class="map-preview" *ngIf="mapIframeUrl">
-          <iframe width="100%" height="200" frameborder="0" scrolling="no" marginheight="0" marginwidth="0" [src]="mapIframeUrl"></iframe>
-        </div>
+    <div *ngFor="let block of note.blocks; let i = index"
+         cdkDrag class="block-item" [ngClass]="'block-type-' + block.type">
+
+      <!-- Drag placeholder (styled by Agent 2) -->
+      <div class="drag-placeholder" *cdkDragPlaceholder></div>
+
+      <!-- Drag handle: sempre nel DOM per CDK, collassato per l'unico blocco testo -->
+      <div cdkDragHandle class="drag-handle"
+           [class.drag-handle-collapsed]="block.type === 'text' && note.blocks.length <= 1">
+        <mat-icon>drag_indicator</mat-icon>
       </div>
-    </div>
 
-    <div class="metadata-section" *ngIf="activeSection === 'reminder' || reminderDate">
-      <div class="reminder-inputs">
-        <mat-form-field appearance="outline" class="flex-field">
-          <mat-label>Data promemoria</mat-label>
-          <input matInput [matDatepicker]="picker" [(ngModel)]="reminderDate">
-          <mat-datepicker-toggle matIconSuffix [for]="picker"></mat-datepicker-toggle>
-          <mat-datepicker #picker></mat-datepicker>
-        </mat-form-field>
+      <!-- ════ TEXT BLOCK ════ -->
+      <ng-container *ngIf="block.type === 'text'">
+        <div
+          #textBlockEl
+          class="rich-text-editor"
+          contenteditable="true"
+          [attr.data-placeholder]="'Scrivi qui...'"
+          (input)="onTextInput(i, $event)"
+          (focus)="onTextFocus(i)"
+          (blur)="onTextBlur()"
+          (keyup)="updateFormatState()"
+          (mouseup)="updateFormatState()"
+          (touchend)="updateFormatState()">
+        </div>
+      </ng-container>
 
-        <div class="time-select-container">
-          <mat-form-field appearance="outline" class="hour-select">
-            <mat-label>Ora</mat-label>
-            <mat-select [(ngModel)]="selectedHour">
-              <mat-option *ngFor="let h of hoursList" [value]="h">{{h}}</mat-option>
-            </mat-select>
+      <!-- ════ CHECKLIST BLOCK ════ -->
+      <ng-container *ngIf="block.type === 'checklist'">
+        <div class="checklist-block metadata-section">
+          <div class="checklist-header">
+            <mat-icon color="primary">check_box</mat-icon>
+            <span class="block-label">Checklist</span>
+          </div>
+          <div class="checklist-items">
+            <div class="checklist-item" *ngFor="let item of $any(block).items; let j = index">
+              <mat-checkbox [(ngModel)]="item.done" color="primary"></mat-checkbox>
+              <input class="checklist-input" [class.item-done]="item.done"
+                     [(ngModel)]="item.text" placeholder="Voce..." />
+              <button mat-icon-button class="remove-item-btn" (click)="removeChecklistItem($any(block), j)" type="button">
+                <mat-icon>close</mat-icon>
+              </button>
+            </div>
+          </div>
+          <mat-form-field appearance="outline" class="full-width">
+            <mat-label>Aggiungi voce</mat-label>
+            <input matInput #newItemInput
+                   (keyup.enter)="addChecklistItem($any(block), newItemInput.value); newItemInput.value = ''">
+            <button mat-icon-button matSuffix color="primary" type="button"
+                    (click)="addChecklistItem($any(block), newItemInput.value); newItemInput.value = ''">
+              <mat-icon>add</mat-icon>
+            </button>
           </mat-form-field>
-          <span class="time-separator">:</span>
-          <mat-form-field appearance="outline" class="minute-select">
-            <mat-label>Min</mat-label>
-            <mat-select [(ngModel)]="selectedMinute">
-              <mat-option *ngFor="let m of minutesList" [value]="m">{{m}}</mat-option>
-            </mat-select>
+        </div>
+      </ng-container>
+
+      <!-- ════ LOCATION BLOCK ════ -->
+      <ng-container *ngIf="block.type === 'location'">
+        <div class="metadata-section location-block">
+          <div class="block-label-row">
+            <mat-icon color="primary">place</mat-icon>
+            <span class="block-label">Luogo</span>
+          </div>
+
+          <!-- Address search input -->
+          <mat-form-field appearance="outline" class="full-width"
+                          *ngIf="!$any(block).address || $any(block).editing">
+            <mat-label>Cerca indirizzo</mat-label>
+            <input matInput type="text"
+                   [matAutocomplete]="autoAddress"
+                   [(ngModel)]="$any(block).searchQuery"
+                   (input)="onAddressInput($any(block), $event)">
+            <mat-autocomplete #autoAddress="matAutocomplete"
+                              (optionSelected)="selectAddress($any(block), $event.option.value)">
+              <mat-option *ngFor="let opt of $any(block).addressOptions || []" [value]="opt">
+                {{ opt.display_name }}
+              </mat-option>
+            </mat-autocomplete>
           </mat-form-field>
-        </div>
-        
-        <button mat-icon-button color="warn" (click)="clearReminder()" matTooltip="Rimuovi" class="remove-btn"><mat-icon>delete</mat-icon></button>
-      </div>
-    </div>
 
-    <div class="metadata-section checklist-section" *ngIf="activeSection === 'checklist' || (note.checklist && note.checklist.length > 0)">
-      <div class="checklist-items">
-        <div class="checklist-item" *ngFor="let item of note.checklist; let i = index">
-          <mat-checkbox [(ngModel)]="item.done" color="primary"></mat-checkbox>
-          <input class="checklist-input" [class.done]="item.done" [(ngModel)]="item.text" />
-          <button mat-icon-button color="warn" (click)="removeChecklistItem(i)"><mat-icon>close</mat-icon></button>
+          <!-- Address confirmed view -->
+          <div *ngIf="$any(block).address && !$any(block).editing" class="selected-address-view">
+            <div class="address-label-row">
+              <span class="address-text">{{ $any(block).address }}</span>
+              <button mat-icon-button (click)="openMaps($any(block))" matTooltip="Apri mappa">
+                <mat-icon>open_in_new</mat-icon>
+              </button>
+              <button mat-icon-button (click)="$any(block).editing = true" matTooltip="Modifica">
+                <mat-icon>edit</mat-icon>
+              </button>
+            </div>
+            <div class="map-preview" *ngIf="$any(block).mapUrl">
+              <iframe width="100%" height="180" frameborder="0" scrolling="no"
+                      [src]="$any(block).mapUrl" loading="lazy">
+              </iframe>
+            </div>
+          </div>
         </div>
-      </div>
-      <mat-form-field appearance="outline" class="full-width margin-top">
-        <mat-label>Aggiungi una voce (es. Latte, Uova...)</mat-label>
-        <input matInput [(ngModel)]="newChecklistItemText" (keyup.enter)="addChecklistItem()">
-        <button mat-icon-button matSuffix color="primary" (click)="addChecklistItem()" [disabled]="!newChecklistItemText.trim()">
-          <mat-icon>add</mat-icon>
-        </button>
-      </mat-form-field>
-    </div>
+      </ng-container>
 
+      <!-- ════ REMINDER BLOCK ════ -->
+      <ng-container *ngIf="block.type === 'reminder'">
+        <div class="metadata-section reminder-block">
+          <div class="block-label-row">
+            <mat-icon color="primary">notifications</mat-icon>
+            <span class="block-label">Promemoria</span>
+            <button mat-icon-button color="warn" class="remove-reminder-btn"
+                    (click)="clearReminder($any(block))" matTooltip="Azzera promemoria">
+              <mat-icon>delete</mat-icon>
+            </button>
+          </div>
+          <div class="reminder-inputs">
+            <mat-form-field appearance="outline" class="date-field">
+              <mat-label>Data</mat-label>
+              <input matInput [matDatepicker]="picker" [(ngModel)]="$any(block).date">
+              <mat-datepicker-toggle matIconSuffix [for]="picker"></mat-datepicker-toggle>
+              <mat-datepicker #picker></mat-datepicker>
+            </mat-form-field>
+
+            <div class="time-row">
+              <mat-form-field appearance="outline" class="hour-field">
+                <mat-label>Ore</mat-label>
+                <mat-select [(ngModel)]="$any(block).hour">
+                  <mat-option *ngFor="let h of hoursList" [value]="h">{{ h }}</mat-option>
+                </mat-select>
+              </mat-form-field>
+              <span class="time-sep">:</span>
+              <mat-form-field appearance="outline" class="minute-field">
+                <mat-label>Min</mat-label>
+                <mat-select [(ngModel)]="$any(block).minute">
+                  <mat-option *ngFor="let m of minutesList" [value]="m">{{ m }}</mat-option>
+                </mat-select>
+              </mat-form-field>
+            </div>
+
+            <mat-form-field appearance="outline" class="recurrence-field">
+              <mat-label>Ripeti</mat-label>
+              <mat-select [(ngModel)]="$any(block).recurrence">
+                <mat-option value="none">Mai</mat-option>
+                <mat-option value="daily">Ogni giorno</mat-option>
+                <mat-option value="weekly">Ogni settimana</mat-option>
+                <mat-option value="monthly">Ogni mese</mat-option>
+              </mat-select>
+            </mat-form-field>
+          </div>
+        </div>
+      </ng-container>
+
+      <!-- ════ IMAGE BLOCK ════ -->
+      <ng-container *ngIf="block.type === 'image'">
+        <div class="metadata-section image-block">
+          <div class="block-label-row">
+            <mat-icon color="primary">photo</mat-icon>
+            <span class="block-label">Immagine</span>
+          </div>
+
+          <!-- Upload area -->
+          <div class="image-upload-area" *ngIf="!$any(block).url">
+            <input type="file" accept="image/*" #imgInput style="display:none"
+                   (change)="onImageSelected(i, $event)">
+            <button mat-stroked-button (click)="imgInput.click()" type="button"
+                    *ngIf="!uploadProgress.has(i)">
+              <mat-icon>add_photo_alternate</mat-icon>
+              Seleziona immagine
+            </button>
+            <div class="upload-progress-label" *ngIf="uploadProgress.has(i)">
+              <mat-icon>cloud_upload</mat-icon>
+              Caricamento {{ uploadProgress.get(i) }}%...
+            </div>
+          </div>
+
+          <!-- Image preview -->
+          <div class="image-preview-area" *ngIf="$any(block).url">
+            <img [src]="$any(block).url"
+                 [alt]="$any(block).caption || 'Immagine allegata'"
+                 class="attached-image">
+            <div class="image-caption-row">
+              <mat-form-field appearance="outline" class="full-width">
+                <mat-label>Didascalia (opzionale)</mat-label>
+                <input matInput [(ngModel)]="$any(block).caption">
+              </mat-form-field>
+              <button mat-icon-button color="warn" (click)="removeImage($any(block))"
+                      matTooltip="Rimuovi immagine" type="button">
+                <mat-icon>delete</mat-icon>
+              </button>
+            </div>
+          </div>
+        </div>
+      </ng-container>
+
+      <!-- ════ LINK BLOCK ════ -->
+      <ng-container *ngIf="block.type === 'link'">
+        <div class="metadata-section link-block">
+          <div class="block-label-row">
+            <mat-icon color="primary">link</mat-icon>
+            <span class="block-label">Collegamento</span>
+            <button mat-icon-button class="edit-link-btn"
+                    (click)="editLinkBlock(i)"
+                    matTooltip="Modifica collegamento"
+                    type="button">
+              <mat-icon>edit</mat-icon>
+            </button>
+          </div>
+
+          <!-- Link visualizzato come label cliccabile -->
+          <a *ngIf="$any(block).url"
+             [href]="$any(block).url"
+             target="_blank"
+             rel="noopener noreferrer"
+             class="link-anchor">
+            <mat-icon class="link-anchor-icon">open_in_new</mat-icon>
+            <span class="link-anchor-text">{{ $any(block).label || $any(block).url }}</span>
+          </a>
+
+          <!-- Stato vuoto (nessun URL ancora) -->
+          <span *ngIf="!$any(block).url" class="link-empty"
+                (click)="editLinkBlock(i)">
+            <mat-icon>add_link</mat-icon>
+            Clicca ✏️ per inserire il collegamento
+          </span>
+        </div>
+      </ng-container>
+
+      <!-- Remove block button: nascosto per l'unico blocco testo -->
+      <button mat-icon-button class="remove-block-btn"
+              *ngIf="canRemoveBlock(i) && (block.type !== 'text' || note.blocks.length > 1)"
+              (click)="removeBlock(i)"
+              matTooltip="Rimuovi blocco"
+              type="button">
+        <mat-icon>close</mat-icon>
+      </button>
+
+    </div><!-- /block-item -->
+  </div><!-- /blocks-container -->
+
+  <!-- Empty note onboarding -->
+  <div class="empty-note-onboarding" *ngIf="note.blocks.length === 0">
+    <mat-icon>edit_note</mat-icon>
+    <p>Inizia ad aggiungere un blocco</p>
+    <button mat-stroked-button (click)="addBlock('text')" type="button">
+      <mat-icon>text_fields</mat-icon>
+      Testo
+    </button>
   </div>
-</div>
 
+  <!-- TODO: tags disabilitati temporaneamente
+  <div class="tags-section">
+    <mat-chip-set aria-label="Etichette nota">
+      <mat-chip *ngFor="let tag of note.tags" (removed)="removeTag(tag)" class="note-tag-chip">
+        #{{ tag }}
+        <button matChipRemove type="button">
+          <mat-icon>cancel</mat-icon>
+        </button>
+      </mat-chip>
+    </mat-chip-set>
+    <mat-form-field appearance="outline" class="tag-input-field">
+      <mat-label>Aggiungi etichetta</mat-label>
+      <input matInput [(ngModel)]="tagInput"
+             (keyup.enter)="addTag()"
+             placeholder="es. lavoro, casa…">
+      <button mat-icon-button matSuffix type="button"
+              (click)="addTag()" [disabled]="!tagInput.trim()">
+        <mat-icon>add</mat-icon>
+      </button>
+    </mat-form-field>
+  </div>
+  -->
+
+</div><!-- /editor-content -->
+
+<!-- ── Formatting & Add-block toolbar ── -->
 <div class="toolbar-scroll-container">
   <div class="rich-text-toolbar">
-    <button mat-icon-button (mousedown)="$event.preventDefault()" (click)="execCommand('bold')" type="button" tabindex="-1" [class.format-active]="isBold"><mat-icon>format_bold</mat-icon></button>
-    <button mat-icon-button (mousedown)="$event.preventDefault()" (click)="execCommand('italic')" type="button" tabindex="-1" [class.format-active]="isItalic"><mat-icon>format_italic</mat-icon></button>
-    <button mat-icon-button (mousedown)="$event.preventDefault()" (click)="execCommand('insertUnorderedList')" type="button" tabindex="-1" [class.format-active]="isList"><mat-icon>format_list_bulleted</mat-icon></button>
 
-    <span class="spacer"></span>
+    <!-- Text formatting: visible only when a text block is active -->
+    <div class="toolbar-format-group" *ngIf="activeTextBlockIndex !== null">
+      <button mat-icon-button type="button" tabindex="-1"
+              (mousedown)="$event.preventDefault()" (click)="execCommand('bold')"
+              [class.format-active]="isBold" matTooltip="Grassetto">
+        <mat-icon>format_bold</mat-icon>
+      </button>
+      <button mat-icon-button type="button" tabindex="-1"
+              (mousedown)="$event.preventDefault()" (click)="execCommand('italic')"
+              [class.format-active]="isItalic" matTooltip="Corsivo">
+        <mat-icon>format_italic</mat-icon>
+      </button>
+      <button mat-icon-button type="button" tabindex="-1"
+              (mousedown)="$event.preventDefault()" (click)="execCommand('insertUnorderedList')"
+              [class.format-active]="isList" matTooltip="Lista">
+        <mat-icon>format_list_bulleted</mat-icon>
+      </button>
+      <div class="toolbar-divider"></div>
+    </div>
 
-    <div class="toolbar-divider"></div>
+    <!-- Spacer pushes add-block icons to the right -->
+    <span class="toolbar-spacer"></span>
 
-
-    <button mat-icon-button (click)="toggleSection('location')" type="button" tabindex="-1" [color]="activeSection === 'location' ? 'primary' : ''" matTooltip="Luogo">
-      <mat-icon>place</mat-icon>
+    <!-- Add-block icons — always on the right -->
+    <button mat-icon-button (click)="addBlockAfterActive('text')"
+            type="button" tabindex="-1" matTooltip="Testo">
+      <mat-icon>text_fields</mat-icon>
     </button>
-    <button mat-icon-button (click)="toggleSection('reminder')" type="button" tabindex="-1" [color]="activeSection === 'reminder' ? 'primary' : ''" matTooltip="Promemoria">
-      <mat-icon>notifications</mat-icon>
-    </button>
-    <button mat-icon-button (click)="toggleSection('checklist')" type="button" tabindex="-1" [color]="activeSection === 'checklist' ? 'primary' : ''" matTooltip="Checklist">
+    <button mat-icon-button (click)="addBlockAfterActive('checklist')"
+            type="button" tabindex="-1" matTooltip="Checklist">
       <mat-icon>check_box</mat-icon>
     </button>
+    <button mat-icon-button (click)="addBlockAfterActive('location')"
+            type="button" tabindex="-1" matTooltip="Luogo">
+      <mat-icon>place</mat-icon>
+    </button>
+    <button mat-icon-button (click)="addBlockAfterActive('reminder')"
+            type="button" tabindex="-1" matTooltip="Promemoria">
+      <mat-icon>notifications</mat-icon>
+    </button>
+    <button mat-icon-button (click)="addBlockAfterActive('image')"
+            type="button" tabindex="-1" matTooltip="Immagine">
+      <mat-icon>add_photo_alternate</mat-icon>
+    </button>
+    <button mat-icon-button (click)="addLinkBlock()"
+            type="button" tabindex="-1" matTooltip="Collegamento">
+      <mat-icon>link</mat-icon>
+    </button>
+
   </div>
 </div>
 
+<!-- ── Footer actions ── -->
 <div class="editor-actions">
-  <button mat-button *ngIf="selectedNote" color="warn" (click)="deleteNote()">Elimina</button>
+  <button mat-button color="warn" *ngIf="selectedNote" (click)="confirmDelete()" type="button">
+    <mat-icon>delete</mat-icon> Elimina
+  </button>
   <span class="spacer"></span>
-  <button mat-button (click)="closeEditor.emit()">Annulla</button>
-  <button mat-flat-button color="primary" (click)="save()" [disabled]="!note.title || !note.title.trim()">Salva</button>
+  <button mat-button (click)="closeEditor.emit()" type="button">Annulla</button>
+  <button mat-flat-button color="primary" (click)="save()" type="button"
+          [disabled]="!note.title || !note.title.trim()">
+    Salva
+  </button>
 </div>
