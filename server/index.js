@@ -76,8 +76,14 @@ async function checkAndSendReminders() {
 
     for (const doc of notesSnapshot.docs) {
       const note = doc.data();
-      
-      if (!note.reminderTime || note.reminderTime > now) {
+
+      // Normalizza reminderTime: Firestore Admin può restituire un oggetto Timestamp
+      // invece di un numero. .toMillis() lo converte in ms unix se necessario.
+      const reminderMs = note.reminderTime?.toMillis
+        ? note.reminderTime.toMillis()
+        : Number(note.reminderTime);
+
+      if (!reminderMs || reminderMs > now) {
         continue;
       }
 
@@ -99,17 +105,18 @@ async function checkAndSendReminders() {
           ? note.content.replace(/<[^>]*>?/gm, '').substring(0, 100) 
           : 'Hai un promemoria in scadenza!';
 
-        const payload = {
-          notification: {
-            title: 'PunTo! - ' + (note.title || 'Nuova Nota'),
-            body: bodyText,
-          }
-        };
-        
+        const msgTitle = 'PunTo! - ' + (note.title || 'Nuova Nota');
+
         try {
+          // Data-only message: evita la doppia notifica causata dall'auto-display
+          // della compat SDK + onBackgroundMessage. Il display è gestito interamente
+          // dal service worker (onBackgroundMessage) e dal foreground handler (onMessage).
           const response = await messaging.sendEachForMulticast({
             tokens: tokens,
-            notification: payload.notification
+            data: {
+              title: msgTitle,
+              body: bodyText,
+            }
           });
           
           const failedTokens = [];
@@ -137,8 +144,8 @@ async function checkAndSendReminders() {
       
       // Ricorrenza: rischedulare invece di segnare come 'sent'
       const recurrence = note.recurrence ?? 'none';
-      if (recurrence !== 'none' && note.reminderTime) {
-        const nextTime = calculateNextReminder(note.reminderTime, recurrence);
+      if (recurrence !== 'none' && reminderMs) {
+        const nextTime = calculateNextReminder(reminderMs, recurrence);
         const updatePayload = { reminderStatus: 'pending', reminderTime: nextTime };
 
         // Aggiorna anche il ReminderBlock nell'array blocks (nuovo formato)

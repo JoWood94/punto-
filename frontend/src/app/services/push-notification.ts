@@ -61,10 +61,13 @@ export class PushNotificationService {
       onMessage(this.messaging, (payload) => {
         console.log('Push Message received in foreground. ', payload);
         if (Notification.permission === 'granted') {
-           new Notification(payload.notification?.title || 'Promemoria da punto!', {
-              body: payload.notification?.body,
-              icon: 'icons/icon-192x192.png'
-           });
+          // Legge da payload.data (data-only message)
+          const title = (payload.data?.['title'] as string) || 'Promemoria da punto!';
+          const body = (payload.data?.['body'] as string) || '';
+          new Notification(title, {
+            body,
+            icon: 'icons/icon-192x192.png'
+          });
         }
       });
     });
