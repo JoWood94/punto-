@@ -1,4 +1,30 @@
+# ── Dependencies ────────────────────────────────────────────
+node_modules/
+frontend/node_modules/
+server/node_modules/
 
+# ── Build output ─────────────────────────────────────────────
+frontend/dist/
+frontend/.angular/
+
+# ── Firebase / GCP ───────────────────────────────────────────
 server/serviceAccountKey.json
 server/.env
-server/node_modules
+.firebase/
+firebase-debug.log
+firestore-debug.log
+
+# ── VSCode browser debug profile (Brave) ─────────────────────
+.vscode/.brave-profile/
+
+# ── OS ───────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+
+# ── Logs ─────────────────────────────────────────────────────
+*.log
+npm-debug.log*
+
+# ── Test / Coverage ──────────────────────────────────────────
+coverage/
+frontend/coverage/

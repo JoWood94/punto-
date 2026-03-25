@@ -1,0 +1,12 @@
+[
+  {
+    "origin": [
+      "https://192.168.1.5:4200",
+      "https://localhost:4200",
+      "https://jowood94.github.io"
+    ],
+    "method": ["GET", "POST", "PUT", "DELETE", "HEAD"],
+    "maxAgeSeconds": 3600,
+    "responseHeader": ["Content-Type", "Authorization"]
+  }
+]
