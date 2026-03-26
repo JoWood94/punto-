@@ -191,8 +191,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
   /** Colore di sfondo della card nota — null → CSS default (secondary-container) */
   getNoteCardBg(note: Note): string | null {
     if (note.color && note.color !== 'default') return note.color;
-    if (note.reminderTime) return 'var(--punto-primary)';
-    return null;
+    return 'var(--punto-primary)';
   }
 
   // ─── Pin ────────────────────────────────────────────────────────────────────

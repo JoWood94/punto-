@@ -43,13 +43,13 @@
       height: 32px;
       line-height: 30px;
       font-size: 13px;
-      border-radius: var(--punto-shape-full, 9999px) !important;
+      border-radius: var(--punto-shape-lg, 16px) !important;
     }
   }
 
   .view-toggle {
     height: 36px;
-    border-radius: var(--punto-shape-full, 9999px) !important;
+    border-radius: var(--punto-shape-lg, 16px) !important;
     overflow: hidden;
     border: 1px solid var(--mat-sys-outline-variant) !important;
 

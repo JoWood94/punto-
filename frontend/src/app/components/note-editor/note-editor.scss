@@ -63,6 +63,8 @@
 
 .rich-text-editor {
   flex: 1;
+  min-width: 0;      // previene flex overflow su iOS (contenteditable sfonda il container)
+  width: 100%;
   padding: 8px 0 6px;
   outline: none;
   min-height: 40px;

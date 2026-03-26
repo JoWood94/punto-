@@ -56,25 +56,23 @@
   gap: 4px;
   padding: 12px 8px 12px 14px;
   border-radius: var(--punto-shape-md, 12px);
-  background: var(--mat-sys-secondary-container, #e8def8);
+  background: var(--punto-primary);   // default scuro — uguale al FAB
   cursor: pointer;
   transition: filter var(--punto-duration-medium1, 200ms) var(--punto-easing-standard, cubic-bezier(0.2, 0, 0, 1));
 
+  // Testo bianco su sfondo primary (default)
+  .note-item-title { color: white; font-weight: 600; }
+  .note-item-preview { color: rgba(255,255,255,0.82); }
+  .note-card-bell, .note-card-pin-icon { color: white; }
+  .progress-icon { color: white; }
+  .progress-text { color: rgba(255,255,255,0.82); }
+  .progress-bar-track { background: rgba(255,255,255,0.25); }
+  .pin-btn mat-icon, .delete-btn mat-icon { color: rgba(255,255,255,0.9) !important; }
+
   &:hover {
-    filter: brightness(0.94);
+    filter: brightness(1.12);
     .delete-btn { opacity: 1; }
     .pin-btn:not(.pin-active) { opacity: 1; }
-  }
-
-  // Nota con reminder: sfondo primary → testo bianco
-  &.note-card-reminder:not(.active-note) {
-    .note-item-title { color: white; font-weight: 600; }
-    .note-item-preview { color: rgba(255,255,255,0.82); }
-    .note-card-bell, .note-card-pin-icon { color: white; }
-    .progress-icon { color: white; }
-    .progress-text { color: rgba(255,255,255,0.82); }
-    .progress-bar-track { background: rgba(255,255,255,0.25); }
-    .pin-btn mat-icon, .delete-btn mat-icon { color: rgba(255,255,255,0.9) !important; }
   }
 
   // Nota selezionata: primary-container → on-primary-container
@@ -87,6 +85,7 @@
     .note-card-bell, .note-card-pin-icon { color: var(--punto-on-primary-container); }
     .progress-icon { color: var(--punto-on-primary-container); }
     .progress-text { color: var(--punto-on-primary-container); opacity: 0.75; }
+    .pin-btn mat-icon, .delete-btn mat-icon { color: var(--punto-on-primary-container) !important; }
   }
 }
 
