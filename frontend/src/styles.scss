@@ -129,6 +129,17 @@ body {
 .mat-mdc-button.mat-mdc-raised-button {
   box-shadow: var(--punto-shadow-2);
 }
+/* Elimina il delay 300ms dei browser mobile su tutti gli elementi interattivi.
+   Risolve il problema "doppio tap" (focus → click) su iOS/Android. */
+a, button, [role="button"],
+.mat-mdc-button, .mat-mdc-icon-button, .mat-mdc-fab,
+.mat-mdc-list-item, .mat-mdc-menu-item,
+.mat-mdc-checkbox, .mat-mdc-radio-button,
+mat-list-item, a[mat-list-item] {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
 /* mat-icon-button: allineamento verticale corretto in qualsiasi flex container */
 .mat-mdc-icon-button {
   align-self: center;
