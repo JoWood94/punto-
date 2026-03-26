@@ -529,14 +529,14 @@ a.single-note:hover .pin-btn {
     height: 56px;
     font-weight: 500;
     letter-spacing: 0.01em;
-    background-color: var(--mat-sys-secondary-container) !important;
-    color: var(--mat-sys-on-secondary-container) !important;
+    background-color: var(--punto-primary) !important;
+    color: var(--punto-on-primary) !important;
     box-shadow: var(--mat-sys-level2, 0 3px 6px rgba(0,0,0,.15)) !important;
     transition:
       box-shadow var(--punto-duration-medium1, 200ms) var(--punto-easing-standard, cubic-bezier(0.2, 0, 0, 1)),
       transform var(--punto-duration-medium1, 200ms) var(--punto-easing-standard, cubic-bezier(0.2, 0, 0, 1));
 
-    mat-icon { color: var(--mat-sys-on-secondary-container) !important; }
+    mat-icon { color: var(--punto-on-primary) !important; }
 
     &:hover {
       box-shadow: var(--mat-sys-level3, 0 6px 12px rgba(0,0,0,.2)) !important;
@@ -557,11 +557,11 @@ a.single-note:hover .pin-btn {
     height: 56px;
     font-weight: 500;
     letter-spacing: 0.01em;
-    background-color: var(--mat-sys-secondary-container) !important;
-    color: var(--mat-sys-on-secondary-container) !important;
+    background-color: var(--punto-primary) !important;
+    color: var(--punto-on-primary) !important;
     box-shadow: var(--mat-sys-level2, 0 3px 6px rgba(0,0,0,.15)) !important;
 
-    mat-icon { color: var(--mat-sys-on-secondary-container) !important; }
+    mat-icon { color: var(--punto-on-primary) !important; }
   }
 }
 
