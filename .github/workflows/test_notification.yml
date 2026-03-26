@@ -1,0 +1,39 @@
+name: Test Push Notification (Manuale)
+
+on:
+  workflow_dispatch:
+    inputs:
+      target_uid:
+        description: 'UID utente specifico (lascia vuoto per inviare a tutti)'
+        required: false
+        default: ''
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  send_test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Log server time
+        run: echo "Server UTC time: $(date -u)"
+
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        working-directory: ./server
+        run: npm ci
+
+      - name: Send Test Notification
+        working-directory: ./server
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          GITHUB_ACTIONS: "true"
+          TARGET_UID: ${{ github.event.inputs.target_uid }}
+        run: node test-notification.js

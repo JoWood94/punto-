@@ -62,8 +62,8 @@ export class PushNotificationService {
         console.log('Push Message received in foreground. ', payload);
         if (Notification.permission === 'granted') {
           // Legge da payload.data (data-only message)
-          const title = (payload.data?.['title'] as string) || 'Promemoria da punto!';
-          const body = (payload.data?.['body'] as string) || '';
+          const title = (payload.data?.['title'] as string) || payload.notification?.title || 'Promemoria da punto!';
+          const body = (payload.data?.['body'] as string) || payload.notification?.body || '';
           new Notification(title, {
             body,
             icon: 'icons/icon-192x192.png'

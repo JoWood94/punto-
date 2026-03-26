@@ -1,4 +1,4 @@
-import { Component, inject, OnInit, OnDestroy, ViewChild } from '@angular/core';
+import { Component, inject, OnInit, OnDestroy, ViewChild, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
@@ -54,6 +54,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
   private location: Location = inject(Location);
   private breakpointObserver = inject(BreakpointObserver);
   private dialog = inject(MatDialog);
+  private cdr = inject(ChangeDetectorRef);
 
   @ViewChild('sidenav') sidenav!: MatSidenav;
 
@@ -127,7 +128,8 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   private checkMobile() {
     this.breakpointObserver.observe([Breakpoints.Handset]).subscribe(result => {
-      Promise.resolve().then(() => { this.isMobile = result.matches; });
+      this.isMobile = result.matches;
+      this.cdr.detectChanges();
     });
   }
 

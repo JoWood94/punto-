@@ -1,0 +1,19 @@
+[
+  {
+    "origin": [
+      "https://giovannibosco.github.io",
+      "https://localhost:4200",
+      "http://localhost:4200",
+      "https://192.168.1.5:4200"
+    ],
+    "method": ["GET", "POST", "PUT", "DELETE", "HEAD"],
+    "maxAgeSeconds": 3600,
+    "responseHeader": [
+      "Content-Type",
+      "Authorization",
+      "Content-Length",
+      "User-Agent",
+      "x-goog-resumable"
+    ]
+  }
+]

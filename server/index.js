@@ -108,14 +108,24 @@ async function checkAndSendReminders() {
         const msgTitle = 'PunTo! - ' + (note.title || 'Nuova Nota');
 
         try {
-          // Data-only message: evita la doppia notifica causata dall'auto-display
-          // della compat SDK + onBackgroundMessage. Il display è gestito interamente
-          // dal service worker (onBackgroundMessage) e dal foreground handler (onMessage).
           const response = await messaging.sendEachForMulticast({
             tokens: tokens,
+            // notification field: necessario per iOS PWA e browser in background.
+            // onBackgroundMessage del SW non viene chiamato quando notification è presente
+            // (il SDK auto-display gestisce la visualizzazione), quindi nessuna doppia notifica.
+            notification: {
+              title: msgTitle,
+              body: bodyText,
+            },
+            // data field: usato dal foreground handler (onMessage) dell'app Angular
             data: {
               title: msgTitle,
               body: bodyText,
+            },
+            webpush: {
+              notification: {
+                icon: '/punto-/punto_icon.png',
+              }
             }
           });
           

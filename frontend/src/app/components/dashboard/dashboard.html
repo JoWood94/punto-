@@ -3,16 +3,15 @@
   <mat-sidenav mode="side" [opened]="!isMobile || (activeNote === undefined && currentMainView === 'list')" class="notes-sidenav"
     [class.mobile-full]="isMobile">
     <div style="display: flex; flex-direction: column; height: 100%;">
-      <div class="sidenav-header" [class.mobile-header]="isMobile">
-        <h2 *ngIf="!isMobile">Le mie Note</h2>
-        <!-- Mobile: calendario a sinistra, logo al centro, logout a destra -->
-        <button mat-icon-button (click)="setDefaultView('calendar')" *ngIf="isMobile"
+      <!-- Mobile header: calendario a sinistra, logo al centro, logout a destra -->
+      <div class="sidenav-header mobile-header" *ngIf="isMobile">
+        <button mat-icon-button (click)="setDefaultView('calendar')"
           matTooltip="Vista Calendario" [class.mobile-actions]="isMobile">
           <mat-icon>calendar_month</mat-icon>
         </button>
-        <img src="punto_logo_no_bg.png" alt="punto! logo" class="mobile-center-logo" *ngIf="isMobile" />
-        <span class="spacer" *ngIf="isMobile"></span>
-        <button mat-icon-button *ngIf="isMobile" (click)="logout()" color="warn" aria-label="Esci" matTooltip="Logout">
+        <img src="punto_logo_no_bg.png" alt="punto! logo" class="mobile-center-logo" />
+        <span class="spacer"></span>
+        <button mat-icon-button (click)="logout()" color="warn" aria-label="Esci" matTooltip="Logout">
           <mat-icon>logout</mat-icon>
         </button>
       </div>

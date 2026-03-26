@@ -455,6 +455,10 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewChecked,
   }
 
   onReminderChange() {
+    // L'utente ha modificato il reminder → resetta lo status a 'pending' per ri-schedulare l'invio
+    this.note.blocks.forEach(b => {
+      if (b.type === 'reminder') (b as any).status = 'pending';
+    });
     this.triggerAutoSave();
   }
 
@@ -524,7 +528,9 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewChecked,
           d.setHours(parseInt(rb.hour ?? '12', 10));
           d.setMinutes(parseInt(rb.minute ?? '00', 10));
           d.setSeconds(0); d.setMilliseconds(0);
-          return { type: 'reminder' as const, time: d.getTime(), recurrence: rb.recurrence ?? 'none', status: 'pending' as const };
+          // Preserva lo status esistente (es. 'sent'): solo onReminderChange lo resetta a 'pending'
+          const status: 'pending' | 'sent' | null = rb.status ?? 'pending';
+          return { type: 'reminder' as const, time: d.getTime(), recurrence: rb.recurrence ?? 'none', status };
         }
         return { type: 'reminder' as const, time: null, recurrence: rb.recurrence ?? 'none', status: null };
       }
