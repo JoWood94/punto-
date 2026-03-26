@@ -7,11 +7,11 @@
       <div class="sidenav-header mobile-header" *ngIf="isMobile">
         <button mat-icon-button (click)="setDefaultView('calendar')"
           matTooltip="Vista Calendario" [class.mobile-actions]="isMobile">
-          <mat-icon>calendar_month</mat-icon>
+          <mat-icon>calendar_today</mat-icon>
         </button>
         <img src="punto_logo_no_bg.png" alt="punto! logo" class="mobile-center-logo" />
         <span class="spacer"></span>
-        <button mat-icon-button (click)="logout()" color="warn" aria-label="Esci" matTooltip="Logout">
+        <button mat-icon-button (click)="logout()" aria-label="Esci" matTooltip="Logout">
           <mat-icon>logout</mat-icon>
         </button>
       </div>
@@ -115,13 +115,13 @@
 
       <!-- Mobile: logout nella vista calendario -->
       <button mat-icon-button *ngIf="isMobile && currentMainView === 'calendar' && activeNote === undefined"
-              (click)="logout()" color="warn" aria-label="Esci" matTooltip="Logout">
+              (click)="logout()" aria-label="Esci" matTooltip="Logout">
         <mat-icon>logout</mat-icon>
       </button>
 
       <!-- Mobile: elimina nota nell'header quando si sta editando una nota esistente -->
       <button mat-icon-button *ngIf="isMobile && activeNote?.id"
-              (click)="deleteActiveNote()" color="warn" aria-label="Elimina nota" matTooltip="Elimina">
+              (click)="deleteActiveNote()" aria-label="Elimina nota" matTooltip="Elimina">
         <mat-icon>delete_outline</mat-icon>
       </button>
 
@@ -130,10 +130,10 @@
               [class.calendar-btn-active]="currentMainView === 'calendar' && activeNote === undefined"
               matTooltip="Vista Calendario"
               aria-label="Vista Calendario">
-        <mat-icon>calendar_month</mat-icon>
+        <mat-icon>calendar_today</mat-icon>
       </button>
 
-      <button mat-icon-button (click)="logout()" *ngIf="!isMobile" aria-label="Esci" matTooltip="Logout" color="warn">
+      <button mat-icon-button (click)="logout()" *ngIf="!isMobile" aria-label="Esci" matTooltip="Logout">
         <mat-icon>logout</mat-icon>
       </button>
     </mat-toolbar>
