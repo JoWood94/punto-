@@ -37,13 +37,25 @@ export class LinkDialogComponent implements AfterViewInit {
   ) {}
 
   ngAfterViewInit() {
-    // Auto-focus sul campo URL: ritardo per attendere animazione apertura dialog su iOS
+    // Auto-focus sul campo URL dopo animazione apertura dialog
     setTimeout(() => {
-      const el = this.urlInputRef?.nativeElement;
-      if (!el) return;
-      el.focus();
-      el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      this.urlInputRef?.nativeElement?.focus();
     }, 200);
+
+    // iOS: riposiziona il dialog in base alla tastiera
+    // — tastiera aperta → top: 8vh (sopra la tastiera)
+    // — tastiera chiusa → centro (comportamento default Material)
+    if (window.visualViewport) {
+      const vv = window.visualViewport;
+      const adjustPosition = () => {
+        const keyboardOpen = vv.height < window.screen.height * 0.75;
+        this.dialogRef.updatePosition(keyboardOpen ? { top: '8vh' } : {});
+      };
+      vv.addEventListener('resize', adjustPosition);
+      this.dialogRef.afterClosed().subscribe(() => {
+        vv.removeEventListener('resize', adjustPosition);
+      });
+    }
   }
 
   onUrlPaste(event: ClipboardEvent) {

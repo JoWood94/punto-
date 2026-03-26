@@ -60,12 +60,14 @@
           <span class="week-day-number" [class.today-circle]="day.isToday">{{ day.date.getDate() }}</span>
         </div>
         <div class="week-day-notes">
-          <div class="note-card"
+          <div class="note-chip"
                *ngFor="let note of day.notes"
-               [style.border-left-color]="note.color || 'var(--mdc-theme-primary, #1976d2)'"
-               (click)="selectNote(note, $event)">
-            <span class="note-time">{{ formatTime(note.reminderTime) }}</span>
-            <span class="note-title">{{ note.title }}</span>
+               [class.note-chip-reminder]="hasReminder(note)"
+               [style.background-color]="(note.color && note.color !== 'default' ? note.color : null) || (hasReminder(note) ? 'var(--punto-primary, #4A6CF7)' : 'var(--mat-sys-secondary-container, #e8def8)')"
+               (click)="selectNote(note, $event)"
+               [matTooltip]="(note.title || 'Nota senza titolo') + (hasReminder(note) ? ' 🔔' : '')">
+            <mat-icon class="chip-bell" *ngIf="hasReminder(note)">notifications</mat-icon>
+            <span class="chip-title">{{ (note.title || 'Senza titolo') | slice:0:14 }}{{ (note.title || '').length > 14 ? '…' : '' }}</span>
           </div>
         </div>
       </div>
@@ -77,11 +79,15 @@
     <div class="day-notes-list" *ngIf="dayNotes.length > 0">
       <div class="day-note-item"
            *ngFor="let note of dayNotes"
-           [style.border-left-color]="note.color || 'var(--mdc-theme-primary, #1976d2)'"
+           [class.day-note-reminder]="hasReminder(note)"
+           [style.background-color]="(note.color && note.color !== 'default' ? note.color : null) || (hasReminder(note) ? 'var(--punto-primary, #4A6CF7)' : 'var(--mat-sys-secondary-container, #e8def8)')"
            (click)="selectNote(note, $event)">
-        <div class="day-note-time">{{ formatTime(note.reminderTime) }}</div>
+        <div class="day-note-time">
+          <mat-icon class="day-bell" *ngIf="hasReminder(note)">notifications</mat-icon>
+          <span>{{ formatTime(note.reminderTime) }}</span>
+        </div>
         <div class="day-note-content">
-          <div class="day-note-title">{{ note.title }}</div>
+          <div class="day-note-title">{{ note.title || 'Senza titolo' }}</div>
           <div class="day-note-preview" [innerHTML]="note.content"></div>
         </div>
       </div>

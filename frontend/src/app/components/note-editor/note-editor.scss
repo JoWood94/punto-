@@ -121,12 +121,14 @@
 
 @media (max-width: 599.98px) {
   .rich-text-toolbar {
-    padding: 4px 8px;
+    // Padding top/side fisso; bottom rispetta safe-area iOS (home indicator)
+    // → tastiera chiusa: padding-bottom ≈ 34px → bottoni più alti, toolbar più alta
+    // → tastiera aperta: safe-area-inset-bottom ≈ 0 → toolbar torna normale
+    padding: 6px 8px;
+    padding-bottom: max(8px, env(safe-area-inset-bottom));
     min-height: unset;
     gap: 0;
-    flex-wrap: nowrap;   // tutto su una riga — niente salto di altezza
-    width: max-content;  // permette allo scroll container di contenere la riga completa
-    min-width: 100%;
+    flex-wrap: nowrap; // una sola riga — niente salto di altezza
 
     // Bottoni toolbar più grandi su mobile
     .mat-mdc-icon-button {
@@ -142,11 +144,8 @@
     }
   }
 
-  // Formato: stessa riga, nessun override di ordine o width
-  .toolbar-format-group {
-    flex-shrink: 0;
-  }
-
+  // Formato e divider: non si restringono mai
+  .toolbar-format-group,
   .toolbar-divider {
     flex-shrink: 0;
   }

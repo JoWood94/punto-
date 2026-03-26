@@ -27,8 +27,9 @@ import {
 } from '../../services/note';
 import { AuthService } from '../../services/auth';
 import { LinkDialogComponent } from '../link-dialog/link-dialog';
-import { getStorage, ref as storageRef, uploadBytesResumable, getDownloadURL, deleteObject } from 'firebase/storage';
-import { getApp } from 'firebase/app';
+// TODO: import Storage riabilitare con piano Firebase Storage
+// import { getStorage, ref as storageRef, uploadBytesResumable, getDownloadURL, deleteObject } from 'firebase/storage';
+// import { getApp } from 'firebase/app';
 
 @Component({
   selector: 'app-note-editor',
@@ -72,7 +73,8 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewChecked,
   hoursList = Array.from({ length: 24 }, (_, i) => i.toString().padStart(2, '0'));
   minutesList = ['00', '05', '10', '15', '20', '25', '30', '35', '40', '45', '50', '55'];
 
-  uploadProgress = new Map<number, number>(); // blockIndex → upload %
+  // TODO: uploadProgress riabilitare con piano Firebase Storage
+  // uploadProgress = new Map<number, number>(); // blockIndex → upload %
 
   private noteService = inject(NoteService);
   private authService = inject(AuthService);
@@ -82,6 +84,8 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewChecked,
 
   /** Set to true whenever the blocks array changes and text blocks need HTML re-init. */
   private textBlocksNeedInit = false;
+  /** Block index to focus after next DOM init (used to open keyboard on new text block). */
+  private pendingFocusBlockIndex: number | null = null;
 
   private readonly PLACEHOLDER_TITLE = 'Nuova Nota';
   private savedNoteId: string | null = null;
@@ -103,7 +107,29 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewChecked,
     if (this.textBlocksNeedInit) {
       this.textBlocksNeedInit = false;
       this.initTextBlockElements();
+      this.applyPendingFocus();
     }
+  }
+
+  private applyPendingFocus() {
+    if (this.pendingFocusBlockIndex === null) return;
+    const targetIdx = this.pendingFocusBlockIndex;
+    this.pendingFocusBlockIndex = null;
+    // Conta quanti blocchi testo precedono targetIdx per trovare l'elemento corretto
+    let textElIdx = 0;
+    for (let i = 0; i < targetIdx; i++) {
+      if (this.note.blocks[i].type === 'text') textElIdx++;
+    }
+    const el = this.textBlockEls.toArray()[textElIdx]?.nativeElement;
+    if (!el) return;
+    el.focus();
+    // Posiziona il cursore alla fine del contenuto
+    const range = document.createRange();
+    range.selectNodeContents(el);
+    range.collapse(false);
+    const sel = window.getSelection();
+    sel?.removeAllRanges();
+    sel?.addRange(range);
   }
 
   private initTextBlockElements() {
@@ -240,6 +266,7 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewChecked,
       !(this.note.blocks[0] as TextBlock).html;
     if (isOnlyEmptyText) {
       this.note.blocks = [newBlock];
+      if (type === 'text') this.pendingFocusBlockIndex = 0;
     } else {
       const insertAt = afterIndex !== undefined ? afterIndex + 1 : this.note.blocks.length;
       this.note.blocks = [
@@ -247,6 +274,7 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewChecked,
         newBlock,
         ...this.note.blocks.slice(insertAt)
       ];
+      if (type === 'text') this.pendingFocusBlockIndex = insertAt;
     }
     this.textBlocksNeedInit = true;
     this.scrollEditorToBottom();
@@ -263,8 +291,7 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewChecked,
     const ref = this.dialog.open(LinkDialogComponent, {
       data: { url: '', label: '' },
       width: '420px',
-      maxWidth: '95vw',
-      position: { top: '8vh' }
+      maxWidth: '95vw'
     });
     const result = await firstValueFrom(ref.afterClosed());
     if (!result) return;
@@ -286,8 +313,7 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewChecked,
     const ref = this.dialog.open(LinkDialogComponent, {
       data: { url: block.url, label: block.label ?? '' },
       width: '420px',
-      maxWidth: '95vw',
-      position: { top: '8vh' }
+      maxWidth: '95vw'
     });
     const result = await firstValueFrom(ref.afterClosed());
     if (!result) return;
@@ -472,7 +498,9 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewChecked,
   }
 
   // ─── Image Block ────────────────────────────────────────────────────────────
+  // TODO: upload immagini disabilitato — riabilitare quando si cambia piano Firebase Storage
 
+  /*
   async onImageSelected(blockIndex: number, event: Event) {
     const input = event.target as HTMLInputElement;
     if (!input.files?.length) return;
@@ -514,12 +542,13 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewChecked,
     if (block.storagePath) {
       try {
         await deleteObject(storageRef(getStorage(getApp()), block.storagePath));
-      } catch { /* already deleted or not found */ }
+      } catch { }
     }
     block.url = '';
     block.storagePath = '';
     this.triggerAutoSave();
   }
+  */
 
   // TODO: tags disabilitati temporaneamente
   // addTag() { ... }

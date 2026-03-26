@@ -160,14 +160,13 @@
       </ng-container>
 
       <!-- ════ IMAGE BLOCK ════ -->
+      <!-- TODO: upload immagini disabilitato — riabilitare quando si cambia piano Firebase Storage
       <ng-container *ngIf="block.type === 'image'">
         <div class="metadata-section image-block">
           <div class="block-label-row">
             <mat-icon color="primary">photo</mat-icon>
             <span class="block-label">Immagine</span>
           </div>
-
-          <!-- Upload area -->
           <div class="image-upload-area" *ngIf="!$any(block).url">
             <input type="file" accept="image/*" #imgInput style="display:none"
                    (change)="onImageSelected(i, $event)">
@@ -181,8 +180,6 @@
               Caricamento {{ uploadProgress.get(i) }}%...
             </div>
           </div>
-
-          <!-- Image preview -->
           <div class="image-preview-area" *ngIf="$any(block).url">
             <img [src]="$any(block).url"
                  [alt]="$any(block).caption || 'Immagine allegata'"
@@ -200,6 +197,7 @@
           </div>
         </div>
       </ng-container>
+      -->
 
       <!-- ════ LINK BLOCK ════ -->
       <ng-container *ngIf="block.type === 'link'">
@@ -326,10 +324,12 @@
             *ngIf="!hasReminderBlock">
       <mat-icon>notifications</mat-icon>
     </button>
+    <!-- TODO: bottone immagine disabilitato — riabilitare con piano Firebase Storage
     <button mat-icon-button (click)="addBlockAfterActive('image')"
             type="button" tabindex="-1" matTooltip="Immagine">
       <mat-icon>add_photo_alternate</mat-icon>
     </button>
+    -->
     <button mat-icon-button (click)="addLinkBlock()"
             type="button" tabindex="-1" matTooltip="Collegamento">
       <mat-icon>link</mat-icon>

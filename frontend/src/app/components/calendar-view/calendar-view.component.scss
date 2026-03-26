@@ -268,38 +268,40 @@
 
     .week-day-notes {
       padding: 4px;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
 
-      .note-card {
-        background: white;
-        border-left: 3px solid;
-        border-radius: 4px;
-        padding: 4px 6px;
-        margin-bottom: 4px;
+      .note-chip {
+        display: flex;
+        align-items: center;
+        gap: 2px;
+        font-size: 10px;
+        padding: 2px 5px;
+        border-radius: 3px;
+        overflow: hidden;
         cursor: pointer;
-        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-        transition: box-shadow 0.12s, transform 0.12s;
+        line-height: 16px;
 
-        &:hover {
-          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-          transform: translateY(-1px);
+        &:hover { filter: brightness(0.88); }
+
+        .chip-bell {
+          font-size: 10px !important;
+          width: 10px;
+          height: 10px;
+          flex-shrink: 0;
+          color: inherit;
         }
 
-        .note-time {
-          font-size: 10px;
-          color: rgba(0, 0, 0, 0.45);
-          display: block;
-          margin-bottom: 1px;
-        }
-
-        .note-title {
-          font-size: 11px;
-          font-weight: 500;
-          color: rgba(0, 0, 0, 0.8);
-          display: block;
+        .chip-title {
           overflow: hidden;
           text-overflow: ellipsis;
           white-space: nowrap;
+          flex: 1;
         }
+
+        &.note-chip-reminder { color: white; font-weight: 500; }
+        &:not(.note-chip-reminder) { color: var(--mat-sys-on-secondary-container, #21005d); }
       }
     }
   }
@@ -319,28 +321,41 @@
     margin: 0 auto;
 
     .day-note-item {
-      background: white;
-      border-left: 4px solid;
       border-radius: 8px;
       padding: 14px 16px;
       cursor: pointer;
-      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
       display: flex;
       gap: 16px;
-      transition: box-shadow 0.12s, transform 0.12s;
+      transition: filter 0.12s;
 
-      &:hover {
-        box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12);
-        transform: translateY(-1px);
+      &:hover { filter: brightness(0.92); }
+
+      &.day-note-reminder {
+        .day-note-time, .day-note-title, .day-note-preview { color: rgba(255,255,255,0.9); }
+        .day-bell { color: white; }
+      }
+
+      &:not(.day-note-reminder) {
+        .day-note-time, .day-note-title { color: var(--mat-sys-on-secondary-container, #21005d); }
+        .day-note-preview { color: var(--mat-sys-on-secondary-container, #21005d); opacity: 0.7; }
+        .day-bell { color: var(--mat-sys-on-secondary-container, #21005d); }
       }
 
       .day-note-time {
+        display: flex;
+        align-items: center;
+        gap: 4px;
         font-size: 13px;
         font-weight: 600;
-        color: rgba(0, 0, 0, 0.45);
         min-width: 46px;
         padding-top: 2px;
         flex-shrink: 0;
+
+        .day-bell {
+          font-size: 16px !important;
+          width: 16px;
+          height: 16px;
+        }
       }
 
       .day-note-content {
@@ -350,13 +365,11 @@
         .day-note-title {
           font-size: 15px;
           font-weight: 500;
-          color: rgba(0, 0, 0, 0.85);
           margin-bottom: 4px;
         }
 
         .day-note-preview {
           font-size: 13px;
-          color: rgba(0, 0, 0, 0.55);
           overflow: hidden;
           max-height: 38px;
           display: -webkit-box;
@@ -428,9 +441,9 @@
     .week-day-number { font-size: 15px; width: 26px; height: 26px; }
   }
 
-  .week-grid .week-day-col .week-day-notes .note-card {
-    .note-time  { font-size: 9px; }
-    .note-title { font-size: 10px; }
+  .week-grid .week-day-col .week-day-notes .note-chip {
+    font-size: 9px;
+    padding: 1px 3px;
   }
 
   .day-view {
