@@ -43,52 +43,74 @@
 .notes-list {
   flex: 1;
   overflow-y: auto;
-  // Padding generoso per respirare, top maggiore per staccarsi dalla search
-  padding: 12px 12px 16px;
+  padding: 8px 12px 16px;
   display: flex;
   flex-direction: column;
-  gap: 6px; // spaziatura uniforme tra gli item (rimpiazza margin-bottom individuali)
+  gap: 6px;
+}
 
-  // M3: dividers nascosti — si usa il gap
-  mat-divider {
-    display: none;
+// ─── Note card (stile calendario) ────────────────────────────
+.note-card {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 12px 8px 12px 14px;
+  border-radius: var(--punto-shape-md, 12px);
+  background: var(--mat-sys-secondary-container, #e8def8);
+  cursor: pointer;
+  transition: filter var(--punto-duration-medium1, 200ms) var(--punto-easing-standard, cubic-bezier(0.2, 0, 0, 1));
+
+  &:hover {
+    filter: brightness(0.94);
+    .delete-btn { opacity: 1; }
+    .pin-btn:not(.pin-active) { opacity: 1; }
   }
 
-  // M3 state-layer: usa primary tint invece del grigio default su hover/press/focus
-  --mdc-list-list-item-hover-state-layer-color: var(--punto-primary);
-  --mdc-list-list-item-pressed-state-layer-color: var(--punto-primary);
-  --mdc-list-list-item-focus-state-layer-color: var(--punto-primary);
-  --mdc-list-list-item-hover-state-layer-opacity: 0.08;
-  --mdc-list-list-item-pressed-state-layer-opacity: 0.12;
-  --mdc-list-list-item-focus-state-layer-opacity: 0.12;
-
-  .active-note {
-    background: var(--punto-primary-container);
-    // Nessun inset box-shadow: su border-radius xl risulta incongruente
-    // Il background highlight è sufficiente (pattern M3 nav drawer)
-    border-radius: var(--punto-shape-xl, 24px);
-    font-weight: 500;
-
-    // Titolo nota selezionata con colore on-primary-container
-    .note-item-title {
-      color: var(--punto-on-primary-container);
-    }
+  // Nota con reminder: sfondo primary → testo bianco
+  &.note-card-reminder:not(.active-note) {
+    .note-item-title { color: white; font-weight: 600; }
+    .note-item-preview { color: rgba(255,255,255,0.82); }
+    .note-card-bell, .note-card-pin-icon { color: white; }
+    .progress-icon { color: white; }
+    .progress-text { color: rgba(255,255,255,0.82); }
+    .progress-bar-track { background: rgba(255,255,255,0.25); }
+    .pin-btn mat-icon, .delete-btn mat-icon { color: rgba(255,255,255,0.9) !important; }
   }
 
-  // Stile hover per note item — stessa forma dell'active e della search
-  a.single-note {
-    position: relative;
-    border-radius: var(--punto-shape-xl, 24px);
-    transition: background var(--punto-duration-medium1, 200ms) var(--punto-easing-standard, cubic-bezier(0.2, 0, 0, 1));
+  // Nota selezionata: primary-container → on-primary-container
+  &.active-note {
+    background: var(--punto-primary-container) !important;
+    filter: none;
 
-    &:hover {
-      background: color-mix(in srgb, var(--mat-sys-on-surface) 4%, transparent);
-
-      .delete-btn {
-        opacity: 1;
-      }
-    }
+    .note-item-title { color: var(--punto-on-primary-container); font-weight: 600; }
+    .note-item-preview { color: var(--punto-on-primary-container); opacity: 0.75; }
+    .note-card-bell, .note-card-pin-icon { color: var(--punto-on-primary-container); }
+    .progress-icon { color: var(--punto-on-primary-container); }
+    .progress-text { color: var(--punto-on-primary-container); opacity: 0.75; }
   }
+}
+
+.note-card-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.note-card-title-row {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.note-card-bell,
+.note-card-pin-icon {
+  font-size: 14px !important;
+  width: 14px !important;
+  height: 14px !important;
+  flex-shrink: 0;
+  color: var(--mat-sys-on-secondary-container, #21005d);
 }
 
 .note-preview-text {
@@ -113,14 +135,12 @@
 }
 
 .note-item-preview {
-  display: block !important;
-  font-size: 0.8rem !important;
-  color: var(--mat-sys-on-surface-variant) !important;
-  white-space: nowrap !important;
-  overflow: hidden !important;
-  text-overflow: ellipsis !important;
-  /* opacity rimossa: var(--mat-sys-on-surface-variant) ha già il contrasto M3 corretto */
-  max-width: calc(100% - 48px);
+  display: block;
+  font-size: 0.8rem;
+  color: var(--mat-sys-on-secondary-container, #21005d);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 
   // Appiattisce qualsiasi tag HTML del rich text
   * {
@@ -195,20 +215,6 @@
   &:active { background: color-mix(in srgb, var(--mat-sys-on-surface) 12%, transparent); }
 }
 
-// ─── Note item — pin state ───────────────────────────────────
-.note-pinned {
-  // Sottolinea visivamente le note fixate con un bordo top sottile
-  border-top: 2px solid color-mix(in srgb, var(--punto-primary) 20%, transparent);
-}
-
-.pin-icon {
-  font-size: 14px !important;
-  width: 14px !important;
-  height: 14px !important;
-  color: var(--mat-sys-on-surface-variant) !important;
-  opacity: 0.6;
-  flex-shrink: 0;
-}
 
 // ─── Note meta actions (pin + delete) ───────────────────────
 .note-meta-actions {
@@ -447,25 +453,6 @@ a.single-note:hover .pin-btn {
     }
   }
 
-  ::ng-deep .notes-list {
-    --mdc-list-list-item-one-line-container-height: auto;
-
-    mat-list-item {
-      padding: 16px 0;
-      height: auto !important;
-    }
-
-    .mat-mdc-list-item-title {
-      font-size: 1.25rem !important;
-      font-weight: 500;
-    }
-
-    .mat-mdc-list-item-line {
-      font-size: 0.9rem !important;
-      opacity: var(--punto-opacity-disabled, 0.38);
-    }
-
-  }
 }
 
 // Search bar nella sidenav
@@ -477,8 +464,15 @@ a.single-note:hover .pin-btn {
     width: 100%;
 
     ::ng-deep {
-      .mat-mdc-form-field-subscript-wrapper {
-        display: none;
+      .mat-mdc-form-field-subscript-wrapper { display: none; }
+
+      // M3: radius coerente con il FAB (shape-lg = 16px)
+      .mdc-notched-outline__leading {
+        border-radius: var(--punto-shape-lg, 16px) 0 0 var(--punto-shape-lg, 16px) !important;
+        min-width: 16px;
+      }
+      .mdc-notched-outline__trailing {
+        border-radius: 0 var(--punto-shape-lg, 16px) var(--punto-shape-lg, 16px) 0 !important;
       }
     }
   }
@@ -511,14 +505,6 @@ a.single-note:hover .pin-btn {
   animation: slideInFade var(--punto-duration-medium1, 200ms) var(--punto-easing-standard, cubic-bezier(0.2, 0, 0, 1)) both;
 }
 
-.single-note {
-  // Altezza auto + padding generoso per respiro M3
-  --mdc-list-list-item-one-line-container-height: auto !important;
-  min-height: 60px !important;
-  height: auto !important;
-  padding-top: 12px !important;
-  padding-bottom: 12px !important;
-}
 
 .back-button {
   margin-right: 8px;

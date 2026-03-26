@@ -29,32 +29,39 @@
       </div>
 
       <!-- Notes list -->
-      <mat-nav-list class="notes-list">
+      <div class="notes-list">
         <ng-container *ngFor="let note of filteredNotes">
-          <a mat-list-item (click)="selectNote(note)" [class.active-note]="activeNote?.id === note.id"
-            class="single-note" [class.note-pinned]="note.pinned">
+          <div class="note-card"
+               (click)="selectNote(note)"
+               [class.active-note]="activeNote?.id === note.id"
+               [class.note-card-reminder]="note.reminderTime"
+               [style.background-color]="getNoteCardBg(note)">
 
-            <mat-icon matListItemIcon class="pin-icon" *ngIf="note.pinned" color="primary">push_pin</mat-icon>
+            <div class="note-card-body">
+              <div class="note-card-title-row">
+                <mat-icon class="note-card-bell" *ngIf="note.reminderTime">notifications</mat-icon>
+                <mat-icon class="note-card-pin-icon" *ngIf="note.pinned">push_pin</mat-icon>
+                <span class="note-item-title">{{ note.title || 'Nuova Nota' }}</span>
+              </div>
 
-            <span matListItemTitle class="note-item-title">{{ note.title || 'Nuova Nota' }}</span>
+              <span class="note-item-preview"
+                    *ngIf="getNotePreview(note) as preview"
+                    [innerHTML]="preview">
+              </span>
 
-            <span matListItemLine class="note-item-preview"
-                  *ngIf="getNotePreview(note) as preview"
-                  [innerHTML]="preview">
-            </span>
-
-            <div matListItemLine class="note-checklist-progress"
-                 *ngIf="getChecklistProgress(note) as progress">
-              <mat-icon class="progress-icon">check_circle</mat-icon>
-              <span class="progress-text">{{ progress.done }}/{{ progress.total }}</span>
-              <div class="progress-bar-track">
-                <div class="progress-bar-fill"
-                     [style.width.%]="(progress.done / progress.total) * 100">
+              <div class="note-checklist-progress"
+                   *ngIf="getChecklistProgress(note) as progress">
+                <mat-icon class="progress-icon">check_circle</mat-icon>
+                <span class="progress-text">{{ progress.done }}/{{ progress.total }}</span>
+                <div class="progress-bar-track">
+                  <div class="progress-bar-fill"
+                       [style.width.%]="(progress.done / progress.total) * 100">
+                  </div>
                 </div>
               </div>
             </div>
 
-            <div matListItemMeta class="note-meta-actions">
+            <div class="note-meta-actions">
               <button mat-icon-button
                       (click)="togglePin(note, $event)"
                       [matTooltip]="note.pinned ? 'Rimuovi pin' : 'Fissa nota'"
@@ -66,8 +73,7 @@
                 <mat-icon>delete_outline</mat-icon>
               </button>
             </div>
-          </a>
-          <mat-divider></mat-divider>
+          </div>
         </ng-container>
 
         <div class="empty-state" *ngIf="filteredNotes.length === 0 && !searchQuery">
@@ -82,7 +88,7 @@
           <mat-icon>search_off</mat-icon>
           <p>Nessun risultato.</p>
         </div>
-      </mat-nav-list>
+      </div>
     </div>
   </mat-sidenav>
 
