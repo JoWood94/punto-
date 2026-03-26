@@ -325,7 +325,8 @@
       <mat-icon>place</mat-icon>
     </button>
     <button mat-icon-button (click)="addBlockAfterActive('reminder')"
-            type="button" tabindex="-1" matTooltip="Promemoria">
+            type="button" tabindex="-1" matTooltip="Promemoria"
+            *ngIf="!hasReminderBlock">
       <mat-icon>notifications</mat-icon>
     </button>
     <button mat-icon-button (click)="addBlockAfterActive('image')"

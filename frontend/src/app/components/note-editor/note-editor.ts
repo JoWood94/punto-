@@ -87,6 +87,12 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewChecked,
   private savedNoteId: string | null = null;
   private isNewNote = false;
   private autoSaveTimer: any;
+  private createNotePromise: Promise<void> | null = null;
+  private userHasModifiedContent = false;
+
+  get hasReminderBlock(): boolean {
+    return this.note.blocks.some(b => b.type === 'reminder');
+  }
 
   // ─── Lifecycle ─────────────────────────────────────────────────────────────
 
@@ -115,7 +121,10 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewChecked,
 
   private initNote() {
     if (this.selectedNote) {
-      this.savedNoteId = this.selectedNote.id || null; this.isNewNote = false;
+      this.savedNoteId = this.selectedNote.id || null;
+      this.isNewNote = false;
+      this.userHasModifiedContent = false;
+      this.createNotePromise = null;
       const blocks = migrateToBlocks(this.selectedNote);
       // Attach runtime UI state to each block
       blocks.forEach(block => {
@@ -151,30 +160,24 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewChecked,
       // Guard: ngOnInit + ngOnChanges chiamano entrambi initNote() al mount — evita doppia creazione
       if (this.isNewNote) return;
 
-      this.note = {
-        title: this.PLACEHOLDER_TITLE,
-        blocks: [{ type: 'text', html: '' }],
-        tags: [],
-        color: 'default'
-      };
-      // Se aperta da calendario, aggiungi un blocco reminder pre-valorizzato
+      this.userHasModifiedContent = false;
       if (this.initialReminderDate) {
+        // Da calendario: solo blocco reminder, nessun testo di default
         const d = this.initialReminderDate;
         const reminderBlock: any = {
-          type: 'reminder',
-          time: null,
-          recurrence: 'none',
-          status: null,
+          type: 'reminder', time: null, recurrence: 'none', status: null,
           date: d,
           hour: d.getHours().toString().padStart(2, '0'),
           minute: (Math.round(d.getMinutes() / 5) * 5 % 60).toString().padStart(2, '0')
         };
-        this.note.blocks.push(reminderBlock);
+        this.note = { title: this.PLACEHOLDER_TITLE, blocks: [reminderBlock], tags: [], color: 'default' };
+      } else {
+        this.note = { title: this.PLACEHOLDER_TITLE, blocks: [{ type: 'text', html: '' }], tags: [], color: 'default' };
       }
       this.isNewNote = true;
       this.savedNoteId = null;
       // Crea subito su Firestore per avere un ID
-      this.noteService.createNote(this.buildPayload())
+      this.createNotePromise = this.noteService.createNote(this.buildPayload())
         .then(result => { this.savedNoteId = result.id; })
         .catch(err => console.error('[AutoSave] createNote error:', err));
     }
@@ -223,12 +226,21 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewChecked,
       default:
         return;
     }
-    const insertAt = afterIndex !== undefined ? afterIndex + 1 : this.note.blocks.length;
-    this.note.blocks = [
-      ...this.note.blocks.slice(0, insertAt),
-      newBlock,
-      ...this.note.blocks.slice(insertAt)
-    ];
+    // Se il solo blocco esistente è testo vuoto (placeholder) e si aggiunge un altro tipo, sostituiscilo
+    const isOnlyEmptyText = type !== 'text' &&
+      this.note.blocks.length === 1 &&
+      this.note.blocks[0].type === 'text' &&
+      !(this.note.blocks[0] as TextBlock).html;
+    if (isOnlyEmptyText) {
+      this.note.blocks = [newBlock];
+    } else {
+      const insertAt = afterIndex !== undefined ? afterIndex + 1 : this.note.blocks.length;
+      this.note.blocks = [
+        ...this.note.blocks.slice(0, insertAt),
+        newBlock,
+        ...this.note.blocks.slice(insertAt)
+      ];
+    }
     this.textBlocksNeedInit = true;
     this.scrollEditorToBottom();
     this.triggerAutoSave();
@@ -466,8 +478,7 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewChecked,
       },
       err => {
         this.uploadProgress.delete(blockIndex);
-        console.error('[Storage] Upload error:', err.code, err.message, err);
-        console.error('[Storage] Upload failed:', err.code ?? err.message);
+        console.error('[Storage] Upload failed:', err.code, err.message);
         this.cdr.detectChanges();
       },
       async () => {
@@ -535,19 +546,13 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewChecked,
   }
 
   private isPristine(): boolean {
-    // Controlla se il titolo è ancora il placeholder (o vuoto)
+    if (this.userHasModifiedContent) return false;
     const title = (this.note.title || '').trim();
-    if (title && title !== this.PLACEHOLDER_TITLE) return false;
-    // Controlla se ci sono contenuti reali nei blocchi
-    this.saveTextBlocksFromDOM();
-    const hasContent = this.note.blocks.some(block => {
-      if (block.type === 'text') return !!((block as TextBlock).html || '').replace(/<[^>]*>/g, '').trim();
-      return true; // qualsiasi blocco non-testo è contenuto reale
-    });
-    return !hasContent;
+    return !title || title === this.PLACEHOLDER_TITLE;
   }
 
   triggerAutoSave() {
+    this.userHasModifiedContent = true;
     clearTimeout(this.autoSaveTimer);
     this.autoSaveTimer = setTimeout(() => this.performAutoSave(), 800);
   }
@@ -563,15 +568,14 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewChecked,
 
   async handleClose() {
     clearTimeout(this.autoSaveTimer);
+    // Attendi che la createNote sia completata (evita note orfane se l'utente chiude troppo in fretta)
+    if (this.createNotePromise) await this.createNotePromise.catch(() => {});
     if (this.isNewNote && this.savedNoteId && this.isPristine()) {
       // Nuova nota senza contenuto reale → cancella
       try { await this.noteService.deleteNote(this.savedNoteId); } catch { /* ignora */ }
     } else if (this.savedNoteId) {
       // Salva eventuali modifiche pendenti
       await this.performAutoSave();
-    } else if (!this.selectedNote?.id) {
-      // createNote non ancora completato — salva ora
-      try { await this.noteService.createNote(this.buildPayload()); } catch { /* ignora */ }
     }
     this.closeEditor.emit();
   }
