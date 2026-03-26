@@ -1,6 +1,6 @@
 <mat-sidenav-container class="dashboard-container">
 
-  <mat-sidenav mode="side" [opened]="!isMobile || activeNote === undefined" class="notes-sidenav"
+  <mat-sidenav mode="side" [opened]="!isMobile || (activeNote === undefined && currentMainView === 'list')" class="notes-sidenav"
     [class.mobile-full]="isMobile">
     <div style="display: flex; flex-direction: column; height: 100%;">
       <div class="sidenav-header" [class.mobile-header]="isMobile" style="position: relative;">
