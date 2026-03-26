@@ -12,7 +12,6 @@ import { MatMenuModule } from '@angular/material/menu';
 import { MatSidenavModule, MatSidenav } from '@angular/material/sidenav';
 import { MatListModule } from '@angular/material/list';
 import { MatTooltipModule } from '@angular/material/tooltip';
-import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatInputModule } from '@angular/material/input';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatDialogModule, MatDialog } from '@angular/material/dialog';
@@ -39,7 +38,6 @@ import { BreakpointObserver, Breakpoints } from '@angular/cdk/layout';
     MatSidenavModule,
     MatListModule,
     MatTooltipModule,
-    MatSnackBarModule,
     MatInputModule,
     MatFormFieldModule,
     MatDialogModule,
@@ -55,7 +53,6 @@ export class DashboardComponent implements OnInit, OnDestroy {
   private router: Router = inject(Router);
   private location: Location = inject(Location);
   private breakpointObserver = inject(BreakpointObserver);
-  private snackBar = inject(MatSnackBar);
   private dialog = inject(MatDialog);
 
   @ViewChild('sidenav') sidenav!: MatSidenav;
@@ -118,8 +115,10 @@ export class DashboardComponent implements OnInit, OnDestroy {
       console.warn('Push notifications non disponibili in questo browser.');
     });
 
-    // Gestione back gesture mobile
-    window.history.pushState({ punto: 'dashboard' }, '', window.location.href);
+    // Gestione back gesture mobile.
+    // replaceState (non pushState) converte l'entry iniziale in uno stato JS puro:
+    // iOS non ricarica la pagina quando il popstate torna a uno stato JS.
+    window.history.replaceState({ punto: 'dashboard' }, '', window.location.href);
     window.addEventListener('popstate', this.onMobilePopState);
   }
 
@@ -187,7 +186,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
     try {
       await this.noteService.updateNote(note.id, { pinned: !note.pinned });
     } catch (e: any) {
-      this.snackBar.open('Errore: ' + e.message, 'Chiudi', { duration: 3000 });
+      console.error('Errore pin:', e.message);
     }
   }
 
@@ -245,7 +244,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
       await this.noteService.deleteNote(note.id);
       if (this.activeNote?.id === note.id) this.activeNote = undefined;
     } catch (e: any) {
-      this.snackBar.open('Errore eliminazione: ' + e.message, 'Chiudi', { duration: 5000 });
+      console.error('Errore eliminazione:', e.message);
     }
   }
 

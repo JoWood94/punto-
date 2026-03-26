@@ -11,7 +11,6 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatDatepickerModule } from '@angular/material/datepicker';
 import { MatNativeDateModule } from '@angular/material/core';
-import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatAutocompleteModule } from '@angular/material/autocomplete';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatSelectModule } from '@angular/material/select';
@@ -37,7 +36,7 @@ import { getApp } from 'firebase/app';
   imports: [
     CommonModule, FormsModule,
     MatFormFieldModule, MatInputModule, MatButtonModule, MatIconModule,
-    MatTooltipModule, MatSnackBarModule, MatAutocompleteModule,
+    MatTooltipModule, MatAutocompleteModule,
     MatCheckboxModule, MatDatepickerModule, MatNativeDateModule,
     MatSelectModule, MatChipsModule, MatMenuModule, MatDialogModule,
     DragDropModule
@@ -77,7 +76,6 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewChecked,
 
   private noteService = inject(NoteService);
   private authService = inject(AuthService);
-  private snackBar = inject(MatSnackBar);
   private sanitizer = inject(DomSanitizer);
   private cdr = inject(ChangeDetectorRef);
   private dialog = inject(MatDialog);
@@ -469,7 +467,7 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewChecked,
       err => {
         this.uploadProgress.delete(blockIndex);
         console.error('[Storage] Upload error:', err.code, err.message, err);
-        this.snackBar.open('Errore upload: ' + (err.code ?? err.message), 'Chiudi', { duration: 8000 });
+        console.error('[Storage] Upload failed:', err.code ?? err.message);
         this.cdr.detectChanges();
       },
       async () => {
