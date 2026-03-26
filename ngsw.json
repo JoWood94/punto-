@@ -1,6 +1,6 @@
 {
   "configVersion": 1,
-  "timestamp": 1774533818513,
+  "timestamp": 1774534193250,
   "index": "/punto-/index.html",
   "assetGroups": [
     {
@@ -49,7 +49,7 @@
   ],
   "dataGroups": [],
   "hashTable": {
-    "/punto-/favicon.ico": "58ae63bade838c45360040a10a1c3efd8d919222",
+    "/punto-/favicon.ico": "34467563192d0b417d0c411b8602b1131a5b7e05",
     "/punto-/favicon.png": "030e09a9313db4dc3c34da3167e9e68c94ddd887",
     "/punto-/favicon_512.png": "0b300ea316fafdeb7b3abe46df6c9392b9cae02d",
     "/punto-/firebase-messaging-sw.js": "0be5ae76984dc32d8bc4cf04ef3520d7a14ea99f",
