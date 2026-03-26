@@ -17,12 +17,14 @@ const messaging = firebase.messaging();
 
 messaging.onBackgroundMessage((payload) => {
   console.log('Ricevuto messaggio FCM in background: ', payload);
-  // Legge da payload.data (data-only message) per evitare duplicati
+  // Se il messaggio contiene un campo notification, il SDK compat lo auto-visualizza:
+  // non serve chiamare showNotification manualmente (evita la doppia notifica).
+  if (payload.notification) return;
+  // Fallback per messaggi data-only
   const notificationTitle = payload.data?.title || 'Nuovo Promemoria da punto!';
   const notificationOptions = {
     body: payload.data?.body || '',
     icon: 'punto_icon.png'
   };
-
   self.registration.showNotification(notificationTitle, notificationOptions);
 });
