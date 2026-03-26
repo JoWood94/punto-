@@ -193,7 +193,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
   // ─── Navigation ─────────────────────────────────────────────────────────────
 
   logout() { this.authService.logout().then(() => this.router.navigate(['/login'])); }
-  openNoteEditor() { this.activeNote = null; }
+  openNoteEditor() { this.newNoteCalendarDate = undefined; this.activeNote = null; }
   openNoteEditorFromCalendar(date?: Date) {
     const now = new Date();
     // Usa la data passata (dal calendario settimana/mese) oppure oggi

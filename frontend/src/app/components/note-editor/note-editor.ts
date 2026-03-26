@@ -586,5 +586,15 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewChecked,
 
   ngOnDestroy() {
     clearTimeout(this.autoSaveTimer);
+    if (this.isNewNote && this.isPristine()) {
+      // Distrutto via back-button (non via handleClose): cancella la nota pristine in background
+      (async () => {
+        if (this.createNotePromise) await this.createNotePromise.catch(() => {});
+        if (this.savedNoteId) this.noteService.deleteNote(this.savedNoteId).catch(() => {});
+      })();
+    } else if (this.savedNoteId && this.userHasModifiedContent) {
+      // Salva eventuali modifiche pendenti (timer interrotto dal destroy)
+      this.performAutoSave().catch(() => {});
+    }
   }
 }

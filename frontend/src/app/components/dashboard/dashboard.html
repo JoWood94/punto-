@@ -14,10 +14,6 @@
           [class.mobile-actions]="isMobile">
           <mat-icon>calendar_month</mat-icon>
         </button>
-        <button mat-icon-button (click)="openNoteEditor()" color="primary" matTooltip="Nuova Nota"
-          *ngIf="isMobile" [class.mobile-actions]="isMobile">
-          <mat-icon>add</mat-icon>
-        </button>
       </div>
 
       <!-- Search bar -->
@@ -115,6 +111,14 @@
           <p>Nessun risultato.</p>
         </div>
       </mat-nav-list>
+
+      <!-- FAB mobile nella lista note -->
+      <div class="sidenav-list-fab-area" *ngIf="isMobile && currentMainView === 'list'">
+        <button mat-fab extended color="primary" (click)="openNoteEditor()" class="new-note-fab">
+          <mat-icon>edit</mat-icon>
+          Nuova Nota
+        </button>
+      </div>
 
       <div class="sidenav-footer" *ngIf="isMobile">
         <button mat-icon-button (click)="logout()" aria-label="Esci" matTooltip="Logout" color="warn">
