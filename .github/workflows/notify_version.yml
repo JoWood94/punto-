@@ -1,0 +1,47 @@
+name: Notifica Nuova Versione agli Utenti
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Versione rilasciata (es. 1.2, 2.0)'
+        required: true
+        default: ''
+      message:
+        description: 'Descrizione delle novità (opzionale)'
+        required: false
+        default: ''
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  notify_users:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Log info
+        run: |
+          echo "Versione: ${{ github.event.inputs.version }}"
+          echo "Messaggio: ${{ github.event.inputs.message }}"
+          echo "UTC: $(date -u)"
+
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        working-directory: ./server
+        run: npm ci
+
+      - name: Send Version Notification
+        working-directory: ./server
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          GITHUB_ACTIONS: "true"
+          APP_VERSION: ${{ github.event.inputs.version }}
+          RELEASE_MESSAGE: ${{ github.event.inputs.message }}
+        run: node notify-version.js

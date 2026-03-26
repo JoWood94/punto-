@@ -1,4 +1,4 @@
-import { Component, Inject } from '@angular/core';
+import { Component, Inject, AfterViewInit, ElementRef, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MAT_DIALOG_DATA, MatDialogRef, MatDialogModule } from '@angular/material/dialog';
@@ -28,11 +28,23 @@ export interface LinkDialogResult {
   templateUrl: './link-dialog.html',
   styleUrls: ['./link-dialog.scss']
 })
-export class LinkDialogComponent {
+export class LinkDialogComponent implements AfterViewInit {
+  @ViewChild('urlInput') urlInputRef!: ElementRef<HTMLInputElement>;
+
   constructor(
     public dialogRef: MatDialogRef<LinkDialogComponent, LinkDialogResult | null>,
     @Inject(MAT_DIALOG_DATA) public data: LinkDialogData
   ) {}
+
+  ngAfterViewInit() {
+    // Auto-focus sul campo URL: ritardo per attendere animazione apertura dialog su iOS
+    setTimeout(() => {
+      const el = this.urlInputRef?.nativeElement;
+      if (!el) return;
+      el.focus();
+      el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }, 200);
+  }
 
   onUrlPaste(event: ClipboardEvent) {
     // Rimuove spazi iniziali/finali incollati per errore

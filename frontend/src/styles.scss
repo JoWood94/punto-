@@ -184,4 +184,14 @@ mat-list-item, a[mat-list-item] {
   }
 }
 
+/* iOS scroll-margin: garantisce che il browser (e scrollIntoView) lasci
+   spazio visibile attorno all'elemento quando la tastiera è aperta. */
+@media (max-width: 599.98px) {
+  input, textarea, select, [contenteditable="true"],
+  mat-form-field, .metadata-section, .block-item {
+    scroll-margin-top: 16px;
+    scroll-margin-bottom: 24px;
+  }
+}
+
 /* You can add global styles to this file, and also import other style files */

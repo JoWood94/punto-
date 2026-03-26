@@ -24,55 +24,42 @@ if (process.env.FIREBASE_SERVICE_ACCOUNT) {
 const db = admin.firestore();
 const messaging = admin.messaging();
 
-async function sendTestNotification() {
-  const targetUid = process.env.TARGET_UID || '';
+async function notifyNewVersion() {
+  const version = process.env.APP_VERSION || '?';
+  const customMessage = process.env.RELEASE_MESSAGE || '';
 
-  let userDocs = [];
-  if (targetUid) {
-    const snap = await db.collection('users').doc(targetUid).get();
-    if (snap.exists) {
-      userDocs = [snap];
-    } else {
-      console.log(`Utente ${targetUid} non trovato in Firestore.`);
-      return;
-    }
-  } else {
-    const snap = await db.collection('users').get();
-    userDocs = snap.docs;
-  }
+  const title = `punto! ${version} è disponibile`;
+  const body = [
+    customMessage,
+    'Se usi la PWA, per aggiornare chiudi l\'app dal selettore delle app recenti e riaprila.'
+  ].filter(Boolean).join(' — ');
 
-  if (userDocs.length === 0) {
+  console.log(`\nInvio notifica di rilascio:`);
+  console.log(`  Titolo: ${title}`);
+  console.log(`  Corpo:  ${body}\n`);
+
+  const usersSnap = await db.collection('users').get();
+  if (usersSnap.empty) {
     console.log('Nessun utente trovato.');
     return;
   }
 
-  console.log(`Invio notifica di test a ${userDocs.length} utente/i...`);
   let totalSent = 0;
 
-  for (const userDoc of userDocs) {
-    const data = userDoc.data();
-    const tokens = data.fcmTokens || [];
+  for (const userDoc of usersSnap.docs) {
+    const tokens = userDoc.data().fcmTokens || [];
     if (tokens.length === 0) {
-      console.log(`  [${userDoc.id}] Nessun token FCM registrato — skip.`);
+      console.log(`  [${userDoc.id}] Nessun token — skip.`);
       continue;
     }
 
-    console.log(`  [${userDoc.id}] ${tokens.length} token/s trovati, invio...`);
+    console.log(`  [${userDoc.id}] ${tokens.length} token/s...`);
 
     const response = await messaging.sendEachForMulticast({
       tokens,
-      // webpush.notification sovrascrive root notification per i token browser:
-      // title e body vanno ripetuti qui, altrimenti arriva solo l'icona
       webpush: {
-        notification: {
-          title: 'punto! — Test Notifica',
-          body: 'Se vedi questo, le push notification funzionano!',
-          icon: '/punto-/icons/icon-192x192.png',
-        },
-        data: {
-          title: 'punto! — Test Notifica',
-          body: 'Se vedi questo, le push notification funzionano!',
-        }
+        notification: { title, body, icon: '/punto-/icons/icon-192x192.png' },
+        data: { title, body }
       }
     });
 
@@ -96,18 +83,14 @@ async function sendTestNotification() {
       await db.collection('users').doc(userDoc.id).update({
         fcmTokens: admin.firestore.FieldValue.arrayRemove(...failedTokens)
       });
-      console.log(`  Rimossi ${failedTokens.length} token non validi da Firestore.`);
+      console.log(`  Rimossi ${failedTokens.length} token non validi.`);
     }
   }
 
-  console.log(`\nTest completato. Notifiche consegnate a FCM: ${totalSent}`);
-  if (totalSent === 0) {
-    console.error('ATTENZIONE: Nessuna notifica inviata. Verifica che ci siano token FCM validi in Firestore (collection users → campo fcmTokens).');
-    process.exit(1);
-  }
+  console.log(`\nNotifica rilascio inviata a ${totalSent} device/s.`);
 }
 
-sendTestNotification()
+notifyNewVersion()
   .then(() => process.exit(0))
   .catch(err => {
     console.error(err);

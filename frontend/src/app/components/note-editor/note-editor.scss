@@ -54,6 +54,11 @@
 
 .toolbar-scroll-container {
   flex-shrink: 0;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  // Nasconde la scrollbar orizzontale ma mantiene la funzionalità
+  scrollbar-width: none;
+  &::-webkit-scrollbar { display: none; }
 }
 
 .rich-text-editor {
@@ -116,34 +121,35 @@
 
 @media (max-width: 599.98px) {
   .rich-text-toolbar {
-    padding: 4px 8px 8px;
+    padding: 4px 8px;
     min-height: unset;
     gap: 0;
-    flex-wrap: wrap;
-    overflow-x: hidden;
+    flex-wrap: nowrap;   // tutto su una riga — niente salto di altezza
+    width: max-content;  // permette allo scroll container di contenere la riga completa
+    min-width: 100%;
 
     // Bottoni toolbar più grandi su mobile
     .mat-mdc-icon-button {
-      width: 44px !important;
-      height: 44px !important;
+      width: 48px !important;
+      height: 48px !important;
+      flex-shrink: 0;
 
       mat-icon {
-        font-size: 22px;
-        width: 22px;
-        height: 22px;
+        font-size: 24px;
+        width: 24px;
+        height: 24px;
       }
     }
   }
 
-  // Formato: va in seconda riga sotto i bottoni aggiungi-blocco
+  // Formato: stessa riga, nessun override di ordine o width
   .toolbar-format-group {
-    order: 2;
-    width: 100%;
-    border-top: 1px solid var(--mat-sys-outline-variant);
-    padding-top: 4px;
-    margin-top: 2px;
+    flex-shrink: 0;
   }
 
+  .toolbar-divider {
+    flex-shrink: 0;
+  }
 }
 
 .metadata-section {

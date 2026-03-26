@@ -110,21 +110,19 @@ async function checkAndSendReminders() {
         try {
           const response = await messaging.sendEachForMulticast({
             tokens: tokens,
-            // notification field: necessario per iOS PWA e browser in background.
-            // onBackgroundMessage del SW non viene chiamato quando notification è presente
-            // (il SDK auto-display gestisce la visualizzazione), quindi nessuna doppia notifica.
-            notification: {
-              title: msgTitle,
-              body: bodyText,
-            },
-            // data field: usato dal foreground handler (onMessage) dell'app Angular
-            data: {
-              title: msgTitle,
-              body: bodyText,
-            },
+            // webpush.notification sovrascrive root notification per i token browser.
+            // title e body vanno esplicitamente in webpush.notification, altrimenti
+            // FCM invia solo l'icona e la notifica viene scartata silenziosamente.
             webpush: {
               notification: {
-                icon: '/punto-/punto_icon.png',
+                title: msgTitle,
+                body: bodyText,
+                icon: '/punto-/icons/icon-192x192.png',
+              },
+              // data: usato dal foreground handler (onMessage) dell'app Angular
+              data: {
+                title: msgTitle,
+                body: bodyText,
               }
             }
           });

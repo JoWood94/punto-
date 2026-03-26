@@ -99,6 +99,14 @@ export class DashboardComponent implements OnInit, OnDestroy {
         if (vv.offsetTop > 0) window.scrollTo(0, 0);
         (document.querySelectorAll('.cdk-overlay-container') as NodeListOf<HTMLElement>)
           .forEach(el => { el.style.height = `${h}px`; el.style.maxHeight = `${h}px`; });
+        // iOS: quando la tastiera appare/scompare, scrolla l'elemento attivo nel viewport visivo.
+        // Timeout per attendere il completamento dell'animazione tastiera (~300ms).
+        setTimeout(() => {
+          const active = document.activeElement as HTMLElement | null;
+          if (active && active !== document.body && active.tagName !== 'MAT-SIDENAV-CONTAINER') {
+            active.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+          }
+        }, 320);
       };
       vv.addEventListener('resize', setVh);
       vv.addEventListener('scroll', setVh);

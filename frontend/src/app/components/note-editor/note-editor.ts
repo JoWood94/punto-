@@ -187,8 +187,15 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewChecked,
   private scrollEditorToBottom() {
     setTimeout(() => {
       const el = this.editorContent?.nativeElement;
-      if (el) el.scrollTop = el.scrollHeight;
-    }, 50);
+      if (!el) return;
+      // Prefer scrollIntoView on last child (più affidabile su iOS con tastiera aperta)
+      const last = el.lastElementChild as HTMLElement | null;
+      if (last) {
+        last.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      } else {
+        el.scrollTop = el.scrollHeight;
+      }
+    }, 100);
   }
 
   // ─── Block Management ───────────────────────────────────────────────────────
@@ -256,7 +263,8 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewChecked,
     const ref = this.dialog.open(LinkDialogComponent, {
       data: { url: '', label: '' },
       width: '420px',
-      maxWidth: '95vw'
+      maxWidth: '95vw',
+      position: { top: '8vh' }
     });
     const result = await firstValueFrom(ref.afterClosed());
     if (!result) return;
@@ -278,7 +286,8 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewChecked,
     const ref = this.dialog.open(LinkDialogComponent, {
       data: { url: block.url, label: block.label ?? '' },
       width: '420px',
-      maxWidth: '95vw'
+      maxWidth: '95vw',
+      position: { top: '8vh' }
     });
     const result = await firstValueFrom(ref.afterClosed());
     if (!result) return;
