@@ -157,7 +157,7 @@
 
     <!-- FAB desktop: fixed bottom-right -->
     <div class="sidenav-fab-area" *ngIf="activeNote === undefined && !isMobile">
-      <button mat-fab extended color="primary" (click)="openNoteEditor()" class="new-note-fab">
+      <button mat-fab extended (click)="openNoteEditor()" class="new-note-fab">
         <mat-icon>edit</mat-icon>
         Nuova Nota
       </button>
@@ -168,8 +168,7 @@
 
 <!-- FAB mobile: position:fixed fuori dal sidenav-container per evitare problemi con i transform -->
 <div class="mobile-fab-overlay" *ngIf="isMobile && activeNote === undefined">
-  <button mat-fab extended color="primary"
-          (click)="currentMainView === 'calendar' ? openNoteEditorFromCalendar() : openNoteEditor()"
+  <button mat-fab extended (click)="currentMainView === 'calendar' ? openNoteEditorFromCalendar() : openNoteEditor()"
           class="new-note-fab">
     <mat-icon>edit</mat-icon>
     Nuova Nota
