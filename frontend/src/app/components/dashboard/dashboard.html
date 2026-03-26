@@ -135,14 +135,13 @@
 
       <span class="spacer"></span>
 
-      <mat-button-toggle-group [value]="currentMainView" (change)="currentMainView = $event.value; activeNote = undefined" class="view-toggle-group" *ngIf="!isMobile" aria-label="Vista">
-        <mat-button-toggle value="list" matTooltip="Lista note">
-          <mat-icon>view_list</mat-icon>
-        </mat-button-toggle>
-        <mat-button-toggle value="calendar" matTooltip="Calendario">
-          <mat-icon>calendar_month</mat-icon>
-        </mat-button-toggle>
-      </mat-button-toggle-group>
+      <button mat-icon-button *ngIf="!isMobile"
+              (click)="currentMainView = 'calendar'; activeNote = undefined"
+              [class.calendar-btn-active]="currentMainView === 'calendar' && activeNote === undefined"
+              matTooltip="Vista Calendario"
+              aria-label="Vista Calendario">
+        <mat-icon>calendar_month</mat-icon>
+      </button>
 
       <button mat-icon-button (click)="logout()" *ngIf="!isMobile" aria-label="Esci" matTooltip="Logout" color="warn">
         <mat-icon>logout</mat-icon>

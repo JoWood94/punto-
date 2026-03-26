@@ -15,7 +15,6 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatInputModule } from '@angular/material/input';
 import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { MatDialogModule, MatDialog } from '@angular/material/dialog';
 import { MatChipsModule } from '@angular/material/chips';
 import { NoteEditorComponent } from '../note-editor/note-editor';
@@ -43,7 +42,6 @@ import { BreakpointObserver, Breakpoints } from '@angular/cdk/layout';
     MatSnackBarModule,
     MatInputModule,
     MatFormFieldModule,
-    MatButtonToggleModule,
     MatDialogModule,
     MatChipsModule,
     NoteEditorComponent,

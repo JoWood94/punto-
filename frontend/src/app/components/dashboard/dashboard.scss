@@ -573,56 +573,13 @@ a.single-note:hover .pin-btn {
   }
 }
 
-// M3 View toggle group — pill shape, active state con primary-container
-.view-toggle-group {
-  margin-right: 8px;
-  height: 36px;
-  border-radius: var(--punto-shape-full, 9999px) !important;
-  overflow: hidden;
-  border: 1px solid var(--mat-sys-outline-variant) !important;
+// Pulsante calendario desktop — stato attivo con primary-container
+.calendar-btn-active {
+  background: var(--punto-primary-container) !important;
+  border-radius: 50%;
 
-  ::ng-deep .mat-button-toggle {
-    height: 36px;
-    background: transparent;
-    border: none !important;
-
-    .mat-button-toggle-button {
-      height: 36px;
-      padding: 0 12px;
-    }
-
-    mat-icon {
-      font-size: 20px;
-      width: 20px;
-      height: 20px;
-      line-height: 20px;
-      color: var(--mat-sys-on-surface-variant);
-      transition: color var(--punto-duration-medium1, 200ms) var(--punto-easing-standard, cubic-bezier(0.2, 0, 0, 1));
-    }
-
-    // Stato attivo M3: primary-container background + on-primary-container icon
-    &.mat-button-toggle-checked {
-      background: var(--punto-primary-container);
-
-      mat-icon {
-        color: var(--punto-on-primary-container);
-      }
-    }
-
-    // Rimuove la border verticale di separazione tra i toggle
-    & + .mat-button-toggle {
-      border-left: none !important;
-    }
-
-    // Rimuove la spunta di conferma sovrapposta all'icona
-    .mat-button-toggle-checkbox-wrapper {
-      display: none !important;
-    }
-
-    // State layer hover M3
-    .mat-button-toggle-ripple {
-      --mat-button-toggle-hover-state-layer-opacity: 0.08;
-    }
+  mat-icon {
+    color: var(--punto-on-primary-container) !important;
   }
 }
 
