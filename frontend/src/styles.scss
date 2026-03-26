@@ -129,4 +129,12 @@ body {
 .mat-mdc-button.mat-mdc-raised-button {
   box-shadow: var(--punto-shadow-2);
 }
+/* mat-icon-button: allineamento verticale corretto in qualsiasi flex container */
+.mat-mdc-icon-button {
+  align-self: center;
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+}
+
 /* You can add global styles to this file, and also import other style files */

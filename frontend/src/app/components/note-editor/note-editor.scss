@@ -279,11 +279,11 @@
 // Pulsante rimozione voce checklist
 .remove-item-btn {
   flex-shrink: 0;
+  align-self: center;
   opacity: 0;
   transition: opacity var(--punto-duration-medium1, 200ms) var(--punto-easing-standard, cubic-bezier(0.2, 0, 0, 1));
   width: 32px !important;
   height: 32px !important;
-  line-height: 32px !important;
   margin-left: auto;
 
   mat-icon {
