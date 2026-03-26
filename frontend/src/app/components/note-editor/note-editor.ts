@@ -48,7 +48,6 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewChecked,
   @Input() selectedNote: Note | null = null;
   @Input() initialReminderDate?: Date;
   @Output() closeEditor = new EventEmitter<void>();
-  @Output() deleteRequested = new EventEmitter<void>();
 
   /** Collects only #textBlockEl refs (one per text block, in ngFor order). */
   @ViewChildren('textBlockEl') textBlockEls!: QueryList<ElementRef<HTMLElement>>;

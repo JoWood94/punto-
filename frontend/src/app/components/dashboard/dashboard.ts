@@ -220,8 +220,14 @@ export class DashboardComponent implements OnInit, OnDestroy {
   private onMobilePopState = (_event: PopStateEvent) => {
     // Spingi subito uno stato per rimanere sull'URL attuale (no navigazione browser)
     window.history.pushState({ punto: 'dashboard' }, '', window.location.href);
-    // Gestisci la navigazione in-app
-    if (this.isMobile) {
+    // Non navigare se l'utente sta digitando (iOS genera popstate spuri su backspace in input vuoto)
+    const active = document.activeElement;
+    const isTyping = active && (
+      active.tagName === 'INPUT' ||
+      active.tagName === 'TEXTAREA' ||
+      (active as HTMLElement).isContentEditable
+    );
+    if (this.isMobile && !isTyping) {
       this.handleBackButton();
     }
   };

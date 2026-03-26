@@ -114,6 +114,12 @@
         <mat-icon>logout</mat-icon>
       </button>
 
+      <!-- Mobile: elimina nota nell'header quando si sta editando una nota esistente -->
+      <button mat-icon-button *ngIf="isMobile && activeNote?.id"
+              (click)="deleteActiveNote()" color="warn" aria-label="Elimina nota" matTooltip="Elimina">
+        <mat-icon>delete_outline</mat-icon>
+      </button>
+
       <button mat-icon-button *ngIf="!isMobile"
               (click)="currentMainView = 'calendar'; activeNote = undefined"
               [class.calendar-btn-active]="currentMainView === 'calendar' && activeNote === undefined"
@@ -129,7 +135,7 @@
 
     <div class="editor-wrapper editor-enter" *ngIf="activeNote !== undefined">
       <app-note-editor [selectedNote]="activeNote" [initialReminderDate]="newNoteCalendarDate"
-                       (closeEditor)="closeEditor()" (deleteRequested)="deleteActiveNote()">
+                       (closeEditor)="closeEditor()">
       </app-note-editor>
     </div>
 

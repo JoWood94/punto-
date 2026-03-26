@@ -1,9 +1,5 @@
 <div class="editor-header">
   <input class="title-input-raw" [(ngModel)]="note.title" placeholder="Titolo" (ngModelChange)="onTitleChange()" />
-  <button mat-icon-button color="warn" *ngIf="selectedNote?.id"
-          (click)="deleteRequested.emit()" aria-label="Elimina nota" matTooltip="Elimina">
-    <mat-icon>delete_outline</mat-icon>
-  </button>
   <button mat-icon-button (click)="handleClose()" aria-label="Chiudi" matTooltip="Chiudi">
     <mat-icon>close</mat-icon>
   </button>
