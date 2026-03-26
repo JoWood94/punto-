@@ -5,19 +5,8 @@
   height: 100vh;
   width: 100vw;
   box-sizing: border-box;
-  background: var(--punto-primary);
+  background: var(--punto-bg);
   padding: 24px;
-
-  // Override token M3 outlined text field → dark background
-  --mdc-outlined-text-field-input-text-color:        var(--punto-on-primary);
-  --mdc-outlined-text-field-label-text-color:        rgba(255, 255, 255, 0.6);
-  --mdc-outlined-text-field-outline-color:           rgba(255, 255, 255, 0.3);
-  --mdc-outlined-text-field-hover-outline-color:     rgba(255, 255, 255, 0.7);
-  --mdc-outlined-text-field-focus-outline-color:     var(--punto-on-primary);
-  --mdc-outlined-text-field-focus-label-text-color:  var(--punto-on-primary);
-  --mdc-outlined-text-field-hover-label-text-color:  rgba(255, 255, 255, 0.87);
-  --mdc-outlined-text-field-caret-color:             var(--punto-on-primary);
-  --mat-icon-button-icon-color:                      rgba(255, 255, 255, 0.7);
 }
 
 .login-inner {
@@ -35,14 +24,13 @@
 .login-logo {
   max-width: 160px;
   height: auto;
-  filter: brightness(0) invert(1);
   margin-bottom: 16px;
 }
 
 .subtitle {
   text-align: center;
   font-weight: 500;
-  color: rgba(255, 255, 255, 0.6);
+  color: var(--mat-sys-on-surface-variant);
   margin: 0;
 }
 
@@ -57,7 +45,7 @@
   margin-bottom: 12px;
 
   button {
-    color: rgba(255, 255, 255, 0.6);
+    color: var(--mat-sys-on-surface-variant);
     font-size: 0.875rem;
     padding: 0 4px;
     min-width: 0;
@@ -71,8 +59,8 @@
 
 .submit-btn {
   width: 100%;
-  background-color: var(--punto-on-primary) !important;
-  color: var(--punto-primary) !important;
+  background-color: var(--punto-primary) !important;
+  color: var(--punto-on-primary) !important;
   border-radius: var(--punto-shape-xl) !important;
   height: 52px;
   font-size: 1rem;
@@ -86,6 +74,6 @@
   margin-top: 4px;
 
   button {
-    color: rgba(255, 255, 255, 0.6);
+    color: var(--mat-sys-on-surface-variant);
   }
 }
