@@ -1,6 +1,6 @@
 {
   "configVersion": 1,
-  "timestamp": 1774534448502,
+  "timestamp": 1774534785602,
   "index": "/punto-/index.html",
   "assetGroups": [
     {
@@ -56,9 +56,9 @@
     "/punto-/icons/icon-128x128.png": "afc79a7f6ab7ef0c99cc5487ea9a21e08fdea372",
     "/punto-/icons/icon-144x144.png": "c5c78fb9f51787a840be4647e1d6bb210430a54e",
     "/punto-/icons/icon-152x152.png": "6e5b19457bb24d9b1850abb9fade176d3b6fa147",
-    "/punto-/icons/icon-192x192.png": "1d7e20a0f9ee6cc7c62a61fb4b1c1e0d0e787384",
-    "/punto-/icons/icon-384x384.png": "4c5eff38713159c109f7762e1a2ecf8c54793026",
-    "/punto-/icons/icon-512x512.png": "d2f15aff2fa4cc220a812b597698cea2aba9a1d8",
+    "/punto-/icons/icon-192x192.png": "cf0153f9548b65db39b9e0857b1ef33f16679238",
+    "/punto-/icons/icon-384x384.png": "4fe36546adcdece5d83d5c42a5416754d71f62c5",
+    "/punto-/icons/icon-512x512.png": "b365e850e3d7b9bd8d46ba2a153188c22c7031a3",
     "/punto-/icons/icon-72x72.png": "d8647a5ee3529dc9058713521c1aee034d2092f3",
     "/punto-/icons/icon-96x96.png": "f4c7fc53418ed251883779c7b0030acfa25ea9ea",
     "/punto-/index.html": "32b279d13a0a4070f28267f2b3aae002e0a60c01",
