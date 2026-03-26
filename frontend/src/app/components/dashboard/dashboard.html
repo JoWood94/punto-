@@ -5,15 +5,15 @@
     <div style="display: flex; flex-direction: column; height: 100%;">
       <div class="sidenav-header" [class.mobile-header]="isMobile">
         <h2 *ngIf="!isMobile">Le mie Note</h2>
-        <!-- Mobile: logout a sinistra, logo al centro, calendario a destra -->
-        <button mat-icon-button *ngIf="isMobile" (click)="logout()" color="warn" aria-label="Esci" matTooltip="Logout">
-          <mat-icon>logout</mat-icon>
-        </button>
-        <img src="punto_logo_no_bg.png" alt="punto! logo" class="mobile-center-logo" *ngIf="isMobile" />
-        <span class="spacer" *ngIf="isMobile"></span>
+        <!-- Mobile: calendario a sinistra, logo al centro, logout a destra -->
         <button mat-icon-button (click)="setDefaultView('calendar')" *ngIf="isMobile"
           matTooltip="Vista Calendario" [class.mobile-actions]="isMobile">
           <mat-icon>calendar_month</mat-icon>
+        </button>
+        <img src="punto_logo_no_bg.png" alt="punto! logo" class="mobile-center-logo" *ngIf="isMobile" />
+        <span class="spacer" *ngIf="isMobile"></span>
+        <button mat-icon-button *ngIf="isMobile" (click)="logout()" color="warn" aria-label="Esci" matTooltip="Logout">
+          <mat-icon>logout</mat-icon>
         </button>
       </div>
 
@@ -108,6 +108,12 @@
 
       <span class="spacer"></span>
 
+      <!-- Mobile: logout nella vista calendario -->
+      <button mat-icon-button *ngIf="isMobile && currentMainView === 'calendar' && activeNote === undefined"
+              (click)="logout()" color="warn" aria-label="Esci" matTooltip="Logout">
+        <mat-icon>logout</mat-icon>
+      </button>
+
       <button mat-icon-button *ngIf="!isMobile"
               (click)="currentMainView = 'calendar'; activeNote = undefined"
               [class.calendar-btn-active]="currentMainView === 'calendar' && activeNote === undefined"
@@ -122,7 +128,8 @@
     </mat-toolbar>
 
     <div class="editor-wrapper editor-enter" *ngIf="activeNote !== undefined">
-      <app-note-editor [selectedNote]="activeNote" [initialReminderDate]="newNoteCalendarDate" (closeEditor)="closeEditor()">
+      <app-note-editor [selectedNote]="activeNote" [initialReminderDate]="newNoteCalendarDate"
+                       (closeEditor)="closeEditor()" (deleteRequested)="deleteActiveNote()">
       </app-note-editor>
     </div>
 

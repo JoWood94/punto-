@@ -162,6 +162,27 @@
   flex: 1;
 }
 
+@media (max-width: 599.98px) {
+  .rich-text-toolbar {
+    padding: 10px 12px;
+    min-height: 60px;
+    gap: 4px;
+
+    // Bottoni toolbar più grandi su mobile
+    .mat-mdc-icon-button {
+      width: 48px !important;
+      height: 48px !important;
+      font-size: 24px;
+
+      mat-icon {
+        font-size: 24px;
+        width: 24px;
+        height: 24px;
+      }
+    }
+  }
+}
+
 .metadata-section {
   padding: 16px 0;
   background: transparent;

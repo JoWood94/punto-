@@ -228,6 +228,26 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   // ─── Delete ─────────────────────────────────────────────────────────────────
 
+  async deleteActiveNote() {
+    if (!this.activeNote?.id) return;
+    const note = this.activeNote as Note;
+    const ref = this.dialog.open(ConfirmDialogComponent, {
+      data: {
+        title: 'Elimina nota',
+        message: `Vuoi eliminare "${note.title || 'Nuova Nota'}"? L'operazione non è reversibile.`,
+        confirmLabel: 'Elimina'
+      }
+    });
+    const confirmed = await firstValueFrom(ref.afterClosed());
+    if (!confirmed) return;
+    try {
+      this.activeNote = undefined;
+      await this.noteService.deleteNote(note.id!);
+    } catch (e: any) {
+      console.error('Errore eliminazione:', e.message);
+    }
+  }
+
   async deleteNote(note: Note, event: Event) {
     event.stopPropagation();
     if (!note.id) return;

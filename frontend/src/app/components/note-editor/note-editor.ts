@@ -48,6 +48,7 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewChecked,
   @Input() selectedNote: Note | null = null;
   @Input() initialReminderDate?: Date;
   @Output() closeEditor = new EventEmitter<void>();
+  @Output() deleteRequested = new EventEmitter<void>();
 
   /** Collects only #textBlockEl refs (one per text block, in ngFor order). */
   @ViewChildren('textBlockEl') textBlockEls!: QueryList<ElementRef<HTMLElement>>;
@@ -287,7 +288,9 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewChecked,
   }
 
   removeBlock(index: number) {
-    if (this.note.blocks.length <= 1) return;
+    const block = this.note.blocks[index];
+    // Il blocco testo è l'unico non rimovibile se è rimasto il solo blocco
+    if (block.type === 'text' && this.note.blocks.length <= 1) return;
     this.saveTextBlocksFromDOM();
     if (this.activeTextBlockIndex === index) this.activeTextBlockIndex = null;
     this.note.blocks = this.note.blocks.filter((_, i) => i !== index);
@@ -296,7 +299,10 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewChecked,
   }
 
   canRemoveBlock(index: number): boolean {
-    return this.note.blocks.length > 1;
+    const block = this.note.blocks[index];
+    // Il blocco testo non è rimovibile se è l'unico rimasto
+    if (block.type === 'text' && this.note.blocks.length <= 1) return false;
+    return true;
   }
 
   onBlockDrop(event: CdkDragDrop<NoteBlock[]>) {
