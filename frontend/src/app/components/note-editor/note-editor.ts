@@ -266,7 +266,6 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewChecked,
       !(this.note.blocks[0] as TextBlock).html;
     if (isOnlyEmptyText) {
       this.note.blocks = [newBlock];
-      if (type === 'text') this.pendingFocusBlockIndex = 0;
     } else {
       const insertAt = afterIndex !== undefined ? afterIndex + 1 : this.note.blocks.length;
       this.note.blocks = [
