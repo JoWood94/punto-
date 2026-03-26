@@ -156,12 +156,6 @@ mat-list-item, a[mat-list-item] {
     height: var(--vh, 100vh) !important;
   }
 
-  /* Allinea i dialog in alto — evita che la tastiera copra i pulsanti di azione */
-  .cdk-global-overlay-wrapper {
-    align-items: flex-start !important;
-    padding-top: 16px;
-  }
-
   /* Limita altezza dialog e abilita scroll interno */
   .mat-mdc-dialog-container {
     max-height: calc(var(--vh, 100vh) - 48px) !important;
