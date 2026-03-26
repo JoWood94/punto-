@@ -93,8 +93,11 @@ export class DashboardComponent implements OnInit, OnDestroy {
     if (window.visualViewport) {
       const vv = window.visualViewport;
       const setVh = () => {
-        document.documentElement.style.setProperty('--vh', `${vv.height}px`);
+        const h = vv.height;
+        document.documentElement.style.setProperty('--vh', `${h}px`);
         if (vv.offsetTop > 0) window.scrollTo(0, 0);
+        (document.querySelectorAll('.cdk-overlay-container') as NodeListOf<HTMLElement>)
+          .forEach(el => { el.style.height = `${h}px`; el.style.maxHeight = `${h}px`; });
       };
       vv.addEventListener('resize', setVh);
       vv.addEventListener('scroll', setVh);

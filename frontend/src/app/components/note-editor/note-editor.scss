@@ -52,32 +52,8 @@
   min-height: 100px;
 }
 
-/* Contenitore toolbar con fade ai bordi per segnalare overflow */
 .toolbar-scroll-container {
-  position: relative;
   flex-shrink: 0;
-
-  /* Fade sinistro */
-  &::before,
-  &::after {
-    content: '';
-    position: absolute;
-    top: 0;
-    bottom: 0;
-    width: 20px;
-    pointer-events: none;
-    z-index: 1;
-  }
-
-  &::before {
-    left: 0;
-    background: linear-gradient(to right, var(--mat-sys-surface-container-low), transparent);
-  }
-
-  &::after {
-    right: 0;
-    background: linear-gradient(to left, var(--mat-sys-surface-container-low), transparent);
-  }
 }
 
 .rich-text-editor {
@@ -110,31 +86,7 @@
   background: var(--mat-sys-surface-container-low);
   border-top: 1px solid var(--mat-sys-outline-variant);
   margin-top: 0;
-  overflow-x: auto;
   flex-shrink: 0;
-  /* Scroll momentum fluido su iOS/Android */
-  -webkit-overflow-scrolling: touch;
-  scroll-behavior: smooth;
-  /* Scrollbar sottile visibile su desktop, nascosta su mobile */
-  scrollbar-width: thin;
-  scrollbar-color: var(--mat-sys-outline-variant) transparent;
-
-  &::-webkit-scrollbar {
-    height: 3px;
-  }
-
-  &::-webkit-scrollbar-track {
-    background: transparent;
-  }
-
-  &::-webkit-scrollbar-thumb {
-    background: var(--mat-sys-outline-variant);
-    border-radius: var(--punto-shape-full, 9999px);
-  }
-
-  /* Fade gradient ai bordi per indicare overflow */
-  position: relative;
-  /* Il fade è gestito tramite pseudo-elementi sul wrapper .rich-text-wrapper */
 
   button.format-active {
     background-color: var(--punto-primary-container);
@@ -164,22 +116,37 @@
 
 @media (max-width: 599.98px) {
   .rich-text-toolbar {
-    padding: 10px 12px;
-    min-height: 60px;
-    gap: 4px;
+    padding: 4px 8px 8px;
+    min-height: unset;
+    gap: 0;
+    flex-wrap: wrap;
+    overflow-x: hidden;
 
     // Bottoni toolbar più grandi su mobile
     .mat-mdc-icon-button {
-      width: 48px !important;
-      height: 48px !important;
-      font-size: 24px;
+      width: 44px !important;
+      height: 44px !important;
 
       mat-icon {
-        font-size: 24px;
-        width: 24px;
-        height: 24px;
+        font-size: 22px;
+        width: 22px;
+        height: 22px;
       }
     }
+  }
+
+  // Formato: va in seconda riga sotto i bottoni aggiungi-blocco
+  .toolbar-format-group {
+    order: 2;
+    width: 100%;
+    border-top: 1px solid var(--mat-sys-outline-variant);
+    padding-top: 4px;
+    margin-top: 2px;
+  }
+
+  // Spacer non necessario con flex-wrap
+  .toolbar-spacer {
+    display: none;
   }
 }
 
