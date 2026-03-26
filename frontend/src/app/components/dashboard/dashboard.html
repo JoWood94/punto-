@@ -3,15 +3,16 @@
   <mat-sidenav mode="side" [opened]="!isMobile || (activeNote === undefined && currentMainView === 'list')" class="notes-sidenav"
     [class.mobile-full]="isMobile">
     <div style="display: flex; flex-direction: column; height: 100%;">
-      <div class="sidenav-header" [class.mobile-header]="isMobile" style="position: relative;">
+      <div class="sidenav-header" [class.mobile-header]="isMobile">
         <h2 *ngIf="!isMobile">Le mie Note</h2>
+        <!-- Mobile: logout a sinistra, logo al centro, calendario a destra -->
+        <button mat-icon-button *ngIf="isMobile" (click)="logout()" color="warn" aria-label="Esci" matTooltip="Logout">
+          <mat-icon>logout</mat-icon>
+        </button>
         <img src="punto_logo_no_bg.png" alt="punto! logo" class="mobile-center-logo" *ngIf="isMobile" />
         <span class="spacer" *ngIf="isMobile"></span>
-        <button mat-icon-button
-          (click)="setDefaultView('calendar'); activeNote = undefined"
-          *ngIf="isMobile"
-          matTooltip="Vista Calendario"
-          [class.mobile-actions]="isMobile">
+        <button mat-icon-button (click)="setDefaultView('calendar')" *ngIf="isMobile"
+          matTooltip="Vista Calendario" [class.mobile-actions]="isMobile">
           <mat-icon>calendar_month</mat-icon>
         </button>
       </div>
@@ -28,47 +29,21 @@
         </mat-form-field>
       </div>
 
-      <!-- TODO: tag filter disabilitato temporaneamente
-      <div class="tag-filters" *ngIf="allTags.length > 0">
-        <mat-chip-set aria-label="Filtra per etichetta">
-          <mat-chip *ngFor="let tag of allTags"
-                    [class.tag-chip-active]="isTagSelected(tag)"
-                    (click)="toggleTagFilter(tag)"
-                    class="tag-filter-chip">
-            #{{ tag }}
-          </mat-chip>
-        </mat-chip-set>
-        <button mat-button *ngIf="selectedTags.length > 0"
-                (click)="clearTagFilters()" class="clear-tags-btn" type="button">
-          <mat-icon>filter_alt_off</mat-icon> Rimuovi filtri
-        </button>
-      </div>
-      -->
-
       <!-- Notes list -->
       <mat-nav-list class="notes-list">
         <ng-container *ngFor="let note of filteredNotes">
           <a mat-list-item (click)="selectNote(note)" [class.active-note]="activeNote?.id === note.id"
             class="single-note" [class.note-pinned]="note.pinned">
 
-            <!-- Pin indicator -->
             <mat-icon matListItemIcon class="pin-icon" *ngIf="note.pinned" color="primary">push_pin</mat-icon>
 
             <span matListItemTitle class="note-item-title">{{ note.title || 'Nuova Nota' }}</span>
 
-            <!-- Content preview (from first text block) -->
             <span matListItemLine class="note-item-preview"
                   *ngIf="getNotePreview(note) as preview"
                   [innerHTML]="preview">
             </span>
 
-            <!-- TODO: tags disabilitati temporaneamente
-            <div matListItemLine class="note-tags-row" *ngIf="note.tags && note.tags.length > 0">
-              <span class="note-tag-badge" *ngFor="let tag of note.tags">#{{ tag }}</span>
-            </div>
-            -->
-
-            <!-- Checklist progress -->
             <div matListItemLine class="note-checklist-progress"
                  *ngIf="getChecklistProgress(note) as progress">
               <mat-icon class="progress-icon">check_circle</mat-icon>
@@ -80,7 +55,6 @@
               </div>
             </div>
 
-            <!-- Actions: pin + delete -->
             <div matListItemMeta class="note-meta-actions">
               <button mat-icon-button
                       (click)="togglePin(note, $event)"
@@ -97,7 +71,6 @@
           <mat-divider></mat-divider>
         </ng-container>
 
-        <!-- Empty states -->
         <div class="empty-state" *ngIf="filteredNotes.length === 0 && !searchQuery">
           <mat-icon>edit_note</mat-icon>
           <p>Ancora nessuna nota.</p>
@@ -111,27 +84,23 @@
           <p>Nessun risultato.</p>
         </div>
       </mat-nav-list>
-
-      <!-- FAB mobile nella lista note -->
-      <div class="sidenav-list-fab-area" *ngIf="isMobile && currentMainView === 'list'">
-        <button mat-fab extended color="primary" (click)="openNoteEditor()" class="new-note-fab">
-          <mat-icon>edit</mat-icon>
-          Nuova Nota
-        </button>
-      </div>
-
-      <div class="sidenav-footer" *ngIf="isMobile">
-        <button mat-icon-button (click)="logout()" aria-label="Esci" matTooltip="Logout" color="warn">
-          <mat-icon>logout</mat-icon>
-        </button>
-      </div>
     </div>
   </mat-sidenav>
 
   <mat-sidenav-content class="dashboard-content" *ngIf="!isMobile || activeNote !== undefined || currentMainView === 'calendar'">
     <mat-toolbar class="app-header" style="position: relative;">
-      <button mat-icon-button (click)="handleBackButton()" class="back-button" *ngIf="isMobile" aria-label="Torna indietro">
+
+      <!-- Mobile: back quando editor aperto -->
+      <button mat-icon-button (click)="handleBackButton()" class="back-button"
+              *ngIf="isMobile && activeNote !== undefined" aria-label="Torna indietro">
         <mat-icon>arrow_back</mat-icon>
+      </button>
+
+      <!-- Mobile: lista quando in vista calendario (senza editor) -->
+      <button mat-icon-button (click)="setDefaultView('list')"
+              *ngIf="isMobile && currentMainView === 'calendar' && activeNote === undefined"
+              aria-label="Vista Lista" matTooltip="Vista Lista">
+        <mat-icon>format_list_bulleted</mat-icon>
       </button>
 
       <img src="punto_logo_no_bg.png" alt="punto! logo" class="mobile-center-logo" *ngIf="isMobile" />
@@ -168,9 +137,9 @@
       <button mat-flat-button color="primary" (click)="openNoteEditor()">Nuova Nota</button>
     </div>
 
-    <!-- FAB fuori dal drawer: position:fixed funziona correttamente -->
-    <div class="sidenav-fab-area" *ngIf="activeNote === undefined && (!isMobile || currentMainView === 'calendar')">
-      <button mat-fab extended color="primary" (click)="isMobile ? openNoteEditorFromCalendar() : openNoteEditor()" class="new-note-fab">
+    <!-- FAB desktop: fixed bottom-right -->
+    <div class="sidenav-fab-area" *ngIf="activeNote === undefined && !isMobile">
+      <button mat-fab extended color="primary" (click)="openNoteEditor()" class="new-note-fab">
         <mat-icon>edit</mat-icon>
         Nuova Nota
       </button>
@@ -178,3 +147,13 @@
   </mat-sidenav-content>
 
 </mat-sidenav-container>
+
+<!-- FAB mobile: position:fixed fuori dal sidenav-container per evitare problemi con i transform -->
+<div class="mobile-fab-overlay" *ngIf="isMobile && activeNote === undefined">
+  <button mat-fab extended color="primary"
+          (click)="currentMainView === 'calendar' ? openNoteEditorFromCalendar() : openNoteEditor()"
+          class="new-note-fab">
+    <mat-icon>edit</mat-icon>
+    Nuova Nota
+  </button>
+</div>
