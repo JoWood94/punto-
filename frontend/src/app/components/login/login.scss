@@ -5,50 +5,88 @@
   height: 100vh;
   width: 100vw;
   box-sizing: border-box;
+  background: var(--punto-primary);
   padding: 24px;
+
+  // Override token M3 outlined text field → dark background
+  --mdc-outlined-text-field-input-text-color:        var(--punto-on-primary);
+  --mdc-outlined-text-field-label-text-color:        rgba(255, 255, 255, 0.6);
+  --mdc-outlined-text-field-outline-color:           rgba(255, 255, 255, 0.3);
+  --mdc-outlined-text-field-hover-outline-color:     rgba(255, 255, 255, 0.7);
+  --mdc-outlined-text-field-focus-outline-color:     var(--punto-on-primary);
+  --mdc-outlined-text-field-focus-label-text-color:  var(--punto-on-primary);
+  --mdc-outlined-text-field-hover-label-text-color:  rgba(255, 255, 255, 0.87);
+  --mdc-outlined-text-field-caret-color:             var(--punto-on-primary);
+  --mat-icon-button-icon-color:                      rgba(255, 255, 255, 0.7);
 }
 
-.login-card {
+.login-inner {
   width: 100%;
-  max-width: 400px;
-  padding: 16px;
-  border-radius: var(--punto-shape-xl, 24px);
+  max-width: 360px;
 }
 
-.form-content {
-  margin-top: 24px;
-}
-
-.full-width {
-  width: 100%;
-  margin-bottom: 8px;
-}
-
-.actions {
+.login-header {
   display: flex;
-  justify-content: flex-end;
-  margin-top: 8px;
-  margin-bottom: 16px;
-}
-
-.custom-header {
-  display: flex !important;
-  flex-direction: column !important;
+  flex-direction: column;
   align-items: center;
-  justify-content: center;
-  padding-bottom: 16px;
+  margin-bottom: 40px;
 }
 
 .login-logo {
-  max-width: 160px;
-  height: auto;
-  margin-bottom: 8px;
-  filter: brightness(0);
+  width: 96px;
+  height: 96px;
+  border-radius: 20px;
+  object-fit: cover;
+  margin-bottom: 16px;
 }
 
 .subtitle {
   text-align: center;
   font-weight: 500;
-  color: var(--mat-sys-on-surface-variant);
+  color: rgba(255, 255, 255, 0.6);
+  margin: 0;
+}
+
+.full-width {
+  width: 100%;
+  margin-bottom: 4px;
+}
+
+.forgot-password {
+  text-align: right;
+  margin-top: -4px;
+  margin-bottom: 12px;
+
+  button {
+    color: rgba(255, 255, 255, 0.6);
+    font-size: 0.875rem;
+    padding: 0 4px;
+    min-width: 0;
+  }
+}
+
+.actions {
   margin-top: 8px;
+  margin-bottom: 8px;
+}
+
+.submit-btn {
+  width: 100%;
+  background-color: var(--punto-on-primary) !important;
+  color: var(--punto-primary) !important;
+  border-radius: var(--punto-shape-xl) !important;
+  height: 52px;
+  font-size: 1rem;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+}
+
+.secondary-actions {
+  display: flex;
+  justify-content: center;
+  margin-top: 4px;
+
+  button {
+    color: rgba(255, 255, 255, 0.6);
+  }
 }

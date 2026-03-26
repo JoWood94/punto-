@@ -5,6 +5,9 @@
     <title>punto!</title>
     <base href="/" />
     <meta name="viewport" content="width=device-width, initial-scale=1, interactive-widget=resizes-visual" />
+    <meta name="theme-color" content="#1C1B1F" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black" />
     <link rel="icon" type="image/png" href="favicon.png" />
     <link rel="apple-touch-icon" href="icons/icon-192x192.png" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -15,8 +18,33 @@
     />
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet" />
     <link rel="manifest" href="manifest.webmanifest" />
+    <style>
+      #splash-screen {
+        position: fixed;
+        inset: 0;
+        background: #1C1B1F;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 9999;
+        transition: opacity 0.35s ease;
+      }
+      #splash-screen.splash-hidden {
+        opacity: 0;
+        pointer-events: none;
+      }
+      #splash-screen img {
+        width: 140px;
+        height: 140px;
+        border-radius: 28px;
+        object-fit: cover;
+      }
+    </style>
   </head>
   <body>
+    <div id="splash-screen">
+      <img src="punto_logo_no_bg.png" alt="punto!" />
+    </div>
     <app-root></app-root>
     <noscript>Please enable JavaScript to continue using this application.</noscript>
   </body>
