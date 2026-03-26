@@ -1,6 +1,6 @@
 <mat-sidenav-container class="dashboard-container">
 
-  <mat-sidenav mode="side" [opened]="currentMainView === 'list' && (!isMobile || activeNote === undefined)" class="notes-sidenav"
+  <mat-sidenav mode="side" [opened]="!isMobile || activeNote === undefined" class="notes-sidenav"
     [class.mobile-full]="isMobile">
     <div style="display: flex; flex-direction: column; height: 100%;">
       <div class="sidenav-header" [class.mobile-header]="isMobile" style="position: relative;">
@@ -8,7 +8,7 @@
         <img src="punto_logo_no_bg.png" alt="punto! logo" class="mobile-center-logo" *ngIf="isMobile" />
         <span class="spacer" *ngIf="isMobile"></span>
         <button mat-icon-button
-          (click)="currentMainView = 'calendar'; activeNote = undefined"
+          (click)="setDefaultView('calendar'); activeNote = undefined"
           *ngIf="isMobile"
           matTooltip="Vista Calendario"
           [class.mobile-actions]="isMobile">
@@ -150,7 +150,7 @@
     </mat-toolbar>
 
     <div class="editor-wrapper editor-enter" *ngIf="activeNote !== undefined">
-      <app-note-editor [selectedNote]="activeNote" (closeEditor)="closeEditor()">
+      <app-note-editor [selectedNote]="activeNote" [initialReminderDate]="newNoteCalendarDate" (closeEditor)="closeEditor()">
       </app-note-editor>
     </div>
 
@@ -166,8 +166,8 @@
     </div>
 
     <!-- FAB fuori dal drawer: position:fixed funziona correttamente -->
-    <div class="sidenav-fab-area" *ngIf="!isMobile && activeNote === undefined">
-      <button mat-fab extended color="primary" (click)="openNoteEditor()" class="new-note-fab">
+    <div class="sidenav-fab-area" *ngIf="activeNote === undefined && (!isMobile || currentMainView === 'calendar')">
+      <button mat-fab extended color="primary" (click)="isMobile ? openNoteEditorFromCalendar() : openNoteEditor()" class="new-note-fab">
         <mat-icon>edit</mat-icon>
         Nuova Nota
       </button>

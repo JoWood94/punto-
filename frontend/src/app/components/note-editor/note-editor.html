@@ -1,6 +1,6 @@
 <div class="editor-header">
-  <input class="title-input-raw" [(ngModel)]="note.title" placeholder="Titolo" />
-  <button mat-icon-button (click)="closeEditor.emit()" aria-label="Chiudi" matTooltip="Chiudi">
+  <input class="title-input-raw" [(ngModel)]="note.title" placeholder="Titolo" (ngModelChange)="onTitleChange()" />
+  <button mat-icon-button (click)="handleClose()" aria-label="Chiudi" matTooltip="Chiudi">
     <mat-icon>close</mat-icon>
   </button>
 </div>
@@ -340,15 +340,3 @@
   </div>
 </div>
 
-<!-- ── Footer actions ── -->
-<div class="editor-actions">
-  <button mat-button color="warn" *ngIf="selectedNote" (click)="confirmDelete()" type="button">
-    <mat-icon>delete</mat-icon> Elimina
-  </button>
-  <span class="spacer"></span>
-  <button mat-button (click)="closeEditor.emit()" type="button">Annulla</button>
-  <button mat-flat-button color="primary" (click)="save()" type="button"
-          [disabled]="!note.title || !note.title.trim()">
-    Salva
-  </button>
-</div>

@@ -23,6 +23,7 @@ export class LoginComponent {
   confirmPassword = '';
   isRegistering = false;
   isRecoveringPassword = false;
+  showPassword = false;
   
   private authService = inject(AuthService);
   private router = inject(Router);

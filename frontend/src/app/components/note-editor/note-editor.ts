@@ -1,5 +1,5 @@
 import {
-  Component, Input, Output, EventEmitter, inject, OnInit, OnChanges,
+  Component, Input, Output, EventEmitter, inject, OnInit, OnChanges, OnDestroy,
   SimpleChanges, ViewChildren, ViewChild, QueryList, ElementRef, ChangeDetectorRef, AfterViewChecked
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
@@ -27,7 +27,6 @@ import {
   LocationBlock, ReminderBlock, ImageBlock, LinkBlock, migrateToBlocks
 } from '../../services/note';
 import { AuthService } from '../../services/auth';
-import { ConfirmDialogComponent } from '../confirm-dialog/confirm-dialog';
 import { LinkDialogComponent } from '../link-dialog/link-dialog';
 import { getStorage, ref as storageRef, uploadBytesResumable, getDownloadURL, deleteObject } from 'firebase/storage';
 import { getApp } from 'firebase/app';
@@ -46,8 +45,9 @@ import { getApp } from 'firebase/app';
   templateUrl: './note-editor.html',
   styleUrls: ['./note-editor.scss']
 })
-export class NoteEditorComponent implements OnInit, OnChanges, AfterViewChecked {
+export class NoteEditorComponent implements OnInit, OnChanges, AfterViewChecked, OnDestroy {
   @Input() selectedNote: Note | null = null;
+  @Input() initialReminderDate?: Date;
   @Output() closeEditor = new EventEmitter<void>();
 
   /** Collects only #textBlockEl refs (one per text block, in ngFor order). */
@@ -85,6 +85,11 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewChecked 
   /** Set to true whenever the blocks array changes and text blocks need HTML re-init. */
   private textBlocksNeedInit = false;
 
+  private readonly PLACEHOLDER_TITLE = 'Nuova Nota';
+  private savedNoteId: string | null = null;
+  private isNewNote = false;
+  private autoSaveTimer: any;
+
   // ─── Lifecycle ─────────────────────────────────────────────────────────────
 
   ngOnInit() { this.initNote(); }
@@ -112,6 +117,7 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewChecked 
 
   private initNote() {
     if (this.selectedNote) {
+      this.savedNoteId = this.selectedNote.id || null; this.isNewNote = false;
       const blocks = migrateToBlocks(this.selectedNote);
       // Attach runtime UI state to each block
       blocks.forEach(block => {
@@ -145,11 +151,31 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewChecked 
       };
     } else {
       this.note = {
-        title: '',
+        title: this.PLACEHOLDER_TITLE,
         blocks: [{ type: 'text', html: '' }],
         tags: [],
         color: 'default'
       };
+      // Se aperta da calendario, aggiungi un blocco reminder pre-valorizzato
+      if (this.initialReminderDate) {
+        const d = this.initialReminderDate;
+        const reminderBlock: any = {
+          type: 'reminder',
+          time: null,
+          recurrence: 'none',
+          status: null,
+          date: d,
+          hour: d.getHours().toString().padStart(2, '0'),
+          minute: (Math.round(d.getMinutes() / 5) * 5 % 60).toString().padStart(2, '0')
+        };
+        this.note.blocks.push(reminderBlock);
+      }
+      this.isNewNote = true;
+      this.savedNoteId = null;
+      // Crea subito su Firestore per avere un ID
+      this.noteService.createNote(this.buildPayload())
+        .then(result => { this.savedNoteId = result.id; })
+        .catch(err => console.error('[AutoSave] createNote error:', err));
     }
     this.textBlocksNeedInit = true;
   }
@@ -270,6 +296,7 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewChecked 
 
   onTextInput(blockIndex: number, event: Event) {
     (this.note.blocks[blockIndex] as TextBlock).html = (event.target as HTMLElement).innerHTML;
+    this.triggerAutoSave();
   }
 
   onTextFocus(blockIndex: number) {
@@ -451,85 +478,91 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewChecked 
   // addTag() { ... }
   // removeTag(tag: string) { ... }
 
-  // ─── Save / Delete ──────────────────────────────────────────────────────────
+  // ─── Auto-save ──────────────────────────────────────────────────────────────
 
-  async save() {
+  private buildPayload(): any {
+    this.saveTextBlocksFromDOM();
+    const blocks: NoteBlock[] = this.note.blocks.map(block => {
+      if (block.type === 'reminder') {
+        const rb = block as any;
+        if (rb.date) {
+          const d = new Date(rb.date);
+          d.setHours(parseInt(rb.hour ?? '12', 10));
+          d.setMinutes(parseInt(rb.minute ?? '00', 10));
+          d.setSeconds(0); d.setMilliseconds(0);
+          return { type: 'reminder' as const, time: d.getTime(), recurrence: rb.recurrence ?? 'none', status: 'pending' as const };
+        }
+        return { type: 'reminder' as const, time: null, recurrence: rb.recurrence ?? 'none', status: null };
+      }
+      if (block.type === 'location') {
+        const lb = block as any;
+        return { type: 'location' as const, address: lb.address ?? '', lat: lb.lat, lon: lb.lon };
+      }
+      return block;
+    });
+    const reminder = blocks.find(b => b.type === 'reminder') as ReminderBlock | undefined;
+    const textHtml = (blocks.filter(b => b.type === 'text') as TextBlock[]).map(b => b.html).join('');
+    const payload: any = {
+      ...this.note,
+      blocks,
+      tags: this.note.tags ?? [],
+      content: textHtml,
+      reminderTime: reminder?.time ?? null,
+      reminderStatus: reminder?.status ?? null,
+      recurrence: reminder?.recurrence ?? 'none',
+    };
+    delete payload.address; delete payload.lat; delete payload.lon; delete payload.checklist;
+    Object.keys(payload).forEach(k => { if (payload[k] === undefined) payload[k] = null; });
+    return payload;
+  }
+
+  private isPristine(): boolean {
+    // Controlla se il titolo è ancora il placeholder (o vuoto)
+    const title = (this.note.title || '').trim();
+    if (title && title !== this.PLACEHOLDER_TITLE) return false;
+    // Controlla se ci sono contenuti reali nei blocchi
+    this.saveTextBlocksFromDOM();
+    const hasContent = this.note.blocks.some(block => {
+      if (block.type === 'text') return !!((block as TextBlock).html || '').replace(/<[^>]*>/g, '').trim();
+      return true; // qualsiasi blocco non-testo è contenuto reale
+    });
+    return !hasContent;
+  }
+
+  triggerAutoSave() {
+    clearTimeout(this.autoSaveTimer);
+    this.autoSaveTimer = setTimeout(() => this.performAutoSave(), 800);
+  }
+
+  private async performAutoSave() {
+    if (!this.savedNoteId) return;
     try {
-      this.saveTextBlocksFromDOM();
-
-      // Serialize blocks: strip runtime-only UI state, compute reminder time
-      const blocks: NoteBlock[] = this.note.blocks.map(block => {
-        if (block.type === 'reminder') {
-          const rb = block as any;
-          if (rb.date) {
-            const d = new Date(rb.date);
-            d.setHours(parseInt(rb.hour ?? '12', 10));
-            d.setMinutes(parseInt(rb.minute ?? '00', 10));
-            d.setSeconds(0); d.setMilliseconds(0);
-            return {
-              type: 'reminder' as const,
-              time: d.getTime(),
-              recurrence: rb.recurrence ?? 'none',
-              status: 'pending' as const
-            };
-          }
-          return { type: 'reminder' as const, time: null, recurrence: rb.recurrence ?? 'none', status: null };
-        }
-        if (block.type === 'location') {
-          const lb = block as any;
-          return { type: 'location' as const, address: lb.address ?? '', lat: lb.lat, lon: lb.lon };
-        }
-        return block;
-      });
-
-      // Derive legacy flat fields for backward compat (server queries these)
-      const reminder = blocks.find(b => b.type === 'reminder') as ReminderBlock | undefined;
-      const textHtml = (blocks.filter(b => b.type === 'text') as TextBlock[]).map(b => b.html).join('');
-
-      const payload: any = {
-        ...this.note,
-        blocks,
-        tags: this.note.tags ?? [],
-        // Legacy
-        content: textHtml,
-        reminderTime: reminder?.time ?? null,
-        reminderStatus: reminder?.status ?? null,
-        recurrence: reminder?.recurrence ?? 'none',
-      };
-
-      // Remove fields that are now in blocks only
-      delete payload.address; delete payload.lat; delete payload.lon; delete payload.checklist;
-
-      // Firebase doesn't accept undefined values
-      Object.keys(payload).forEach(k => { if (payload[k] === undefined) payload[k] = null; });
-
-      if (this.selectedNote?.id) {
-        await this.noteService.updateNote(this.selectedNote.id, payload);
-      } else {
-        await this.noteService.createNote(payload);
-      }
-      this.closeEditor.emit();
-    } catch (e: any) {
-      let msg = e?.message ?? 'Errore sconosciuto';
-      if (msg.includes('Missing or insufficient permissions')) {
-        msg = 'Permessi Negati! Abilita le modifiche in Firebase Console.';
-      }
-      this.snackBar.open('Errore: ' + msg, 'Chiudi', { duration: 10000, panelClass: ['error-snackbar'] });
+      await this.noteService.updateNote(this.savedNoteId, this.buildPayload());
+    } catch (err) {
+      console.error('[AutoSave] updateNote error:', err);
     }
   }
 
-  async confirmDelete() {
-    const ref = this.dialog.open(ConfirmDialogComponent, {
-      data: {
-        title: 'Elimina nota',
-        message: `Vuoi eliminare "${this.selectedNote?.title || 'questa nota'}"? L'operazione non è reversibile.`,
-        confirmLabel: 'Elimina'
-      }
-    });
-    const confirmed = await firstValueFrom(ref.afterClosed());
-    if (confirmed && this.selectedNote?.id) {
-      await this.noteService.deleteNote(this.selectedNote.id);
-      this.closeEditor.emit();
+  async handleClose() {
+    clearTimeout(this.autoSaveTimer);
+    if (this.isNewNote && this.savedNoteId && this.isPristine()) {
+      // Nuova nota senza contenuto reale → cancella
+      try { await this.noteService.deleteNote(this.savedNoteId); } catch { /* ignora */ }
+    } else if (this.savedNoteId) {
+      // Salva eventuali modifiche pendenti
+      await this.performAutoSave();
+    } else if (!this.selectedNote?.id) {
+      // createNote non ancora completato — salva ora
+      try { await this.noteService.createNote(this.buildPayload()); } catch { /* ignora */ }
     }
+    this.closeEditor.emit();
+  }
+
+  onTitleChange() {
+    this.triggerAutoSave();
+  }
+
+  ngOnDestroy() {
+    clearTimeout(this.autoSaveTimer);
   }
 }

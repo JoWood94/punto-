@@ -474,9 +474,6 @@ a.single-note:hover .pin-btn {
       opacity: var(--punto-opacity-disabled, 0.38);
     }
 
-    button {
-      transform: scale(1.5);
-    }
   }
 }
 
@@ -626,5 +623,15 @@ a.single-note:hover .pin-btn {
     .mat-button-toggle-ripple {
       --mat-button-toggle-hover-state-layer-opacity: 0.08;
     }
+  }
+}
+
+// ─── Mobile tap target: pin e delete ────────────────────────
+@media (max-width: 599.98px) {
+  .pin-btn,
+  .delete-btn {
+    width: 44px !important;
+    height: 44px !important;
+    // Il min-tap-target è gestito dall'host, non serve transform
   }
 }

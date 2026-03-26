@@ -3,7 +3,7 @@ import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import {
   getFirestore, initializeFirestore, persistentLocalCache, persistentMultipleTabManager,
-  collection, doc, addDoc, updateDoc, deleteDoc, query, where, onSnapshot, Firestore as RawFirestore
+  collection, doc, addDoc, updateDoc, deleteDoc, query, where, onSnapshot, getDoc, setDoc, Firestore as RawFirestore
 } from 'firebase/firestore';
 import { Observable, of, switchMap } from 'rxjs';
 import { AuthService } from './auth';
@@ -173,5 +173,28 @@ export class NoteService {
 
   async deleteNote(id: string) {
     await deleteDoc(doc(this.db, `notes/${id}`));
+  }
+
+  async getUserPreference<T>(key: string, defaultValue: T): Promise<T> {
+    const uid = this.authService.getCurrentUserId();
+    if (!uid) return defaultValue;
+    try {
+      const userRef = doc(this.db, `users/${uid}`);
+      const snap = await getDoc(userRef);
+      if (snap.exists()) {
+        const data = snap.data();
+        return (data[key] !== undefined ? data[key] : defaultValue) as T;
+      }
+    } catch { /* offline o permessi */ }
+    return defaultValue;
+  }
+
+  async setUserPreference(key: string, value: any): Promise<void> {
+    const uid = this.authService.getCurrentUserId();
+    if (!uid) return;
+    try {
+      const userRef = doc(this.db, `users/${uid}`);
+      await setDoc(userRef, { [key]: value }, { merge: true });
+    } catch { /* silenzioso se offline */ }
   }
 }

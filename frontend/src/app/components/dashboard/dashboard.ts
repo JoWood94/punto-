@@ -67,11 +67,13 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   activeNote?: Note | null = undefined;
   isMobile = false;
-  currentMainView: 'list' | 'calendar' = 'list';
+  currentMainView: 'list' | 'calendar' = 'calendar';
+  private defaultViewKey = 'defaultView';
 
   allNotes: Note[] = [];
   filteredNotes: Note[] = [];
   searchQuery = '';
+  newNoteCalendarDate: Date | undefined = undefined;
 
   // TODO: tags disabilitati temporaneamente
   // allTags: string[] = [];
@@ -87,6 +89,11 @@ export class DashboardComponent implements OnInit, OnDestroy {
   async ngOnInit() {
     this.isMobile = this.breakpointObserver.isMatched([Breakpoints.Handset]);
     this.checkMobile();
+
+    // Carica preferenza vista di default (solo mobile)
+    if (this.isMobile) {
+      this.currentMainView = await this.noteService.getUserPreference<'list' | 'calendar'>(this.defaultViewKey, 'list');
+    }
 
     if (window.visualViewport) {
       const vv = window.visualViewport;
@@ -112,6 +119,10 @@ export class DashboardComponent implements OnInit, OnDestroy {
     }).catch(() => {
       console.warn('Push notifications non disponibili in questo browser.');
     });
+
+    // Gestione back gesture mobile
+    window.history.pushState({ punto: 'dashboard' }, '', window.location.href);
+    window.addEventListener('popstate', this.onMobilePopState);
   }
 
   private checkMobile() {
@@ -120,7 +131,10 @@ export class DashboardComponent implements OnInit, OnDestroy {
     });
   }
 
-  ngOnDestroy() { this.notesSub?.unsubscribe(); }
+  ngOnDestroy() {
+    this.notesSub?.unsubscribe();
+    window.removeEventListener('popstate', this.onMobilePopState);
+  }
 
   // TODO: tags disabilitati temporaneamente
   // private updateAllTags() { ... }
@@ -183,13 +197,37 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   logout() { this.authService.logout().then(() => this.router.navigate(['/login'])); }
   openNoteEditor() { this.activeNote = null; }
+  openNoteEditorFromCalendar(date?: Date) {
+    const now = new Date();
+    // Usa la data passata (dal calendario settimana/mese) oppure oggi
+    const target = date ?? new Date();
+    target.setHours(now.getHours(), now.getMinutes(), 0, 0);
+    this.newNoteCalendarDate = target;
+    this.activeNote = null;
+  }
   selectNote(note: Note) { this.activeNote = note; }
-  closeEditor() { this.activeNote = undefined; }
+  closeEditor() { this.activeNote = undefined; this.newNoteCalendarDate = undefined; }
   handleBackButton() {
     if (this.activeNote !== undefined) this.activeNote = undefined;
     else this.currentMainView = 'list';
   }
   onCalendarNoteSelected(note: Note) { this.activeNote = note; }
+
+  async setDefaultView(view: 'list' | 'calendar') {
+    this.currentMainView = view;
+    if (this.isMobile) {
+      await this.noteService.setUserPreference(this.defaultViewKey, view);
+    }
+  }
+
+  private onMobilePopState = (_event: PopStateEvent) => {
+    // Spingi subito uno stato per rimanere sull'URL attuale (no navigazione browser)
+    window.history.pushState({ punto: 'dashboard' }, '', window.location.href);
+    // Gestisci la navigazione in-app
+    if (this.isMobile) {
+      this.handleBackButton();
+    }
+  };
 
   // ─── Delete ─────────────────────────────────────────────────────────────────
 
