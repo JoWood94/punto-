@@ -74,6 +74,8 @@ export class DashboardComponent implements OnInit, OnDestroy {
   // selectedTags: string[] = [];
 
   private notesSub?: Subscription;
+  private deepLinkNoteId: string | null = null;
+  private swMessageListener?: (event: MessageEvent) => void;
 
   constructor(
     private noteService: NoteService,
@@ -83,6 +85,20 @@ export class DashboardComponent implements OnInit, OnDestroy {
   async ngOnInit() {
     this.isMobile = this.breakpointObserver.isMatched([Breakpoints.Handset]);
     this.checkMobile();
+
+    // Deep link da notifica push: legge ?openNote=<id> prima che replaceState lo cancelli
+    const urlParams = new URLSearchParams(window.location.search);
+    this.deepLinkNoteId = urlParams.get('openNote');
+
+    // Ascolta messaggi dal Service Worker (quando l'app è già aperta)
+    if ('serviceWorker' in navigator) {
+      this.swMessageListener = (event: MessageEvent) => {
+        if (event.data?.type === 'OPEN_NOTE' && event.data.noteId) {
+          this.openNoteById(event.data.noteId);
+        }
+      };
+      navigator.serviceWorker.addEventListener('message', this.swMessageListener);
+    }
 
     // Carica preferenza vista di default (solo mobile)
     if (this.isMobile) {
@@ -117,6 +133,14 @@ export class DashboardComponent implements OnInit, OnDestroy {
       this.allNotes = notes;
       // this.updateAllTags(); // TODO: tags disabilitati temporaneamente
       this.applyFilter();
+      // Apre la nota richiesta dal deep link (solo alla prima emissione utile)
+      if (this.deepLinkNoteId) {
+        const target = notes.find(n => n.id === this.deepLinkNoteId);
+        if (target) {
+          this.selectNote(target);
+          this.deepLinkNoteId = null;
+        }
+      }
     });
 
     this.pushService.requestPermission().then(() => {
@@ -141,6 +165,9 @@ export class DashboardComponent implements OnInit, OnDestroy {
   ngOnDestroy() {
     this.notesSub?.unsubscribe();
     window.removeEventListener('popstate', this.onMobilePopState);
+    if (this.swMessageListener) {
+      navigator.serviceWorker?.removeEventListener('message', this.swMessageListener);
+    }
   }
 
   // TODO: tags disabilitati temporaneamente
@@ -219,6 +246,12 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.activeNote = null;
   }
   selectNote(note: Note) { this.activeNote = note; }
+
+  openNoteById(noteId: string) {
+    const note = this.allNotes.find(n => n.id === noteId);
+    if (note) this.selectNote(note);
+  }
+
   closeEditor() { this.activeNote = undefined; this.newNoteCalendarDate = undefined; }
   handleBackButton() {
     if (this.activeNote !== undefined) this.activeNote = undefined;
