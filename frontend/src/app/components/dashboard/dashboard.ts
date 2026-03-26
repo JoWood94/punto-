@@ -244,7 +244,6 @@ export class DashboardComponent implements OnInit, OnDestroy {
     try {
       await this.noteService.deleteNote(note.id);
       if (this.activeNote?.id === note.id) this.activeNote = undefined;
-      this.snackBar.open('Nota eliminata', 'Chiudi', { duration: 3000 });
     } catch (e: any) {
       this.snackBar.open('Errore eliminazione: ' + e.message, 'Chiudi', { duration: 5000 });
     }

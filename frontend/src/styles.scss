@@ -148,4 +148,15 @@ mat-list-item, a[mat-list-item] {
   justify-content: center;
 }
 
+/* Su mobile, dialogs e overlay rispettano il visual viewport (tastiera aperta).
+   --vh è aggiornato dinamicamente dal dashboard via visualViewport API. */
+@media (max-width: 599.98px) {
+  .cdk-overlay-container {
+    height: var(--vh, 100vh) !important;
+  }
+  .mat-mdc-dialog-container {
+    max-height: calc(var(--vh, 100vh) - 48px) !important;
+  }
+}
+
 /* You can add global styles to this file, and also import other style files */

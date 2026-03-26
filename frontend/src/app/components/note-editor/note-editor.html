@@ -47,9 +47,9 @@
           </div>
           <div class="checklist-items">
             <div class="checklist-item" *ngFor="let item of $any(block).items; let j = index">
-              <mat-checkbox [(ngModel)]="item.done" color="primary"></mat-checkbox>
+              <mat-checkbox [(ngModel)]="item.done" (ngModelChange)="onChecklistItemChange()" color="primary"></mat-checkbox>
               <input class="checklist-input" [class.item-done]="item.done"
-                     [(ngModel)]="item.text" placeholder="Voce..." />
+                     [(ngModel)]="item.text" (ngModelChange)="onChecklistItemChange()" placeholder="Voce..." />
               <button mat-icon-button class="remove-item-btn" (click)="removeChecklistItem($any(block), j)" type="button">
                 <mat-icon>close</mat-icon>
               </button>
@@ -125,9 +125,9 @@
           <div class="reminder-inputs">
             <mat-form-field appearance="outline" class="date-field">
               <mat-label>Data</mat-label>
-              <input matInput [matDatepicker]="picker" [(ngModel)]="$any(block).date">
+              <input matInput [matDatepicker]="picker" [(ngModel)]="$any(block).date" (ngModelChange)="onReminderChange()">
               <mat-datepicker-toggle matIconSuffix [for]="picker"></mat-datepicker-toggle>
-              <mat-datepicker #picker></mat-datepicker>
+              <mat-datepicker #picker (closed)="onReminderChange()"></mat-datepicker>
             </mat-form-field>
 
             <!-- Ore:Min e Ripeti raggruppati — rimangono sulla stessa riga su mobile -->
@@ -135,14 +135,14 @@
               <div class="time-row">
                 <mat-form-field appearance="outline" class="hour-field">
                   <mat-label>Ore</mat-label>
-                  <mat-select [(ngModel)]="$any(block).hour">
+                  <mat-select [(ngModel)]="$any(block).hour" (ngModelChange)="onReminderChange()">
                     <mat-option *ngFor="let h of hoursList" [value]="h">{{ h }}</mat-option>
                   </mat-select>
                 </mat-form-field>
                 <span class="time-sep">:</span>
                 <mat-form-field appearance="outline" class="minute-field">
                   <mat-label>Min</mat-label>
-                  <mat-select [(ngModel)]="$any(block).minute">
+                  <mat-select [(ngModel)]="$any(block).minute" (ngModelChange)="onReminderChange()">
                     <mat-option *ngFor="let m of minutesList" [value]="m">{{ m }}</mat-option>
                   </mat-select>
                 </mat-form-field>
@@ -150,7 +150,7 @@
 
               <mat-form-field appearance="outline" class="recurrence-field">
                 <mat-label>Ripeti</mat-label>
-                <mat-select [(ngModel)]="$any(block).recurrence">
+                <mat-select [(ngModel)]="$any(block).recurrence" (ngModelChange)="onReminderChange()">
                   <mat-option value="none">Mai</mat-option>
                   <mat-option value="daily">Ogni giorno</mat-option>
                   <mat-option value="weekly">Ogni settimana</mat-option>

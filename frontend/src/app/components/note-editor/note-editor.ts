@@ -150,6 +150,9 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewChecked,
         tags: this.selectedNote.tags ? [...this.selectedNote.tags] : []
       };
     } else {
+      // Guard: ngOnInit + ngOnChanges chiamano entrambi initNote() al mount — evita doppia creazione
+      if (this.isNewNote) return;
+
       this.note = {
         title: this.PLACEHOLDER_TITLE,
         blocks: [{ type: 'text', html: '' }],
@@ -230,6 +233,7 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewChecked,
     ];
     this.textBlocksNeedInit = true;
     this.scrollEditorToBottom();
+    this.triggerAutoSave();
   }
 
   addBlockAfterActive(type: NoteBlock['type']) {
@@ -278,6 +282,7 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewChecked,
     if (this.activeTextBlockIndex === index) this.activeTextBlockIndex = null;
     this.note.blocks = this.note.blocks.filter((_, i) => i !== index);
     this.textBlocksNeedInit = true;
+    this.triggerAutoSave();
   }
 
   canRemoveBlock(index: number): boolean {
@@ -290,6 +295,7 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewChecked,
     moveItemInArray(blocks, event.previousIndex, event.currentIndex);
     this.note.blocks = blocks;
     this.textBlocksNeedInit = true;
+    this.triggerAutoSave();
   }
 
   // ─── Text Block ─────────────────────────────────────────────────────────────
@@ -354,11 +360,17 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewChecked,
     if (text.trim()) {
       block.items.push({ text: text.trim(), done: false });
       this.scrollEditorToBottom();
+      this.triggerAutoSave();
     }
   }
 
   removeChecklistItem(block: ChecklistBlock, index: number) {
     block.items.splice(index, 1);
+    this.triggerAutoSave();
+  }
+
+  onChecklistItemChange() {
+    this.triggerAutoSave();
   }
 
   // ─── Location Block ─────────────────────────────────────────────────────────
@@ -389,6 +401,7 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewChecked,
     block.mapUrl = this.generateMapUrl(block.lat, block.lon);
     block.addressOptions = [];
     this.cdr.detectChanges();
+    this.triggerAutoSave();
   }
 
   clearLocation(block: any) {
@@ -397,6 +410,7 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewChecked,
     block.lon = undefined;
     block.mapUrl = undefined;
     block.editing = true;
+    this.triggerAutoSave();
   }
 
   openMaps(block: LocationBlock) {
@@ -422,6 +436,11 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewChecked,
     block.time = null;
     block.status = null;
     block.date = undefined;
+    this.triggerAutoSave();
+  }
+
+  onReminderChange() {
+    this.triggerAutoSave();
   }
 
   // ─── Image Block ────────────────────────────────────────────────────────────
@@ -472,6 +491,7 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewChecked,
     }
     block.url = '';
     block.storagePath = '';
+    this.triggerAutoSave();
   }
 
   // TODO: tags disabilitati temporaneamente
