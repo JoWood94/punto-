@@ -1,6 +1,6 @@
 {
   "configVersion": 1,
-  "timestamp": 1774513361130,
+  "timestamp": 1774513991999,
   "index": "/punto-/index.html",
   "assetGroups": [
     {
@@ -14,10 +14,10 @@
         "/punto-/favicon.ico",
         "/punto-/firebase-messaging-sw.js",
         "/punto-/index.html",
-        "/punto-/main-I2SZVXOT.js",
+        "/punto-/main-LFJ57H4V.js",
         "/punto-/manifest.webmanifest",
         "/punto-/polyfills-DOYHMSTV.js",
-        "/punto-/styles-RTBFCAQF.css"
+        "/punto-/styles-QCJJVXZC.css"
       ],
       "patterns": []
     },
@@ -59,15 +59,15 @@
     "/punto-/icons/icon-512x512.png": "1d0dca84b88ca338038789aed60aa218b88bcc72",
     "/punto-/icons/icon-72x72.png": "1649d9b2eb36d94382aaafa3fb51be37b9b55161",
     "/punto-/icons/icon-96x96.png": "a13f8797c66d29f1c4463004b80e62cc9f7aad4c",
-    "/punto-/index.html": "7ec89d661e7fc9dcbbceb05fc9d6e7c863723ed7",
+    "/punto-/index.html": "a50bee84337ba2b92eae9e3e18c79db79a8f8e36",
     "/punto-/logo.png": "50e5173b6c75239a66f5231d52cc911c2349c8a8",
-    "/punto-/main-I2SZVXOT.js": "a2b85a138034fb0f0022c5e8b764c352f18ba434",
+    "/punto-/main-LFJ57H4V.js": "0865ef8ff1c3464b9bc03fb1ee7ebe492835fe7f",
     "/punto-/manifest.webmanifest": "c64c2b6f1c48a2c447b55d0fd962fb84e47b0340",
     "/punto-/polyfills-DOYHMSTV.js": "319677ff7765c7c037e3df2d2078e2407d4b85d6",
     "/punto-/punto_icon.png": "9219548b30e76d9ebb3aba8f2da12dd71cdc0668",
     "/punto-/punto_logo.png": "50e5173b6c75239a66f5231d52cc911c2349c8a8",
     "/punto-/punto_logo_no_bg.png": "c9e72d89f71042182b3c2a1928f2900c67e59213",
-    "/punto-/styles-RTBFCAQF.css": "53990ed9360e285331adc9d8cc3bfe0700b90359"
+    "/punto-/styles-QCJJVXZC.css": "9e228c29df32b8876235e1dd6b9f28275e282f1d"
   },
   "navigationUrls": [
     {
