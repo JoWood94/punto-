@@ -1,6 +1,6 @@
 {
   "configVersion": 1,
-  "timestamp": 1774484941292,
+  "timestamp": 1774485084589,
   "index": "/punto-/index.html",
   "assetGroups": [
     {
@@ -14,7 +14,7 @@
         "/punto-/favicon.ico",
         "/punto-/firebase-messaging-sw.js",
         "/punto-/index.html",
-        "/punto-/main-U2Q3TDDE.js",
+        "/punto-/main-2VUP2GTB.js",
         "/punto-/manifest.webmanifest",
         "/punto-/polyfills-DOYHMSTV.js",
         "/punto-/styles-N46USITK.css"
@@ -59,9 +59,9 @@
     "/punto-/icons/icon-512x512.png": "1d0dca84b88ca338038789aed60aa218b88bcc72",
     "/punto-/icons/icon-72x72.png": "1649d9b2eb36d94382aaafa3fb51be37b9b55161",
     "/punto-/icons/icon-96x96.png": "a13f8797c66d29f1c4463004b80e62cc9f7aad4c",
-    "/punto-/index.html": "803d0d3ede691818e9b458f6b96ab18d23882343",
+    "/punto-/index.html": "a86353b60c8ad8aa415ed4dc34b09ae91a4b8e5c",
     "/punto-/logo.png": "50e5173b6c75239a66f5231d52cc911c2349c8a8",
-    "/punto-/main-U2Q3TDDE.js": "ce7d9a5d8fed1dd61ef24a1eb0a42a53fd1c5901",
+    "/punto-/main-2VUP2GTB.js": "34557af76195c4bdbb14e525b4d42dccd79063d8",
     "/punto-/manifest.webmanifest": "c64c2b6f1c48a2c447b55d0fd962fb84e47b0340",
     "/punto-/polyfills-DOYHMSTV.js": "319677ff7765c7c037e3df2d2078e2407d4b85d6",
     "/punto-/punto_icon.png": "9219548b30e76d9ebb3aba8f2da12dd71cdc0668",
