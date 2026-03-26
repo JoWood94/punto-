@@ -1,8 +1,5 @@
 <div class="editor-header">
   <input class="title-input-raw" [(ngModel)]="note.title" placeholder="Titolo" (ngModelChange)="onTitleChange()" />
-  <button mat-icon-button (click)="handleClose()" aria-label="Chiudi" matTooltip="Chiudi">
-    <mat-icon>close</mat-icon>
-  </button>
 </div>
 
 <div class="editor-content" #editorContent>

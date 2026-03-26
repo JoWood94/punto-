@@ -151,11 +151,42 @@ mat-list-item, a[mat-list-item] {
 /* Su mobile, dialogs e overlay rispettano il visual viewport (tastiera aperta).
    --vh è aggiornato dinamicamente dal dashboard via visualViewport API. */
 @media (max-width: 599.98px) {
+  /* Limita il container overlay all'altezza visibile (esclude tastiera) */
   .cdk-overlay-container {
     height: var(--vh, 100vh) !important;
   }
+
+  /* Allinea i dialog in alto — evita che la tastiera copra i pulsanti di azione */
+  .cdk-global-overlay-wrapper {
+    align-items: flex-start !important;
+    padding-top: 16px;
+  }
+
+  /* Limita altezza dialog e abilita scroll interno */
   .mat-mdc-dialog-container {
     max-height: calc(var(--vh, 100vh) - 48px) !important;
+    display: flex !important;
+    flex-direction: column !important;
+  }
+
+  .mat-mdc-dialog-surface {
+    display: flex !important;
+    flex-direction: column !important;
+    max-height: inherit !important;
+    overflow: hidden !important;
+  }
+
+  /* Il contenuto del dialog scrolla se supera lo spazio disponibile */
+  mat-dialog-content, .mat-mdc-dialog-content {
+    flex: 1 !important;
+    overflow-y: auto !important;
+    max-height: none !important;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* I bottoni di azione restano sempre in fondo, non scorrono */
+  mat-dialog-actions, .mat-mdc-dialog-actions {
+    flex-shrink: 0 !important;
   }
 }
 
