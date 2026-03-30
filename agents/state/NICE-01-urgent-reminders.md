@@ -1,4 +1,4 @@
-status: todo
+status: cancelled
 agent: alpha
 task: Nice to have — sistema promemoria urgenti + notifiche urgenti PWA
 completato:

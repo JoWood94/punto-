@@ -28,3 +28,9 @@ npm-debug.log*
 # ── Test / Coverage ──────────────────────────────────────────
 coverage/
 frontend/coverage/
+frontend/playwright-report/
+frontend/test-results/
+
+# ── Agents runtime artifacts ─────────────────────────────────
+agents/inbox/*.seen
+agents/inbox/*.response.md
