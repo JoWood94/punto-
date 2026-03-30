@@ -23,5 +23,5 @@ jobs:
 
       - name: Apply CORS to Firebase Storage bucket
         run: |
-          gsutil cors set server/cors.json gs://punto-84646.firebasestorage.app
-          gsutil cors get gs://punto-84646.firebasestorage.app
+          gsutil cors set server/cors.json gs://punto-84646.appspot.com
+          gsutil cors get gs://punto-84646.appspot.com
