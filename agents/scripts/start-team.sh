@@ -87,23 +87,15 @@ tmux select-window -t "$SESSION:lead"
 # ─── Istruzioni ──────────────────────────────────────────────
 echo "✅ Team '$SESSION' avviato in modalità $(echo $MODE | tr a-z A-Z)"
 echo ""
-echo "  Apri Terminal.app ed esegui:"
-echo "    tmux attach -t $SESSION"
+echo "  Navigazione: Ctrl+B+W = lista | Ctrl+B+D = esci"
+echo "  Dashboard:   node agents/scripts/status.js"
 echo ""
-echo "  Navigazione (Ctrl+B non funziona in VS Code):"
-echo "    Ctrl+B + 0  → lead     Ctrl+B + 3  → w-lead"
-echo "    Ctrl+B + 1  → alpha    Ctrl+B + 4  → w-alpha"
-echo "    Ctrl+B + 2  → beta     Ctrl+B + 5  → w-beta"
-echo "    Ctrl+B + W  → lista    Ctrl+B + D  → esci"
-echo ""
-echo "  Modelli: lead=opusplan | alpha=sonnet | beta=haiku"
-echo ""
-if [[ "$MODE" == "safe" ]]; then
-  echo "  🛡️  SAFE: approva le operazioni in ogni finestra agente."
-else
-  echo "  ⚡ TRUSTED: agenti autonomi. Monitora w-lead per notifiche."
+
+# ─── Aggancio: diretto se in terminale, altrimenti apre Terminal.app ──
+if [ -t 0 ]; then
+  tmux attach -t "$SESSION:lead"
+elif [[ "$(uname)" == "Darwin" ]]; then
+  osascript \
+    -e "tell application \"Terminal\" to do script \"tmux attach -t $SESSION:lead\"" \
+    -e "tell application \"Terminal\" to activate"
 fi
-echo ""
-echo "  Aggancio automatico al Team Lead tra 2 secondi..."
-sleep 2
-tmux attach -t "$SESSION:lead"

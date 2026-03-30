@@ -344,9 +344,19 @@ tmux send-keys -t "$SESSION:{name}" "$AGENT_CMD --model claude-sonnet-4-6" Enter
 
 tmux select-window -t "$SESSION:lead"
 
-echo "✅ PROJECT_NAME ($MODE) — tmux attach -t PROJECT_NAME"
-echo "Ctrl+B+W = windows | Ctrl+B+D = detach | ⚠️  Terminal.app only"
-echo "Dashboard: node agents/scripts/status.js"
+echo "✅ PROJECT_NAME ($MODE) — sessione tmux avviata"
+echo "Navigazione: Ctrl+B+W = lista | Ctrl+B+D = esci"
+echo "Dashboard:   node agents/scripts/status.js"
+echo ""
+
+# Aggancio: diretto se in terminale, altrimenti apre Terminal.app
+if [ -t 0 ]; then
+  tmux attach -t "$SESSION:lead"
+elif [[ "$(uname)" == "Darwin" ]]; then
+  osascript \
+    -e "tell application \"Terminal\" to do script \"tmux attach -t $SESSION:lead\"" \
+    -e "tell application \"Terminal\" to activate"
+fi
 ```
 
 ---
