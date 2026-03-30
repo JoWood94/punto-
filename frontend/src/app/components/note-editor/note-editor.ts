@@ -67,6 +67,9 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewChecked,
   isList = false;
   activeTextBlockIndex: number | null = null;
 
+  // Add-block speed dial state
+  addBlockMenuOpen = false;
+
   // TODO: tags disabilitati temporaneamente
   // tagInput = '';
 
@@ -283,6 +286,14 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewChecked,
   addBlockAfterActive(type: NoteBlock['type']) {
     const insertAfter = this.activeTextBlockIndex ?? this.note.blocks.length - 1;
     this.addBlock(type, insertAfter);
+  }
+
+  toggleAddBlockMenu() {
+    this.addBlockMenuOpen = !this.addBlockMenuOpen;
+  }
+
+  closeAddBlockMenu() {
+    this.addBlockMenuOpen = false;
   }
 
   /** Apre il dialog per URL+label, poi inserisce il LinkBlock solo se confermato. */

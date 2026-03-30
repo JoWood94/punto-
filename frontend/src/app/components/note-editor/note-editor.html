@@ -279,62 +279,64 @@
 
 </div><!-- /editor-content -->
 
-<!-- ── Formatting & Add-block toolbar ── -->
-<div class="toolbar-scroll-container">
-  <div class="rich-text-toolbar">
+<!-- ── Floating toolbars (M3 Expressive) ── -->
+<div class="floating-toolbar-area">
 
-    <!-- Text formatting: visible only when a text block is active -->
-    <div class="toolbar-format-group" *ngIf="activeTextBlockIndex !== null">
-      <button mat-icon-button type="button" tabindex="-1"
-              (mousedown)="$event.preventDefault()" (click)="execCommand('bold')"
-              [class.format-active]="isBold" matTooltip="Grassetto">
-        <mat-icon>format_bold</mat-icon>
-      </button>
-      <button mat-icon-button type="button" tabindex="-1"
-              (mousedown)="$event.preventDefault()" (click)="execCommand('italic')"
-              [class.format-active]="isItalic" matTooltip="Corsivo">
-        <mat-icon>format_italic</mat-icon>
-      </button>
-      <button mat-icon-button type="button" tabindex="-1"
-              (mousedown)="$event.preventDefault()" (click)="execCommand('insertUnorderedList')"
-              [class.format-active]="isList" matTooltip="Lista">
-        <mat-icon>format_list_bulleted</mat-icon>
-      </button>
-      <div class="toolbar-divider"></div>
-    </div>
+  <!-- Backdrop per chiudere la toolbar add-block -->
+  <div class="add-block-backdrop" *ngIf="addBlockMenuOpen" (click)="closeAddBlockMenu()"></div>
 
-    <!-- Spacer pushes add-block icons to the right -->
-    <span class="toolbar-spacer"></span>
+  <!-- Format toolbar: pill orizzontale, appare auto su focus testo -->
+  <div class="format-floating-toolbar" *ngIf="activeTextBlockIndex !== null && !addBlockMenuOpen">
+    <button mat-icon-button type="button" tabindex="-1"
+            (mousedown)="$event.preventDefault()" (click)="execCommand('bold')"
+            [class.format-active]="isBold" matTooltip="Grassetto">
+      <mat-icon>format_bold</mat-icon>
+    </button>
+    <div class="ftb-divider"></div>
+    <button mat-icon-button type="button" tabindex="-1"
+            (mousedown)="$event.preventDefault()" (click)="execCommand('italic')"
+            [class.format-active]="isItalic" matTooltip="Corsivo">
+      <mat-icon>format_italic</mat-icon>
+    </button>
+    <div class="ftb-divider"></div>
+    <button mat-icon-button type="button" tabindex="-1"
+            (mousedown)="$event.preventDefault()" (click)="execCommand('insertUnorderedList')"
+            [class.format-active]="isList" matTooltip="Lista">
+      <mat-icon>format_list_bulleted</mat-icon>
+    </button>
+  </div>
 
-    <!-- Add-block icons — always on the right -->
-    <button mat-icon-button (click)="addBlockAfterActive('text')"
-            type="button" tabindex="-1" matTooltip="Testo">
+  <!-- M3 Expressive horizontal toolbar: appare a sinistra del FAB -->
+  <div class="add-block-toolbar" [class.add-block-toolbar-open]="addBlockMenuOpen">
+    <button mat-icon-button type="button" tabindex="-1"
+            (click)="addBlockAfterActive('text'); closeAddBlockMenu()" aria-label="Testo">
       <mat-icon>text_fields</mat-icon>
     </button>
-    <button mat-icon-button (click)="addBlockAfterActive('checklist')"
-            type="button" tabindex="-1" matTooltip="Checklist">
+    <button mat-icon-button type="button" tabindex="-1"
+            (click)="addBlockAfterActive('checklist'); closeAddBlockMenu()" aria-label="Checklist">
       <mat-icon>check_box</mat-icon>
     </button>
-    <button mat-icon-button (click)="addBlockAfterActive('location')"
-            type="button" tabindex="-1" matTooltip="Luogo">
+    <button mat-icon-button type="button" tabindex="-1"
+            (click)="addBlockAfterActive('location'); closeAddBlockMenu()" aria-label="Luogo">
       <mat-icon>place</mat-icon>
     </button>
-    <button mat-icon-button (click)="addBlockAfterActive('reminder')"
-            type="button" tabindex="-1" matTooltip="Promemoria"
-            *ngIf="!hasReminderBlock">
+    <button mat-icon-button type="button" tabindex="-1" *ngIf="!hasReminderBlock"
+            (click)="addBlockAfterActive('reminder'); closeAddBlockMenu()" aria-label="Promemoria">
       <mat-icon>notifications</mat-icon>
     </button>
-    <!-- TODO: bottone immagine disabilitato — riabilitare con piano Firebase Storage
-    <button mat-icon-button (click)="addBlockAfterActive('image')"
-            type="button" tabindex="-1" matTooltip="Immagine">
-      <mat-icon>add_photo_alternate</mat-icon>
-    </button>
-    -->
-    <button mat-icon-button (click)="addLinkBlock()"
-            type="button" tabindex="-1" matTooltip="Collegamento">
+    <button mat-icon-button type="button" tabindex="-1"
+            (click)="closeAddBlockMenu(); addLinkBlock()" aria-label="Collegamento">
       <mat-icon>link</mat-icon>
     </button>
-
   </div>
+
+  <!-- FAB + (stessa distanza dal bordo di "Nuova Nota") -->
+  <button mat-mini-fab class="add-block-fab"
+          (click)="toggleAddBlockMenu()" type="button"
+          [class.add-block-fab-open]="addBlockMenuOpen"
+          aria-label="Aggiungi blocco">
+    <mat-icon>add</mat-icon>
+  </button>
+
 </div>
 

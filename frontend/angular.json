@@ -42,8 +42,8 @@
                 },
                 {
                   "type": "anyComponentStyle",
-                  "maximumWarning": "8kB",
-                  "maximumError": "16kB"
+                  "maximumWarning": "14kB",
+                  "maximumError": "24kB"
                 }
               ],
               "outputHashing": "all",
@@ -64,7 +64,7 @@
             "ssl": true,
             "sslKey": "ssl/server.key",
             "sslCert": "ssl/server.crt",
-            "allowedHosts": ["192.168.1.5", "localhost"]
+            "allowedHosts": ["192.168.1.5", "localhost", "172.20.10.7"]
           },
           "configurations": {
             "production": {

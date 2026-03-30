@@ -2,7 +2,7 @@
 
   <mat-sidenav mode="side" [opened]="!isMobile || (activeNote === undefined && currentMainView === 'list')" class="notes-sidenav"
     [class.mobile-full]="isMobile">
-    <div style="display: flex; flex-direction: column; height: 100%;">
+    <div style="display: flex; flex-direction: column; height: 100%; position: relative;">
       <!-- Mobile header: calendario a sinistra, logo al centro, logout a destra -->
       <div class="sidenav-header mobile-header" *ngIf="isMobile">
         <button mat-icon-button (click)="setDefaultView('calendar')"
@@ -11,9 +11,6 @@
         </button>
         <img src="punto_logo_no_bg.png" alt="punto! logo" class="mobile-center-logo" />
         <span class="spacer"></span>
-        <button mat-icon-button (click)="logout()" aria-label="Esci" matTooltip="Logout">
-          <mat-icon>logout</mat-icon>
-        </button>
       </div>
 
       <!-- Search bar -->
@@ -89,6 +86,30 @@
           <p>Nessun risultato.</p>
         </div>
       </div>
+
+      <!-- Settings FAB — bottom-left sidenav -->
+      <div class="settings-fab-container" *ngIf="!isMobile || currentMainView !== 'calendar'">
+        <!-- Backdrop -->
+        <div class="settings-backdrop" *ngIf="settingsMenuOpen" (click)="closeSettingsMenu()"></div>
+
+        <!-- Menu items (espanso verso l'alto) -->
+        <div class="settings-menu" [class.settings-menu-open]="settingsMenuOpen">
+          <div class="settings-menu-item">
+            <button mat-button class="settings-item-pill" type="button"
+                    (click)="logout(); closeSettingsMenu()" aria-label="Esci">
+              <mat-icon>logout</mat-icon>
+              <span>Esci</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- FAB principale -->
+        <button mat-mini-fab class="settings-fab" (click)="toggleSettingsMenu()"
+                aria-label="Impostazioni"
+                [class.settings-fab-open]="settingsMenuOpen">
+          <mat-icon>settings</mat-icon>
+        </button>
+      </div>
     </div>
   </mat-sidenav>
 
@@ -113,11 +134,29 @@
 
       <span class="spacer"></span>
 
-      <!-- Mobile: logout nella vista calendario -->
-      <button mat-icon-button *ngIf="isMobile && currentMainView === 'calendar' && activeNote === undefined"
-              (click)="logout()" aria-label="Esci" matTooltip="Logout">
-        <mat-icon>logout</mat-icon>
+      <!-- Mobile calendario: settings al posto del logout -->
+      <button mat-icon-button
+              *ngIf="isMobile && currentMainView === 'calendar' && activeNote === undefined"
+              (click)="toggleSettingsMenu()"
+              aria-label="Impostazioni"
+              [class.settings-fab-open]="settingsMenuOpen">
+        <mat-icon>{{ settingsMenuOpen ? 'close' : 'settings' }}</mat-icon>
       </button>
+
+      <!-- Menu dropdown mobile calendario (si apre verso il basso dall'header) -->
+      <div class="settings-menu-calendar"
+           *ngIf="isMobile && currentMainView === 'calendar' && settingsMenuOpen">
+        <div class="settings-backdrop" (click)="closeSettingsMenu()"></div>
+        <div class="settings-menu settings-menu-open settings-menu-downward">
+          <div class="settings-menu-item">
+            <button mat-button class="settings-item-pill" type="button"
+                    (click)="logout(); closeSettingsMenu()" aria-label="Esci">
+              <mat-icon>logout</mat-icon>
+              <span>Esci</span>
+            </button>
+          </div>
+        </div>
+      </div>
 
       <!-- Mobile: elimina nota nell'header quando si sta editando una nota esistente -->
       <button mat-icon-button *ngIf="isMobile && activeNote?.id"
@@ -133,9 +172,6 @@
         <mat-icon>calendar_today</mat-icon>
       </button>
 
-      <button mat-icon-button (click)="logout()" *ngIf="!isMobile" aria-label="Esci" matTooltip="Logout">
-        <mat-icon>logout</mat-icon>
-      </button>
     </mat-toolbar>
 
     <div class="editor-wrapper editor-enter" *ngIf="activeNote !== undefined">

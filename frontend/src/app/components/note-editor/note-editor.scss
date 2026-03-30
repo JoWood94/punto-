@@ -1,4 +1,6 @@
 :host {
+  --_t: var(--punto-duration-medium1, 200ms) var(--punto-easing-standard, cubic-bezier(0.2, 0, 0, 1));
+  --_e: var(--punto-easing-standard, cubic-bezier(0.2, 0, 0, 1));
   display: flex;
   flex-direction: column;
   height: 100%;
@@ -23,7 +25,7 @@
   outline: none;
   background: transparent;
   color: var(--mat-sys-on-surface);
-  transition: box-shadow var(--punto-duration-medium1, 200ms) var(--punto-easing-standard, cubic-bezier(0.2, 0, 0, 1));
+  transition: box-shadow var(--_t);
 
   &::placeholder {
     color: color-mix(in srgb, var(--mat-sys-on-surface) 30%, transparent);
@@ -52,14 +54,7 @@
   min-height: 100px;
 }
 
-.toolbar-scroll-container {
-  flex-shrink: 0;
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
-  // Nasconde la scrollbar orizzontale ma mantiene la funzionalità
-  scrollbar-width: none;
-  &::-webkit-scrollbar { display: none; }
-}
+// (toolbar-scroll-container rimossa — sostituita da floating-toolbar-area)
 
 .rich-text-editor {
   flex: 1;
@@ -73,7 +68,7 @@
   color: var(--mat-sys-on-surface);
   // Underline sottile M3-style per rendere visibile l'area di testo
   box-shadow: 0 1px 0 0 var(--mat-sys-outline-variant);
-  transition: box-shadow var(--punto-duration-medium1, 200ms) var(--punto-easing-standard, cubic-bezier(0.2, 0, 0, 1));
+  transition: box-shadow var(--_t);
 
   &:empty:before {
     content: attr(data-placeholder);
@@ -86,77 +81,118 @@
   }
 }
 
-.rich-text-toolbar {
+// ─── Floating Toolbar Area ────────────────────────────────────
+.floating-toolbar-area {
+  position: relative;
+  flex-shrink: 0;
+  height: calc(84px + env(safe-area-inset-bottom, 0px)); // 56px FAB + 28px bottom
+  pointer-events: none;
+}
+
+// Backdrop invisibile per chiudere il menu add-block
+.add-block-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 9;
+  pointer-events: all;
+}
+
+// ─── Format floating toolbar (pill, sinistra) ─────────────────
+.format-floating-toolbar {
+  position: absolute;
+  left: 28px;
+  bottom: calc(28px + env(safe-area-inset-bottom, 0px));
   display: flex;
   align-items: center;
-  padding: 8px 16px;
-  background: var(--mat-sys-surface-container-low);
-  border-top: 1px solid var(--mat-sys-outline-variant);
-  margin-top: 0;
-  flex-shrink: 0;
+  background: var(--punto-primary);
+  border-radius: 9999px;
+  height: 56px;
+  padding: 0 8px;
+  gap: 2px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.28);
+  z-index: 8;
+  pointer-events: all;
+  animation: ftb-in 220ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+
+  button {
+    color: white !important;
+    mat-icon { color: white !important; }
+  }
 
   button.format-active {
-    background-color: var(--punto-primary-container);
-
-    mat-icon {
-      color: var(--punto-on-primary-container);
-    }
+    background: rgba(255, 255, 255, 0.2) !important;
   }
 }
 
-.toolbar-divider {
+.ftb-divider {
   width: 1px;
-  height: 24px;
-  background: var(--mat-sys-outline-variant);
-  margin: 0 8px;
-}
-
-.toolbar-format-group {
-  display: flex;
-  align-items: center;
+  height: 20px;
+  background: rgba(255, 255, 255, 0.25);
+  margin: 0 2px;
   flex-shrink: 0;
 }
 
-.toolbar-spacer {
-  flex: 1;
+@keyframes ftb-in {
+  from { opacity: 0; transform: scale(0.8) translateY(8px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
 }
 
-@media (max-width: 599.98px) {
-  .rich-text-toolbar {
-    // Padding top/side fisso; bottom rispetta safe-area iOS (home indicator)
-    // → tastiera chiusa: padding-bottom ≈ 34px → bottoni più alti, toolbar più alta
-    // → tastiera aperta: safe-area-inset-bottom ≈ 0 → toolbar torna normale
-    padding: 6px 8px;
-    padding-bottom: max(8px, env(safe-area-inset-bottom));
-    min-height: unset;
-    gap: 0;
-    flex-wrap: nowrap; // una sola riga — niente salto di altezza
+// ─── FAB + (destra, stessa distanza di "Nuova Nota") ─────────
+.add-block-fab {
+  position: absolute;
+  right: 28px;
+  bottom: calc(28px + env(safe-area-inset-bottom, 0px));
+  background: var(--punto-primary) !important;
+  color: white !important;
+  width: 56px;
+  height: 56px;
+  pointer-events: all;
+  z-index: 10;
+  transition: box-shadow 200ms var(--_e);
 
-    // Bottoni toolbar più grandi su mobile
-    .mat-mdc-icon-button {
-      width: 48px !important;
-      height: 48px !important;
-      flex-shrink: 0;
-
-      mat-icon {
-        font-size: 24px;
-        width: 24px;
-        height: 24px;
-      }
-    }
+  mat-icon {
+    transition: transform 300ms cubic-bezier(0.34, 1.56, 0.64, 1);
   }
 
-  // Formato e divider: non si restringono mai
-  .toolbar-format-group,
-  .toolbar-divider {
-    flex-shrink: 0;
+  &.add-block-fab-open mat-icon {
+    transform: rotate(45deg);
+  }
+
+  &:hover {
+    box-shadow: var(--mat-sys-level3, 0 6px 12px rgba(0, 0, 0, 0.2)) !important;
   }
 }
 
-.metadata-section {
-  padding: 16px 0;
-  background: transparent;
-  margin-top: 16px;
+// ─── M3 Expressive horizontal toolbar ────────────────────────
+.add-block-toolbar {
+  position: absolute;
+  right: calc(28px + 56px + 12px); // a sinistra del FAB con 12px gap
+  bottom: calc(28px + env(safe-area-inset-bottom, 0px));
+  display: flex;
+  align-items: center;
+  background: var(--punto-primary);
+  border-radius: 9999px;
+  padding: 8px 4px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.28);
+  z-index: 9;
+  pointer-events: none;
+  opacity: 0;
+  transform: scale(0.85) translateX(16px);
+  transform-origin: right center;
+  transition:
+    opacity 200ms var(--_e),
+    transform 280ms cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  button {
+    color: white !important;
+    mat-icon { color: white !important; }
+  }
+
+  &.add-block-toolbar-open {
+    opacity: 1;
+    transform: scale(1) translateX(0);
+    pointer-events: all;
+  }
 }
 
 .selected-address-view {
@@ -251,7 +287,7 @@
     outline: none;
     font-size: 1rem;
     color: var(--mat-sys-on-surface);
-    transition: box-shadow var(--punto-duration-medium1, 200ms) var(--punto-easing-standard, cubic-bezier(0.2, 0, 0, 1));
+    transition: box-shadow var(--_t);
 
     &.done,
     &.item-done {
@@ -272,7 +308,7 @@
   flex-shrink: 0;
   align-self: center;
   opacity: 0;
-  transition: opacity var(--punto-duration-medium1, 200ms) var(--punto-easing-standard, cubic-bezier(0.2, 0, 0, 1));
+  transition: opacity var(--_t);
   width: 32px !important;
   height: 32px !important;
   margin-left: auto;
@@ -310,7 +346,7 @@
   }
 
   &.cdk-drag-animating {
-    transition: transform var(--punto-duration-medium1, 200ms) var(--punto-easing-standard, cubic-bezier(0.2, 0, 0, 1));
+    transition: transform var(--_t);
   }
 
   // Su hover mostra drag, remove ed edit-link
@@ -349,8 +385,8 @@
   color: var(--mat-sys-on-surface-variant);
   border-radius: 50%;
   transition:
-    opacity var(--punto-duration-medium1, 200ms) var(--punto-easing-standard, cubic-bezier(0.2, 0, 0, 1)),
-    background 200ms var(--punto-easing-standard, cubic-bezier(0.2, 0, 0, 1));
+    opacity var(--_t),
+    background 200ms var(--_e);
   margin-top: 2px;
 
   mat-icon {
@@ -383,8 +419,8 @@
   opacity: 0;
   border-radius: 50%;
   transition:
-    opacity var(--punto-duration-medium1, 200ms) var(--punto-easing-standard, cubic-bezier(0.2, 0, 0, 1)),
-    background 200ms var(--punto-easing-standard, cubic-bezier(0.2, 0, 0, 1));
+    opacity var(--_t),
+    background 200ms var(--_e);
   margin-top: 2px;
   width: 32px !important;
   height: 32px !important;
@@ -422,7 +458,6 @@
   flex: 1;
 }
 
-// ─── Reminder block ──────────────────────────────────────────
 // ─── Reminder block ──────────────────────────────────────────
 // Desktop: tutto su una riga (Data | Ore | : | Min | Ripeti)
 // Mobile: Data / [Ore Min] / Ripeti — colonne separate
@@ -520,8 +555,8 @@
   border-radius: var(--punto-shape-sm, 8px);
   padding: 12px;
   cursor: pointer;
-  transition: border-color var(--punto-duration-medium1, 200ms) var(--punto-easing-standard, cubic-bezier(0.2, 0, 0, 1)),
-              background var(--punto-duration-medium1, 200ms) var(--punto-easing-standard, cubic-bezier(0.2, 0, 0, 1));
+  transition: border-color var(--_t),
+              background var(--_t);
 
   &:hover {
     border-color: var(--punto-primary);
@@ -598,8 +633,8 @@
   opacity: 0;
   border-radius: 50%;
   transition:
-    opacity var(--punto-duration-medium1, 200ms) var(--punto-easing-standard, cubic-bezier(0.2, 0, 0, 1)),
-    background 200ms var(--punto-easing-standard, cubic-bezier(0.2, 0, 0, 1));
+    opacity var(--_t),
+    background 200ms var(--_e);
   width: 32px !important;
   height: 32px !important;
 
@@ -627,7 +662,7 @@
   font-weight: 500;
   max-width: 100%;
   overflow: hidden;
-  transition: background var(--punto-duration-medium1, 200ms) var(--punto-easing-standard, cubic-bezier(0.2, 0, 0, 1));
+  transition: background var(--_t);
 
   &:hover {
     background: color-mix(in srgb, var(--punto-primary) 16%, transparent);
@@ -661,8 +696,8 @@
   opacity: 0.6;
   padding: 6px 8px;
   border-radius: var(--punto-shape-sm, 8px);
-  transition: opacity var(--punto-duration-medium1, 200ms) var(--punto-easing-standard, cubic-bezier(0.2, 0, 0, 1)),
-              background var(--punto-duration-medium1, 200ms) var(--punto-easing-standard, cubic-bezier(0.2, 0, 0, 1));
+  transition: opacity var(--_t),
+              background var(--_t);
 
   &:hover {
     opacity: 1;

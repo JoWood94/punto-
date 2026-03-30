@@ -61,6 +61,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   activeNote?: Note | null = undefined;
   isMobile = false;
+  settingsMenuOpen = false;
   currentMainView: 'list' | 'calendar' = 'calendar';
   private defaultViewKey = 'defaultView';
 
@@ -235,6 +236,9 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   // ─── Navigation ─────────────────────────────────────────────────────────────
 
+  toggleSettingsMenu(): void { this.settingsMenuOpen = !this.settingsMenuOpen; }
+  closeSettingsMenu(): void { this.settingsMenuOpen = false; }
+
   logout() { this.authService.logout().then(() => this.router.navigate(['/login'])); }
   openNoteEditor() { this.newNoteCalendarDate = undefined; this.activeNote = null; }
   openNoteEditorFromCalendar(date?: Date) {
@@ -245,7 +249,13 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.newNoteCalendarDate = target;
     this.activeNote = null;
   }
-  selectNote(note: Note) { this.activeNote = note; }
+  selectNote(note: Note) {
+    if (!this.isMobile && this.activeNote?.id === note.id) {
+      this.activeNote = undefined;
+    } else {
+      this.activeNote = note;
+    }
+  }
 
   openNoteById(noteId: string) {
     const note = this.allNotes.find(n => n.id === noteId);
