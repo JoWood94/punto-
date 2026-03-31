@@ -81,6 +81,8 @@ export class DashboardComponent implements OnInit, OnDestroy {
   // selectedTags: string[] = [];
 
   private notesSub?: Subscription;
+  private authSub?: Subscription;
+  private sessionCheckInterval?: ReturnType<typeof setInterval>;
   private userDocUnsub?: () => void;
   private deepLinkNoteId: string | null = null;
   private swMessageListener?: (event: MessageEvent) => void;
@@ -110,6 +112,22 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
     // Inizializza cifratura E2E
     await this.initEncryption();
+
+    // Redirect immediato se sessione scade/revocata
+    this.authSub = this.authService.user$.subscribe(user => {
+      if (!user) {
+        this.router.navigate(['/login'], { replaceUrl: true });
+      }
+    });
+
+    // Check periodico ogni 5 minuti: rileva account disabilitati/eliminati/token revocati
+    this.sessionCheckInterval = setInterval(async () => {
+      try {
+        await this.authService.reloadUser();
+      } catch {
+        // Token revocato o account eliminato → authState emetterà null → redirect automatico
+      }
+    }, 5 * 60 * 1000);
 
     // Carica preferenza vista di default (solo mobile)
     if (this.isMobile) {
@@ -175,6 +193,8 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   ngOnDestroy() {
     this.notesSub?.unsubscribe();
+    this.authSub?.unsubscribe();
+    clearInterval(this.sessionCheckInterval);
     this.userDocUnsub?.();
     window.removeEventListener('popstate', this.onMobilePopState);
     if (this.swMessageListener) {

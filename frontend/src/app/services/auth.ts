@@ -49,6 +49,11 @@ export class AuthService {
     return sendEmailVerification(user);
   }
 
+  async reloadUser(): Promise<void> {
+    const user = this.auth.currentUser;
+    if (user) await user.reload();
+  }
+
   getCurrentUserId(): string | null {
     return this.auth.currentUser?.uid || null;
   }
