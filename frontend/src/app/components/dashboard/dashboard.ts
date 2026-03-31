@@ -16,6 +16,7 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatInputModule } from '@angular/material/input';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatDialogModule, MatDialog } from '@angular/material/dialog';
+import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatChipsModule } from '@angular/material/chips';
 import { NoteEditorComponent } from '../note-editor/note-editor';
 import { CalendarViewComponent } from '../calendar-view/calendar-view.component';
@@ -43,6 +44,7 @@ import { BreakpointObserver, Breakpoints } from '@angular/cdk/layout';
     MatInputModule,
     MatFormFieldModule,
     MatDialogModule,
+    MatSnackBarModule,
     MatChipsModule,
     NoteEditorComponent,
     CalendarViewComponent
@@ -56,6 +58,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
   private location: Location = inject(Location);
   private breakpointObserver = inject(BreakpointObserver);
   private dialog = inject(MatDialog);
+  private snackBar = inject(MatSnackBar);
   private cryptoService: CryptoService = inject(CryptoService);
 @ViewChild('sidenav') sidenav!: MatSidenav;
 
@@ -338,14 +341,23 @@ export class DashboardComponent implements OnInit, OnDestroy {
     if (!passphrase) return; // utente annulla: procede senza cifratura
 
     try {
+      console.log('[E2E Setup] Step 1: generazione chiavi...');
       const { publicKey, encryptedPrivateKey } = await this.cryptoService.generateAndStoreKeys(uid, passphrase);
+      console.log('[E2E Setup] Step 1 OK — publicKey len:', publicKey?.length, 'encryptedPrivateKey len:', encryptedPrivateKey?.length);
+
+      console.log('[E2E Setup] Step 2: salvataggio chiavi su Firestore...');
       const sessionVersion = await this.noteService.saveEncryptionKeys(publicKey, encryptedPrivateKey);
+      console.log('[E2E Setup] Step 2 OK — sessionVersion:', sessionVersion);
+
       this.cryptoService.setSession(uid, publicKey);
       this.cryptoService.saveLocalSessionVersion(uid, sessionVersion);
-      // Cifra le note esistenti (migrazione)
+      console.log('[E2E Setup] Sessione attiva. Cifro note esistenti...');
+
       await this.noteService.encryptExistingNotes();
+      console.log('[E2E Setup] Setup completato.');
     } catch (e) {
-      console.error('[Dashboard] Errore setup E2E:', e);
+      console.error('[E2E Setup] ERRORE:', e);
+      this.snackBar.open('Errore durante il setup della cifratura. Riprova.', 'OK', { duration: 5000 });
     }
   }
 
