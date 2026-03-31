@@ -13,6 +13,8 @@ server/.env
 .firebase/
 firebase-debug.log
 firestore-debug.log
+*-firebase-adminsdk-*.json
+punto-84646-*.json
 
 # ── VSCode browser debug profile (Brave) ─────────────────────
 .vscode/.brave-profile/
