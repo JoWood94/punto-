@@ -37,10 +37,11 @@ self.addEventListener('notificationclick', (event) => {
 
   const noteId = event.notification.data?.noteId;
   const appOrigin = self.location.origin;
-  const basePath = self.location.pathname.replace(/\/firebase-messaging-sw\.js$/, '/');
+  // Naviga direttamente a /dashboard per evitare che il redirect '' → dashboard
+  // di Angular perda i query params
   const targetUrl = noteId
-    ? `${appOrigin}${basePath}?openNote=${encodeURIComponent(noteId)}`
-    : `${appOrigin}${basePath}`;
+    ? `${appOrigin}/dashboard?openNote=${encodeURIComponent(noteId)}`
+    : `${appOrigin}/dashboard`;
 
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {

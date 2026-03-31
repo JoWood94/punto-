@@ -105,10 +105,17 @@ async function checkAndSendReminders() {
         const isEncrypted = (val) => typeof val === 'string' && val.startsWith(PGP_MARKER);
 
         // Titolo e contenuto potrebbero essere cifrati E2E → usa testo generico
+        // reminderTime non è cifrato → formatta data/ora per dare contesto
+        const reminderDate = reminderMs
+          ? new Date(reminderMs).toLocaleString('it-IT', {
+              day: '2-digit', month: '2-digit', year: 'numeric',
+              hour: '2-digit', minute: '2-digit'
+            })
+          : null;
         const msgTitle = 'punto! — Promemoria';
-        const bodyText = (!note.content || isEncrypted(note.content))
-          ? 'Hai un promemoria in scadenza!'
-          : note.content.replace(/<[^>]*>?/gm, '').substring(0, 100);
+        const bodyText = reminderDate
+          ? `Hai un promemoria per il ${reminderDate}`
+          : 'Hai un promemoria in scadenza!';
 
         try {
           const response = await messaging.sendEachForMulticast({
