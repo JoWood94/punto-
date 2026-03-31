@@ -39,7 +39,7 @@ export class CryptoService {
   async generateAndStoreKeys(uid: string, passphrase: string): Promise<{ publicKey: string; encryptedPrivateKey: string }> {
     const { privateKey: privArmored, publicKey } = await openpgp.generateKey({
       type: 'ecc',
-      curve: 'curve25519',
+      curve: 'ed25519',
       userIDs: [{ email: uid }],
       passphrase: ''
     });
