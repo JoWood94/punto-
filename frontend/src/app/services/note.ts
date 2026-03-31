@@ -7,6 +7,7 @@ import {
 } from 'firebase/firestore';
 import { Observable, of, switchMap } from 'rxjs';
 import { AuthService } from './auth';
+import { CryptoService } from './crypto';
 import { environment } from '../../environments/environment';
 
 // ─── Block Types ─────────────────────────────────────────────────────────────
@@ -31,7 +32,7 @@ export interface LocationBlock {
 export interface ReminderBlock {
   type: 'reminder';
   time: number | null;
-  recurrence: 'none' | 'daily' | 'weekly' | 'monthly';
+  recurrence: 'none' | 'daily' | 'weekly' | 'monthly' | 'yearly';
   status: 'pending' | 'sent' | null;
 }
 
@@ -62,11 +63,12 @@ export interface Note {
   color: string;
   createdAt: number;
   updatedAt?: number;
+  reminderRepeat?: 'daily' | 'weekly' | 'monthly' | 'yearly';
   // Legacy flat fields — kept for server backward compatibility
   content?: string;
   reminderTime?: number | null;
   reminderStatus?: 'pending' | 'sent' | null;
-  recurrence?: 'none' | 'daily' | 'weekly' | 'monthly';
+  recurrence?: 'none' | 'daily' | 'weekly' | 'monthly' | 'yearly';
 }
 
 // ─── Utilities ────────────────────────────────────────────────────────────────
@@ -111,6 +113,7 @@ export function getChecklistProgress(note: Note): { done: number; total: number 
 @Injectable({ providedIn: 'root' })
 export class NoteService {
   private authService: AuthService = inject(AuthService);
+  private cryptoService: CryptoService = inject(CryptoService);
   private db: RawFirestore;
 
   constructor() {
@@ -130,7 +133,10 @@ export class NoteService {
     if (!uid) throw new Error('Not authenticated');
     console.log('[NoteService] createNote for uid:', uid);
     const notesRef = collection(this.db, 'notes');
-    const result = await addDoc(notesRef, { ...noteData, uid, createdAt: Date.now() });
+    const payload = this.cryptoService.isEnabled
+      ? await this.cryptoService.encryptNote({ ...noteData, uid, createdAt: Date.now() })
+      : { ...noteData, uid, createdAt: Date.now() };
+    const result = await addDoc(notesRef, payload);
     console.log('[NoteService] Note saved with ID:', result.id);
     return result;
   }
@@ -146,14 +152,17 @@ export class NoteService {
         const notesRef = collection(this.db, 'notes');
         const q = query(notesRef, where('uid', '==', user.uid));
         return new Observable<Note[]>(subscriber => {
-          const unsubscribe = onSnapshot(q, snapshot => {
-            const notes = snapshot.docs.map(d => {
-              const raw = { id: d.id, ...d.data() } as any;
-              if (!raw.blocks || raw.blocks.length === 0) {
-                raw.blocks = migrateToBlocks(raw);
+          const unsubscribe = onSnapshot(q, async snapshot => {
+            const raws = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as any));
+            const notes: Note[] = await Promise.all(raws.map(async raw => {
+              const decrypted = this.cryptoService.isEnabled
+                ? await this.cryptoService.decryptNote(raw)
+                : raw;
+              if (!decrypted.blocks || (decrypted.blocks as any[]).length === 0) {
+                (decrypted as any).blocks = migrateToBlocks(decrypted);
               }
-              return raw as Note;
-            });
+              return decrypted as Note;
+            }));
             console.log('[NoteService] Got', notes.length, 'notes. fromCache:', snapshot.metadata.fromCache);
             subscriber.next(notes);
           }, err => {
@@ -168,7 +177,10 @@ export class NoteService {
 
   async updateNote(id: string, data: Partial<Note>) {
     const noteRef = doc(this.db, `notes/${id}`);
-    await updateDoc(noteRef, { ...data, updatedAt: Date.now() } as any);
+    const payload = this.cryptoService.isEnabled
+      ? await this.cryptoService.encryptNote({ ...data, updatedAt: Date.now() })
+      : { ...data, updatedAt: Date.now() };
+    await updateDoc(noteRef, payload as any);
   }
 
   async deleteNote(id: string) {
@@ -196,5 +208,39 @@ export class NoteService {
       const userRef = doc(this.db, `users/${uid}`);
       await setDoc(userRef, { [key]: value }, { merge: true });
     } catch { /* silenzioso se offline */ }
+  }
+
+  async getUserDoc(): Promise<any | null> {
+    const uid = this.authService.getCurrentUserId();
+    if (!uid) return null;
+    try {
+      const snap = await getDoc(doc(this.db, `users/${uid}`));
+      return snap.exists() ? snap.data() : null;
+    } catch { return null; }
+  }
+
+  async saveEncryptionKeys(publicKey: string, encryptedPrivateKey: string): Promise<void> {
+    const uid = this.authService.getCurrentUserId();
+    if (!uid) return;
+    const userRef = doc(this.db, `users/${uid}`);
+    await setDoc(userRef, { publicKey, encryptedPrivateKey, encryptionEnabled: true }, { merge: true });
+  }
+
+  /** Cifra in batch le note esistenti dopo il setup E2E (migrazione). */
+  async encryptExistingNotes(): Promise<void> {
+    const uid = this.authService.getCurrentUserId();
+    if (!uid || !this.cryptoService.isEnabled) return;
+    const notesRef = collection(this.db, 'notes');
+    const q = query(notesRef, where('uid', '==', uid));
+    const snapshot = await new Promise<any>((resolve, reject) => {
+      const unsub = onSnapshot(q, snap => { unsub(); resolve(snap); }, reject);
+    });
+    await Promise.all(snapshot.docs.map(async (d: any) => {
+      const raw = d.data();
+      // Skip already encrypted notes (title starts with PGP marker)
+      if (raw.title && raw.title.startsWith('-----BEGIN PGP MESSAGE-----')) return;
+      const encrypted = await this.cryptoService.encryptNote(raw);
+      await updateDoc(doc(this.db, `notes/${d.id}`), encrypted as any);
+    }));
   }
 }

@@ -41,6 +41,7 @@
                (click)="selectNote(note, $event)"
                [matTooltip]="(note.title || 'Nota senza titolo') + (hasReminder(note) ? ' 🔔' : '')">
             <mat-icon class="chip-bell" *ngIf="hasReminder(note)">notifications</mat-icon>
+            <mat-icon class="chip-repeat" *ngIf="hasReminderRepeat(note)">repeat</mat-icon>
             <span class="chip-title">{{ (note.title || 'Senza titolo') | slice:0:14 }}{{ (note.title || '').length > 14 ? '…' : '' }}</span>
           </div>
           <div class="more-notes" *ngIf="day.notes.length > 3">+{{ day.notes.length - 3 }} altre</div>
@@ -67,6 +68,7 @@
                (click)="selectNote(note, $event)"
                [matTooltip]="(note.title || 'Nota senza titolo') + (hasReminder(note) ? ' 🔔' : '')">
             <mat-icon class="chip-bell" *ngIf="hasReminder(note)">notifications</mat-icon>
+            <mat-icon class="chip-repeat" *ngIf="hasReminderRepeat(note)">repeat</mat-icon>
             <span class="chip-title">{{ (note.title || 'Senza titolo') | slice:0:14 }}{{ (note.title || '').length > 14 ? '…' : '' }}</span>
           </div>
         </div>
@@ -84,6 +86,7 @@
            (click)="selectNote(note, $event)">
         <div class="day-note-time">
           <mat-icon class="day-bell" *ngIf="hasReminder(note)">notifications</mat-icon>
+          <mat-icon class="chip-repeat" *ngIf="hasReminderRepeat(note)">repeat</mat-icon>
           <span>{{ formatTime(note.reminderTime) }}</span>
         </div>
         <div class="day-note-content">

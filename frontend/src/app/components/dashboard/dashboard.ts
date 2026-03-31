@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { AuthService } from '../../services/auth';
 import { NoteService, Note, getNotePreview, getChecklistProgress } from '../../services/note';
+import { CryptoService } from '../../services/crypto';
 import { MatToolbarModule } from '@angular/material/toolbar';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
@@ -19,6 +20,7 @@ import { MatChipsModule } from '@angular/material/chips';
 import { NoteEditorComponent } from '../note-editor/note-editor';
 import { CalendarViewComponent } from '../calendar-view/calendar-view.component';
 import { ConfirmDialogComponent } from '../confirm-dialog/confirm-dialog';
+import { PassphraseDialogComponent } from '../passphrase-dialog/passphrase-dialog';
 import { Observable, Subscription, firstValueFrom } from 'rxjs';
 import { Location } from '@angular/common';
 import { PushNotificationService } from '../../services/push-notification';
@@ -54,6 +56,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
   private location: Location = inject(Location);
   private breakpointObserver = inject(BreakpointObserver);
   private dialog = inject(MatDialog);
+  private cryptoService: CryptoService = inject(CryptoService);
 @ViewChild('sidenav') sidenav!: MatSidenav;
 
   notes$: Observable<Note[]> | null = null;
@@ -100,6 +103,9 @@ export class DashboardComponent implements OnInit, OnDestroy {
       };
       navigator.serviceWorker.addEventListener('message', this.swMessageListener);
     }
+
+    // Inizializza cifratura E2E
+    await this.initEncryption();
 
     // Carica preferenza vista di default (solo mobile)
     if (this.isMobile) {
@@ -177,6 +183,11 @@ export class DashboardComponent implements OnInit, OnDestroy {
   // isTagSelected(tag: string): boolean { ... }
   // clearTagFilters() { ... }
 
+  // ─── Pinned/Unpinned getters ────────────────────────────────────────────────
+
+  get pinnedNotes(): Note[] { return this.filteredNotes.filter(n => n.pinned); }
+  get unpinnedNotes(): Note[] { return this.filteredNotes.filter(n => !n.pinned); }
+
   // ─── Filtering & Sorting ────────────────────────────────────────────────────
 
   applyFilter() {
@@ -236,6 +247,71 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   // ─── Navigation ─────────────────────────────────────────────────────────────
 
+  // ─── E2E Encryption Setup ───────────────────────────────────────────────────
+
+  private async initEncryption(): Promise<void> {
+    const uid = this.authService.getCurrentUserId();
+    if (!uid) return;
+
+    const userDoc = await this.noteService.getUserDoc();
+
+    if (userDoc?.encryptionEnabled) {
+      // Chiave già configurata — controlla localStorage
+      const localKey = this.cryptoService.getLocalPrivateKey(uid);
+      if (localKey) {
+        this.cryptoService.setSession(uid, userDoc.publicKey);
+        return;
+      }
+      // Nuovo device: sblocca con passphrase
+      await this.showUnlockDialog(uid, userDoc.publicKey, userDoc.encryptedPrivateKey);
+    } else {
+      // Nessuna chiave configurata: setup (nuovo utente o migrazione)
+      await this.showSetupDialog(uid);
+    }
+  }
+
+  private async showSetupDialog(uid: string): Promise<void> {
+    const ref = this.dialog.open(PassphraseDialogComponent, {
+      data: { mode: 'setup' },
+      disableClose: true,
+      width: '420px',
+      maxWidth: '95vw'
+    });
+    const passphrase = await firstValueFrom(ref.afterClosed());
+    if (!passphrase) return; // utente annulla: procede senza cifratura
+
+    try {
+      const { publicKey, encryptedPrivateKey } = await this.cryptoService.generateAndStoreKeys(uid, passphrase);
+      await this.noteService.saveEncryptionKeys(publicKey, encryptedPrivateKey);
+      this.cryptoService.setSession(uid, publicKey);
+      // Cifra le note esistenti (migrazione)
+      await this.noteService.encryptExistingNotes();
+    } catch (e) {
+      console.error('[Dashboard] Errore setup E2E:', e);
+    }
+  }
+
+  private async showUnlockDialog(uid: string, publicKey: string, encryptedPrivateKey: string): Promise<void> {
+    let unlocked = false;
+    while (!unlocked) {
+      const ref = this.dialog.open(PassphraseDialogComponent, {
+        data: { mode: 'unlock' },
+        disableClose: true,
+        width: '420px',
+        maxWidth: '95vw'
+      });
+      const passphrase = await firstValueFrom(ref.afterClosed());
+      if (!passphrase) return; // utente annulla
+      try {
+        await this.cryptoService.unlockPrivateKey(uid, encryptedPrivateKey, passphrase);
+        this.cryptoService.setSession(uid, publicKey);
+        unlocked = true;
+      } catch {
+        // Passphrase errata: il dialog si riapre
+      }
+    }
+  }
+
   toggleSettingsMenu(): void { this.settingsMenuOpen = !this.settingsMenuOpen; }
   closeSettingsMenu(): void { this.settingsMenuOpen = false; }
 
@@ -273,6 +349,25 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.currentMainView = view;
     if (this.isMobile) {
       await this.noteService.setUserPreference(this.defaultViewKey, view);
+    }
+  }
+
+  // ─── Swipe mobile ───────────────────────────────────────────────────────────
+
+  private touchStartX = 0;
+
+  onTouchStart(e: TouchEvent) {
+    this.touchStartX = e.touches[0].clientX;
+  }
+
+  onTouchEnd(e: TouchEvent) {
+    if (!this.isMobile) return;
+    const deltaX = e.changedTouches[0].clientX - this.touchStartX;
+    if (Math.abs(deltaX) < 60) return;
+    if (deltaX < 0 && this.currentMainView === 'list') {
+      this.setDefaultView('calendar');
+    } else if (deltaX > 0 && this.currentMainView === 'calendar') {
+      this.setDefaultView('list');
     }
   }
 

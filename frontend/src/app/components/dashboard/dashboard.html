@@ -1,4 +1,6 @@
-<mat-sidenav-container class="dashboard-container">
+<mat-sidenav-container class="dashboard-container"
+  (touchstart)="isMobile && onTouchStart($event)"
+  (touchend)="isMobile && onTouchEnd($event)">
 
   <mat-sidenav mode="side" [opened]="!isMobile || (activeNote === undefined && currentMainView === 'list')" class="notes-sidenav"
     [class.mobile-full]="isMobile">
@@ -27,50 +29,23 @@
 
       <!-- Notes list -->
       <div class="notes-list">
-        <ng-container *ngFor="let note of filteredNotes">
-          <div class="note-card"
-               (click)="selectNote(note)"
-               [class.active-note]="activeNote?.id === note.id"
-               [class.note-card-reminder]="note.reminderTime"
-               [style.background-color]="getNoteCardBg(note)">
 
-            <div class="note-card-body">
-              <div class="note-card-title-row">
-                <mat-icon class="note-card-bell" *ngIf="note.reminderTime">notifications</mat-icon>
-                <mat-icon class="note-card-pin-icon" *ngIf="note.pinned">push_pin</mat-icon>
-                <span class="note-item-title">{{ note.title || 'Nuova Nota' }}</span>
-              </div>
+        <!-- Sezione "Fissate" — solo se ci sono entrambi pinned e non-pinned -->
+        <ng-container *ngIf="pinnedNotes.length > 0 && unpinnedNotes.length > 0">
+          <ng-container *ngFor="let note of pinnedNotes">
+            <ng-container *ngTemplateOutlet="noteCard; context: { note: note }"></ng-container>
+          </ng-container>
+          <div class="section-divider"></div>
+          <ng-container *ngFor="let note of unpinnedNotes">
+            <ng-container *ngTemplateOutlet="noteCard; context: { note: note }"></ng-container>
+          </ng-container>
+        </ng-container>
 
-              <span class="note-item-preview"
-                    *ngIf="getNotePreview(note) as preview"
-                    [innerHTML]="preview">
-              </span>
-
-              <div class="note-checklist-progress"
-                   *ngIf="getChecklistProgress(note) as progress">
-                <mat-icon class="progress-icon">check_circle</mat-icon>
-                <span class="progress-text">{{ progress.done }}/{{ progress.total }}</span>
-                <div class="progress-bar-track">
-                  <div class="progress-bar-fill"
-                       [style.width.%]="(progress.done / progress.total) * 100">
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div class="note-meta-actions">
-              <button mat-icon-button
-                      (click)="togglePin(note, $event)"
-                      [matTooltip]="note.pinned ? 'Rimuovi pin' : 'Fissa nota'"
-                      class="pin-btn"
-                      [class.pin-active]="note.pinned">
-                <mat-icon>push_pin</mat-icon>
-              </button>
-              <button mat-icon-button (click)="deleteNote(note, $event)" matTooltip="Elimina" class="delete-btn">
-                <mat-icon>delete_outline</mat-icon>
-              </button>
-            </div>
-          </div>
+        <!-- Lista unica — solo pinned o solo non-pinned -->
+        <ng-container *ngIf="pinnedNotes.length === 0 || unpinnedNotes.length === 0">
+          <ng-container *ngFor="let note of filteredNotes">
+            <ng-container *ngTemplateOutlet="noteCard; context: { note: note }"></ng-container>
+          </ng-container>
         </ng-container>
 
         <div class="empty-state" *ngIf="filteredNotes.length === 0 && !searchQuery">
@@ -86,6 +61,53 @@
           <p>Nessun risultato.</p>
         </div>
       </div>
+
+      <!-- Template riutilizzabile per la nota card -->
+      <ng-template #noteCard let-note="note">
+        <div class="note-card"
+             (click)="selectNote(note)"
+             [class.active-note]="activeNote?.id === note.id"
+             [class.note-card-reminder]="note.reminderTime"
+             [style.background-color]="getNoteCardBg(note)">
+
+          <div class="note-card-body">
+            <div class="note-card-title-row">
+              <mat-icon class="note-card-bell" *ngIf="note.reminderTime">notifications</mat-icon>
+              <mat-icon class="note-card-pin-icon" *ngIf="note.pinned">push_pin</mat-icon>
+              <span class="note-item-title">{{ note.title || 'Nuova Nota' }}</span>
+            </div>
+
+            <span class="note-item-preview"
+                  *ngIf="getNotePreview(note) as preview"
+                  [innerHTML]="preview">
+            </span>
+
+            <div class="note-checklist-progress"
+                 *ngIf="getChecklistProgress(note) as progress">
+              <mat-icon class="progress-icon">check_circle</mat-icon>
+              <span class="progress-text">{{ progress.done }}/{{ progress.total }}</span>
+              <div class="progress-bar-track">
+                <div class="progress-bar-fill"
+                     [style.width.%]="(progress.done / progress.total) * 100">
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="note-meta-actions">
+            <button mat-icon-button
+                    (click)="togglePin(note, $event)"
+                    [matTooltip]="note.pinned ? 'Rimuovi pin' : 'Fissa nota'"
+                    class="pin-btn"
+                    [class.pin-active]="note.pinned">
+              <mat-icon>push_pin</mat-icon>
+            </button>
+            <button mat-icon-button (click)="deleteNote(note, $event)" matTooltip="Elimina" class="delete-btn">
+              <mat-icon>delete_outline</mat-icon>
+            </button>
+          </div>
+        </div>
+      </ng-template>
 
       <!-- Settings FAB — bottom-left sidenav -->
       <div class="settings-fab-container" *ngIf="!isMobile || currentMainView !== 'calendar'">

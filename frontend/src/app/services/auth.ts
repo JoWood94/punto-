@@ -1,13 +1,15 @@
 import { Injectable, inject } from '@angular/core';
 import { Auth, authState, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, User, OAuthProvider, signInWithPopup, sendPasswordResetEmail } from '@angular/fire/auth';
 import { Observable } from 'rxjs';
+import { CryptoService } from './crypto';
 
 @Injectable({
   providedIn: 'root'
 })
 export class AuthService {
   private auth: Auth = inject(Auth);
-  
+  private cryptoService: CryptoService = inject(CryptoService);
+
   public readonly user$: Observable<User | null> = authState(this.auth);
 
   constructor() {}
@@ -25,6 +27,9 @@ export class AuthService {
   }
 
   logout() {
+    const uid = this.auth.currentUser?.uid;
+    if (uid) this.cryptoService.clearLocalKey(uid);
+    this.cryptoService.clearSession();
     return signOut(this.auth);
   }
 

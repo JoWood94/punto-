@@ -107,16 +107,54 @@ export class CalendarViewComponent implements OnChanges {
     return !!note.reminderTime;
   }
 
+  hasReminderRepeat(note: Note): boolean {
+    return !!note.reminderRepeat;
+  }
+
   private getNoteDate(note: Note): Date | null {
     if (note.reminderTime) return new Date(note.reminderTime);
     if (note.createdAt)    return new Date(note.createdAt);
     return null;
   }
 
+  /** Restituisce il valore di ricorrenza effettivo: preferisce reminderRepeat (nuovo),
+   *  cade su recurrence (legacy) se presente e diverso da 'none'. */
+  private getEffectiveRepeat(note: Note): 'daily' | 'weekly' | 'monthly' | 'yearly' | null {
+    if (note.reminderRepeat) return note.reminderRepeat;
+    if (note.recurrence && note.recurrence !== 'none') return note.recurrence as 'daily' | 'weekly' | 'monthly' | 'yearly';
+    return null;
+  }
+
+  private isRecurringOnDate(note: Note, date: Date): boolean {
+    const repeat = this.getEffectiveRepeat(note);
+    if (!repeat || !note.reminderTime) return false;
+    const origin = new Date(note.reminderTime);
+    // La data richiesta deve essere successiva all'origin (o uguale)
+    if (date < origin && !this.isSameDay(date, origin)) return false;
+    switch (repeat) {
+      case 'daily':
+        return true;
+      case 'weekly':
+        return date.getDay() === origin.getDay();
+      case 'monthly':
+        return date.getDate() === origin.getDate();
+      case 'yearly':
+        return date.getDate() === origin.getDate() && date.getMonth() === origin.getMonth();
+      default:
+        return false;
+    }
+  }
+
   private getNotesForDay(date: Date): Note[] {
     return this.notes.filter(n => {
       const d = this.getNoteDate(n);
-      return d && this.isSameDay(d, date);
+      if (d && this.isSameDay(d, date)) return true;
+      // Includi note ricorrenti (la nota originale, non una copia)
+      const repeat = this.getEffectiveRepeat(n);
+      if (repeat && n.reminderTime && !this.isSameDay(new Date(n.reminderTime), date)) {
+        return this.isRecurringOnDate(n, date);
+      }
+      return false;
     });
   }
 

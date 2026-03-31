@@ -118,11 +118,15 @@ async function checkAndSendReminders() {
                 title: msgTitle,
                 body: bodyText,
                 icon: '/punto-/icons/icon-192x192.png',
+                // noteId nel data della notifica → usato dal notificationclick handler
+                // nel service worker per aprire direttamente la nota giusta
+                data: { noteId: doc.id }
               },
               // data: usato dal foreground handler (onMessage) dell'app Angular
               data: {
                 title: msgTitle,
                 body: bodyText,
+                noteId: doc.id,
               }
             }
           });

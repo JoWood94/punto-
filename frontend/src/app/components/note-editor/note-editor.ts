@@ -590,6 +590,9 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewChecked,
     });
     const reminder = blocks.find(b => b.type === 'reminder') as ReminderBlock | undefined;
     const textHtml = (blocks.filter(b => b.type === 'text') as TextBlock[]).map(b => b.html).join('');
+    const repeatValue = reminder?.recurrence && reminder.recurrence !== 'none'
+      ? reminder.recurrence as 'daily' | 'weekly' | 'monthly' | 'yearly'
+      : null;
     const payload: any = {
       ...this.note,
       blocks,
@@ -598,6 +601,7 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewChecked,
       reminderTime: reminder?.time ?? null,
       reminderStatus: reminder?.status ?? null,
       recurrence: reminder?.recurrence ?? 'none',
+      reminderRepeat: repeatValue,
     };
     delete payload.address; delete payload.lat; delete payload.lon; delete payload.checklist;
     Object.keys(payload).forEach(k => { if (payload[k] === undefined) payload[k] = null; });

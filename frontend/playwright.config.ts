@@ -2,18 +2,27 @@ import { defineConfig, devices } from '@playwright/test';
 
 export default defineConfig({
   testDir: './e2e',
-  fullyParallel: true,
-  forbidOnly: !!process.env['CI'],
-  retries: process.env['CI'] ? 2 : 0,
-  workers: process.env['CI'] ? 1 : undefined,
-  reporter: 'html',
+  timeout: 30_000,
+  retries: 0,
   use: {
-    baseURL: 'https://localhost:4200',
+    baseURL: 'https://giuseppebosco.github.io/punto-/',
+    headless: true,
     ignoreHTTPSErrors: true,
-    trace: 'on-first-retry',
+    channel: 'chrome',   // usa Chrome di sistema, non Chromium scaricato
   },
   projects: [
-    { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
-    { name: 'Mobile Safari', use: { ...devices['iPhone 14'] } },
+    {
+      name: 'mobile-375',
+      use: { ...devices['iPhone SE'] },
+    },
+    {
+      name: 'mobile-390',
+      use: { ...devices['iPhone 14'] },
+    },
+    {
+      name: 'desktop-1280',
+      use: { viewport: { width: 1280, height: 800 } },
+    },
   ],
+  outputDir: '../agents/gamma-reports/screenshots',
 });
