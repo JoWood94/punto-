@@ -45,7 +45,12 @@ export class LoginComponent {
         this.successMessage = 'Account creato! Controlla la tua email per verificare l\'account, poi accedi.';
         return;
       } else {
-        await this.authService.login(this.email, this.password);
+        const cred = await this.authService.login(this.email, this.password);
+        if (!cred.user.emailVerified) {
+          await this.authService.logout();
+          this.errorMessage = 'Email non verificata. Controlla la tua casella e clicca sul link di verifica.';
+          return;
+        }
       }
       this.router.navigate(['/dashboard'], { replaceUrl: true });
     } catch (error: any) {

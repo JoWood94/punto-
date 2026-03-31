@@ -256,6 +256,18 @@ export class DashboardComponent implements OnInit, OnDestroy {
     return getChecklistProgress(note);
   }
 
+  getReminderTimeToday(note: Note): string | null {
+    if (!note.reminderTime) return null;
+    const today = new Date();
+    const rem = new Date(note.reminderTime);
+    if (rem.getFullYear() === today.getFullYear() &&
+        rem.getMonth() === today.getMonth() &&
+        rem.getDate() === today.getDate()) {
+      return rem.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
+    }
+    return null;
+  }
+
   /** Colore di sfondo della card nota — null → CSS default (secondary-container) */
   getNoteCardBg(note: Note): string | null {
     if (note.color && note.color !== 'default') return note.color;

@@ -40,6 +40,9 @@
 
           <!-- Sezione "Fissate" — solo se ci sono entrambi pinned e non-pinned -->
           <ng-container *ngIf="pinnedNotes.length > 0 && unpinnedNotes.length > 0">
+            <div class="pinned-section-label">
+              <mat-icon>push_pin</mat-icon>
+            </div>
             <ng-container *ngFor="let note of pinnedNotes">
               <ng-container *ngTemplateOutlet="noteCard; context: { note: note }"></ng-container>
             </ng-container>
@@ -83,6 +86,7 @@
           <div class="note-card-body">
             <div class="note-card-title-row">
               <mat-icon class="note-card-bell" *ngIf="note.reminderTime">notifications</mat-icon>
+              <span class="note-card-time" *ngIf="getReminderTimeToday(note) as t">{{ t }}</span>
               <mat-icon class="note-card-pin-icon" *ngIf="note.pinned">push_pin</mat-icon>
               <span class="note-item-title">{{ note.title || 'Nuova Nota' }}</span>
             </div>
@@ -118,6 +122,12 @@
           </div>
         </div>
       </ng-template>
+
+      <!-- Swipe hint mobile -->
+      <div class="swipe-dots" *ngIf="isMobile">
+        <span class="swipe-dot dot-active"></span>
+        <span class="swipe-dot"></span>
+      </div>
 
       <!-- Settings FAB — bottom-left sidenav -->
       <div class="settings-fab-container" *ngIf="!isMobile || currentMainView !== 'calendar'">
