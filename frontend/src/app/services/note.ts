@@ -219,6 +219,14 @@ export class NoteService {
     } catch { return null; }
   }
 
+  /** Real-time listener su users/{uid}. Ritorna la funzione di unsubscribe. */
+  watchUserDoc(uid: string, callback: (data: any | null) => void): () => void {
+    const userRef = doc(this.db, `users/${uid}`);
+    return onSnapshot(userRef, snap => {
+      callback(snap.exists() ? snap.data() : null);
+    }, () => callback(null));
+  }
+
   async saveEncryptionKeys(publicKey: string, encryptedPrivateKey: string): Promise<number> {
     const uid = this.authService.getCurrentUserId();
     if (!uid) return 1;

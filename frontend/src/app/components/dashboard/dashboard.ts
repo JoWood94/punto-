@@ -78,6 +78,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
   // selectedTags: string[] = [];
 
   private notesSub?: Subscription;
+  private userDocUnsub?: () => void;
   private deepLinkNoteId: string | null = null;
   private swMessageListener?: (event: MessageEvent) => void;
 
@@ -171,6 +172,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   ngOnDestroy() {
     this.notesSub?.unsubscribe();
+    this.userDocUnsub?.();
     window.removeEventListener('popstate', this.onMobilePopState);
     if (this.swMessageListener) {
       navigator.serviceWorker?.removeEventListener('message', this.swMessageListener);
@@ -255,32 +257,44 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
     const userDoc = await this.noteService.getUserDoc();
 
-    // ── Forced logout: sessionVersion cambiata da un altro dispositivo (cambio passphrase)
-    if (userDoc?.encryptionSetup && userDoc.sessionVersion !== undefined) {
-      const localVersion = this.cryptoService.getLocalSessionVersion(uid);
-      if (localVersion !== null && localVersion !== userDoc.sessionVersion) {
-        // Sessione invalidata — forza logout
-        await this.authService.logout();
-        this.router.navigate(['/login']);
-        return;
+    // Bug 1 fix: se getUserDoc ritorna null (offline/errore) e c'è già una chiave locale,
+    // procedi senza mostrare alcun dialog (evita setup improprio).
+    if (!userDoc) {
+      const localKey = this.cryptoService.getLocalPrivateKey(uid);
+      if (localKey) {
+        // Non abbiamo la publicKey → sessione non attivabile, ma non mostriamo setup
+        console.warn('[Encryption] UserDoc non disponibile offline, cifratura disabilitata per questa sessione');
       }
+      return;
     }
 
-    if (userDoc?.encryptionSetup) {
+    // ── Bug 2 fix: listener real-time per forced logout quando sessionVersion cambia
+    this.userDocUnsub?.();
+    this.userDocUnsub = this.noteService.watchUserDoc(uid, async (latestDoc) => {
+      if (!latestDoc?.encryptionSetup) return;
+      const localVersion = this.cryptoService.getLocalSessionVersion(uid);
+      if (localVersion !== null && latestDoc.sessionVersion !== undefined && localVersion !== latestDoc.sessionVersion) {
+        this.userDocUnsub?.();
+        await this.authService.logout();
+        this.router.navigate(['/login']);
+      }
+    });
+
+    // ── Bug 1 fix: controlla encryptionSetup === true esplicitamente
+    if (userDoc['encryptionSetup'] === true) {
       // Chiave già configurata — controlla localStorage
       const localKey = this.cryptoService.getLocalPrivateKey(uid);
       if (localKey) {
-        this.cryptoService.setSession(uid, userDoc.publicKey);
-        // Salva la sessionVersion corrente se non ancora salvata
+        this.cryptoService.setSession(uid, userDoc['publicKey']);
         if (this.cryptoService.getLocalSessionVersion(uid) === null) {
-          this.cryptoService.saveLocalSessionVersion(uid, userDoc.sessionVersion ?? 1);
+          this.cryptoService.saveLocalSessionVersion(uid, userDoc['sessionVersion'] ?? 1);
         }
         return;
       }
-      // Nuovo device: sblocca con passphrase
-      await this.showUnlockDialog(uid, userDoc.publicKey, userDoc.encryptedPrivateKey, userDoc.sessionVersion ?? 1);
+      // Nuovo device: sblocca con passphrase (NON setup)
+      await this.showUnlockDialog(uid, userDoc['publicKey'], userDoc['encryptedPrivateKey'], userDoc['sessionVersion'] ?? 1);
     } else {
-      // Nessuna chiave configurata: setup (nuovo utente o migrazione)
+      // Primo setup reale (encryptionSetup assente o false)
       await this.showSetupDialog(uid);
     }
   }
