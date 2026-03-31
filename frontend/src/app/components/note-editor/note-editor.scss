@@ -7,6 +7,8 @@
   background: var(--punto-bg);
   border-radius: 0;
   overflow: hidden;
+  // Necessario per position:absolute della floating-toolbar-area
+  position: relative;
 }
 
 .editor-header {
@@ -41,7 +43,9 @@
 .editor-content {
   flex: 1;
   overflow-y: auto;
-  padding: 0 24px;
+  // Padding bottom = altezza FAB toolbar (84px) + safe area + margine
+  // così il contenuto non finisce sotto il FAB
+  padding: 0 24px calc(84px + env(safe-area-inset-bottom, 0px) + 16px);
 }
 
 .full-width {
@@ -82,10 +86,14 @@
 }
 
 // ─── Floating Toolbar Area ────────────────────────────────────
+// position:absolute toglie l'area dal flusso flex → editor-content
+// prende tutto lo spazio disponibile, tastiera iOS non schiaccia più il layout
 .floating-toolbar-area {
-  position: relative;
-  flex-shrink: 0;
-  height: calc(84px + env(safe-area-inset-bottom, 0px)); // 56px FAB + 28px bottom
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: calc(84px + env(safe-area-inset-bottom, 0px));
   pointer-events: none;
 }
 
