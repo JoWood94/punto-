@@ -40,7 +40,7 @@ export class CryptoService {
     const { privateKey: privArmored, publicKey } = await openpgp.generateKey({
       type: 'ecc',
       curve: 'ed25519' as any,
-      userIDs: [{ email: uid }],
+      userIDs: [{ name: uid }],
       passphrase: ''
     });
 
