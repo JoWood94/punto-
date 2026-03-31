@@ -107,7 +107,13 @@ export class DashboardComponent implements OnInit, OnDestroy {
     if ('serviceWorker' in navigator) {
       this.swMessageListener = (event: MessageEvent) => {
         if (event.data?.type === 'OPEN_NOTE' && event.data.noteId) {
-          this.openNoteById(event.data.noteId);
+          const note = this.allNotes.find(n => n.id === event.data.noteId);
+          if (note) {
+            this.selectNote(note);
+          } else {
+            // Note non ancora caricate (encryption init in corso) → riusa il meccanismo deepLink
+            this.deepLinkNoteId = event.data.noteId;
+          }
         }
       };
       navigator.serviceWorker.addEventListener('message', this.swMessageListener);

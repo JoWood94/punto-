@@ -53,6 +53,7 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewChecked,
   /** Collects only #textBlockEl refs (one per text block, in ngFor order). */
   @ViewChildren('textBlockEl') textBlockEls!: QueryList<ElementRef<HTMLElement>>;
   @ViewChild('editorContent') editorContent!: ElementRef<HTMLElement>;
+  @ViewChild('titleInput') titleInputRef!: ElementRef<HTMLInputElement>;
 
   note: Partial<Note> & { blocks: NoteBlock[]; tags: string[] } = {
     title: '',
@@ -64,7 +65,10 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewChecked,
   // Rich-text formatting state (reflects the active text block)
   isBold = false;
   isItalic = false;
+  isUnderline = false;
+  isStrikethrough = false;
   isList = false;
+  isOrderedList = false;
   activeTextBlockIndex: number | null = null;
 
   // Add-block speed dial state
@@ -89,6 +93,8 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewChecked,
   private textBlocksNeedInit = false;
   /** Block index to focus after next DOM init (used to open keyboard on new text block). */
   private pendingFocusBlockIndex: number | null = null;
+  /** Set to true when a new note is created — focuses the title input after DOM init. */
+  private pendingFocusTitleInput = false;
 
   private readonly PLACEHOLDER_TITLE = 'Nuova Nota';
   private savedNoteId: string | null = null;
@@ -111,6 +117,10 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewChecked,
       this.textBlocksNeedInit = false;
       this.initTextBlockElements();
       this.applyPendingFocus();
+    }
+    if (this.pendingFocusTitleInput) {
+      this.pendingFocusTitleInput = false;
+      this.titleInputRef?.nativeElement?.focus();
     }
   }
 
@@ -201,9 +211,10 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewChecked,
         };
         this.note = { title: this.PLACEHOLDER_TITLE, blocks: [reminderBlock], tags: [], color: 'default' };
       } else {
-        this.note = { title: this.PLACEHOLDER_TITLE, blocks: [{ type: 'text', html: '' }], tags: [], color: 'default' };
+        this.note = { title: '', blocks: [], tags: [], color: 'default' };
       }
       this.isNewNote = true;
+      this.pendingFocusTitleInput = true;
       this.savedNoteId = null;
       // Crea subito su Firestore per avere un ID
       this.createNotePromise = this.noteService.createNote(this.buildPayload())
@@ -296,6 +307,12 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewChecked,
     this.addBlockMenuOpen = false;
   }
 
+  onEditorContentClick(event: MouseEvent) {
+    if (event.target === this.editorContent?.nativeElement) {
+      this.toggleAddBlockMenu();
+    }
+  }
+
   /** Apre il dialog per URL+label, poi inserisce il LinkBlock solo se confermato. */
   async addLinkBlock() {
     const ref = this.dialog.open(LinkDialogComponent, {
@@ -332,9 +349,6 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewChecked,
   }
 
   removeBlock(index: number) {
-    const block = this.note.blocks[index];
-    // Il blocco testo è l'unico non rimovibile se è rimasto il solo blocco
-    if (block.type === 'text' && this.note.blocks.length <= 1) return;
     this.saveTextBlocksFromDOM();
     if (this.activeTextBlockIndex === index) this.activeTextBlockIndex = null;
     this.note.blocks = this.note.blocks.filter((_, i) => i !== index);
@@ -342,10 +356,7 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewChecked,
     this.triggerAutoSave();
   }
 
-  canRemoveBlock(index: number): boolean {
-    const block = this.note.blocks[index];
-    // Il blocco testo non è rimovibile se è l'unico rimasto
-    if (block.type === 'text' && this.note.blocks.length <= 1) return false;
+  canRemoveBlock(_index: number): boolean {
     return true;
   }
 
@@ -379,7 +390,10 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewChecked,
     if (typeof document !== 'undefined') {
       this.isBold = document.queryCommandState('bold');
       this.isItalic = document.queryCommandState('italic');
+      this.isUnderline = document.queryCommandState('underline');
+      this.isStrikethrough = document.queryCommandState('strikeThrough');
       this.isList = document.queryCommandState('insertUnorderedList');
+      this.isOrderedList = document.queryCommandState('insertOrderedList');
       this.cdr.detectChanges();
     }
   }
@@ -491,6 +505,19 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewChecked,
   }
 
   // ─── Reminder Block ─────────────────────────────────────────────────────────
+
+  getReminderTimeValue(block: any): string {
+    return `${block.hour ?? '00'}:${block.minute ?? '00'}`;
+  }
+
+  onReminderTimeChange(block: any, event: Event) {
+    const value = (event.target as HTMLInputElement).value;
+    if (!value) return;
+    const [h, m] = value.split(':');
+    block.hour = h;
+    block.minute = m;
+    this.onReminderChange();
+  }
 
   clearReminder(block: any) {
     block.time = null;

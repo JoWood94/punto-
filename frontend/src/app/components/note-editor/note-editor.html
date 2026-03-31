@@ -1,8 +1,8 @@
 <div class="editor-header">
-  <input class="title-input-raw" [(ngModel)]="note.title" placeholder="Titolo" (ngModelChange)="onTitleChange()" />
+  <input #titleInput class="title-input-raw" [(ngModel)]="note.title" placeholder="Titolo" (ngModelChange)="onTitleChange()" />
 </div>
 
-<div class="editor-content" #editorContent>
+<div class="editor-content" #editorContent (click)="onEditorContentClick($event)">
 
   <!-- ── Block list with drag-and-drop ── -->
   <div cdkDropList (cdkDropListDropped)="onBlockDrop($event)" class="blocks-container">
@@ -52,15 +52,14 @@
               </button>
             </div>
           </div>
-          <mat-form-field appearance="outline" class="full-width">
-            <mat-label>Aggiungi voce</mat-label>
-            <input matInput #newItemInput
+          <div class="checklist-add-row">
+            <input class="checklist-add-input" #newItemInput placeholder="Aggiungi voce..."
                    (keyup.enter)="addChecklistItem($any(block), newItemInput.value); newItemInput.value = ''">
-            <button mat-icon-button matSuffix color="primary" type="button"
+            <button mat-icon-button type="button" class="checklist-add-btn"
                     (click)="addChecklistItem($any(block), newItemInput.value); newItemInput.value = ''">
-              <mat-icon>add</mat-icon>
+              <mat-icon>add_circle</mat-icon>
             </button>
-          </mat-form-field>
+          </div>
         </div>
       </ng-container>
 
@@ -73,8 +72,9 @@
           </div>
 
           <!-- Address search input -->
-          <mat-form-field appearance="outline" class="full-width"
+          <mat-form-field appearance="fill" class="full-width"
                           *ngIf="!$any(block).address || $any(block).editing">
+            <mat-icon matPrefix>search</mat-icon>
             <mat-label>Cerca indirizzo</mat-label>
             <input matInput type="text"
                    [matAutocomplete]="autoAddress"
@@ -120,42 +120,30 @@
             </button>
           </div>
           <div class="reminder-inputs">
-            <mat-form-field appearance="outline" class="date-field">
+            <mat-form-field appearance="fill" class="date-field">
               <mat-label>Data</mat-label>
               <input matInput [matDatepicker]="picker" [(ngModel)]="$any(block).date" (ngModelChange)="onReminderChange()">
               <mat-datepicker-toggle matIconSuffix [for]="picker"></mat-datepicker-toggle>
               <mat-datepicker #picker (closed)="onReminderChange()"></mat-datepicker>
             </mat-form-field>
 
-            <!-- Ore:Min e Ripeti raggruppati — rimangono sulla stessa riga su mobile -->
-            <div class="time-recurrence-row">
-              <div class="time-row">
-                <mat-form-field appearance="outline" class="hour-field">
-                  <mat-label>Ore</mat-label>
-                  <mat-select [(ngModel)]="$any(block).hour" (ngModelChange)="onReminderChange()">
-                    <mat-option *ngFor="let h of hoursList" [value]="h">{{ h }}</mat-option>
-                  </mat-select>
-                </mat-form-field>
-                <span class="time-sep">:</span>
-                <mat-form-field appearance="outline" class="minute-field">
-                  <mat-label>Min</mat-label>
-                  <mat-select [(ngModel)]="$any(block).minute" (ngModelChange)="onReminderChange()">
-                    <mat-option *ngFor="let m of minutesList" [value]="m">{{ m }}</mat-option>
-                  </mat-select>
-                </mat-form-field>
-              </div>
-
-              <mat-form-field appearance="outline" class="recurrence-field">
-                <mat-label>Ripeti</mat-label>
-                <mat-select [(ngModel)]="$any(block).recurrence" (ngModelChange)="onReminderChange()">
-                  <mat-option value="none">Mai</mat-option>
-                  <mat-option value="daily">Ogni giorno</mat-option>
-                  <mat-option value="weekly">Ogni settimana</mat-option>
-                  <mat-option value="monthly">Ogni mese</mat-option>
-                  <mat-option value="yearly">Ogni anno</mat-option>
-                </mat-select>
-              </mat-form-field>
+            <div class="time-fill-field">
+              <span class="time-fill-label">Ora</span>
+              <input type="time" class="time-fill-input"
+                     [value]="getReminderTimeValue($any(block))"
+                     (change)="onReminderTimeChange($any(block), $event)">
             </div>
+
+            <mat-form-field appearance="fill" class="recurrence-field">
+              <mat-label>Ripeti</mat-label>
+              <mat-select [(ngModel)]="$any(block).recurrence" (ngModelChange)="onReminderChange()">
+                <mat-option value="none">Mai</mat-option>
+                <mat-option value="daily">Ogni giorno</mat-option>
+                <mat-option value="weekly">Ogni settimana</mat-option>
+                <mat-option value="monthly">Ogni mese</mat-option>
+                <mat-option value="yearly">Ogni anno</mat-option>
+              </mat-select>
+            </mat-form-field>
           </div>
         </div>
       </ng-container>
@@ -246,13 +234,9 @@
   </div><!-- /blocks-container -->
 
   <!-- Empty note onboarding -->
-  <div class="empty-note-onboarding" *ngIf="note.blocks.length === 0">
-    <mat-icon>edit_note</mat-icon>
-    <p>Inizia ad aggiungere un blocco</p>
-    <button mat-stroked-button (click)="addBlock('text')" type="button">
-      <mat-icon>text_fields</mat-icon>
-      Testo
-    </button>
+  <div class="empty-note-onboarding" *ngIf="note.blocks.length === 0" (click)="toggleAddBlockMenu()">
+    <mat-icon>add_circle_outline</mat-icon>
+    <p>Tocca per aggiungere un blocco</p>
   </div>
 
   <!-- TODO: tags disabilitati temporaneamente
@@ -293,17 +277,37 @@
             [class.format-active]="isBold" matTooltip="Grassetto">
       <mat-icon>format_bold</mat-icon>
     </button>
-    <div class="ftb-divider"></div>
     <button mat-icon-button type="button" tabindex="-1"
             (mousedown)="$event.preventDefault()" (click)="execCommand('italic')"
             [class.format-active]="isItalic" matTooltip="Corsivo">
       <mat-icon>format_italic</mat-icon>
     </button>
+    <button mat-icon-button type="button" tabindex="-1"
+            (mousedown)="$event.preventDefault()" (click)="execCommand('underline')"
+            [class.format-active]="isUnderline" matTooltip="Sottolineato">
+      <mat-icon>format_underlined</mat-icon>
+    </button>
+    <button mat-icon-button type="button" tabindex="-1"
+            (mousedown)="$event.preventDefault()" (click)="execCommand('strikeThrough')"
+            [class.format-active]="isStrikethrough" matTooltip="Barrato">
+      <mat-icon>format_strikethrough</mat-icon>
+    </button>
     <div class="ftb-divider"></div>
     <button mat-icon-button type="button" tabindex="-1"
             (mousedown)="$event.preventDefault()" (click)="execCommand('insertUnorderedList')"
-            [class.format-active]="isList" matTooltip="Lista">
+            [class.format-active]="isList" matTooltip="Lista puntata">
       <mat-icon>format_list_bulleted</mat-icon>
+    </button>
+    <button mat-icon-button type="button" tabindex="-1"
+            (mousedown)="$event.preventDefault()" (click)="execCommand('insertOrderedList')"
+            [class.format-active]="isOrderedList" matTooltip="Lista numerata">
+      <mat-icon>format_list_numbered</mat-icon>
+    </button>
+    <div class="ftb-divider"></div>
+    <button mat-icon-button type="button" tabindex="-1"
+            (mousedown)="$event.preventDefault()" (click)="execCommand('removeFormat')"
+            matTooltip="Rimuovi formattazione">
+      <mat-icon>format_clear</mat-icon>
     </button>
   </div>
 

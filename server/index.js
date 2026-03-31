@@ -101,11 +101,14 @@ async function checkAndSendReminders() {
       const tokens = tokensCache[uid];
 
       if (tokens && tokens.length > 0) {
-        const bodyText = note.content 
-          ? note.content.replace(/<[^>]*>?/gm, '').substring(0, 100) 
-          : 'Hai un promemoria in scadenza!';
+        const PGP_MARKER = '-----BEGIN PGP MESSAGE-----';
+        const isEncrypted = (val) => typeof val === 'string' && val.startsWith(PGP_MARKER);
 
-        const msgTitle = 'PunTo! - ' + (note.title || 'Nuova Nota');
+        // Titolo e contenuto potrebbero essere cifrati E2E → usa testo generico
+        const msgTitle = 'punto! — Promemoria';
+        const bodyText = (!note.content || isEncrypted(note.content))
+          ? 'Hai un promemoria in scadenza!'
+          : note.content.replace(/<[^>]*>?/gm, '').substring(0, 100);
 
         try {
           const response = await messaging.sendEachForMulticast({
@@ -117,7 +120,7 @@ async function checkAndSendReminders() {
               notification: {
                 title: msgTitle,
                 body: bodyText,
-                icon: '/punto-/icons/icon-192x192.png',
+                icon: '/icons/icon-192x192.png',
                 // noteId nel data della notifica → usato dal notificationclick handler
                 // nel service worker per aprire direttamente la nota giusta
                 data: { noteId: doc.id }

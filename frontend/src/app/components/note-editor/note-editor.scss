@@ -317,10 +317,55 @@
     font-size: 16px;
     width: 16px;
     height: 16px;
+    color: var(--mat-sys-on-surface-variant);
   }
 
   @media (max-width: 599.98px) {
-    opacity: 0.5; // sempre visibile su mobile (no hover)
+    opacity: 0.45;
+  }
+}
+
+// ─── Checklist add row ───────────────────────────────────────
+.checklist-add-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 6px;
+  padding: 4px 8px;
+  background: color-mix(in srgb, var(--punto-primary) 6%, transparent);
+  border-radius: var(--punto-shape-sm, 8px);
+  border: 1px dashed color-mix(in srgb, var(--punto-primary) 30%, transparent);
+  transition: border-color var(--_t), background var(--_t);
+
+  &:focus-within {
+    border-color: var(--punto-primary);
+    background: color-mix(in srgb, var(--punto-primary) 10%, transparent);
+  }
+}
+
+.checklist-add-input {
+  flex: 1;
+  border: none;
+  background: transparent;
+  outline: none;
+  font-size: 0.9rem;
+  color: var(--mat-sys-on-surface);
+
+  &::placeholder {
+    color: color-mix(in srgb, var(--punto-primary) 60%, transparent);
+    font-style: italic;
+  }
+}
+
+.checklist-add-btn {
+  flex-shrink: 0;
+  width: 32px !important;
+  height: 32px !important;
+  mat-icon {
+    font-size: 20px;
+    width: 20px;
+    height: 20px;
+    color: var(--punto-primary);
   }
 }
 
@@ -429,10 +474,15 @@
     font-size: 16px;
     width: 16px;
     height: 16px;
+    color: var(--mat-sys-on-surface-variant);
   }
 
   &:hover { background: color-mix(in srgb, var(--mat-sys-on-surface) 8%, transparent); }
   &:active { background: color-mix(in srgb, var(--mat-sys-on-surface) 12%, transparent); }
+
+  @media (max-width: 599.98px) {
+    opacity: 0.45;
+  }
 }
 
 // ─── Block label row (icona + label) ─────────────────────────
@@ -458,6 +508,95 @@
   flex: 1;
 }
 
+// ─── Mat-form-field fill override (inside metadata-section) ──
+.metadata-section {
+  ::ng-deep {
+    // Fill background: tinta leggera del primario
+    .mdc-text-field--filled:not(.mdc-text-field--disabled) {
+      background: color-mix(in srgb, var(--punto-primary) 8%, transparent) !important;
+      border-radius: var(--punto-shape-sm, 8px) var(--punto-shape-sm, 8px) 0 0 !important;
+    }
+
+    // Bottom line
+    .mdc-text-field--filled .mdc-line-ripple::before {
+      border-bottom-color: color-mix(in srgb, var(--punto-primary) 35%, transparent) !important;
+    }
+    .mdc-text-field--filled .mdc-line-ripple::after {
+      border-bottom-color: var(--punto-primary) !important;
+    }
+
+    // Label
+    .mdc-floating-label,
+    .mat-mdc-floating-label {
+      color: color-mix(in srgb, var(--punto-primary) 70%, var(--mat-sys-on-surface-variant)) !important;
+    }
+
+    // Subscript hidden
+    .mat-mdc-form-field-subscript-wrapper {
+      display: none;
+    }
+
+    // Select arrow + datepicker toggle
+    .mat-mdc-select-arrow { color: var(--punto-primary) !important; }
+    .mat-datepicker-toggle mat-icon { color: var(--punto-primary) !important; }
+
+    // Prefix icon (es. search location)
+    .mat-mdc-form-field-icon-prefix mat-icon {
+      color: color-mix(in srgb, var(--punto-primary) 70%, transparent) !important;
+    }
+  }
+}
+
+// ─── Time fill field (native input[type=time] styled M3) ──────
+.time-fill-field {
+  display: flex;
+  flex-direction: column;
+  flex: 0 0 auto;
+  min-width: 110px;
+  background: color-mix(in srgb, var(--punto-primary) 8%, transparent);
+  border-radius: var(--punto-shape-sm, 8px) var(--punto-shape-sm, 8px) 0 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--punto-primary) 35%, transparent);
+  padding: 8px 12px 4px;
+  cursor: pointer;
+  transition: background var(--_t), border-color var(--_t);
+
+  &:focus-within {
+    border-bottom: 2px solid var(--punto-primary);
+    background: color-mix(in srgb, var(--punto-primary) 12%, transparent);
+
+    .time-fill-label { color: var(--punto-primary); }
+  }
+}
+
+.time-fill-label {
+  font-size: 0.72rem;
+  font-weight: 400;
+  color: color-mix(in srgb, var(--punto-primary) 70%, var(--mat-sys-on-surface-variant));
+  line-height: 1;
+  margin-bottom: 4px;
+  pointer-events: none;
+  transition: color var(--_t);
+}
+
+.time-fill-input {
+  border: none;
+  outline: none;
+  background: transparent;
+  font-size: 1rem;
+  color: var(--mat-sys-on-surface);
+  font-family: inherit;
+  padding: 0;
+  width: 100%;
+  cursor: pointer;
+
+  // Normalize browser chrome for time input
+  &::-webkit-calendar-picker-indicator {
+    opacity: 0.5;
+    cursor: pointer;
+    filter: invert(0);
+  }
+}
+
 // ─── Reminder block ──────────────────────────────────────────
 // Desktop: tutto su una riga (Data | Ore | : | Min | Ripeti)
 // Mobile: Data / [Ore Min] / Ripeti — colonne separate
@@ -469,49 +608,17 @@
 }
 
 .date-field {
-  flex: 0 0 auto;
-  min-width: 150px;
-  ::ng-deep .mat-mdc-form-field-subscript-wrapper { display: none; }
-}
-
-.time-recurrence-row {
   flex: 1;
-  min-width: 0;
-  display: flex;
-  align-items: flex-end;
-  gap: 8px;
-}
-
-.time-row {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.time-sep {
-  font-size: 1.1rem;
-  font-weight: 300;
-  color: var(--mat-sys-on-surface-variant);
-  padding-bottom: 4px;
-}
-
-.hour-field,
-.minute-field {
-  width: 96px !important;
-  min-width: 0 !important;
-  ::ng-deep {
-    .mdc-text-field { min-width: 0 !important; }
-    .mat-mdc-form-field-subscript-wrapper { display: none; }
-  }
+  min-width: 130px;
+  ::ng-deep .mat-mdc-form-field-subscript-wrapper { display: none; }
 }
 
 .recurrence-field {
-  width: 140px;
-  ::ng-deep .mat-mdc-form-field-subscript-wrapper { display: none; }
+  flex: 1;
+  min-width: 120px;
 }
 
 @media (max-width: 599.98px) {
-  // Mobile: colonna — ogni riga separata
   .reminder-inputs {
     flex-wrap: wrap;
   }
@@ -521,26 +628,14 @@
     min-width: unset;
   }
 
-  .time-recurrence-row {
-    flex: 0 0 100%;
-    flex-direction: column;
-    gap: 8px;
+  .time-fill-field {
+    flex: 1;
+    min-width: 0;
   }
 
-  // Ore e Min si espandono a tutta la riga (50%+50%)
-  .time-row {
-    width: 100%;
-  }
-
-  .hour-field,
-  .minute-field {
-    flex: 1 !important;
-    width: auto !important;
-  }
-
-  // Ripeti occupa tutta la riga
   .recurrence-field {
-    width: 100%;
+    flex: 0 0 100%;
+    min-width: unset;
   }
 }
 
