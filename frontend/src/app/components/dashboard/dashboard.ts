@@ -268,7 +268,17 @@ export class DashboardComponent implements OnInit, OnDestroy {
       return;
     }
 
-    // ── Listener real-time: forced logout su sessionVersion mismatch
+    // ── BF-09: Check sessionVersion PRIMA del salvataggio — logout immediato se mismatch
+    const localVersion = this.cryptoService.getLocalSessionVersion(uid);
+    const remoteVersion = userDoc['sessionVersion'] as number | undefined;
+    if (localVersion !== null && remoteVersion !== undefined && localVersion !== remoteVersion) {
+      this.userDocUnsub?.();
+      await this.authService.logout();
+      this.router.navigate(['/login']);
+      return;
+    }
+
+    // ── Listener real-time: forced logout su sessionVersion mismatch (tab già aperta)
     this.userDocUnsub?.();
     this.userDocUnsub = this.noteService.watchUserDoc(uid, (latestDoc) => {
       // Non dipende da encryptionSetup: confronto diretto su sessionVersion
