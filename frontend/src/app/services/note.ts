@@ -219,11 +219,7 @@ export class NoteService {
       const snap = await getDocFromServer(userRef);
       return snap.exists() ? snap.data() : null;
     } catch {
-      // Fallback sulla cache se offline
-      try {
-        const snap = await getDoc(userRef);
-        return snap.exists() ? snap.data() : null;
-      } catch { return null; }
+      return null;  // Server non raggiungibile: evita cache stale (BF-10)
     }
   }
 

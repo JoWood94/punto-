@@ -256,6 +256,12 @@ export class DashboardComponent implements OnInit, OnDestroy {
     if (!uid) return;
 
     const userDoc = await this.noteService.getUserDoc();
+    console.log('[E2E] userDoc:', userDoc ? JSON.stringify({
+      encryptionSetup: userDoc['encryptionSetup'],
+      hasPublicKey: !!userDoc['publicKey'],
+      hasPrivateKey: !!userDoc['encryptedPrivateKey'],
+      sessionVersion: userDoc['sessionVersion']
+    }) : 'null');
 
     // Bug 1 fix: se getUserDoc ritorna null (offline/errore) e c'è già una chiave locale,
     // procedi senza mostrare alcun dialog (evita setup improprio).
@@ -298,6 +304,10 @@ export class DashboardComponent implements OnInit, OnDestroy {
     const isEncryptionConfigured =
       userDoc['encryptionSetup'] === true ||
       (!!userDoc['encryptedPrivateKey'] && !!userDoc['publicKey']);
+
+    console.log('[E2E] isEncryptionConfigured:', isEncryptionConfigured);
+    console.log('[E2E] localKey exists:', !!this.cryptoService.getLocalPrivateKey(uid));
+    console.log('[E2E] localSessionVersion:', this.cryptoService.getLocalSessionVersion(uid));
 
     if (isEncryptionConfigured) {
       // Chiave già configurata — controlla localStorage
