@@ -273,7 +273,10 @@ export class DashboardComponent implements OnInit, OnDestroy {
       if (localKey) {
         // Non abbiamo la publicKey → sessione non attivabile, ma non mostriamo setup
         console.warn('[Encryption] UserDoc non disponibile offline, cifratura disabilitata per questa sessione');
+        return;
       }
+      // Nessun documento e nessuna chiave locale → nuovo utente, mostra setup
+      await this.showSetupDialog(uid);
       return;
     }
 

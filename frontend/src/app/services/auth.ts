@@ -1,5 +1,5 @@
 import { Injectable, inject } from '@angular/core';
-import { Auth, authState, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, User, OAuthProvider, signInWithPopup, sendPasswordResetEmail } from '@angular/fire/auth';
+import { Auth, authState, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, User, OAuthProvider, signInWithPopup, sendPasswordResetEmail, sendEmailVerification } from '@angular/fire/auth';
 import { Observable } from 'rxjs';
 import { CryptoService } from './crypto';
 
@@ -43,6 +43,12 @@ export class AuthService {
     return signInWithPopup(this.auth, provider);
   }
   
+  sendVerificationEmail() {
+    const user = this.auth.currentUser;
+    if (!user) return Promise.resolve();
+    return sendEmailVerification(user);
+  }
+
   getCurrentUserId(): string | null {
     return this.auth.currentUser?.uid || null;
   }

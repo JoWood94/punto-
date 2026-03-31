@@ -10,12 +10,16 @@ export const authGuard: CanActivateFn = (route, state) => {
   return authService.user$.pipe(
     take(1),
     map(user => {
-      if (user) {
-        return true;
-      } else {
+      if (!user) {
         router.navigate(['/login']);
         return false;
       }
+      const isEmailProvider = user.providerData.some(p => p.providerId === 'password');
+      if (isEmailProvider && !user.emailVerified) {
+        router.navigate(['/login']);
+        return false;
+      }
+      return true;
     })
   );
 };

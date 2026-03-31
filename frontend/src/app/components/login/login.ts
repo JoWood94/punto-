@@ -36,6 +36,11 @@ export class LoginComponent {
       if (this.isRegistering) {
         if (this.password !== this.confirmPassword) return;
         await this.authService.register(this.email, this.password);
+        await this.authService.sendVerificationEmail();
+        await this.authService.logout();
+        this.isRegistering = false;
+        this.successMessage = 'Account creato! Controlla la tua email per verificare l\'account, poi accedi.';
+        return;
       } else {
         await this.authService.login(this.email, this.password);
       }
