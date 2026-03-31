@@ -268,20 +268,28 @@ export class DashboardComponent implements OnInit, OnDestroy {
       return;
     }
 
-    // ── Bug 2 fix: listener real-time per forced logout quando sessionVersion cambia
+    // ── Listener real-time: forced logout su sessionVersion mismatch
     this.userDocUnsub?.();
-    this.userDocUnsub = this.noteService.watchUserDoc(uid, async (latestDoc) => {
-      if (!latestDoc?.encryptionSetup) return;
+    this.userDocUnsub = this.noteService.watchUserDoc(uid, (latestDoc) => {
+      // Non dipende da encryptionSetup: confronto diretto su sessionVersion
+      if (!latestDoc) return;
       const localVersion = this.cryptoService.getLocalSessionVersion(uid);
-      if (localVersion !== null && latestDoc.sessionVersion !== undefined && localVersion !== latestDoc.sessionVersion) {
+      const remoteVersion = latestDoc['sessionVersion'];
+      if (localVersion !== null && remoteVersion !== undefined && localVersion !== remoteVersion) {
         this.userDocUnsub?.();
-        await this.authService.logout();
-        this.router.navigate(['/login']);
+        // try/finally garantisce navigate anche se logout lancia eccezione
+        this.authService.logout().catch(() => {}).finally(() => {
+          this.router.navigate(['/login']);
+        });
       }
     });
 
-    // ── Bug 1 fix: controlla encryptionSetup === true esplicitamente
-    if (userDoc['encryptionSetup'] === true) {
+    // ── Check E2E: encryptionSetup === true OPPURE chiavi presenti (fallback backward compat cache)
+    const isEncryptionConfigured =
+      userDoc['encryptionSetup'] === true ||
+      (!!userDoc['encryptedPrivateKey'] && !!userDoc['publicKey']);
+
+    if (isEncryptionConfigured) {
       // Chiave già configurata — controlla localStorage
       const localKey = this.cryptoService.getLocalPrivateKey(uid);
       if (localKey) {

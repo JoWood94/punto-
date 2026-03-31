@@ -3,7 +3,7 @@ import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import {
   getFirestore, initializeFirestore, persistentLocalCache, persistentMultipleTabManager,
-  collection, doc, addDoc, updateDoc, deleteDoc, query, where, onSnapshot, getDoc, setDoc, Firestore as RawFirestore
+  collection, doc, addDoc, updateDoc, deleteDoc, query, where, onSnapshot, getDoc, getDocFromServer, setDoc, Firestore as RawFirestore
 } from 'firebase/firestore';
 import { Observable, of, switchMap } from 'rxjs';
 import { AuthService } from './auth';
@@ -213,10 +213,18 @@ export class NoteService {
   async getUserDoc(): Promise<any | null> {
     const uid = this.authService.getCurrentUserId();
     if (!uid) return null;
+    const userRef = doc(this.db, `users/${uid}`);
     try {
-      const snap = await getDoc(doc(this.db, `users/${uid}`));
+      // Forza lettura dal server: evita dati stale dalla cache locale (persistentLocalCache)
+      const snap = await getDocFromServer(userRef);
       return snap.exists() ? snap.data() : null;
-    } catch { return null; }
+    } catch {
+      // Fallback sulla cache se offline
+      try {
+        const snap = await getDoc(userRef);
+        return snap.exists() ? snap.data() : null;
+      } catch { return null; }
+    }
   }
 
   /** Real-time listener su users/{uid}. Ritorna la funzione di unsubscribe. */
