@@ -22,7 +22,7 @@ import { NoteEditorComponent } from '../note-editor/note-editor';
 import { CalendarViewComponent } from '../calendar-view/calendar-view.component';
 import { ConfirmDialogComponent } from '../confirm-dialog/confirm-dialog';
 import { PassphraseDialogComponent } from '../passphrase-dialog/passphrase-dialog';
-import { Observable, Subscription, firstValueFrom } from 'rxjs';
+import { Observable, Subscription, firstValueFrom, skip } from 'rxjs';
 import { Location } from '@angular/common';
 import { PushNotificationService } from '../../services/push-notification';
 import { BreakpointObserver, Breakpoints } from '@angular/cdk/layout';
@@ -114,7 +114,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
     await this.initEncryption();
 
     // Redirect immediato se sessione scade/revocata
-    this.authSub = this.authService.user$.subscribe(user => {
+    this.authSub = this.authService.user$.pipe(skip(1)).subscribe(user => {
       if (!user) {
         this.router.navigate(['/login'], { replaceUrl: true });
       }
