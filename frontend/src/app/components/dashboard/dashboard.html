@@ -40,13 +40,11 @@
 
           <!-- Sezione "Fissate" — solo se ci sono entrambi pinned e non-pinned -->
           <ng-container *ngIf="pinnedNotes.length > 0 && unpinnedNotes.length > 0">
-            <div class="pinned-section-label">
-              <mat-icon>push_pin</mat-icon>
-            </div>
+            <div class="section-label">Fissate</div>
             <ng-container *ngFor="let note of pinnedNotes">
               <ng-container *ngTemplateOutlet="noteCard; context: { note: note }"></ng-container>
             </ng-container>
-            <div class="section-divider"></div>
+            <div class="section-label">Note</div>
             <ng-container *ngFor="let note of unpinnedNotes">
               <ng-container *ngTemplateOutlet="noteCard; context: { note: note }"></ng-container>
             </ng-container>
@@ -86,8 +84,6 @@
           <div class="note-card-body">
             <div class="note-card-title-row">
               <mat-icon class="note-card-bell" *ngIf="note.reminderTime">notifications</mat-icon>
-              <span class="note-card-time" *ngIf="getReminderTimeToday(note) as t">{{ t }}</span>
-              <mat-icon class="note-card-pin-icon" *ngIf="note.pinned">push_pin</mat-icon>
               <span class="note-item-title">{{ note.title || 'Nuova Nota' }}</span>
             </div>
 
@@ -109,6 +105,7 @@
           </div>
 
           <div class="note-meta-actions">
+            <span class="note-card-time" *ngIf="getReminderTimeToday(note) as t">{{ t }}</span>
             <button mat-icon-button
                     (click)="togglePin(note, $event)"
                     [matTooltip]="note.pinned ? 'Rimuovi pin' : 'Fissa nota'"
@@ -123,11 +120,6 @@
         </div>
       </ng-template>
 
-      <!-- Swipe hint mobile -->
-      <div class="swipe-dots" *ngIf="isMobile">
-        <span class="swipe-dot dot-active"></span>
-        <span class="swipe-dot"></span>
-      </div>
 
       <!-- Settings FAB — bottom-left sidenav -->
       <div class="settings-fab-container" *ngIf="!isMobile || currentMainView !== 'calendar'">
@@ -244,7 +236,17 @@
 
 </mat-sidenav-container>
 
-<!-- FAB mobile: position:fixed fuori dal sidenav-container per evitare problemi con i transform -->
+<!-- Swipe dots mobile: fixed overlay, cliccabili e animati -->
+<div class="swipe-dots" *ngIf="isMobile && activeNote === undefined">
+  <span class="swipe-dot"
+        [class.dot-active]="currentMainView === 'list'"
+        (click)="setDefaultView('list')"></span>
+  <span class="swipe-dot"
+        [class.dot-active]="currentMainView === 'calendar'"
+        (click)="setDefaultView('calendar')"></span>
+</div>
+
+<!-- FAB mobile: position:fixed fuori dal sidenav-container -->
 <div class="mobile-fab-overlay" *ngIf="isMobile && activeNote === undefined">
   <button mat-fab extended (click)="currentMainView === 'calendar' ? openNoteEditorFromCalendar() : openNoteEditor()"
           class="new-note-fab">

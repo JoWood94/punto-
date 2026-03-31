@@ -61,24 +61,13 @@
   padding: 48px 0;
 }
 
-// ─── Section divider (pinned / non-pinned) ───────────────────
-.section-divider {
-  height: 8px;
-}
-
-// ─── Pinned section label ────────────────────────────────────
-.pinned-section-label {
-  display: flex;
-  justify-content: flex-end;
-  padding: 4px 6px 2px;
-
-  mat-icon {
-    font-size: 14px !important;
-    width: 14px !important;
-    height: 14px !important;
-    color: var(--mat-sys-on-surface-variant);
-    opacity: 0.5;
-  }
+// ─── Section labels (Fissate / Note) ─────────────────────────
+.section-label {
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: var(--punto-primary);
+  padding: 8px 6px 4px;
+  letter-spacing: 0.01em;
 }
 
 // ─── Note card time (reminder di oggi) ──────────────────────
@@ -117,8 +106,6 @@
 
   &:hover {
     filter: brightness(1.12);
-    .delete-btn { opacity: 1; }
-    .pin-btn:not(.pin-active) { opacity: 1; }
   }
 
   // Nota selezionata: primary-container → on-primary-container
@@ -205,13 +192,7 @@
 }
 
 .delete-btn {
-  opacity: 0;
   transition: opacity 0.2s ease;
-
-  // Su mobile/touch è sempre visibile
-  @media (max-width: 599.98px) {
-    opacity: 1;
-  }
 }
 
 // ─── Tag filter bar (sotto search) ──────────────────────────
@@ -270,27 +251,18 @@
 }
 
 .pin-btn {
-  opacity: 0;
   border-radius: 50%;
   transition:
     opacity var(--_t),
     background 200ms var(--_e);
   color: var(--mat-sys-on-surface-variant);
 
-  @media (max-width: 599.98px) { opacity: 1; }
-
   &:hover { background: color-mix(in srgb, var(--mat-sys-on-surface) 8%, transparent); }
   &:active { background: color-mix(in srgb, var(--mat-sys-on-surface) 12%, transparent); }
 
   &.pin-active {
-    opacity: 1 !important;
     color: var(--punto-primary);
   }
-}
-
-// Mostra pin-btn su hover della nota
-a.single-note:hover .pin-btn {
-  opacity: 1;
 }
 
 // ─── Tags row nel note item ──────────────────────────────────
@@ -615,28 +587,35 @@ a.single-note:hover .pin-btn {
   }
 }
 
-// ─── Swipe hint dots (mobile) ───────────────────────────────
+// ─── Swipe dots mobile: fixed overlay, cliccabili e animati ─
 .swipe-dots {
+  position: fixed;
+  bottom: 46px; // centrati verticalmente con i FAB (56px height, bottom 28px → center 56px)
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 300;
   display: flex;
-  justify-content: center;
   align-items: center;
   gap: 6px;
-  padding: 10px 0 6px;
-  flex-shrink: 0;
+  padding: 8px;
+  cursor: pointer;
 
   .swipe-dot {
     width: 6px;
     height: 6px;
-    border-radius: 50%;
-    background: var(--mat-sys-on-surface);
-    opacity: 0.18;
-    transition: opacity var(--_t), width var(--_t);
-  }
+    border-radius: 9999px;
+    background: var(--punto-primary);
+    opacity: 0.25;
+    transition:
+      width 300ms cubic-bezier(0.34, 1.56, 0.64, 1),
+      opacity 250ms var(--_e),
+      border-radius 300ms var(--_e);
+    cursor: pointer;
 
-  .dot-active {
-    opacity: 0.55;
-    width: 18px;
-    border-radius: 3px;
+    &.dot-active {
+      width: 20px;
+      opacity: 0.7;
+    }
   }
 }
 
