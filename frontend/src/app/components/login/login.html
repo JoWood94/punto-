@@ -23,7 +23,11 @@
 
         <mat-form-field appearance="outline" class="full-width" *ngIf="isRegistering">
           <mat-label>Conferma Password</mat-label>
-          <input matInput type="password" name="confirmPassword" [(ngModel)]="confirmPassword" required autocomplete="new-password">
+          <input matInput [type]="showConfirmPassword ? 'text' : 'password'" name="confirmPassword" [(ngModel)]="confirmPassword" required autocomplete="new-password">
+          <button mat-icon-button matSuffix type="button" (click)="showConfirmPassword = !showConfirmPassword"
+                  [attr.aria-label]="showConfirmPassword ? 'Nascondi password' : 'Mostra password'">
+            <mat-icon>{{ showConfirmPassword ? 'visibility_off' : 'visibility' }}</mat-icon>
+          </button>
         </mat-form-field>
 
         <div class="forgot-password" *ngIf="!isRegistering">

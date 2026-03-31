@@ -21,6 +21,7 @@ export class LoginComponent {
   isRegistering = false;
   isRecoveringPassword = false;
   showPassword = false;
+  showConfirmPassword = false;
   
   private authService = inject(AuthService);
   private router = inject(Router);
