@@ -43,6 +43,9 @@
       </div>
     </form>
 
+    <p class="error-message" *ngIf="errorMessage">{{ errorMessage }}</p>
+    <p class="success-message" *ngIf="successMessage">{{ successMessage }}</p>
+
     <div class="secondary-actions">
       <button mat-button type="button"
               (click)="isRegistering = !isRegistering; isRecoveringPassword = false"

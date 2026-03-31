@@ -78,3 +78,17 @@
     color: var(--mat-sys-on-surface-variant);
   }
 }
+
+.error-message {
+  color: var(--mat-sys-error, #b00020);
+  font-size: 0.85rem;
+  margin: 4px 0 8px;
+  text-align: center;
+}
+
+.success-message {
+  color: #2e7d32;
+  font-size: 0.85rem;
+  margin: 4px 0 8px;
+  text-align: center;
+}

@@ -22,12 +22,16 @@ export class LoginComponent {
   isRecoveringPassword = false;
   showPassword = false;
   showConfirmPassword = false;
-  
+  errorMessage = '';
+  successMessage = '';
+
   private authService = inject(AuthService);
   private router = inject(Router);
 
   async onSubmit() {
     if (!this.email || !this.password) return;
+    this.errorMessage = '';
+    this.successMessage = '';
     try {
       if (this.isRegistering) {
         if (this.password !== this.confirmPassword) return;
@@ -37,26 +41,50 @@ export class LoginComponent {
       }
       this.router.navigate(['/dashboard'], { replaceUrl: true });
     } catch (error: any) {
-      console.error(error.message);
+      this.errorMessage = this.getErrorMessage(error.code);
     }
   }
 
   async recoverPassword() {
     if (!this.email) return;
+    this.errorMessage = '';
+    this.successMessage = '';
     try {
       await this.authService.resetPassword(this.email);
+      this.successMessage = 'Email di recupero inviata. Controlla la tua casella.';
       this.isRecoveringPassword = false;
     } catch (error: any) {
-      console.error(error.message);
+      this.errorMessage = this.getErrorMessage(error.code);
     }
   }
 
   async loginWithApple() {
+    this.errorMessage = '';
+    this.successMessage = '';
     try {
       await this.authService.loginWithApple();
       this.router.navigate(['/dashboard'], { replaceUrl: true });
     } catch (error: any) {
-      console.error(error.message);
+      this.errorMessage = this.getErrorMessage(error.code);
+    }
+  }
+
+  private getErrorMessage(code: string): string {
+    switch (code) {
+      case 'auth/invalid-credential':
+      case 'auth/wrong-password':
+      case 'auth/user-not-found':
+        return 'Email o password non corretti.';
+      case 'auth/email-already-in-use':
+        return 'Email già registrata. Prova ad accedere.';
+      case 'auth/weak-password':
+        return 'Password troppo corta (minimo 6 caratteri).';
+      case 'auth/invalid-email':
+        return 'Indirizzo email non valido.';
+      case 'auth/too-many-requests':
+        return 'Troppi tentativi. Riprova tra qualche minuto.';
+      default:
+        return 'Si è verificato un errore. Riprova.';
     }
   }
 }
