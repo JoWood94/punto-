@@ -17,6 +17,7 @@ import { MatInputModule } from '@angular/material/input';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatDialogModule, MatDialog } from '@angular/material/dialog';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatChipsModule } from '@angular/material/chips';
 import { NoteEditorComponent } from '../note-editor/note-editor';
 import { CalendarViewComponent } from '../calendar-view/calendar-view.component';
@@ -45,6 +46,7 @@ import { BreakpointObserver, Breakpoints } from '@angular/cdk/layout';
     MatFormFieldModule,
     MatDialogModule,
     MatSnackBarModule,
+    MatProgressSpinnerModule,
     MatChipsModule,
     NoteEditorComponent,
     CalendarViewComponent
@@ -75,6 +77,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
   filteredNotes: Note[] = [];
   searchQuery = '';
   newNoteCalendarDate: Date | undefined = undefined;
+  notesLoaded = false;
 
   // TODO: tags disabilitati temporaneamente
   // allTags: string[] = [];
@@ -159,6 +162,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.notes$ = this.noteService.getNotes();
 
     this.notesSub = this.notes$.subscribe(notes => {
+      this.notesLoaded = true;
       this.allNotes = notes;
       // this.updateAllTags(); // TODO: tags disabilitati temporaneamente
       this.applyFilter();

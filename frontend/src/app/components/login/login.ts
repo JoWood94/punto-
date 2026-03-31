@@ -7,10 +7,11 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 @Component({
   selector: 'app-login',
   standalone: true,
-  imports: [CommonModule, FormsModule, MatFormFieldModule, MatInputModule, MatButtonModule, MatIconModule],
+  imports: [CommonModule, FormsModule, MatFormFieldModule, MatInputModule, MatButtonModule, MatIconModule, MatProgressSpinnerModule],
   templateUrl: './login.html',
   styleUrls: ['./login.scss']
 })
@@ -24,6 +25,7 @@ export class LoginComponent {
   showConfirmPassword = false;
   errorMessage = '';
   successMessage = '';
+  isLoading = false;
 
   private authService = inject(AuthService);
   private router = inject(Router);
@@ -32,6 +34,7 @@ export class LoginComponent {
     if (!this.email || !this.password) return;
     this.errorMessage = '';
     this.successMessage = '';
+    this.isLoading = true;
     try {
       if (this.isRegistering) {
         if (this.password !== this.confirmPassword) return;
@@ -47,6 +50,8 @@ export class LoginComponent {
       this.router.navigate(['/dashboard'], { replaceUrl: true });
     } catch (error: any) {
       this.errorMessage = this.getErrorMessage(error.code);
+    } finally {
+      this.isLoading = false;
     }
   }
 
@@ -54,12 +59,15 @@ export class LoginComponent {
     if (!this.email) return;
     this.errorMessage = '';
     this.successMessage = '';
+    this.isLoading = true;
     try {
       await this.authService.resetPassword(this.email);
       this.successMessage = 'Email di recupero inviata. Controlla la tua casella.';
       this.isRecoveringPassword = false;
     } catch (error: any) {
       this.errorMessage = this.getErrorMessage(error.code);
+    } finally {
+      this.isLoading = false;
     }
   }
 

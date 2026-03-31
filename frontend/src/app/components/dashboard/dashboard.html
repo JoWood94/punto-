@@ -30,36 +30,46 @@
       <!-- Notes list -->
       <div class="notes-list">
 
-        <!-- Sezione "Fissate" — solo se ci sono entrambi pinned e non-pinned -->
-        <ng-container *ngIf="pinnedNotes.length > 0 && unpinnedNotes.length > 0">
-          <ng-container *ngFor="let note of pinnedNotes">
-            <ng-container *ngTemplateOutlet="noteCard; context: { note: note }"></ng-container>
-          </ng-container>
-          <div class="section-divider"></div>
-          <ng-container *ngFor="let note of unpinnedNotes">
-            <ng-container *ngTemplateOutlet="noteCard; context: { note: note }"></ng-container>
-          </ng-container>
-        </ng-container>
-
-        <!-- Lista unica — solo pinned o solo non-pinned -->
-        <ng-container *ngIf="pinnedNotes.length === 0 || unpinnedNotes.length === 0">
-          <ng-container *ngFor="let note of filteredNotes">
-            <ng-container *ngTemplateOutlet="noteCard; context: { note: note }"></ng-container>
-          </ng-container>
-        </ng-container>
-
-        <div class="empty-state" *ngIf="filteredNotes.length === 0 && !searchQuery">
-          <mat-icon>edit_note</mat-icon>
-          <p>Ancora nessuna nota.</p>
-          <button mat-flat-button color="primary" (click)="openNoteEditor()">
-            <mat-icon>add</mat-icon>
-            Nuova nota
-          </button>
+        <!-- Loader lista note -->
+        <div *ngIf="!notesLoaded" class="notes-loading">
+          <mat-spinner diameter="32" color="primary"></mat-spinner>
         </div>
-        <div class="empty-state" *ngIf="filteredNotes.length === 0 && searchQuery">
-          <mat-icon>search_off</mat-icon>
-          <p>Nessun risultato.</p>
-        </div>
+
+        <!-- Contenuto — mostra solo quando caricato -->
+        <ng-container *ngIf="notesLoaded">
+
+          <!-- Sezione "Fissate" — solo se ci sono entrambi pinned e non-pinned -->
+          <ng-container *ngIf="pinnedNotes.length > 0 && unpinnedNotes.length > 0">
+            <ng-container *ngFor="let note of pinnedNotes">
+              <ng-container *ngTemplateOutlet="noteCard; context: { note: note }"></ng-container>
+            </ng-container>
+            <div class="section-divider"></div>
+            <ng-container *ngFor="let note of unpinnedNotes">
+              <ng-container *ngTemplateOutlet="noteCard; context: { note: note }"></ng-container>
+            </ng-container>
+          </ng-container>
+
+          <!-- Lista unica — solo pinned o solo non-pinned -->
+          <ng-container *ngIf="pinnedNotes.length === 0 || unpinnedNotes.length === 0">
+            <ng-container *ngFor="let note of filteredNotes">
+              <ng-container *ngTemplateOutlet="noteCard; context: { note: note }"></ng-container>
+            </ng-container>
+          </ng-container>
+
+          <div class="empty-state" *ngIf="filteredNotes.length === 0 && !searchQuery">
+            <mat-icon>edit_note</mat-icon>
+            <p>Ancora nessuna nota.</p>
+            <button mat-flat-button color="primary" (click)="openNoteEditor()">
+              <mat-icon>add</mat-icon>
+              Nuova nota
+            </button>
+          </div>
+          <div class="empty-state" *ngIf="filteredNotes.length === 0 && searchQuery">
+            <mat-icon>search_off</mat-icon>
+            <p>Nessun risultato.</p>
+          </div>
+
+        </ng-container>
       </div>
 
       <!-- Template riutilizzabile per la nota card -->

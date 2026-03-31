@@ -37,8 +37,10 @@
 
       <div class="actions">
         <button mat-flat-button type="submit" class="submit-btn"
-                [disabled]="isRecoveringPassword ? !email : (!email || !password)">
-          {{ isRecoveringPassword ? 'Invia Link di Recupero' : (isRegistering ? 'Registrati' : 'Accedi') }}
+                [disabled]="isLoading || (isRecoveringPassword ? !email : (!email || !password))">
+          <mat-spinner *ngIf="isLoading" diameter="20" color="primary" style="display:inline-block;margin-right:8px;vertical-align:middle;"></mat-spinner>
+          <span *ngIf="!isLoading">{{ isRecoveringPassword ? 'Invia Link di Recupero' : (isRegistering ? 'Registrati' : 'Accedi') }}</span>
+          <span *ngIf="isLoading">{{ isRecoveringPassword ? 'Invio...' : (isRegistering ? 'Registrazione...' : 'Accesso...') }}</span>
         </button>
       </div>
     </form>
