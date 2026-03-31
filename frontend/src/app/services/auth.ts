@@ -28,7 +28,10 @@ export class AuthService {
 
   logout() {
     const uid = this.auth.currentUser?.uid;
-    if (uid) this.cryptoService.clearLocalKey(uid);
+    if (uid) {
+      this.cryptoService.clearLocalKey(uid);
+      this.cryptoService.clearLocalSessionVersion(uid);
+    }
     this.cryptoService.clearSession();
     return signOut(this.auth);
   }

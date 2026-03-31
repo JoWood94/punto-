@@ -77,6 +77,38 @@ export class CryptoService {
     localStorage.removeItem(`pgp_private_${uid}`);
   }
 
+  /** Ricifra la chiave privata con una nuova passphrase. Restituisce il nuovo encryptedPrivateKey armored. */
+  async changePassphrase(uid: string, oldPassphrase: string, newPassphrase: string, encryptedPrivateKey: string): Promise<string> {
+    // Valida la vecchia passphrase decryptando la chiave
+    const encryptedKeyObj = await openpgp.readPrivateKey({ armoredKey: encryptedPrivateKey });
+    const decryptedKeyObj = await openpgp.decryptKey({
+      privateKey: encryptedKeyObj,
+      passphrase: oldPassphrase  // throws if wrong
+    });
+    // Aggiorna localStorage con la chiave in chiaro
+    localStorage.setItem(`pgp_private_${uid}`, decryptedKeyObj.armor());
+    // Ricifra con nuova passphrase
+    const newEncryptedKeyObj = await openpgp.encryptKey({
+      privateKey: decryptedKeyObj,
+      passphrase: newPassphrase
+    });
+    return newEncryptedKeyObj.armor();
+  }
+
+  /** Salva la versione di sessione localmente (per rilevare forced logout). */
+  saveLocalSessionVersion(uid: string, version: number): void {
+    localStorage.setItem(`session_version_${uid}`, String(version));
+  }
+
+  getLocalSessionVersion(uid: string): number | null {
+    const v = localStorage.getItem(`session_version_${uid}`);
+    return v !== null ? Number(v) : null;
+  }
+
+  clearLocalSessionVersion(uid: string): void {
+    localStorage.removeItem(`session_version_${uid}`);
+  }
+
   // ─── Note Encryption ───────────────────────────────────────────────────────
 
   async encryptNote(note: Partial<Note>): Promise<Partial<Note>> {

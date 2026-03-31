@@ -255,15 +255,30 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
     const userDoc = await this.noteService.getUserDoc();
 
-    if (userDoc?.encryptionEnabled) {
+    // ── Forced logout: sessionVersion cambiata da un altro dispositivo (cambio passphrase)
+    if (userDoc?.encryptionSetup && userDoc.sessionVersion !== undefined) {
+      const localVersion = this.cryptoService.getLocalSessionVersion(uid);
+      if (localVersion !== null && localVersion !== userDoc.sessionVersion) {
+        // Sessione invalidata — forza logout
+        await this.authService.logout();
+        this.router.navigate(['/login']);
+        return;
+      }
+    }
+
+    if (userDoc?.encryptionSetup) {
       // Chiave già configurata — controlla localStorage
       const localKey = this.cryptoService.getLocalPrivateKey(uid);
       if (localKey) {
         this.cryptoService.setSession(uid, userDoc.publicKey);
+        // Salva la sessionVersion corrente se non ancora salvata
+        if (this.cryptoService.getLocalSessionVersion(uid) === null) {
+          this.cryptoService.saveLocalSessionVersion(uid, userDoc.sessionVersion ?? 1);
+        }
         return;
       }
       // Nuovo device: sblocca con passphrase
-      await this.showUnlockDialog(uid, userDoc.publicKey, userDoc.encryptedPrivateKey);
+      await this.showUnlockDialog(uid, userDoc.publicKey, userDoc.encryptedPrivateKey, userDoc.sessionVersion ?? 1);
     } else {
       // Nessuna chiave configurata: setup (nuovo utente o migrazione)
       await this.showSetupDialog(uid);
@@ -282,8 +297,9 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
     try {
       const { publicKey, encryptedPrivateKey } = await this.cryptoService.generateAndStoreKeys(uid, passphrase);
-      await this.noteService.saveEncryptionKeys(publicKey, encryptedPrivateKey);
+      const sessionVersion = await this.noteService.saveEncryptionKeys(publicKey, encryptedPrivateKey);
       this.cryptoService.setSession(uid, publicKey);
+      this.cryptoService.saveLocalSessionVersion(uid, sessionVersion);
       // Cifra le note esistenti (migrazione)
       await this.noteService.encryptExistingNotes();
     } catch (e) {
@@ -291,7 +307,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
     }
   }
 
-  private async showUnlockDialog(uid: string, publicKey: string, encryptedPrivateKey: string): Promise<void> {
+  private async showUnlockDialog(uid: string, publicKey: string, encryptedPrivateKey: string, sessionVersion: number): Promise<void> {
     let unlocked = false;
     while (!unlocked) {
       const ref = this.dialog.open(PassphraseDialogComponent, {
@@ -305,11 +321,27 @@ export class DashboardComponent implements OnInit, OnDestroy {
       try {
         await this.cryptoService.unlockPrivateKey(uid, encryptedPrivateKey, passphrase);
         this.cryptoService.setSession(uid, publicKey);
+        this.cryptoService.saveLocalSessionVersion(uid, sessionVersion);
         unlocked = true;
       } catch {
         // Passphrase errata: il dialog si riapre
       }
     }
+  }
+
+  /** Cambia passphrase E2E: re-cifra la chiave privata e invalida le altre sessioni. */
+  async changeEncryptionPassphrase(oldPassphrase: string, newPassphrase: string): Promise<void> {
+    const uid = this.authService.getCurrentUserId();
+    if (!uid) return;
+    const userDoc = await this.noteService.getUserDoc();
+    if (!userDoc?.encryptedPrivateKey) return;
+
+    const newEncryptedPrivateKey = await this.cryptoService.changePassphrase(
+      uid, oldPassphrase, newPassphrase, userDoc.encryptedPrivateKey
+    );
+    const newSessionVersion = await this.noteService.updateEncryptedPrivateKey(newEncryptedPrivateKey);
+    // Aggiorna la versione locale (questa sessione rimane attiva)
+    this.cryptoService.saveLocalSessionVersion(uid, newSessionVersion);
   }
 
   toggleSettingsMenu(): void { this.settingsMenuOpen = !this.settingsMenuOpen; }

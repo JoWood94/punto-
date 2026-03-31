@@ -219,11 +219,25 @@ export class NoteService {
     } catch { return null; }
   }
 
-  async saveEncryptionKeys(publicKey: string, encryptedPrivateKey: string): Promise<void> {
+  async saveEncryptionKeys(publicKey: string, encryptedPrivateKey: string): Promise<number> {
     const uid = this.authService.getCurrentUserId();
-    if (!uid) return;
+    if (!uid) return 1;
     const userRef = doc(this.db, `users/${uid}`);
-    await setDoc(userRef, { publicKey, encryptedPrivateKey, encryptionEnabled: true }, { merge: true });
+    const sessionVersion = 1;
+    await setDoc(userRef, { publicKey, encryptedPrivateKey, encryptionEnabled: true, encryptionSetup: true, sessionVersion }, { merge: true });
+    return sessionVersion;
+  }
+
+  /** Aggiorna la chiave privata cifrata (dopo cambio passphrase) e incrementa sessionVersion. */
+  async updateEncryptedPrivateKey(encryptedPrivateKey: string): Promise<number> {
+    const uid = this.authService.getCurrentUserId();
+    if (!uid) throw new Error('Not authenticated');
+    const userRef = doc(this.db, `users/${uid}`);
+    const snap = await getDoc(userRef);
+    const current = snap.exists() ? (snap.data()?.['sessionVersion'] ?? 0) : 0;
+    const sessionVersion = current + 1;
+    await setDoc(userRef, { encryptedPrivateKey, sessionVersion }, { merge: true });
+    return sessionVersion;
   }
 
   /** Cifra in batch le note esistenti dopo il setup E2E (migrazione). */
