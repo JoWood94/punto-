@@ -4,14 +4,26 @@
 }
 
 .dashboard-container {
+  // position: fixed impedisce a iOS Safari di spostare il container verso l'alto
+  // con il compositor-scroll per keyboard avoidance (overflow: hidden non basta).
+  // height: var(--vh) si aggiorna dinamicamente via visualViewport, così quando la
+  // tastiera si apre il container si riduce e il floating toolbar rimane sopra la tastiera.
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
   height: 100vh;
   height: var(--vh, 100vh);
-  width: 100vw;
   background: var(--punto-bg);
 
   // Smooth transition per il margin-left del drawer content (sidenav open/close)
+  // overflow: hidden !important: Angular Material imposta overflow: auto su
+  // mat-sidenav-content; iOS usa quel container per il keyboard avoidance
+  // (scrolla via l'app-header). Blocchiamo il scroll qui — l'unico container
+  // scrollabile deve essere .editor-content dentro note-editor.
   ::ng-deep .mat-drawer-content {
     transition: margin-left var(--_t) !important;
+    overflow: hidden !important;
   }
 }
 
@@ -359,6 +371,9 @@
 .dashboard-content {
   display: flex;
   flex-direction: column;
+  // Con position:fixed sul container, usiamo var(--vh) per limitare il contenuto
+  // all'altezza del visual viewport (senza la tastiera).
+  // Lo spazio sotto var(--vh) resta vuoto (coperto dalla tastiera): corretto.
   height: 100vh;
   height: var(--vh, 100vh);
   overflow-y: hidden;
@@ -371,9 +386,13 @@
   position: sticky;
   top: 0;
   flex-shrink: 0;
+  // Con position:fixed sul container che parte da y=0, il top 59px (Dynamic Island
+  // su iPhone 15 Pro) è coperto dallo status bar. Il padding-top spinge il contenuto
+  // dell'header (icone, logo) nella zona visibile sotto la Dynamic Island.
+  padding-top: env(safe-area-inset-top, 0px);
 
   &.mat-toolbar {
-    height: 80px;
+    height: calc(80px + env(safe-area-inset-top, 0px));
   }
 
 }
@@ -721,7 +740,7 @@
 // ─── Mobile calendario: dropdown dall'header ─────────────────
 .settings-menu-calendar {
   position: fixed;
-  top: 80px; // altezza .app-header.mat-toolbar
+  top: calc(80px + env(safe-area-inset-top, 0px)); // altezza .app-header.mat-toolbar + safe-area
   right: 8px;
   z-index: 100;
 }

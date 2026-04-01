@@ -57,7 +57,7 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewChecked,
 
   note: Partial<Note> & { blocks: NoteBlock[]; tags: string[] } = {
     title: '',
-    blocks: [{ type: 'text', html: '' }],
+    blocks: [],
     tags: [],
     color: 'default'
   };

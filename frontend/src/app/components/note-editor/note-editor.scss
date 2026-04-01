@@ -15,7 +15,9 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 16px 24px;
+  // safe-area-inset-top gestito dall'app-header nel dashboard (che usa position:fixed
+  // partendo da y=0). Non serve ripeterne il valore qui.
+  padding: 16px 24px 16px;
   gap: 8px;
 }
 
@@ -43,8 +45,9 @@
 .editor-content {
   flex: 1;
   overflow-y: auto;
-  // Padding bottom = altezza FAB toolbar (84px) + safe area + margine
-  // così il contenuto non finisce sotto il FAB
+  -webkit-overflow-scrolling: touch;
+  // Impedisce lo scroll elastico iOS oltre il contenuto reale
+  overscroll-behavior-y: contain;
   padding: 0 24px calc(84px + env(safe-area-inset-bottom, 0px) + 16px);
 }
 
@@ -86,11 +89,14 @@
 }
 
 // ─── Floating Toolbar Area ────────────────────────────────────
-// position:absolute toglie l'area dal flusso flex → editor-content
-// prende tutto lo spazio disponibile, tastiera iOS non schiaccia più il layout
+// position: fixed ancorata sopra la tastiera.
+// Su iOS Safari, position:fixed è già relativo al visual viewport:
+//   bottom: 0 = sopra la tastiera → --keyboard-height: 0px (vedi dashboard.ts).
+// Su Chrome/Android, position:fixed è relativo al layout viewport:
+//   serve compensare manualmente l'altezza della tastiera → --keyboard-height: lvh - vh.
 .floating-toolbar-area {
-  position: absolute;
-  bottom: 0;
+  position: fixed;
+  bottom: var(--keyboard-height, 0px);
   left: 0;
   right: 0;
   height: calc(84px + env(safe-area-inset-bottom, 0px));
@@ -354,7 +360,8 @@
   border: none;
   background: transparent;
   outline: none;
-  font-size: 0.9rem;
+  // font-size >= 16px su mobile per prevenire l'auto-zoom di iOS Safari al focus
+  font-size: 1rem;
   color: var(--mat-sys-on-surface);
 
   &::placeholder {

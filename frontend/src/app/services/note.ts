@@ -75,7 +75,9 @@ export interface Note {
 
 /** Converts legacy flat-field note to the block model. Idempotent. */
 export function migrateToBlocks(note: any): NoteBlock[] {
-  if (note.blocks && note.blocks.length > 0) return note.blocks as NoteBlock[];
+  // Array.isArray gestisce anche blocks:[] (nota nuova salvata senza blocchi) —
+  // evita che venga trattata come nota legacy e riceva un blocco testo vuoto.
+  if (Array.isArray(note.blocks)) return note.blocks as NoteBlock[];
   const blocks: NoteBlock[] = [{ type: 'text', html: note.content || '' }];
   if (note.checklist?.length) {
     blocks.push({ type: 'checklist', items: note.checklist });

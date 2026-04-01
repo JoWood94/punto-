@@ -145,20 +145,22 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
     if (window.visualViewport) {
       const vv = window.visualViewport;
+      // --lvh: layout viewport height (window.innerHeight), costante anche con tastiera aperta.
+      document.documentElement.style.setProperty('--lvh', `${window.innerHeight}px`);
+      // Su iOS Safari, position:fixed è già relativo al visual viewport → la floating toolbar
+      // non ha bisogno di offset. Su Chrome/Android, position:fixed è relativo al layout
+      // viewport → serve compensare l'altezza della tastiera.
+      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
       const setVh = () => {
         const h = vv.height;
         document.documentElement.style.setProperty('--vh', `${h}px`);
-        if (vv.offsetTop > 0) window.scrollTo(0, 0);
+        const kh = isIOS ? 0 : Math.max(0, window.innerHeight - h);
+        document.documentElement.style.setProperty('--keyboard-height', `${kh}px`);
+        // NON chiamare scrollTo(0,0) né scrollIntoView: quando l'editor è aperto
+        // iOS gestisce correttamente lo scroll sul campo attivo; forzare scrollTo
+        // combatte con il comportamento nativo e causa layout vuoto.
         (document.querySelectorAll('.cdk-overlay-container') as NodeListOf<HTMLElement>)
           .forEach(el => { el.style.height = `${h}px`; el.style.maxHeight = `${h}px`; });
-        // iOS: quando la tastiera appare/scompare, scrolla l'elemento attivo nel viewport visivo.
-        // Timeout per attendere il completamento dell'animazione tastiera (~300ms).
-        setTimeout(() => {
-          const active = document.activeElement as HTMLElement | null;
-          if (active && active !== document.body && active.tagName !== 'MAT-SIDENAV-CONTAINER') {
-            active.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-          }
-        }, 320);
       };
       vv.addEventListener('resize', setVh);
       vv.addEventListener('scroll', setVh);
