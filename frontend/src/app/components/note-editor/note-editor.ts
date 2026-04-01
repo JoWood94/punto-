@@ -1,6 +1,7 @@
 import {
   Component, Input, Output, EventEmitter, inject, OnInit, OnChanges, OnDestroy,
-  SimpleChanges, ViewChildren, ViewChild, QueryList, ElementRef, ChangeDetectorRef, AfterViewChecked
+  SimpleChanges, ViewChildren, ViewChild, QueryList, ElementRef, ChangeDetectorRef, AfterViewChecked,
+  signal
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -63,16 +64,20 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewChecked,
   };
 
   // Rich-text formatting state (reflects the active text block)
-  isBold = false;
-  isItalic = false;
-  isUnderline = false;
-  isStrikethrough = false;
-  isList = false;
-  isOrderedList = false;
-  activeTextBlockIndex: number | null = null;
+  readonly isBold = signal(false);
+  readonly isItalic = signal(false);
+  readonly isUnderline = signal(false);
+  readonly isStrikethrough = signal(false);
+  readonly isList = signal(false);
+  readonly isOrderedList = signal(false);
+  readonly activeTextBlockIndex = signal<number | null>(null);
 
   // Add-block speed dial state
-  addBlockMenuOpen = false;
+  readonly addBlockMenuOpen = signal(false);
+
+  // True quando il focus è su un campo form non-testo (es. input[type=time]):
+  // nasconde la floating-toolbar-area per evitare sovrapposizione su iOS.
+  readonly nonTextFieldFocused = signal(false);
 
   // TODO: tags disabilitati temporaneamente
   // tagInput = '';
@@ -120,7 +125,10 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewChecked,
     }
     if (this.pendingFocusTitleInput) {
       this.pendingFocusTitleInput = false;
-      this.titleInputRef?.nativeElement?.focus();
+      // setTimeout(0): differisce il focus al prossimo macrotask, necessario su iOS
+      // perché il browser apre la tastiera solo se la chiamata .focus() avviene
+      // il più vicino possibile al gesture event che ha aperto l'editor.
+      setTimeout(() => this.titleInputRef?.nativeElement?.focus(), 0);
     }
   }
 
@@ -290,21 +298,24 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewChecked,
       if (type === 'text') this.pendingFocusBlockIndex = insertAt;
     }
     this.textBlocksNeedInit = true;
-    this.scrollEditorToBottom();
+    // I blocchi testo si auto-focalizzano: iOS keyboard avoidance gestisce lo scroll.
+    // scrollEditorToBottom sovrascrive quella posizione e mostra il nuovo blocco
+    // in fondo con il padding-bottom bianco visibile sopra la toolbar.
+    if (type !== 'text') this.scrollEditorToBottom();
     this.triggerAutoSave();
   }
 
   addBlockAfterActive(type: NoteBlock['type']) {
-    const insertAfter = this.activeTextBlockIndex ?? this.note.blocks.length - 1;
+    const insertAfter = this.activeTextBlockIndex() ?? this.note.blocks.length - 1;
     this.addBlock(type, insertAfter);
   }
 
   toggleAddBlockMenu() {
-    this.addBlockMenuOpen = !this.addBlockMenuOpen;
+    this.addBlockMenuOpen.set(!this.addBlockMenuOpen());
   }
 
   closeAddBlockMenu() {
-    this.addBlockMenuOpen = false;
+    this.addBlockMenuOpen.set(false);
   }
 
   onEditorContentClick(event: MouseEvent) {
@@ -323,7 +334,7 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewChecked,
     const result = await firstValueFrom(ref.afterClosed());
     if (!result) return;
     this.saveTextBlocksFromDOM();
-    const insertAt = (this.activeTextBlockIndex ?? this.note.blocks.length - 1) + 1;
+    const insertAt = (this.activeTextBlockIndex() ?? this.note.blocks.length - 1) + 1;
     const newBlock: LinkBlock = { type: 'link', url: result.url, label: result.label };
     this.note.blocks = [
       ...this.note.blocks.slice(0, insertAt),
@@ -350,7 +361,7 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewChecked,
 
   removeBlock(index: number) {
     this.saveTextBlocksFromDOM();
-    if (this.activeTextBlockIndex === index) this.activeTextBlockIndex = null;
+    if (this.activeTextBlockIndex() === index) this.activeTextBlockIndex.set(null);
     this.note.blocks = this.note.blocks.filter((_, i) => i !== index);
     this.textBlocksNeedInit = true;
     this.triggerAutoSave();
@@ -377,34 +388,32 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewChecked,
   }
 
   onTextFocus(blockIndex: number) {
-    this.activeTextBlockIndex = blockIndex;
+    this.activeTextBlockIndex.set(blockIndex);
     this.updateFormatState();
   }
 
   onTextBlur() {
-    this.activeTextBlockIndex = null;
-    this.cdr.detectChanges();
+    this.activeTextBlockIndex.set(null);
   }
 
   updateFormatState() {
     if (typeof document !== 'undefined') {
-      this.isBold = document.queryCommandState('bold');
-      this.isItalic = document.queryCommandState('italic');
-      this.isUnderline = document.queryCommandState('underline');
-      this.isStrikethrough = document.queryCommandState('strikeThrough');
-      this.isList = document.queryCommandState('insertUnorderedList');
-      this.isOrderedList = document.queryCommandState('insertOrderedList');
-      this.cdr.detectChanges();
+      this.isBold.set(document.queryCommandState('bold'));
+      this.isItalic.set(document.queryCommandState('italic'));
+      this.isUnderline.set(document.queryCommandState('underline'));
+      this.isStrikethrough.set(document.queryCommandState('strikeThrough'));
+      this.isList.set(document.queryCommandState('insertUnorderedList'));
+      this.isOrderedList.set(document.queryCommandState('insertOrderedList'));
     }
   }
 
   execCommand(command: string) {
-    if (this.activeTextBlockIndex !== null) {
+    if (this.activeTextBlockIndex() !== null) {
       const els = this.textBlockEls.toArray();
       let textIdx = 0;
       for (let i = 0; i < this.note.blocks.length; i++) {
         if (this.note.blocks[i].type === 'text') {
-          if (i === this.activeTextBlockIndex && els[textIdx]) {
+          if (i === this.activeTextBlockIndex() && els[textIdx]) {
             els[textIdx].nativeElement.focus();
           }
           textIdx++;
@@ -474,7 +483,6 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewChecked,
     block.editing = false;
     block.mapUrl = this.generateMapUrl(block.lat, block.lon);
     block.addressOptions = [];
-    this.cdr.detectChanges();
     this.triggerAutoSave();
   }
 
@@ -525,6 +533,9 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewChecked,
     block.date = undefined;
     this.triggerAutoSave();
   }
+
+  onNonTextFieldFocus() { this.nonTextFieldFocused.set(true); }
+  onNonTextFieldBlur()  { this.nonTextFieldFocused.set(false); }
 
   onReminderChange() {
     // L'utente ha modificato il reminder → resetta lo status a 'pending' per ri-schedulare l'invio

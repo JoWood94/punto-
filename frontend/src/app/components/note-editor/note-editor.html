@@ -131,7 +131,9 @@
               <span class="time-fill-label">Ora</span>
               <input type="time" class="time-fill-input"
                      [value]="getReminderTimeValue($any(block))"
-                     (change)="onReminderTimeChange($any(block), $event)">
+                     (change)="onReminderTimeChange($any(block), $event)"
+                     (focus)="onNonTextFieldFocus()"
+                     (blur)="onNonTextFieldBlur()">
             </div>
 
             <mat-form-field appearance="fill" class="recurrence-field">
@@ -265,42 +267,44 @@
 </div><!-- /editor-content -->
 
 <!-- ── Floating toolbars (M3 Expressive) ── -->
-<div class="floating-toolbar-area">
+<!-- toolbar-hidden via CSS class (non *ngIf): su iOS il focus event su input[type=time]
+     può non propagarsi correttamente con *ngIf, visibility:hidden è più affidabile -->
+<div class="floating-toolbar-area" [class.toolbar-hidden]="nonTextFieldFocused()">
 
   <!-- Backdrop per chiudere la toolbar add-block -->
-  <div class="add-block-backdrop" *ngIf="addBlockMenuOpen" (click)="closeAddBlockMenu()"></div>
+  <div class="add-block-backdrop" *ngIf="addBlockMenuOpen()" (click)="closeAddBlockMenu()"></div>
 
   <!-- Format toolbar: pill orizzontale, appare auto su focus testo -->
-  <div class="format-floating-toolbar" *ngIf="activeTextBlockIndex !== null && !addBlockMenuOpen">
+  <div class="format-floating-toolbar" *ngIf="activeTextBlockIndex() !== null && !addBlockMenuOpen()">
     <button mat-icon-button type="button" tabindex="-1"
             (mousedown)="$event.preventDefault()" (click)="execCommand('bold')"
-            [class.format-active]="isBold" matTooltip="Grassetto">
+            [class.format-active]="isBold()" matTooltip="Grassetto">
       <mat-icon>format_bold</mat-icon>
     </button>
     <button mat-icon-button type="button" tabindex="-1"
             (mousedown)="$event.preventDefault()" (click)="execCommand('italic')"
-            [class.format-active]="isItalic" matTooltip="Corsivo">
+            [class.format-active]="isItalic()" matTooltip="Corsivo">
       <mat-icon>format_italic</mat-icon>
     </button>
     <button mat-icon-button type="button" tabindex="-1"
             (mousedown)="$event.preventDefault()" (click)="execCommand('underline')"
-            [class.format-active]="isUnderline" matTooltip="Sottolineato">
+            [class.format-active]="isUnderline()" matTooltip="Sottolineato">
       <mat-icon>format_underlined</mat-icon>
     </button>
     <button mat-icon-button type="button" tabindex="-1"
             (mousedown)="$event.preventDefault()" (click)="execCommand('strikeThrough')"
-            [class.format-active]="isStrikethrough" matTooltip="Barrato">
+            [class.format-active]="isStrikethrough()" matTooltip="Barrato">
       <mat-icon>format_strikethrough</mat-icon>
     </button>
     <div class="ftb-divider"></div>
     <button mat-icon-button type="button" tabindex="-1"
             (mousedown)="$event.preventDefault()" (click)="execCommand('insertUnorderedList')"
-            [class.format-active]="isList" matTooltip="Lista puntata">
+            [class.format-active]="isList()" matTooltip="Lista puntata">
       <mat-icon>format_list_bulleted</mat-icon>
     </button>
     <button mat-icon-button type="button" tabindex="-1"
             (mousedown)="$event.preventDefault()" (click)="execCommand('insertOrderedList')"
-            [class.format-active]="isOrderedList" matTooltip="Lista numerata">
+            [class.format-active]="isOrderedList()" matTooltip="Lista numerata">
       <mat-icon>format_list_numbered</mat-icon>
     </button>
     <div class="ftb-divider"></div>
@@ -312,7 +316,7 @@
   </div>
 
   <!-- M3 Expressive horizontal toolbar: appare a sinistra del FAB -->
-  <div class="add-block-toolbar" [class.add-block-toolbar-open]="addBlockMenuOpen">
+  <div class="add-block-toolbar" [class.add-block-toolbar-open]="addBlockMenuOpen()">
     <button mat-icon-button type="button" tabindex="-1"
             (click)="addBlockAfterActive('text'); closeAddBlockMenu()" aria-label="Testo">
       <mat-icon>text_fields</mat-icon>
@@ -338,7 +342,7 @@
   <!-- FAB + (stessa distanza dal bordo di "Nuova Nota") -->
   <button mat-mini-fab class="add-block-fab"
           (click)="toggleAddBlockMenu()" type="button"
-          [class.add-block-fab-open]="addBlockMenuOpen"
+          [class.add-block-fab-open]="addBlockMenuOpen()"
           aria-label="Aggiungi blocco">
     <mat-icon>add</mat-icon>
   </button>

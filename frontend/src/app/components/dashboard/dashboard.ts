@@ -63,6 +63,8 @@ export class DashboardComponent implements OnInit, OnDestroy {
   private snackBar = inject(MatSnackBar);
   private cryptoService: CryptoService = inject(CryptoService);
 @ViewChild('sidenav') sidenav!: MatSidenav;
+  /** Riferimento all'editor attivo — usato dalla mobile toolbar in dashboard.html */
+  @ViewChild('noteEditor') noteEditorComp?: NoteEditorComponent;
 
   notes$: Observable<Note[]> | null = null;
   themeColors = ['#6200ee', '#1e88e5', '#43a047', '#e53935', '#ffb300'];
@@ -151,16 +153,28 @@ export class DashboardComponent implements OnInit, OnDestroy {
       // non ha bisogno di offset. Su Chrome/Android, position:fixed è relativo al layout
       // viewport → serve compensare l'altezza della tastiera.
       const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+      let overlayContainers: HTMLElement[] = [];
+      const refreshDomRefs = () => {
+        overlayContainers = Array.from(document.querySelectorAll('.cdk-overlay-container'));
+      };
+      refreshDomRefs();
       const setVh = () => {
         const h = vv.height;
         document.documentElement.style.setProperty('--vh', `${h}px`);
-        const kh = isIOS ? 0 : Math.max(0, window.innerHeight - h);
-        document.documentElement.style.setProperty('--keyboard-height', `${kh}px`);
-        // NON chiamare scrollTo(0,0) né scrollIntoView: quando l'editor è aperto
-        // iOS gestisce correttamente lo scroll sul campo attivo; forzare scrollTo
-        // combatte con il comportamento nativo e causa layout vuoto.
-        (document.querySelectorAll('.cdk-overlay-container') as NodeListOf<HTMLElement>)
-          .forEach(el => { el.style.height = `${h}px`; el.style.maxHeight = `${h}px`; });
+        if (!isIOS) {
+          document.documentElement.style.setProperty('--keyboard-height', `${Math.max(0, window.innerHeight - h)}px`);
+        }
+        // iOS pans the visual viewport (offsetTop > 0) when keyboard opens to show focused input.
+        // Resetting window scroll to 0 reverts the pan; then scrollIntoView handles scrolling
+        // the focused element into view within .editor-content (the actual scrollable container).
+        if (vv.offsetTop > 0) window.scrollTo(0, 0);
+        for (const el of overlayContainers) { el.style.height = `${h}px`; el.style.maxHeight = `${h}px`; }
+        setTimeout(() => {
+          const active = document.activeElement as HTMLElement | null;
+          if (active && active !== document.body && active.tagName !== 'MAT-SIDENAV-CONTAINER') {
+            active.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+          }
+        }, 320);
       };
       vv.addEventListener('resize', setVh);
       vv.addEventListener('scroll', setVh);

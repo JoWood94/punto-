@@ -209,7 +209,7 @@
     </mat-toolbar>
 
     <div class="editor-wrapper editor-enter" *ngIf="activeNote !== undefined">
-      <app-note-editor [selectedNote]="activeNote" [initialReminderDate]="newNoteCalendarDate"
+      <app-note-editor #noteEditor [selectedNote]="activeNote" [initialReminderDate]="newNoteCalendarDate"
                        (closeEditor)="closeEditor()">
       </app-note-editor>
     </div>
@@ -254,3 +254,5 @@
     Nuova Nota
   </button>
 </div>
+
+

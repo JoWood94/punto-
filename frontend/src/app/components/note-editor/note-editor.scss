@@ -7,8 +7,6 @@
   background: var(--punto-bg);
   border-radius: 0;
   overflow: hidden;
-  // Necessario per position:absolute della floating-toolbar-area
-  position: relative;
 }
 
 .editor-header {
@@ -44,11 +42,14 @@
 
 .editor-content {
   flex: 1;
+  min-height: 0;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
-  // Impedisce lo scroll elastico iOS oltre il contenuto reale
   overscroll-behavior-y: contain;
-  padding: 0 24px calc(84px + env(safe-area-inset-bottom, 0px) + 16px);
+  padding: 0 24px 24px;
+  // Forza GPU compositing: previene l'artefatto WebKit (div bianco) che appare quando
+  // --vh cambia e il layer composited non si invalida finché l'utente non scrolla.
+  transform: translateZ(0);
 }
 
 .full-width {
@@ -88,19 +89,22 @@
   }
 }
 
-// ─── Floating Toolbar Area ────────────────────────────────────
-// position: fixed ancorata sopra la tastiera.
-// Su iOS Safari, position:fixed è già relativo al visual viewport:
-//   bottom: 0 = sopra la tastiera → --keyboard-height: 0px (vedi dashboard.ts).
-// Su Chrome/Android, position:fixed è relativo al layout viewport:
-//   serve compensare manualmente l'altezza della tastiera → --keyboard-height: lvh - vh.
+// ─── Floating Toolbar Area ───────────────────────────────────
+// flex-shrink:0 + height fisso: il toolbar occupa sempre 84px + safe-area
+// in fondo al flex column di :host. Quando --vh si riduce con la tastiera,
+// editor-content (flex:1) si riduce, la toolbar rimane visibile sopra la tastiera.
+// Funziona perché dashboard-container ha height:var(--vh) + overflow:hidden
+// → l'intera catena flex si riduce con la tastiera senza position tricks.
 .floating-toolbar-area {
-  position: fixed;
-  bottom: var(--keyboard-height, 0px);
-  left: 0;
-  right: 0;
-  height: calc(84px + env(safe-area-inset-bottom, 0px));
+  position: relative;
+  flex-shrink: 0;
+  height: calc(84px + min(env(safe-area-inset-bottom, 0px), 44px));
   pointer-events: none;
+
+  &.toolbar-hidden {
+    visibility: hidden;
+    pointer-events: none;
+  }
 }
 
 // Backdrop invisibile per chiudere il menu add-block
@@ -115,7 +119,7 @@
 .format-floating-toolbar {
   position: absolute;
   left: 28px;
-  bottom: calc(28px + env(safe-area-inset-bottom, 0px));
+  bottom: calc(28px + min(env(safe-area-inset-bottom, 0px), 44px));
   display: flex;
   align-items: center;
   background: var(--punto-primary);
@@ -155,7 +159,7 @@
 .add-block-fab {
   position: absolute;
   right: 28px;
-  bottom: calc(28px + env(safe-area-inset-bottom, 0px));
+  bottom: calc(28px + min(env(safe-area-inset-bottom, 0px), 44px));
   background: var(--punto-primary) !important;
   color: white !important;
   width: 56px;
@@ -181,7 +185,7 @@
 .add-block-toolbar {
   position: absolute;
   right: calc(28px + 56px + 12px); // a sinistra del FAB con 12px gap
-  bottom: calc(28px + env(safe-area-inset-bottom, 0px));
+  bottom: calc(28px + min(env(safe-area-inset-bottom, 0px), 44px));
   display: flex;
   align-items: center;
   background: var(--punto-primary);
@@ -522,25 +526,21 @@
 }
 
 // ─── Mat-form-field fill override (inside metadata-section) ──
-// Stile coerente con il text block: solo bottom line, nessun background
+// Sfondo trasparente + contorno arrotondato (stesso radius del campo cerca note = 16px)
 .metadata-section {
   ::ng-deep {
-    // Rimuovi background grigio fill → trasparente
+    // Background trasparente, forma arrotondata — nessun contorno (flat style)
     .mdc-text-field--filled:not(.mdc-text-field--disabled) {
       background: transparent !important;
-      border-radius: 0 !important;
-      padding-left: 0 !important;
-      padding-right: 0 !important;
+      border-radius: var(--punto-shape-lg, 16px) !important;
+      padding-left: 12px !important;
+      padding-right: 12px !important;
     }
 
-    // Bottom line idle: uguale all'outline-variant del text block
-    .mdc-text-field--filled .mdc-line-ripple::before {
-      border-bottom-color: var(--mat-sys-outline-variant) !important;
-    }
-
-    // Bottom line focused: primario 2px
+    // Nasconde la bottom line (sostituita dal box-shadow)
+    .mdc-text-field--filled .mdc-line-ripple::before,
     .mdc-text-field--filled .mdc-line-ripple::after {
-      border-bottom-color: var(--punto-primary) !important;
+      border-bottom-color: transparent !important;
     }
 
     // Label colore neutro, focus → primario
@@ -570,13 +570,14 @@
   flex: 0 0 auto;
   min-width: 110px;
   background: transparent;
-  border-bottom: 1px solid var(--mat-sys-outline-variant);
-  padding: 16px 0 4px;
+  border: 1px solid var(--mat-sys-outline-variant);
+  border-radius: var(--punto-shape-lg, 16px);
+  padding: 12px 12px 8px;
   cursor: pointer;
   transition: border-color var(--_t);
 
   &:focus-within {
-    border-bottom: 2px solid var(--punto-primary);
+    border-color: var(--punto-primary);
     .time-fill-label { color: var(--punto-primary); }
   }
 }

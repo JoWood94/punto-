@@ -4,26 +4,13 @@
 }
 
 .dashboard-container {
-  // position: fixed impedisce a iOS Safari di spostare il container verso l'alto
-  // con il compositor-scroll per keyboard avoidance (overflow: hidden non basta).
-  // height: var(--vh) si aggiorna dinamicamente via visualViewport, così quando la
-  // tastiera si apre il container si riduce e il floating toolbar rimane sopra la tastiera.
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
   height: 100vh;
   height: var(--vh, 100vh);
+  width: 100vw;
   background: var(--punto-bg);
 
-  // Smooth transition per il margin-left del drawer content (sidenav open/close)
-  // overflow: hidden !important: Angular Material imposta overflow: auto su
-  // mat-sidenav-content; iOS usa quel container per il keyboard avoidance
-  // (scrolla via l'app-header). Blocchiamo il scroll qui — l'unico container
-  // scrollabile deve essere .editor-content dentro note-editor.
   ::ng-deep .mat-drawer-content {
     transition: margin-left var(--_t) !important;
-    overflow: hidden !important;
   }
 }
 
@@ -71,6 +58,21 @@
   justify-content: center;
   align-items: center;
   padding: 48px 0;
+}
+
+// ─── Pinned section label (icona pin) ───────────────────────
+.pinned-section-label {
+  display: flex;
+  justify-content: flex-end;
+  padding: 4px 6px 2px;
+
+  mat-icon {
+    font-size: 14px !important;
+    width: 14px !important;
+    height: 14px !important;
+    color: var(--mat-sys-on-surface-variant);
+    opacity: 0.5;
+  }
 }
 
 // ─── Section labels (Fissate / Note) ─────────────────────────
@@ -753,3 +755,4 @@
     transform-origin: top right;
   }
 }
+
