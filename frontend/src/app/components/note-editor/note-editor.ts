@@ -1,7 +1,7 @@
 import {
   Component, Input, Output, EventEmitter, inject, OnInit, OnChanges, OnDestroy,
-  SimpleChanges, ViewChildren, ViewChild, QueryList, ElementRef, ChangeDetectorRef, AfterViewChecked,
-  signal
+  SimpleChanges, ViewChildren, ViewChild, QueryList, ElementRef, ChangeDetectorRef,
+  AfterViewInit, AfterViewChecked, signal
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -46,7 +46,7 @@ import { LinkDialogComponent } from '../link-dialog/link-dialog';
   templateUrl: './note-editor.html',
   styleUrls: ['./note-editor.scss']
 })
-export class NoteEditorComponent implements OnInit, OnChanges, AfterViewChecked, OnDestroy {
+export class NoteEditorComponent implements OnInit, OnChanges, AfterViewInit, AfterViewChecked, OnDestroy {
   @Input() selectedNote: Note | null = null;
   @Input() initialReminderDate?: Date;
   @Output() closeEditor = new EventEmitter<void>();
@@ -117,18 +117,22 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewChecked,
   ngOnInit() { this.initNote(); }
   ngOnChanges(changes: SimpleChanges) { if (changes['selectedNote']) this.initNote(); }
 
+  ngAfterViewInit() {
+    // Focus sul titolo alla prima render di una nuova nota.
+    // ngAfterViewInit è chiamato sincronicamente nella stessa catena del gesture utente
+    // (zone.js triggera CD in modo sincrono alla fine dell'event handler) →
+    // .focus() senza setTimeout apre la tastiera iOS.
+    if (this.pendingFocusTitleInput) {
+      this.pendingFocusTitleInput = false;
+      this.titleInputRef?.nativeElement?.focus();
+    }
+  }
+
   ngAfterViewChecked() {
     if (this.textBlocksNeedInit) {
       this.textBlocksNeedInit = false;
       this.initTextBlockElements();
       this.applyPendingFocus();
-    }
-    if (this.pendingFocusTitleInput) {
-      this.pendingFocusTitleInput = false;
-      // setTimeout(0): differisce il focus al prossimo macrotask, necessario su iOS
-      // perché il browser apre la tastiera solo se la chiamata .focus() avviene
-      // il più vicino possibile al gesture event che ha aperto l'editor.
-      setTimeout(() => this.titleInputRef?.nativeElement?.focus(), 0);
     }
   }
 

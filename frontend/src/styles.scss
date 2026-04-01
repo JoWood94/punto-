@@ -9,7 +9,12 @@ html, body {
   margin: 0;
   padding: 0;
   height: 100%;
-  overflow: hidden;
+  // overflow:hidden su body sposta il root scroll container dal documentElement al body.
+  // iOS usa UIScrollView per i container scrollabili: position:fixed viene dipinto
+  // DENTRO la UIScrollView del body, non nel viewport root. Quando la tastiera apre e
+  // iOS sposta la scroll view (keyboard avoidance), i figli fixed si spostano con essa.
+  // overscroll-behavior:none previene il rubber-band scroll senza rompere position:fixed.
+  overscroll-behavior: none;
   background: var(--mat-sys-background);
   color: var(--mat-sys-on-background);
   font-family: 'Roboto', sans-serif;

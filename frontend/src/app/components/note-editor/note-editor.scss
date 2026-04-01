@@ -3,10 +3,12 @@
   --_e: var(--punto-easing-standard, cubic-bezier(0.2, 0, 0, 1));
   display: flex;
   flex-direction: column;
-  height: 100%;
+  height: var(--vh, 100dvh);
+  max-height: var(--vh, 100dvh);
   background: var(--punto-bg);
   border-radius: 0;
   overflow: hidden;
+  position: relative;
 }
 
 .editor-header {
@@ -46,7 +48,7 @@
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
   overscroll-behavior-y: contain;
-  padding: 0 24px 24px;
+  padding: 0 24px calc(84px + env(safe-area-inset-bottom, 0px) + 16px);
   // Forza GPU compositing: previene l'artefatto WebKit (div bianco) che appare quando
   // --vh cambia e il layer composited non si invalida finché l'utente non scrolla.
   transform: translateZ(0);
@@ -57,9 +59,15 @@
 }
 
 .rich-text-wrapper {
+  flex: 1;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   min-height: 100px;
+  background: var(--mat-sys-surface);
+  border: 1px solid var(--mat-sys-outline-variant);
+  border-radius: var(--punto-shape-lg, 16px);
+  padding: 12px 16px;
 }
 
 // (toolbar-scroll-container rimossa — sostituita da floating-toolbar-area)
@@ -74,8 +82,6 @@
   font-size: 1rem;
   line-height: 1.5;
   color: var(--mat-sys-on-surface);
-  // Underline sottile M3-style per rendere visibile l'area di testo
-  box-shadow: 0 1px 0 0 var(--mat-sys-outline-variant);
   transition: box-shadow var(--_t);
 
   &:empty:before {
@@ -85,7 +91,6 @@
 
   &:focus {
     outline: none;
-    box-shadow: 0 2px 0 0 var(--mat-sys-primary);
   }
 }
 
@@ -268,7 +273,7 @@
   gap: 8px;
 }
 
-// Checklist header: stessa struttura di .block-label-row
+// Checklist header: alias di .block-label-row
 .checklist-header {
   display: flex;
   align-items: center;
@@ -279,6 +284,7 @@
     font-size: 16px;
     width: 16px;
     height: 16px;
+    color: var(--mat-sys-on-surface-variant);
   }
 }
 
@@ -444,7 +450,7 @@
   height: 36px;
   cursor: grab;
   opacity: 0;
-  color: var(--mat-sys-on-surface-variant);
+  color: var(--mat-sys-on-surface);
   border-radius: 50%;
   transition:
     opacity var(--_t),
@@ -463,15 +469,20 @@
     opacity: 1 !important;
     background: color-mix(in srgb, var(--mat-sys-on-surface) 12%, transparent);
   }
+
+  @media (max-width: 599.98px) {
+    opacity: 0.35;
+  }
 }
 
-// Contenuto del blocco — occupa tutto lo spazio rimanente
+// Contenuto del blocco — card bianca con bordo sottile
 .metadata-section {
   flex: 1;
   min-width: 0;
-  padding: 8px 0;
-  background: transparent;
-  border-radius: 0;
+  padding: 14px 16px;
+  background: var(--mat-sys-surface);
+  border: 1px solid var(--mat-sys-outline-variant);
+  border-radius: var(--punto-shape-lg, 16px);
   margin: 0;
 }
 
@@ -491,14 +502,14 @@
     font-size: 16px;
     width: 16px;
     height: 16px;
-    color: var(--mat-sys-on-surface-variant);
+    color: var(--mat-sys-on-surface);
   }
 
   &:hover { background: color-mix(in srgb, var(--mat-sys-on-surface) 8%, transparent); }
   &:active { background: color-mix(in srgb, var(--mat-sys-on-surface) 12%, transparent); }
 
   @media (max-width: 599.98px) {
-    opacity: 0.45;
+    opacity: 0.6;
   }
 }
 
@@ -513,6 +524,7 @@
     font-size: 16px;
     width: 16px;
     height: 16px;
+    color: var(--mat-sys-on-surface-variant) !important;
   }
 }
 
@@ -529,12 +541,12 @@
 // Sfondo trasparente + contorno arrotondato (stesso radius del campo cerca note = 16px)
 .metadata-section {
   ::ng-deep {
-    // Background trasparente, forma arrotondata — nessun contorno (flat style)
+    // Campi flat dentro la card: sfondo trasparente, la card dà già il contesto visivo
     .mdc-text-field--filled:not(.mdc-text-field--disabled) {
       background: transparent !important;
-      border-radius: var(--punto-shape-lg, 16px) !important;
-      padding-left: 12px !important;
-      padding-right: 12px !important;
+      border-radius: var(--punto-shape-md, 12px) !important;
+      padding-left: 8px !important;
+      padding-right: 8px !important;
     }
 
     // Nasconde la bottom line (sostituita dal box-shadow)
@@ -635,6 +647,7 @@
 @media (max-width: 599.98px) {
   .reminder-inputs {
     flex-wrap: wrap;
+    gap: 12px;
   }
 
   .date-field {

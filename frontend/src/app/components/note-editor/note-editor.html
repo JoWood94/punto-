@@ -15,23 +15,29 @@
 
       <!-- Drag handle: sempre nel DOM per CDK, collassato per l'unico blocco testo -->
       <div cdkDragHandle class="drag-handle"
-           [class.drag-handle-collapsed]="block.type === 'text' && note.blocks.length <= 1">
+           [class.drag-handle-collapsed]="note.blocks.length <= 1">
         <mat-icon>drag_indicator</mat-icon>
       </div>
 
       <!-- ════ TEXT BLOCK ════ -->
       <ng-container *ngIf="block.type === 'text'">
-        <div
-          #textBlockEl
-          class="rich-text-editor"
-          contenteditable="true"
-          [attr.data-placeholder]="'Scrivi qui...'"
-          (input)="onTextInput(i, $event)"
-          (focus)="onTextFocus(i)"
-          (blur)="onTextBlur()"
-          (keyup)="updateFormatState()"
-          (mouseup)="updateFormatState()"
-          (touchend)="updateFormatState()">
+        <div class="rich-text-wrapper">
+          <div class="block-label-row">
+            <mat-icon>notes</mat-icon>
+            <span class="block-label">Testo</span>
+          </div>
+          <div
+            #textBlockEl
+            class="rich-text-editor"
+            contenteditable="true"
+            [attr.data-placeholder]="'Scrivi qui...'"
+            (input)="onTextInput(i, $event)"
+            (focus)="onTextFocus(i)"
+            (blur)="onTextBlur()"
+            (keyup)="updateFormatState()"
+            (mouseup)="updateFormatState()"
+            (touchend)="updateFormatState()">
+          </div>
         </div>
       </ng-container>
 
@@ -39,12 +45,12 @@
       <ng-container *ngIf="block.type === 'checklist'">
         <div class="checklist-block metadata-section">
           <div class="checklist-header">
-            <mat-icon color="primary">check_box</mat-icon>
+            <mat-icon >check_box</mat-icon>
             <span class="block-label">Checklist</span>
           </div>
           <div class="checklist-items">
             <div class="checklist-item" *ngFor="let item of $any(block).items; let j = index">
-              <mat-checkbox [(ngModel)]="item.done" (ngModelChange)="onChecklistItemChange()" color="primary"></mat-checkbox>
+              <mat-checkbox [(ngModel)]="item.done" (ngModelChange)="onChecklistItemChange()" ></mat-checkbox>
               <input class="checklist-input" [class.item-done]="item.done"
                      [(ngModel)]="item.text" (ngModelChange)="onChecklistItemChange()" placeholder="Voce..." />
               <button mat-icon-button class="remove-item-btn" (click)="removeChecklistItem($any(block), j)" type="button">
@@ -67,7 +73,7 @@
       <ng-container *ngIf="block.type === 'location'">
         <div class="metadata-section location-block">
           <div class="block-label-row">
-            <mat-icon color="primary">place</mat-icon>
+            <mat-icon >place</mat-icon>
             <span class="block-label">Luogo</span>
           </div>
 
@@ -112,9 +118,9 @@
       <ng-container *ngIf="block.type === 'reminder'">
         <div class="metadata-section reminder-block">
           <div class="block-label-row">
-            <mat-icon color="primary">notifications</mat-icon>
+            <mat-icon >notifications</mat-icon>
             <span class="block-label">Promemoria</span>
-            <button mat-icon-button color="warn" class="remove-reminder-btn"
+            <button mat-icon-button class="remove-reminder-btn"
                     (click)="clearReminder($any(block))" matTooltip="Azzera promemoria">
               <mat-icon>delete</mat-icon>
             </button>
@@ -155,7 +161,7 @@
       <ng-container *ngIf="block.type === 'image'">
         <div class="metadata-section image-block">
           <div class="block-label-row">
-            <mat-icon color="primary">photo</mat-icon>
+            <mat-icon >photo</mat-icon>
             <span class="block-label">Immagine</span>
           </div>
           <div class="image-upload-area" *ngIf="!$any(block).url">
@@ -194,7 +200,7 @@
       <ng-container *ngIf="block.type === 'link'">
         <div class="metadata-section link-block">
           <div class="block-label-row">
-            <mat-icon color="primary">link</mat-icon>
+            <mat-icon >link</mat-icon>
             <span class="block-label">Collegamento</span>
             <button mat-icon-button class="edit-link-btn"
                     (click)="editLinkBlock(i)"
