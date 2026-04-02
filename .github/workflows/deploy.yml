@@ -43,13 +43,12 @@ jobs:
 
       - name: Deploy to GitHub Pages (release_pages branch)
         run: |
-          cd frontend
-          npm run build -- --configuration production --base-href /punto-/
-          cd dist/frontend/browser
+          cd frontend/dist/frontend/browser
+          touch .nojekyll
           cp index.html 404.html
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git init
           git add .
-          git commit -m "deploy: $(cd ../../.. && git log -1 --pretty=format:'%s')"
+          git commit -m "deploy: $(cd ../../../.. && git log -1 --pretty=format:'%s')"
           git push --force https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git HEAD:release_pages
