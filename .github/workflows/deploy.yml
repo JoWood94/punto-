@@ -6,7 +6,7 @@ on:
       - 'main'
 
 permissions:
-  contents: read
+  contents: write
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
@@ -40,3 +40,16 @@ jobs:
           firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_PUNTO_84646 }}
           projectId: punto-84646
           channelId: live
+
+      - name: Deploy to GitHub Pages (release_pages branch)
+        run: |
+          cd frontend
+          npm run build -- --configuration production --base-href /punto-/
+          cd dist/frontend/browser
+          cp index.html 404.html
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git init
+          git add .
+          git commit -m "deploy: $(cd ../../.. && git log -1 --pretty=format:'%s')"
+          git push --force https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git HEAD:release_pages
