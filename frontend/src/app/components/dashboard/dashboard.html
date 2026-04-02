@@ -1,19 +1,75 @@
+<!-- Header unico globale — fuori dal sidenav container -->
+<mat-toolbar class="app-header">
+
+  <!-- Mobile: lista → calendario -->
+  <button mat-icon-button [disableRipple]="true"
+          *ngIf="isMobile && currentMainView === 'list' && activeNote === undefined"
+          (click)="setDefaultView('calendar')"
+          aria-label="Vista Calendario"
+          class="header-btn-animated">
+    <mat-icon>calendar_today</mat-icon>
+  </button>
+
+  <!-- Mobile: calendario → lista -->
+  <button mat-icon-button [disableRipple]="true"
+          *ngIf="isMobile && currentMainView === 'calendar' && activeNote === undefined"
+          (click)="setDefaultView('list')"
+          aria-label="Vista Lista"
+          class="header-btn-animated">
+    <mat-icon>format_list_bulleted</mat-icon>
+  </button>
+
+  <!-- Mobile: editor → indietro -->
+  <button mat-icon-button [disableRipple]="true"
+          *ngIf="isMobile && activeNote !== undefined"
+          (click)="handleBackButton()"
+          aria-label="Torna indietro"
+          class="back-button header-btn-animated">
+    <mat-icon>arrow_back</mat-icon>
+  </button>
+
+  <!-- Logo -->
+  <img src="punto_logo_no_bg.png" alt="punto! logo" class="mobile-center-logo" *ngIf="isMobile" />
+  <img src="punto_logo_no_bg.png" alt="punto! logo" class="header-logo" *ngIf="!isMobile" />
+
+  <span class="spacer"></span>
+
+  <!-- Mobile: elimina nota nell'editor -->
+  <button mat-icon-button [disableRipple]="true"
+          *ngIf="isMobile && activeNote?.id"
+          (click)="deleteActiveNote()"
+          aria-label="Elimina nota"
+          class="header-btn-animated">
+    <mat-icon>delete_outline</mat-icon>
+  </button>
+
+  <!-- Desktop: bottone calendario -->
+  <button mat-icon-button [disableRipple]="true"
+          *ngIf="!isMobile"
+          (click)="currentMainView = 'calendar'; activeNote = undefined"
+          [class.calendar-btn-active]="currentMainView === 'calendar' && activeNote === undefined"
+          matTooltip="Vista Calendario"
+          aria-label="Vista Calendario"
+          class="header-btn-animated">
+    <mat-icon>calendar_today</mat-icon>
+  </button>
+
+  <!-- Menu impostazioni — nascosto nell'editor -->
+  <button mat-icon-button [disableRipple]="true" [matMenuTriggerFor]="settingsMenu" aria-label="Menu"
+          *ngIf="activeNote === undefined" class="settings-menu-btn">
+    <mat-icon>more_vert</mat-icon>
+  </button>
+
+</mat-toolbar>
+
 <mat-sidenav-container class="dashboard-container"
+  style="touch-action: pan-y"
   (touchstart)="isMobile && onTouchStart($event)"
   (touchend)="isMobile && onTouchEnd($event)">
 
   <mat-sidenav mode="side" [opened]="!isMobile || (activeNote === undefined && currentMainView === 'list')" class="notes-sidenav"
     [class.mobile-full]="isMobile">
     <div style="display: flex; flex-direction: column; height: 100%; position: relative;">
-      <!-- Mobile header: calendario a sinistra, logo al centro, logout a destra -->
-      <div class="sidenav-header mobile-header" *ngIf="isMobile">
-        <button mat-icon-button (click)="setDefaultView('calendar')"
-          matTooltip="Vista Calendario" [class.mobile-actions]="isMobile">
-          <mat-icon>calendar_today</mat-icon>
-        </button>
-        <img src="punto_logo_no_bg.png" alt="punto! logo" class="mobile-center-logo" />
-        <span class="spacer"></span>
-      </div>
 
       <!-- Search bar -->
       <div class="search-bar-wrapper">
@@ -27,6 +83,21 @@
         </mat-form-field>
       </div>
 
+      <!-- Tab selector Note / Evasi — visibile solo se ci sono evasi -->
+      <div class="list-tab-selector" *ngIf="completedReminderNotes.length > 0">
+        <button [class.tab-active]="activeListTab === 'notes'" (click)="activeListTab = 'notes'">Note</button>
+        <button [class.tab-active]="activeListTab === 'evasi'" (click)="activeListTab = 'evasi'">Evasi</button>
+      </div>
+
+      <!-- Indicatore offline / errore Firestore -->
+      <div class="connectivity-bar"
+           *ngIf="isOffline || hasFirestoreError"
+           role="status"
+           aria-live="polite">
+        <mat-icon>{{ isOffline ? 'cloud_off' : 'sync_problem' }}</mat-icon>
+        <span>{{ isOffline ? 'Offline' : 'Errore di connessione' }}</span>
+      </div>
+
       <!-- Notes list -->
       <div class="notes-list">
 
@@ -38,37 +109,56 @@
         <!-- Contenuto — mostra solo quando caricato -->
         <ng-container *ngIf="notesLoaded">
 
-          <!-- Sezione "Fissate" — solo se ci sono entrambi pinned e non-pinned -->
-          <ng-container *ngIf="pinnedNotes.length > 0 && unpinnedNotes.length > 0">
-            <div class="section-label">Fissate</div>
-            <ng-container *ngFor="let note of pinnedNotes">
-              <ng-container *ngTemplateOutlet="noteCard; context: { note: note }"></ng-container>
+          <!-- Tab "Note" -->
+          <ng-container *ngIf="activeListTab === 'notes'">
+
+            <!-- Sezione "Fissate" — solo se ci sono entrambi pinned e non-pinned -->
+            <ng-container *ngIf="pinnedNotes.length > 0 && unpinnedNotes.length > 0">
+              <div class="section-label">Fissate</div>
+              <ng-container *ngFor="let note of pinnedNotes">
+                <ng-container *ngTemplateOutlet="noteCard; context: { note: note }"></ng-container>
+              </ng-container>
+              <div class="section-label">Note</div>
+              <ng-container *ngFor="let note of unpinnedNotes">
+                <ng-container *ngTemplateOutlet="noteCard; context: { note: note }"></ng-container>
+              </ng-container>
             </ng-container>
-            <div class="section-label">Note</div>
-            <ng-container *ngFor="let note of unpinnedNotes">
-              <ng-container *ngTemplateOutlet="noteCard; context: { note: note }"></ng-container>
+
+            <!-- Lista unica -->
+            <ng-container *ngIf="pinnedNotes.length === 0 || unpinnedNotes.length === 0">
+              <ng-container *ngFor="let note of unpinnedNotes">
+                <ng-container *ngTemplateOutlet="noteCard; context: { note: note }"></ng-container>
+              </ng-container>
+              <ng-container *ngFor="let note of pinnedNotes">
+                <ng-container *ngTemplateOutlet="noteCard; context: { note: note }"></ng-container>
+              </ng-container>
             </ng-container>
+
+            <div class="empty-state" *ngIf="pinnedNotes.length === 0 && unpinnedNotes.length === 0 && !searchQuery">
+              <mat-icon>edit_note</mat-icon>
+              <p>Ancora nessuna nota.</p>
+              <button mat-flat-button color="primary" (click)="openNoteEditor()">
+                <mat-icon>add</mat-icon>
+                Nuova nota
+              </button>
+            </div>
+            <div class="empty-state" *ngIf="filteredNotes.length === 0 && searchQuery">
+              <mat-icon>search_off</mat-icon>
+              <p>Nessun risultato.</p>
+            </div>
+
           </ng-container>
 
-          <!-- Lista unica — solo pinned o solo non-pinned -->
-          <ng-container *ngIf="pinnedNotes.length === 0 || unpinnedNotes.length === 0">
-            <ng-container *ngFor="let note of filteredNotes">
+          <!-- Tab "Evasi" -->
+          <ng-container *ngIf="activeListTab === 'evasi'">
+            <ng-container *ngFor="let note of completedReminderNotes">
               <ng-container *ngTemplateOutlet="noteCard; context: { note: note }"></ng-container>
             </ng-container>
+            <div class="empty-state" *ngIf="completedReminderNotes.length === 0">
+              <mat-icon>task_alt</mat-icon>
+              <p>Nessun promemoria evaso.</p>
+            </div>
           </ng-container>
-
-          <div class="empty-state" *ngIf="filteredNotes.length === 0 && !searchQuery">
-            <mat-icon>edit_note</mat-icon>
-            <p>Ancora nessuna nota.</p>
-            <button mat-flat-button color="primary" (click)="openNoteEditor()">
-              <mat-icon>add</mat-icon>
-              Nuova nota
-            </button>
-          </div>
-          <div class="empty-state" *ngIf="filteredNotes.length === 0 && searchQuery">
-            <mat-icon>search_off</mat-icon>
-            <p>Nessun risultato.</p>
-          </div>
 
         </ng-container>
       </div>
@@ -83,7 +173,8 @@
 
           <div class="note-card-body">
             <div class="note-card-title-row">
-              <mat-icon class="note-card-bell" *ngIf="note.reminderTime">notifications</mat-icon>
+              <mat-icon class="note-card-bell" *ngIf="note.reminderStatus === 'completed'">task_alt</mat-icon>
+              <mat-icon class="note-card-bell" *ngIf="note.reminderTime && note.reminderStatus !== 'completed'">notifications</mat-icon>
               <span class="note-item-title">{{ note.title || 'Nuova Nota' }}</span>
             </div>
 
@@ -120,93 +211,10 @@
         </div>
       </ng-template>
 
-
-      <!-- Settings FAB — bottom-left sidenav -->
-      <div class="settings-fab-container" *ngIf="!isMobile || currentMainView !== 'calendar'">
-        <!-- Backdrop -->
-        <div class="settings-backdrop" *ngIf="settingsMenuOpen" (click)="closeSettingsMenu()"></div>
-
-        <!-- Menu items (espanso verso l'alto) -->
-        <div class="settings-menu" [class.settings-menu-open]="settingsMenuOpen">
-          <div class="settings-menu-item">
-            <button mat-button class="settings-item-pill" type="button"
-                    (click)="logout(); closeSettingsMenu()" aria-label="Esci">
-              <mat-icon>logout</mat-icon>
-              <span>Esci</span>
-            </button>
-          </div>
-        </div>
-
-        <!-- FAB principale -->
-        <button mat-mini-fab class="settings-fab" (click)="toggleSettingsMenu()"
-                aria-label="Impostazioni"
-                [class.settings-fab-open]="settingsMenuOpen">
-          <mat-icon>settings</mat-icon>
-        </button>
-      </div>
     </div>
   </mat-sidenav>
 
   <mat-sidenav-content class="dashboard-content" *ngIf="!isMobile || activeNote !== undefined || currentMainView === 'calendar'">
-    <mat-toolbar class="app-header" style="position: relative;">
-
-      <!-- Mobile: back quando editor aperto -->
-      <button mat-icon-button (click)="handleBackButton()" class="back-button"
-              *ngIf="isMobile && activeNote !== undefined" aria-label="Torna indietro">
-        <mat-icon>arrow_back</mat-icon>
-      </button>
-
-      <!-- Mobile: lista quando in vista calendario (senza editor) -->
-      <button mat-icon-button (click)="setDefaultView('list')"
-              *ngIf="isMobile && currentMainView === 'calendar' && activeNote === undefined"
-              aria-label="Vista Lista" matTooltip="Vista Lista">
-        <mat-icon>format_list_bulleted</mat-icon>
-      </button>
-
-      <img src="punto_logo_no_bg.png" alt="punto! logo" class="mobile-center-logo" *ngIf="isMobile" />
-      <img src="punto_logo_no_bg.png" alt="punto! logo" class="header-logo" *ngIf="!isMobile" />
-
-      <span class="spacer"></span>
-
-      <!-- Mobile calendario: settings al posto del logout -->
-      <button mat-icon-button
-              *ngIf="isMobile && currentMainView === 'calendar' && activeNote === undefined"
-              (click)="toggleSettingsMenu()"
-              aria-label="Impostazioni"
-              [class.settings-fab-open]="settingsMenuOpen">
-        <mat-icon>{{ settingsMenuOpen ? 'close' : 'settings' }}</mat-icon>
-      </button>
-
-      <!-- Menu dropdown mobile calendario (si apre verso il basso dall'header) -->
-      <div class="settings-menu-calendar"
-           *ngIf="isMobile && currentMainView === 'calendar' && settingsMenuOpen">
-        <div class="settings-backdrop" (click)="closeSettingsMenu()"></div>
-        <div class="settings-menu settings-menu-open settings-menu-downward">
-          <div class="settings-menu-item">
-            <button mat-button class="settings-item-pill" type="button"
-                    (click)="logout(); closeSettingsMenu()" aria-label="Esci">
-              <mat-icon>logout</mat-icon>
-              <span>Esci</span>
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <!-- Mobile: elimina nota nell'header quando si sta editando una nota esistente -->
-      <button mat-icon-button *ngIf="isMobile && activeNote?.id"
-              (click)="deleteActiveNote()" aria-label="Elimina nota" matTooltip="Elimina">
-        <mat-icon>delete_outline</mat-icon>
-      </button>
-
-      <button mat-icon-button *ngIf="!isMobile"
-              (click)="currentMainView = 'calendar'; activeNote = undefined"
-              [class.calendar-btn-active]="currentMainView === 'calendar' && activeNote === undefined"
-              matTooltip="Vista Calendario"
-              aria-label="Vista Calendario">
-        <mat-icon>calendar_today</mat-icon>
-      </button>
-
-    </mat-toolbar>
 
     <div class="editor-wrapper editor-enter" *ngIf="activeNote !== undefined">
       <app-note-editor #noteEditor [selectedNote]="activeNote" [initialReminderDate]="newNoteCalendarDate"
@@ -215,13 +223,13 @@
     </div>
 
     <div class="calendar-wrapper" *ngIf="currentMainView === 'calendar' && activeNote === undefined">
-      <app-calendar-view [notes]="allNotes" (noteSelected)="onCalendarNoteSelected($event)">
+      <app-calendar-view [notes]="allNotes" [isMobile]="isMobile" (noteSelected)="onCalendarNoteSelected($event)">
       </app-calendar-view>
     </div>
 
     <div class="no-selection-state" *ngIf="currentMainView === 'list' && activeNote === undefined && !isMobile">
-      <mat-icon>edit_document</mat-icon>
-      <h2>Seleziona una nota o creane una nuova</h2>
+      <img src="punto_logo_no_bg.png" alt="" aria-hidden="true" class="no-selection-logo" />
+      <p>Seleziona una nota o creane una.</p>
       <button mat-flat-button color="primary" (click)="openNoteEditor()">Nuova Nota</button>
     </div>
 
@@ -255,4 +263,10 @@
   </button>
 </div>
 
-
+<!-- Menu impostazioni globale -->
+<mat-menu #settingsMenu="matMenu" xPosition="before">
+  <button mat-menu-item (click)="logout()">
+    <mat-icon>logout</mat-icon>
+    <span>Esci</span>
+  </button>
+</mat-menu>

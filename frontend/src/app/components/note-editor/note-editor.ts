@@ -518,18 +518,8 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewInit, Af
 
   // ─── Reminder Block ─────────────────────────────────────────────────────────
 
-  getReminderTimeValue(block: any): string {
-    return `${block.hour ?? '00'}:${block.minute ?? '00'}`;
-  }
-
-  onReminderTimeChange(block: any, event: Event) {
-    const value = (event.target as HTMLInputElement).value;
-    if (!value) return;
-    const [h, m] = value.split(':');
-    block.hour = h;
-    block.minute = m;
-    this.onReminderChange();
-  }
+  readonly hours   = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'));
+  readonly minutes = ['00','05','10','15','20','25','30','35','40','45','50','55'];
 
   clearReminder(block: any) {
     block.time = null;
@@ -542,11 +532,49 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewInit, Af
   onNonTextFieldBlur()  { this.nonTextFieldFocused.set(false); }
 
   onReminderChange() {
-    // L'utente ha modificato il reminder → resetta lo status a 'pending' per ri-schedulare l'invio
+    // L'utente ha modificato il reminder → resetta lo status a 'pending', ma non tocca 'completed'
     this.note.blocks.forEach(b => {
-      if (b.type === 'reminder') (b as any).status = 'pending';
+      if (b.type === 'reminder' && (b as any).status !== 'completed') {
+        (b as any).status = 'pending';
+      }
     });
     this.triggerAutoSave();
+  }
+
+  markReminderCompleted(block: any): void {
+    const recurrence = block.recurrence ?? 'none';
+    if (recurrence === 'none') {
+      block.status = 'completed';
+      (this.note as any).lastCompletedAt = Date.now();
+      this.triggerAutoSave(); // diretto: onReminderChange resetterebbe 'completed' a 'pending'
+    } else {
+      const next = this.getNextRecurrence(block.time!, recurrence);
+      const d = new Date(next);
+      block.time = next;
+      block.date = d;
+      block.hour = d.getHours().toString().padStart(2, '0');
+      block.minute = d.getMinutes().toString().padStart(2, '0');
+      block.status = 'pending';
+      (this.note as any).lastCompletedAt = Date.now();
+      this.onReminderChange(); // ok per ricorrenti: reimposta pending + salva
+    }
+  }
+
+  private getNextRecurrence(currentTime: number, recurrence: string): number {
+    const d = new Date(currentTime);
+    switch (recurrence) {
+      case 'daily':   d.setDate(d.getDate() + 1); break;
+      case 'weekly':  d.setDate(d.getDate() + 7); break;
+      case 'monthly': d.setMonth(d.getMonth() + 1); break;
+      case 'yearly':  d.setFullYear(d.getFullYear() + 1); break;
+    }
+    return d.getTime();
+  }
+
+  getNextRecurrenceLabel(block: any): string {
+    if (!block.time || !block.recurrence || block.recurrence === 'none') return '';
+    const next = this.getNextRecurrence(block.time, block.recurrence);
+    return new Date(next).toLocaleDateString('it-IT', { day: 'numeric', month: 'short' });
   }
 
   // ─── Image Block ────────────────────────────────────────────────────────────
@@ -618,8 +646,8 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewInit, Af
           d.setHours(parseInt(rb.hour ?? '12', 10));
           d.setMinutes(parseInt(rb.minute ?? '00', 10));
           d.setSeconds(0); d.setMilliseconds(0);
-          // Preserva lo status esistente (es. 'sent'): solo onReminderChange lo resetta a 'pending'
-          const status: 'pending' | 'sent' | null = rb.status ?? 'pending';
+          // Preserva lo status esistente (es. 'sent', 'completed'): solo onReminderChange lo resetta a 'pending'
+          const status: 'pending' | 'sent' | 'completed' | null = rb.status ?? 'pending';
           return { type: 'reminder' as const, time: d.getTime(), recurrence: rb.recurrence ?? 'none', status };
         }
         return { type: 'reminder' as const, time: null, recurrence: rb.recurrence ?? 'none', status: null };
@@ -642,6 +670,7 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewInit, Af
       content: textHtml,
       reminderTime: reminder?.time ?? null,
       reminderStatus: reminder?.status ?? null,
+      lastCompletedAt: (this.note as any).lastCompletedAt ?? null,
       recurrence: reminder?.recurrence ?? 'none',
       reminderRepeat: repeatValue,
     };
@@ -689,7 +718,17 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewInit, Af
     this.triggerAutoSave();
   }
 
+  undoReminderCompleted(block: any): void {
+    block.status = 'pending';
+    (this.note as any).lastCompletedAt = null;
+    this.triggerAutoSave();
+  }
+
   ngOnDestroy() {
+    // Forza sincronizzazione valore input titolo prima di salvare (fix: swipe-back senza blur)
+    if (this.titleInputRef?.nativeElement) {
+      this.note.title = this.titleInputRef.nativeElement.value;
+    }
     clearTimeout(this.autoSaveTimer);
     if (this.isNewNote && this.isPristine()) {
       // Distrutto via back-button (non via handleClose): cancella la nota pristine in background

@@ -45,16 +45,14 @@ self.addEventListener('notificationclick', (event) => {
 
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
-      // Se l'app è già aperta: manda un messaggio e porta la finestra in primo piano
       for (const client of clientList) {
-        if (client.url.startsWith(appOrigin) && 'focus' in client) {
-          if (noteId) {
-            client.postMessage({ type: 'OPEN_NOTE', noteId });
-          }
-          return client.focus();
+        if (client.url.includes('/dashboard')) {
+          // navigate() ricarica l'URL con i query params → dashboard li legge all'init
+          // Più affidabile di postMessage su iOS (il listener potrebbe non essere ancora montato)
+          return client.navigate(targetUrl).then(c => c ? c.focus() : null);
         }
       }
-      // App chiusa: apri una nuova finestra all'URL corretto
+      // App chiusa: apri nuova finestra
       return clients.openWindow(targetUrl);
     })
   );

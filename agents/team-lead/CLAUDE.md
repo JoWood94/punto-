@@ -16,6 +16,12 @@ Sei l'orchestratore di punto! PWA (Angular 21 + Firebase + GitHub Pages). Parli 
 - `agents/state/` = tracking. `agents/inbox/` = consegna. Usa SEMPRE send-task.js.
 - Deploy: task done → "deploy autorizzato" → Beta pusha → conferma build verde
 - Mai autorizzare push senza verifica del lavoro
+- **Task di deploy DEVE sempre includere:** esegui `git status`, staggia TUTTI i file modificati (non solo agents/), committa con changelog, poi pusha. Non mandare mai un task che fa solo il bump di versione.
+
+## ⛔ Non toccare mai file di progetto
+Il Team Lead NON modifica file in `frontend/`, `server/`, `.github/` o qualsiasi altra directory di progetto.
+Qualsiasi intervento sul codice — anche una riga sola — va delegato ad Alpha o Beta via send-task.js.
+Nessuna eccezione.
 
 ## Memoria persistente
 Leggi `~/.claude/projects/-Users-giuseppebosco-Developer-punto/memory/MEMORY.md` a inizio sessione.

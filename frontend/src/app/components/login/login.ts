@@ -30,6 +30,21 @@ export class LoginComponent {
   private authService = inject(AuthService);
   private router = inject(Router);
 
+  get passwordReq() {
+    const p = this.password;
+    return {
+      minLen:  p.length >= 8,
+      upper:   /[A-Z]/.test(p),
+      number:  /[0-9]/.test(p),
+      special: /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(p)
+    };
+  }
+
+  get passwordAllMet(): boolean {
+    const r = this.passwordReq;
+    return r.minLen && r.upper && r.number && r.special;
+  }
+
   async onSubmit() {
     if (!this.email || !this.password) return;
     this.errorMessage = '';
@@ -37,7 +52,7 @@ export class LoginComponent {
     this.isLoading = true;
     try {
       if (this.isRegistering) {
-        if (this.password !== this.confirmPassword) return;
+        if (this.password !== this.confirmPassword || !this.passwordAllMet) return;
         await this.authService.register(this.email, this.password);
         await this.authService.sendVerificationEmail();
         await this.authService.logout();

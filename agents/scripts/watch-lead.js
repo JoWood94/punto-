@@ -6,16 +6,26 @@
  * - Timeout detection          → avvisa se agente non risponde in >10 min
  */
 
-const fs   = require('fs');
-const path = require('path');
+const fs            = require('fs');
+const path          = require('path');
+const { execSync }  = require('child_process');
 
-const ROOT  = path.resolve(__dirname, '../..');
-const INBOX = path.join(ROOT, 'agents/inbox');
-const STATE = path.join(ROOT, 'agents/state');
+const SESSION = 'punto';
+
+const ROOT      = path.resolve(__dirname, '../..');
+const INBOX     = path.join(ROOT, 'agents/inbox');
+const STATE     = path.join(ROOT, 'agents/state');
+const QUEUE_DIR = path.join(ROOT, 'agents/queue');
 
 function log(msg) {
   const ts = new Date().toISOString().slice(11, 19);
   console.log(`[${ts}] [LEAD] ${msg}`);
+}
+
+function notifyLead(msg) {
+  try {
+    execSync(`tmux send-keys -t ${SESSION}:lead ${JSON.stringify('[w-lead] ' + msg)} Enter`);
+  } catch (_) { /* lead pane potrebbe non esistere */ }
 }
 
 const seenMtimes = {};
@@ -58,12 +68,16 @@ function checkState() {
     if (statusLine.includes('done')) {
       log(`✅ ${agent} — DONE: ${file}`);
       if (task) log(`   "${task}"`);
+      notifyLead(`✅ ${agent} — DONE: ${file}. Leggi agents/state/${file}`);
+      dispatchNextFromQueue(agentLine);
     } else if (statusLine.includes('cancelled')) {
       log(`🚫 ${agent} — CANCELLED: ${file}`);
+      notifyLead(`🚫 ${agent} — CANCELLED: ${file}`);
     } else if (statusLine.includes('blocked')) {
       const blockedLine = lines.find(l => l.startsWith('bloccato_da:') || l.startsWith('blocked_by:')) || '';
       const reason = blockedLine.replace(/^(bloccato_da|blocked_by):/, '').trim();
       log(`🔴 ${agent} — BLOCKED: ${file} — ${reason}`);
+      notifyLead(`🔴 ${agent} — BLOCKED: ${reason}. Leggi agents/state/${file}`);
     } else if (statusLine.includes('in_progress')) {
       log(`⏳ ${agent} — in progress: ${file}`);
     }
@@ -98,10 +112,37 @@ function checkTimeouts() {
       const statMtime  = fs.statSync(path.join(STATE, sf)).mtimeMs;
 
       if (agentLine === agentName && statusLine.includes('in_progress') && now - statMtime > TIMEOUT_MS) {
-        log(`⚠️  ${agentName.toUpperCase()} — nessun aggiornamento da >${Math.round((now - statMtime) / 60000)} min (${sf})`);
+        const mins = Math.round((now - statMtime) / 60000);
+        log(`⚠️  ${agentName.toUpperCase()} — nessun aggiornamento da >${mins} min (${sf})`);
+        notifyLead(`⚠️ ${agentName.toUpperCase()} — nessun aggiornamento da >${mins} min (${sf})`);
       }
     }
   }
+}
+
+// ─── Queue dispatch ───────────────────────────────────────────
+function dispatchNextFromQueue(agentName) {
+  if (!agentName) return;
+  const queueFile = path.join(QUEUE_DIR, `${agentName}.json`);
+  if (!fs.existsSync(queueFile)) return;
+  const queue = JSON.parse(fs.readFileSync(queueFile, 'utf8'));
+  if (queue.length === 0) return;
+
+  const next = queue.shift();
+  fs.writeFileSync(queueFile, JSON.stringify(queue, null, 2));
+
+  const inboxFile = path.join(INBOX, `${agentName}.md`);
+  const ts = new Date().toISOString();
+  fs.writeFileSync(inboxFile,
+    `<!-- task inviato: ${ts} | task-id: ${next.taskId} -->\n` +
+    `task-id: ${next.taskId}\n` +
+    `state-file: agents/state/${next.taskId}.md\n\n` +
+    `${next.content}\n`
+  );
+
+  const remaining = queue.length;
+  log(`📤 Auto-dispatch → ${agentName.toUpperCase()}: ${next.taskId} (${remaining} in coda)`);
+  notifyLead(`📤 ${agentName.toUpperCase()} — nuovo task dalla coda: ${next.taskId}${remaining > 0 ? ` (+${remaining} ancora in coda)` : ''}`);
 }
 
 log('Team Lead watcher avviato');

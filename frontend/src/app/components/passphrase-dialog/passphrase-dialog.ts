@@ -51,12 +51,7 @@ export interface PassphraseStrength {
           <span class="strength-label" [style.color]="strength.color">{{ strength.label }}</span>
         </div>
 
-        <ul class="requirements">
-          <li [class.met]="req.minLen"><mat-icon>{{ req.minLen ? 'check_circle' : 'radio_button_unchecked' }}</mat-icon> Minimo 8 caratteri</li>
-          <li [class.met]="req.upper"><mat-icon>{{ req.upper ? 'check_circle' : 'radio_button_unchecked' }}</mat-icon> Almeno 1 lettera maiuscola</li>
-          <li [class.met]="req.number"><mat-icon>{{ req.number ? 'check_circle' : 'radio_button_unchecked' }}</mat-icon> Almeno 1 numero</li>
-          <li [class.met]="req.special"><mat-icon>{{ req.special ? 'check_circle' : 'radio_button_unchecked' }}</mat-icon> Almeno 1 carattere speciale (!@#$%^&*...)</li>
-        </ul>
+        <p class="passphrase-hint">Scegli una passphrase memorabile — non ci sono vincoli di formato.</p>
 
         <mat-form-field appearance="outline" class="full-width" style="margin-top: 8px;">
           <mat-label>Conferma passphrase</mat-label>
@@ -94,10 +89,7 @@ export interface PassphraseStrength {
     .strength-bar { flex: 1; height: 4px; background: rgba(0,0,0,.12); border-radius: 2px; overflow: hidden; }
     .strength-fill { height: 100%; border-radius: 2px; transition: width .3s, background .3s; }
     .strength-label { font-size: 12px; min-width: 40px; }
-    .requirements { list-style: none; padding: 4px 0 0; margin: 0; font-size: 13px; display: flex; flex-direction: column; gap: 4px; }
-    .requirements li { display: flex; align-items: center; gap: 6px; color: rgba(0,0,0,.5); }
-    .requirements li mat-icon { font-size: 16px; width: 16px; height: 16px; }
-    .requirements li.met { color: #2e7d32; }
+    .passphrase-hint { font-size: 12px; color: rgba(0,0,0,.45); margin: 0; padding: 2px 0 4px; }
     .error-message { color: #B3261E; font-size: 13px; margin-top: 4px; }
   `]
 })
@@ -123,8 +115,7 @@ export class PassphraseDialogComponent {
   get canConfirm(): boolean {
     if (!this.passphrase) return false;
     if (this.isSetup) {
-      const allMet = this.req.minLen && this.req.upper && this.req.number && this.req.special;
-      return allMet && this.passphrase === this.confirmPassphrase;
+      return this.passphrase === this.confirmPassphrase;
     }
     return true;
   }

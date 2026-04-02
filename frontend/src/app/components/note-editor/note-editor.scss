@@ -23,6 +23,7 @@
 
 .title-input-raw {
   flex: 1;
+  font-family: var(--punto-font, 'Plus Jakarta Sans', sans-serif);
   font-size: 1.5rem;
   font-weight: 500;
   border: none;
@@ -575,96 +576,95 @@
   }
 }
 
-// ─── Time fill field (native input[type=time] styled M3) ──────
-.time-fill-field {
-  display: flex;
-  flex-direction: column;
-  flex: 0 0 auto;
-  min-width: 110px;
-  background: transparent;
-  border: 1px solid var(--mat-sys-outline-variant);
-  border-radius: var(--punto-shape-lg, 16px);
-  padding: 12px 12px 8px;
-  cursor: pointer;
-  transition: border-color var(--_t);
-
-  &:focus-within {
-    border-color: var(--punto-primary);
-    .time-fill-label { color: var(--punto-primary); }
-  }
-}
-
-.time-fill-label {
-  font-size: 0.75rem;
-  font-weight: 400;
-  color: var(--mat-sys-on-surface-variant);
-  line-height: 1;
-  margin-bottom: 2px;
-  pointer-events: none;
-  transition: color var(--_t);
-}
-
-.time-fill-input {
-  border: none;
-  outline: none;
-  background: transparent;
-  font-size: 1rem;
-  color: var(--mat-sys-on-surface);
-  font-family: inherit;
-  padding: 0;
-  width: 100%;
-  cursor: pointer;
-
-  // Normalize browser chrome for time input
-  &::-webkit-calendar-picker-indicator {
-    opacity: 0.5;
-    cursor: pointer;
-    filter: invert(0);
-  }
-}
-
-// ─── Reminder block ──────────────────────────────────────────
-// Desktop: tutto su una riga (Data | Ore | : | Min | Ripeti)
-// Mobile: Data / [Ore Min] / Ripeti — colonne separate
+// ─── Reminder block — Riga 1: Data | Riga 2: [Ora:Min] + Ripeti
 .reminder-inputs {
   display: flex;
-  flex-wrap: nowrap;
+  flex-direction: row;
+  align-items: flex-start;
   gap: 8px;
-  align-items: flex-end;
-}
-
-.date-field {
-  flex: 1;
-  min-width: 130px;
-  ::ng-deep .mat-mdc-form-field-subscript-wrapper { display: none; }
-}
-
-.recurrence-field {
-  flex: 1;
-  min-width: 120px;
-}
-
-@media (max-width: 599.98px) {
-  .reminder-inputs {
-    flex-wrap: wrap;
-    gap: 12px;
-  }
+  flex-wrap: wrap;
 
   .date-field {
-    flex: 0 0 100%;
-    min-width: unset;
+    flex: 1 1 100%;
+    min-width: 0;
+    ::ng-deep .mat-mdc-form-field-subscript-wrapper { display: none; }
   }
 
-  .time-fill-field {
-    flex: 1;
+  .time-selects-wrapper {
+    flex: 1 1 auto;
     min-width: 0;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 2px;
+
+    .hour-field, .minute-field {
+      flex: 1;
+      min-width: 0;
+      ::ng-deep .mat-mdc-form-field-subscript-wrapper { display: none; }
+    }
+
+    .time-separator {
+      font-size: 16px;
+      font-weight: 500;
+      color: rgba(0,0,0,0.5);
+      padding-bottom: 18px;
+      flex-shrink: 0;
+    }
   }
 
   .recurrence-field {
-    flex: 0 0 100%;
-    min-width: unset;
+    flex: 1 1 auto;
+    min-width: 90px;
+    ::ng-deep .mat-mdc-form-field-subscript-wrapper { display: none; }
   }
 }
+
+// ─── Reminder: completamento ─────────────────────────────────
+// CTA — light, stroked
+.mark-done-btn {
+  margin-top: 8px;
+  width: 100%;
+  min-height: 44px;
+  border-radius: var(--punto-shape-lg, 16px) !important;
+}
+
+// Badge completato — scuro, pill cliccabile
+.reminder-completed-badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 44px;
+  margin-top: 8px;
+  background: #1C1B1F;
+  color: white;
+  border-radius: 22px;
+  gap: 6px;
+  box-sizing: border-box;
+  padding: 0 16px;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+
+  mat-icon {
+    color: white;
+    font-size: 20px !important;
+    width: 20px !important;
+    height: 20px !important;
+  }
+
+  span { font-size: 14px; font-weight: 500; }
+
+  .undo-icon {
+    font-size: 16px !important;
+    width: 16px !important;
+    height: 16px !important;
+    opacity: 0.7;
+  }
+}
+
+.undo-done-btn { display: none; }
 
 // ─── Image block ─────────────────────────────────────────────
 .image-upload-area {

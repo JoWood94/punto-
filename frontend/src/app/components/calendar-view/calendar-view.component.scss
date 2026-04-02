@@ -24,6 +24,11 @@
   gap: 8px;
   flex-shrink: 0;
 
+  // Desktop: header-row-top è trasparente — i figli partecipano al flex del parent
+  .header-row-top {
+    display: contents;
+  }
+
   .nav-controls {
     display: flex;
     align-items: center;
@@ -37,14 +42,13 @@
       text-transform: capitalize;
       color: rgba(0, 0, 0, 0.8);
     }
+  }
 
-    .today-btn {
-      margin-left: 8px;
-      height: 32px;
-      line-height: 30px;
-      font-size: 13px;
-      border-radius: var(--punto-shape-lg, 16px) !important;
-    }
+  .today-btn {
+    height: 32px;
+    line-height: 30px;
+    font-size: 13px;
+    border-radius: var(--punto-shape-lg, 16px) !important;
   }
 
   .view-toggle {
@@ -72,6 +76,53 @@
           }
         }
       }
+    }
+  }
+}
+
+// ─── Calendar header mobile (class binding) ──────────────────
+.calendar-header--mobile {
+  flex-direction: column;
+  align-items: stretch;
+  padding: 6px 10px;
+  gap: 4px;
+  flex-wrap: nowrap;
+
+  .header-row-top {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+
+    .view-toggle {
+      flex: 1;
+      min-width: 0;
+
+      ::ng-deep {
+        .mat-button-toggle-group { width: 100%; }
+        .mat-button-toggle { flex: 1; }
+      }
+    }
+
+    .today-btn {
+      flex-shrink: 0;
+      height: 32px;
+      font-size: 13px;
+      border-radius: var(--punto-shape-lg, 16px) !important;
+    }
+  }
+
+  .nav-controls {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+
+    .header-label {
+      font-size: 13px;
+      font-weight: 500;
+      flex: 1;
+      text-align: center;
+      text-transform: capitalize;
     }
   }
 }
@@ -407,33 +458,77 @@
 
 // ─── Mobile ──────────────────────────────────────────────────
 @media (max-width: 599.98px) {
-  .calendar-header {
-    padding: 8px 10px;
+  // Il componente è figlio di un flex container (calendar-wrapper) — deve usare flex: 1
+  :host {
+    display: flex;
     flex-direction: column;
-    align-items: flex-start;
-
-    .nav-controls .header-label {
-      min-width: 0;
-      font-size: 13px;
-    }
-
-    .view-toggle {
-      align-self: stretch;
-
-      ::ng-deep .mat-button-toggle {
-        flex: 1;
-      }
-    }
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
   }
 
-  .month-grid .day-cell {
-    min-height: 56px;
+  .calendar-view {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .week-headers {
+    flex-shrink: 0;
+  }
+
+  // Mobile month view: container scrollabile con mesi impilati
+  .months-scroll-container {
+    flex: 1;
+    overflow-y: scroll;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 88px;
+  }
+
+  .month-section-header {
+    padding: 12px 8px 4px;
+    font-size: 13px;
+    font-weight: 600;
+    color: rgba(0, 0, 0, 0.6);
+    text-transform: capitalize;
+    position: sticky;
+    top: 0;
+    background: var(--mat-sys-background, #fafafa);
+    z-index: 1;
+  }
+
+  .month-section .week-headers {
+    flex-shrink: 0;
+  }
+
+  .month-section .month-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    grid-auto-rows: 64px;
+  }
+
+  .month-section .month-grid .day-cell {
+    height: 64px;
+    max-height: 64px;
+    overflow: hidden;
+    box-sizing: border-box;
     padding: 2px;
+    border-right: 1px solid rgba(0, 0, 0, 0.06);
+    border-bottom: 1px solid rgba(0, 0, 0, 0.06);
 
-    .day-number { font-size: 10px; width: 20px; height: 20px; }
-    .note-chip  { font-size: 9px; padding: 1px 3px; }
+    .day-number { font-size: 10px; width: 20px; height: 20px; line-height: 20px; }
+    .day-notes .note-chip:nth-child(n+2) { display: none; }
+    .more-notes { font-size: 9px; }
   }
 
+  // Desktop month-view non appare su mobile (riutilizzato solo su desktop)
+  .month-view {
+    display: none;
+  }
+
+  // Week view
   .week-grid .week-day-col .week-day-header {
     padding: 8px 2px 4px;
 
@@ -446,6 +541,7 @@
     padding: 1px 3px;
   }
 
+  // Day view
   .day-view {
     padding: 12px 14px;
 

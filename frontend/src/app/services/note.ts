@@ -33,7 +33,7 @@ export interface ReminderBlock {
   type: 'reminder';
   time: number | null;
   recurrence: 'none' | 'daily' | 'weekly' | 'monthly' | 'yearly';
-  status: 'pending' | 'sent' | null;
+  status: 'pending' | 'sent' | 'completed' | null;
 }
 
 export interface ImageBlock {
@@ -67,7 +67,8 @@ export interface Note {
   // Legacy flat fields — kept for server backward compatibility
   content?: string;
   reminderTime?: number | null;
-  reminderStatus?: 'pending' | 'sent' | null;
+  reminderStatus?: 'pending' | 'sent' | 'completed' | null;
+  lastCompletedAt?: number;
   recurrence?: 'none' | 'daily' | 'weekly' | 'monthly' | 'yearly';
 }
 

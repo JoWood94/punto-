@@ -1,6 +1,6 @@
 import {
   Component, Input, Output, EventEmitter,
-  OnChanges, SimpleChanges
+  OnChanges, SimpleChanges, AfterViewInit, ViewChild, ElementRef
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatButtonModule } from '@angular/material/button';
@@ -18,6 +18,13 @@ export interface CalendarDay {
   notes: Note[];
 }
 
+export interface CalendarMonth {
+  year: number;
+  month: number;   // 0-based
+  label: string;   // es. "Aprile 2026"
+  days: CalendarDay[]; // 42 giorni (6 settimane)
+}
+
 @Component({
   selector: 'app-calendar-view',
   standalone: true,
@@ -25,9 +32,12 @@ export interface CalendarDay {
   templateUrl: './calendar-view.component.html',
   styleUrls: ['./calendar-view.component.scss']
 })
-export class CalendarViewComponent implements OnChanges {
+export class CalendarViewComponent implements OnChanges, AfterViewInit {
   @Input() notes: Note[] = [];
+  @Input() isMobile = false;
   @Output() noteSelected = new EventEmitter<Note>();
+
+  @ViewChild('monthsContainer') monthsContainerRef?: ElementRef<HTMLElement>;
 
   viewType: CalendarViewType = 'month';
   currentDate = new Date();
@@ -35,18 +45,36 @@ export class CalendarViewComponent implements OnChanges {
   calendarDays: CalendarDay[] = [];
   weekDays: CalendarDay[] = [];
   dayNotes: Note[] = [];
+  months: CalendarMonth[] = [];
 
   readonly weekHeaders = ['Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab', 'Dom'];
 
   ngOnChanges(changes: SimpleChanges): void {
-    if (changes['notes']) {
+    if (changes['notes'] || changes['isMobile']) {
+      this.refresh();
+    }
+  }
+
+  ngAfterViewInit(): void {
+    setTimeout(() => this.scrollToCurrentMonth(), 50);
+  }
+
+  private refresh(): void {
+    if (this.isMobile && this.viewType === 'month') {
+      this.buildScrollableMonths(this.currentDate);
+    } else {
       this.buildView();
     }
   }
 
   setView(view: CalendarViewType): void {
     this.viewType = view;
-    this.buildView();
+    if (this.isMobile && view === 'month') {
+      this.buildScrollableMonths(this.currentDate);
+      setTimeout(() => this.scrollToCurrentMonth(), 50);
+    } else {
+      this.buildView();
+    }
   }
 
   buildView(): void {
@@ -78,6 +106,72 @@ export class CalendarViewComponent implements OnChanges {
         notes: this.getNotesForDay(date)
       };
     });
+  }
+
+  private buildMonth(year: number, month: number): CalendarMonth {
+    const firstDay = new Date(year, month, 1);
+    const today = new Date();
+    const startDate = new Date(firstDay);
+    const dow = startDate.getDay();
+    const mondayOffset = dow === 0 ? 6 : dow - 1;
+    startDate.setDate(startDate.getDate() - mondayOffset);
+
+    const days = Array.from({ length: 42 }, (_, i) => {
+      const date = new Date(startDate);
+      date.setDate(startDate.getDate() + i);
+      return {
+        date,
+        isCurrentMonth: date.getMonth() === month,
+        isToday: this.isSameDay(date, today),
+        notes: this.getNotesForDay(date)
+      };
+    });
+
+    const label = firstDay.toLocaleDateString('it-IT', { month: 'long', year: 'numeric' });
+    return { year, month, label, days };
+  }
+
+  buildScrollableMonths(centerDate: Date): void {
+    const result: CalendarMonth[] = [];
+    for (let offset = -3; offset <= 3; offset++) {
+      const d = new Date(centerDate.getFullYear(), centerDate.getMonth() + offset, 1);
+      result.push(this.buildMonth(d.getFullYear(), d.getMonth()));
+    }
+    this.months = result;
+  }
+
+  private scrollToCurrentMonth(): void {
+    if (!this.isMobile || this.viewType !== 'month') return;
+    const container = this.monthsContainerRef?.nativeElement;
+    if (!container) return;
+    const year = this.currentDate.getFullYear();
+    const month = this.currentDate.getMonth();
+    const el = container.querySelector(`[data-month="${year}-${month}"]`) as HTMLElement | null;
+    if (el) el.scrollIntoView({ behavior: 'instant' as ScrollBehavior });
+  }
+
+  onMonthsScroll(event: Event): void {
+    const container = event.target as HTMLElement;
+    const threshold = 200;
+
+    // Vicino all'inizio: prepend mese precedente
+    if (container.scrollTop < threshold && this.months.length > 0) {
+      const first = this.months[0];
+      const d = new Date(first.year, first.month - 1, 1);
+      const newMonth = this.buildMonth(d.getFullYear(), d.getMonth());
+      const prevScrollHeight = container.scrollHeight;
+      this.months = [newMonth, ...this.months];
+      setTimeout(() => {
+        container.scrollTop += container.scrollHeight - prevScrollHeight;
+      });
+    }
+
+    // Vicino alla fine: append mese successivo
+    if (container.scrollTop + container.clientHeight > container.scrollHeight - threshold && this.months.length > 0) {
+      const last = this.months[this.months.length - 1];
+      const d = new Date(last.year, last.month + 1, 1);
+      this.months = [...this.months, this.buildMonth(d.getFullYear(), d.getMonth())];
+    }
   }
 
   private buildWeekView(): void {
@@ -170,12 +264,22 @@ export class CalendarViewComponent implements OnChanges {
     else if (this.viewType === 'week') d.setDate(d.getDate() + direction * 7);
     else d.setDate(d.getDate() + direction);
     this.currentDate = d;
-    this.buildView();
+    if (this.isMobile && this.viewType === 'month') {
+      this.buildScrollableMonths(this.currentDate);
+      setTimeout(() => this.scrollToCurrentMonth(), 50);
+    } else {
+      this.buildView();
+    }
   }
 
   goToToday(): void {
     this.currentDate = new Date();
-    this.buildView();
+    if (this.isMobile && this.viewType === 'month') {
+      this.buildScrollableMonths(this.currentDate);
+      setTimeout(() => this.scrollToCurrentMonth(), 50);
+    } else {
+      this.buildView();
+    }
   }
 
   selectDay(day: CalendarDay): void {

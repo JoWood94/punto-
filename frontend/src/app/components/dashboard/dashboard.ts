@@ -71,8 +71,10 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   activeNote?: Note | null = undefined;
   isMobile = false;
-  settingsMenuOpen = false;
   currentMainView: 'list' | 'calendar' = 'calendar';
+  activeListTab: 'notes' | 'evasi' = 'notes';
+  isOffline = !navigator.onLine;
+  hasFirestoreError = false;
   private defaultViewKey = 'defaultView';
 
   allNotes: Note[] = [];
@@ -91,6 +93,8 @@ export class DashboardComponent implements OnInit, OnDestroy {
   private userDocUnsub?: () => void;
   private deepLinkNoteId: string | null = null;
   private swMessageListener?: (event: MessageEvent) => void;
+  private readonly onOnline = () => { this.isOffline = false; this.hasFirestoreError = false; };
+  private readonly onOffline = () => { this.isOffline = true; };
 
   constructor(
     private noteService: NoteService,
@@ -183,19 +187,23 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
     this.notes$ = this.noteService.getNotes();
 
-    this.notesSub = this.notes$.subscribe(notes => {
-      this.notesLoaded = true;
-      this.allNotes = notes;
-      // this.updateAllTags(); // TODO: tags disabilitati temporaneamente
-      this.applyFilter();
-      // Apre la nota richiesta dal deep link (solo alla prima emissione utile)
-      if (this.deepLinkNoteId) {
-        const target = notes.find(n => n.id === this.deepLinkNoteId);
-        if (target) {
-          this.selectNote(target);
-          this.deepLinkNoteId = null;
+    this.notesSub = this.notes$.subscribe({
+      next: notes => {
+        this.notesLoaded = true;
+        this.hasFirestoreError = false;
+        this.allNotes = notes;
+        // this.updateAllTags(); // TODO: tags disabilitati temporaneamente
+        this.applyFilter();
+        // Apre la nota richiesta dal deep link (solo alla prima emissione utile)
+        if (this.deepLinkNoteId) {
+          const target = notes.find(n => n.id === this.deepLinkNoteId);
+          if (target) {
+            this.selectNote(target);
+            this.deepLinkNoteId = null;
+          }
         }
-      }
+      },
+      error: () => { this.hasFirestoreError = true; }
     });
 
     this.pushService.requestPermission().then(() => {
@@ -209,6 +217,8 @@ export class DashboardComponent implements OnInit, OnDestroy {
     // iOS non ricarica la pagina quando il popstate torna a uno stato JS.
     window.history.replaceState({ punto: 'dashboard' }, '', window.location.href);
     window.addEventListener('popstate', this.onMobilePopState);
+    window.addEventListener('online', this.onOnline);
+    window.addEventListener('offline', this.onOffline);
   }
 
   private checkMobile() {
@@ -223,6 +233,8 @@ export class DashboardComponent implements OnInit, OnDestroy {
     clearInterval(this.sessionCheckInterval);
     this.userDocUnsub?.();
     window.removeEventListener('popstate', this.onMobilePopState);
+    window.removeEventListener('online', this.onOnline);
+    window.removeEventListener('offline', this.onOffline);
     if (this.swMessageListener) {
       navigator.serviceWorker?.removeEventListener('message', this.swMessageListener);
     }
@@ -236,8 +248,16 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   // ─── Pinned/Unpinned getters ────────────────────────────────────────────────
 
-  get pinnedNotes(): Note[] { return this.filteredNotes.filter(n => n.pinned); }
-  get unpinnedNotes(): Note[] { return this.filteredNotes.filter(n => !n.pinned); }
+  get pinnedNotes(): Note[] { return this.filteredNotes.filter(n => n.pinned && n.reminderStatus !== 'completed'); }
+  get unpinnedNotes(): Note[] { return this.filteredNotes.filter(n => !n.pinned && n.reminderStatus !== 'completed'); }
+  get completedReminderNotes(): Note[] {
+    const completed = this.filteredNotes.filter(n => n.reminderStatus === 'completed');
+    if (completed.length === 0 && this.activeListTab === 'evasi') {
+      // Reset asincrono per evitare ExpressionChangedAfterItHasBeenCheckedError
+      setTimeout(() => { this.activeListTab = 'notes'; }, 0);
+    }
+    return completed;
+  }
 
   // ─── Filtering & Sorting ────────────────────────────────────────────────────
 
@@ -459,9 +479,6 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.cryptoService.saveLocalSessionVersion(uid, newSessionVersion);
   }
 
-  toggleSettingsMenu(): void { this.settingsMenuOpen = !this.settingsMenuOpen; }
-  closeSettingsMenu(): void { this.settingsMenuOpen = false; }
-
   logout() { this.authService.logout().then(() => this.router.navigate(['/login'])); }
   openNoteEditor() { this.newNoteCalendarDate = undefined; this.activeNote = null; }
   openNoteEditorFromCalendar(date?: Date) {
@@ -502,18 +519,31 @@ export class DashboardComponent implements OnInit, OnDestroy {
   // ─── Swipe mobile ───────────────────────────────────────────────────────────
 
   private touchStartX = 0;
+  private touchStartY = 0;
 
   onTouchStart(e: TouchEvent) {
     this.touchStartX = e.touches[0].clientX;
+    this.touchStartY = e.touches[0].clientY;
   }
 
   onTouchEnd(e: TouchEvent) {
     if (!this.isMobile) return;
     const deltaX = e.changedTouches[0].clientX - this.touchStartX;
+    const deltaY = e.changedTouches[0].clientY - this.touchStartY;
+    // Gesto verticale → scroll, non swipe
+    if (Math.abs(deltaY) > Math.abs(deltaX)) return;
     if (Math.abs(deltaX) < 60) return;
-    if (deltaX < 0 && this.currentMainView === 'list') {
+    // Swipe destra nell'editor → torna indietro
+    if (deltaX > 0 && this.activeNote !== undefined) {
+      this.handleBackButton();
+      return;
+    }
+    // Swipe sinistra su lista → calendario
+    if (deltaX < 0 && this.currentMainView === 'list' && this.activeNote === undefined) {
       this.setDefaultView('calendar');
-    } else if (deltaX > 0 && this.currentMainView === 'calendar') {
+    }
+    // Swipe destra su calendario → lista
+    else if (deltaX > 0 && this.currentMainView === 'calendar' && this.activeNote === undefined) {
       this.setDefaultView('list');
     }
   }

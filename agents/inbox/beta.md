@@ -1,70 +1,53 @@
-<!-- task inviato: 2026-03-28T17:03:06.215Z -->
+<!-- task inviato: 2026-04-02T23:45:17.421Z | task-id: DEPLOY-v3.0.0 -->
+task-id: DEPLOY-v3.0.0
+state-file: agents/state/DEPLOY-v3.0.0.md
 
 status: in_progress
 agent: beta
-task: Configurare Playwright per usare Google Chrome di sistema
+task: Deploy v3.0.0 — GitHub Pages + Firebase Hosting
 
-## Obiettivo
-Playwright è già installato (v1.58.2) ma i browser headless non sono scaricati.
-Chrome è installato in /Applications/Google Chrome.app — usarlo direttamente.
+## Procedura
 
-## Cosa fare
+1. `cd /Users/giuseppebosco/Developer/punto`
+2. `git status` — verifica tutti i file modificati
+3. Bumpa versione in `frontend/package.json` da `2.0.3` → `3.0.0`
+4. Staggia TUTTI i file modificati (`git add` selettivo su tutti i file nel working tree, NON solo agents/)
+5. Commit con changelog completo (vedi sotto)
+6. Push su `main` → attiva il workflow GitHub Pages (`deploy.yml`)
+7. Deploy su Firebase Hosting: `cd frontend && npm run build && firebase deploy --only hosting`
+8. Verifica build verde
 
-1. Crea o aggiorna `frontend/playwright.config.ts` con questa configurazione:
+## Commit message
 
-```typescript
-import { defineConfig, devices } from '@playwright/test';
+```
+feat: v3.0.0 — reminder completion, calendar scroll, editor polish
 
-export default defineConfig({
-  testDir: '../e2e',
-  timeout: 30_000,
-  retries: 0,
-  use: {
-    baseURL: 'https://giuseppebosco.github.io/punto-/',
-    headless: true,
-    channel: 'chrome',   // usa Chrome di sistema, non Chromium scaricato
-  },
-  projects: [
-    {
-      name: 'mobile-375',
-      use: { ...devices['iPhone SE'] },
-    },
-    {
-      name: 'mobile-390',
-      use: { ...devices['iPhone 14'] },
-    },
-    {
-      name: 'desktop-1280',
-      use: { viewport: { width: 1280, height: 800 } },
-    },
-  ],
-  outputDir: '../agents/gamma-reports/screenshots',
-});
+### Nuove funzionalità
+- Promemoria: "Segna come evaso" con badge Evaso + undo (tap per annullare)
+- Lista note: tab "Evasi" separato (appare solo se ci sono promemoria evasi)
+- Calendario mobile: mesi scrollabili verticalmente con infinite scroll
+- Swipe right per uscire dall'editor nota
+- Time picker promemoria: due select Ora/Min a intervalli di 5 min (allineati al cron)
+- Deep link notifiche push: apertura diretta della nota da notifica (fix iOS PWA)
+
+### Fix & miglioramenti
+- Header unificato fuori dal sidenav (navigazione fluida tra viste)
+- Rimozione ripple/state layer dai bottoni header
+- Calendar header mobile: toggle + Oggi / nav su due righe compatte
+- Layout reminder: Data riga 1, [Ora:Min]+Ripeti riga 2 su mobile
+- Font titolo nota (Plus Jakarta Sans esplicita su input)
+- Salvataggio titolo su uscita senza blur
+- Badge "Evaso" dark pill centrato, cliccabile su tutta la superficie
+- "Segna come evaso" visibile anche senza modificare il reminder
+- Blocco zoom PWA (user-scalable=no)
 ```
 
-2. Crea la directory `e2e/` nella root del progetto se non esiste
+## Nota changelog per gli utenti (da inviare via notifica o inclusa nel corpo del commit)
 
-3. Verifica che funzioni con:
-```bash
-cd frontend && npx playwright test --list
-```
+**⚠️ Aggiornamento importante per chi usa punto! come PWA:**
+Per ricevere il nuovo aggiornamento, **chiudi l'app dal selettore delle app** (scorri via la scheda) e riaprila. Il service worker si aggiornerà automaticamente.
 
-## File da creare/modificare
-- `frontend/playwright.config.ts`
-- `e2e/` (directory, crearla se assente)
+## ⛔ Attendo conferma build verde prima di segnare done
+completed:
+bloccato_da:
 
-## Completamento
-Aggiorna `agents/state/B-PLAYWRIGHT-setup.md` con status: done + completato.
-
----
-
-## Task successivo (dopo B-PLAYWRIGHT): avvia dev server per QA Gamma
-
-Appena B-PLAYWRIGHT è done, avvia il dev server Angular:
-
-```bash
-cd frontend && npm start
-```
-
-Server su https://localhost:4200 con SSL — tienilo attivo finché Gamma non ha completato la QA localhost.
-Quando è su, notifica il Team Lead scrivendo in `agents/inbox/lead.md`.

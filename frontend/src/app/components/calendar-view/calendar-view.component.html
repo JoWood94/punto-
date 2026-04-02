@@ -1,7 +1,20 @@
 <div class="calendar-view">
 
   <!-- ── Header ── -->
-  <div class="calendar-header">
+  <div class="calendar-header" [class.calendar-header--mobile]="isMobile">
+
+    <!-- Riga 1: toggle + oggi -->
+    <div class="header-row-top">
+      <mat-button-toggle-group [value]="viewType" (change)="setView($event.value)"
+          class="view-toggle" aria-label="Vista calendario">
+        <mat-button-toggle value="day">Giorno</mat-button-toggle>
+        <mat-button-toggle value="week">Settimana</mat-button-toggle>
+        <mat-button-toggle value="month">Mese</mat-button-toggle>
+      </mat-button-toggle-group>
+      <button mat-stroked-button class="today-btn" (click)="goToToday()">Oggi</button>
+    </div>
+
+    <!-- Riga 2: nav prev/next — sempre visibile -->
     <div class="nav-controls">
       <button mat-icon-button (click)="navigate(-1)" matTooltip="Precedente" aria-label="Precedente">
         <mat-icon>chevron_left</mat-icon>
@@ -10,18 +23,12 @@
       <button mat-icon-button (click)="navigate(1)" matTooltip="Successivo" aria-label="Successivo">
         <mat-icon>chevron_right</mat-icon>
       </button>
-      <button mat-stroked-button class="today-btn" (click)="goToToday()">Oggi</button>
     </div>
 
-    <mat-button-toggle-group [value]="viewType" (change)="setView($event.value)" class="view-toggle" aria-label="Vista calendario">
-      <mat-button-toggle value="day">Giorno</mat-button-toggle>
-      <mat-button-toggle value="week">Settimana</mat-button-toggle>
-      <mat-button-toggle value="month">Mese</mat-button-toggle>
-    </mat-button-toggle-group>
   </div>
 
-  <!-- ── Month view ── -->
-  <div class="month-view" *ngIf="viewType === 'month'">
+  <!-- ── Month view (desktop) ── -->
+  <div class="month-view" *ngIf="viewType === 'month' && !isMobile">
     <div class="week-headers">
       <div class="week-header" *ngFor="let h of weekHeaders">{{ h }}</div>
     </div>
@@ -45,6 +52,39 @@
             <span class="chip-title">{{ (note.title || 'Senza titolo') | slice:0:14 }}{{ (note.title || '').length > 14 ? '…' : '' }}</span>
           </div>
           <div class="more-notes" *ngIf="day.notes.length > 3">+{{ day.notes.length - 3 }} altre</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Month view (mobile) — mesi scrollabili verticalmente ── -->
+  <div class="months-scroll-container" *ngIf="viewType === 'month' && isMobile"
+       #monthsContainer (scroll)="onMonthsScroll($event)">
+    <div class="month-section" *ngFor="let m of months"
+         [attr.data-month]="m.year + '-' + m.month">
+      <div class="month-section-header">{{ m.label }}</div>
+      <div class="week-headers">
+        <div class="week-header" *ngFor="let h of weekHeaders">{{ h }}</div>
+      </div>
+      <div class="month-grid">
+        <div class="day-cell"
+             *ngFor="let day of m.days"
+             [class.other-month]="!day.isCurrentMonth"
+             [class.today]="day.isToday"
+             [class.has-notes]="day.notes.length > 0"
+             (click)="day.notes.length > 0 ? selectDay(day) : null">
+          <span class="day-number">{{ day.date.getDate() }}</span>
+          <div class="day-notes">
+            <div class="note-chip"
+                 *ngFor="let note of day.notes.slice(0, 1)"
+                 [class.note-chip-reminder]="hasReminder(note)"
+                 [style.background-color]="(note.color && note.color !== 'default' ? note.color : null) || (hasReminder(note) ? 'var(--punto-primary, #4A6CF7)' : 'var(--mat-sys-secondary-container, #e8def8)')"
+                 (click)="selectNote(note, $event)">
+              <mat-icon class="chip-bell" *ngIf="hasReminder(note)">notifications</mat-icon>
+              <span class="chip-title">{{ (note.title || 'Senza titolo') | slice:0:12 }}{{ (note.title || '').length > 12 ? '…' : '' }}</span>
+            </div>
+            <div class="more-notes" *ngIf="day.notes.length > 1">+{{ day.notes.length - 1 }}</div>
+          </div>
         </div>
       </div>
     </div>

@@ -1,5 +1,6 @@
 <div class="editor-header">
-  <input #titleInput class="title-input-raw" [(ngModel)]="note.title" placeholder="Titolo" (ngModelChange)="onTitleChange()" />
+  <input #titleInput class="title-input-raw" [(ngModel)]="note.title" placeholder="Titolo"
+       (ngModelChange)="onTitleChange()" (blur)="onTitleChange()" />
 </div>
 
 <div class="editor-content" #editorContent (click)="onEditorContentClick($event)">
@@ -133,13 +134,22 @@
               <mat-datepicker #picker (closed)="onReminderChange()"></mat-datepicker>
             </mat-form-field>
 
-            <div class="time-fill-field">
-              <span class="time-fill-label">Ora</span>
-              <input type="time" class="time-fill-input"
-                     [value]="getReminderTimeValue($any(block))"
-                     (change)="onReminderTimeChange($any(block), $event)"
-                     (focus)="onNonTextFieldFocus()"
-                     (blur)="onNonTextFieldBlur()">
+            <div class="time-selects-wrapper">
+              <mat-form-field appearance="fill" class="hour-field">
+                <mat-label>Ora</mat-label>
+                <mat-select [(ngModel)]="$any(block).hour" (ngModelChange)="onReminderChange()">
+                  <mat-option *ngFor="let h of hours" [value]="h">{{ h }}</mat-option>
+                </mat-select>
+              </mat-form-field>
+
+              <span class="time-separator">:</span>
+
+              <mat-form-field appearance="fill" class="minute-field">
+                <mat-label>Min</mat-label>
+                <mat-select [(ngModel)]="$any(block).minute" (ngModelChange)="onReminderChange()">
+                  <mat-option *ngFor="let m of minutes" [value]="m">{{ m }}</mat-option>
+                </mat-select>
+              </mat-form-field>
             </div>
 
             <mat-form-field appearance="fill" class="recurrence-field">
@@ -153,6 +163,24 @@
               </mat-select>
             </mat-form-field>
           </div>
+
+          <!-- Stato completato -->
+          <button class="reminder-completed-badge" type="button"
+                  *ngIf="$any(block).status === 'completed'"
+                  (click)="undoReminderCompleted($any(block))"
+                  matTooltip="Tocca per annullare evasione">
+            <mat-icon>task_alt</mat-icon>
+            <span>Evaso</span>
+            <mat-icon class="undo-icon">undo</mat-icon>
+          </button>
+
+          <!-- CTA segna evaso — visibile per null, pending, sent -->
+          <button mat-stroked-button class="mark-done-btn" type="button"
+                  *ngIf="$any(block).status !== 'completed'"
+                  (click)="markReminderCompleted($any(block))">
+            <mat-icon>check_circle</mat-icon>
+            {{ $any(block).recurrence !== 'none' ? 'Evaso — prossimo ' + getNextRecurrenceLabel($any(block)) : 'Segna come evaso' }}
+          </button>
         </div>
       </ng-container>
 

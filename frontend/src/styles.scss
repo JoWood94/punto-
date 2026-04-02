@@ -17,7 +17,7 @@ html, body {
   overscroll-behavior: none;
   background: var(--mat-sys-background);
   color: var(--mat-sys-on-background);
-  font-family: 'Roboto', sans-serif;
+  font-family: 'Plus Jakarta Sans', sans-serif;
 }
 
 html {
@@ -27,13 +27,16 @@ html {
         primary: mat.$azure-palette,
         tertiary: mat.$blue-palette,
       ),
-      typography: Roboto,
+      typography: 'Plus Jakarta Sans',
       density: 0,
     )
   );
 }
 
 :root {
+  /* Typeface */
+  --punto-font: 'Plus Jakarta Sans', sans-serif;
+
   /* Palette primaria — nero/antracite M3 minimal */
   --punto-primary:              #1C1B1F;
   --punto-primary-container:    #EEECF0;
@@ -125,9 +128,22 @@ body {
   box-shadow: var(--punto-shadow-4);
 }
 
-/* menu: elevation livello 2 */
+/* menu: palette punto! */
 .mat-mdc-menu-panel {
   box-shadow: var(--punto-shadow-3);
+  background: var(--punto-bg, #FFFBFE) !important;
+  border-radius: var(--punto-shape-md, 12px) !important;
+
+  .mat-mdc-menu-item {
+    color: var(--punto-primary, #1C1B1F);
+
+    .mat-icon { color: var(--punto-primary, #1C1B1F); }
+
+    &:hover .mdc-list-item__primary-text,
+    &:focus .mdc-list-item__primary-text {
+      color: var(--punto-primary, #1C1B1F);
+    }
+  }
 }
 
 /* raised button: elevation livello 1, senza override !important */

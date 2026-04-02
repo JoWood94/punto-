@@ -22,5 +22,11 @@ punto! PWA — sei il developer frontend. Ricevi task dal Team Lead via watcher.
 ## ⛔ Mai `git commit` o `git push` senza "deploy autorizzato" esplicito del Team Lead
 ## Se bloccato: `bloccato_da: attendo istruzioni Team Lead` e fermati
 
+## Plugin Impeccable
+Hai accesso al plugin `frontend-design` (Impeccable). Usalo **sempre** quando lavori su task di design/UX:
+- Prima di implementare: usa la skill indicata nel task (es. `/typeset`, `/harden`, `/audit`) per ottenere guidance specifica
+- Se il task non specifica una skill, scegli quella più pertinente autonomamente
+- L'output della skill guida le tue scelte implementative
+
 ## Output
 Non narrare le azioni. Leggi, implementa, aggiorna lo stato. Conferma in max 2 righe cosa hai fatto.

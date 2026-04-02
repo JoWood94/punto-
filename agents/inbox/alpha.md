@@ -1,14 +1,64 @@
-<!-- task inviato: 2026-03-28T17:14:22.782Z -->
+<!-- task inviato: 2026-04-02T23:42:48.866Z | task-id: BF-50-reminder-layout-2rows -->
+task-id: BF-50-reminder-layout-2rows
+state-file: agents/state/BF-50-reminder-layout-2rows.md
 
-STOP — regola importante da leggere prima di procedere.
+status: in_progress
+agent: alpha
+task: Reminder mobile — Riga 1: Data sola | Riga 2: [Ora:Min] + Ripeti insieme
 
-NON committare e NON pushare. Mai, senza autorizzazione esplicita del Team Lead.
+## Layout target
 
-Il flusso corretto per UI-10 (settings FAB) è:
-1. Scrivi il codice
-2. Aggiorna agents/state/UI-10-settings-fab.md → status: done
-3. Fermati qui e aspetta
+```
+[ Data           📅  ]      ← riga 1, piena larghezza
+[ Ora ▾ : Min ▾  ]  [ Ripeti ▾ ]  ← riga 2
+```
 
-Dopo di te, Gamma farà la QA visuale. Solo dopo QA approvata, il Team Lead autorizza Beta al deploy.
+## Fix in note-editor.scss
 
-Riprendi pure il task UI-10 con questa regola in mente. Se stavi per committare, non farlo.
+```scss
+.reminder-inputs {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 8px;
+  flex-wrap: wrap;
+
+  .date-field {
+    flex: 1 1 100%;   // sempre riga intera
+    min-width: 0;
+  }
+
+  .time-selects-wrapper {
+    flex: 1 1 auto;
+    min-width: 0;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 2px;
+
+    .hour-field, .minute-field { flex: 1; min-width: 0; }
+
+    .time-separator {
+      font-size: 16px;
+      font-weight: 500;
+      color: rgba(0,0,0,0.5);
+      padding-bottom: 18px;
+      flex-shrink: 0;
+    }
+  }
+
+  .recurrence-field {
+    flex: 1 1 auto;
+    min-width: 90px;
+  }
+}
+```
+
+Con `flex: 1 1 100%` sul `.date-field`, questa occupa sempre tutta la prima riga. `.time-selects-wrapper` e `.recurrence-field` condividono la seconda riga con `flex: 1 1 auto`.
+
+Su desktop (ampio) il comportamento può restare invariato — su schermi larghi tutto sta su una riga grazie a `flex-wrap: wrap` + i campi si espandono.
+
+## ⛔ NO deploy — attendo validazione Giuseppe in locale
+completed:
+bloccato_da:
+

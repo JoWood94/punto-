@@ -31,5 +31,5 @@ Dev server rimane attivo finché Gamma non ha completato.
 
 <!-- notification beta: 2026-03-31 -->
 
-**Dev server: ATTIVO** 🟢 https://localhost:4200
-Pronto per sessione QA.
+**Dev server: ATTIVO** 🟢 https://localhost:4200 (restarted)
+Pronto per Gamma continuare la QA locale.
