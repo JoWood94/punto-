@@ -91,6 +91,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
   private authSub?: Subscription;
   private sessionCheckInterval?: ReturnType<typeof setInterval>;
   private userDocUnsub?: () => void;
+  hasDeepLink = false;
   private deepLinkNoteId: string | null = null;
   private swMessageListener?: (event: MessageEvent) => void;
   private readonly onOnline = () => { this.isOffline = false; this.hasFirestoreError = false; };
@@ -105,9 +106,10 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.isMobile = this.breakpointObserver.isMatched([Breakpoints.Handset]);
     this.checkMobile();
 
-    // Deep link da notifica push: legge ?openNote=<id> prima che replaceState lo cancelli
+    // Deep link da notifica push: legge ?openNote=<id> o navigation queue (iOS deep sleep)
     const urlParams = new URLSearchParams(window.location.search);
-    this.deepLinkNoteId = urlParams.get('openNote');
+    this.deepLinkNoteId = urlParams.get('openNote') || await this.checkNavigationQueue();
+    this.hasDeepLink = !!this.deepLinkNoteId;
 
     // Ascolta messaggi dal Service Worker (quando l'app è già aperta)
     if ('serviceWorker' in navigator) {
@@ -200,6 +202,11 @@ export class DashboardComponent implements OnInit, OnDestroy {
           if (target) {
             this.selectNote(target);
             this.deepLinkNoteId = null;
+            this.hasDeepLink = false;
+          } else {
+            // Nota non trovata (es. eliminata) → mostra lista normalmente
+            this.deepLinkNoteId = null;
+            this.hasDeepLink = false;
           }
         }
       },
@@ -477,6 +484,22 @@ export class DashboardComponent implements OnInit, OnDestroy {
     const newSessionVersion = await this.noteService.updateEncryptedPrivateKey(newEncryptedPrivateKey);
     // Aggiorna la versione locale (questa sessione rimane attiva)
     this.cryptoService.saveLocalSessionVersion(uid, newSessionVersion);
+  }
+
+  private async checkNavigationQueue(): Promise<string | null> {
+    if (!('caches' in window)) return null;
+    try {
+      const cache = await caches.open('punto-nav-queue');
+      const res = await cache.match('pending-nav');
+      if (!res) return null;
+      const data = await res.json();
+      await cache.delete('pending-nav');
+      // Ignora voci più vecchie di 5 minuti (navigazione stantia)
+      if (Date.now() - data.ts > 5 * 60 * 1000) return null;
+      return data.noteId ?? null;
+    } catch {
+      return null;
+    }
   }
 
   logout() { this.authService.logout().then(() => this.router.navigate(['/login'])); }

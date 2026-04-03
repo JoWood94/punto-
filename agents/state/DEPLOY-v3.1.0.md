@@ -1,7 +1,3 @@
-<!-- task inviato: 2026-04-03T13:18:02.158Z | task-id: DEPLOY-v3.1.0 -->
-task-id: DEPLOY-v3.1.0
-state-file: agents/state/DEPLOY-v3.1.0.md
-
 status: in_progress
 agent: beta
 task: Deploy v3.1.0 — deeplink notifiche fix
@@ -44,4 +40,3 @@ fix: v3.1.0 — deeplink notifiche da notifica push
 4. `git push`
 5. Attendi build GitHub Actions verde
 6. Aggiorna questo file con `status: done`
-

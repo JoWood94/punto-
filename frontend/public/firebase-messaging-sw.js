@@ -37,23 +37,39 @@ self.addEventListener('notificationclick', (event) => {
 
   const noteId = event.notification.data?.noteId;
   const appOrigin = self.location.origin;
-  // Naviga direttamente a /dashboard per evitare che il redirect '' → dashboard
-  // di Angular perda i query params
+  // Ricava il basePath dal percorso del SW: '/punto-/firebase-messaging-sw.js' → '/punto-/'
+  // In locale: '/firebase-messaging-sw.js' → '/' → funziona anche in dev
+  const swPath = self.location.pathname;
+  const basePath = swPath.substring(0, swPath.lastIndexOf('/') + 1);
   const targetUrl = noteId
-    ? `${appOrigin}/dashboard?openNote=${encodeURIComponent(noteId)}`
-    : `${appOrigin}/dashboard`;
+    ? `${appOrigin}${basePath}dashboard?openNote=${encodeURIComponent(noteId)}`
+    : `${appOrigin}${basePath}dashboard`;
 
-  event.waitUntil(
-    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
-      for (const client of clientList) {
-        if (client.url.includes('/dashboard')) {
-          // navigate() ricarica l'URL con i query params → dashboard li legge all'init
-          // Più affidabile di postMessage su iOS (il listener potrebbe non essere ancora montato)
-          return client.navigate(targetUrl).then(c => c ? c.focus() : null);
-        }
+  event.waitUntil((async () => {
+    // 1. Scrivi in navigation queue (sopravvive al deep sleep iOS)
+    //    Cache API è accessibile sia dal SW che dall'app Angular.
+    if (noteId) {
+      try {
+        const cache = await caches.open('punto-nav-queue');
+        await cache.put(
+          new Request('pending-nav'),
+          new Response(JSON.stringify({ noteId, ts: Date.now() }))
+        );
+      } catch (e) {
+        console.warn('[SW] Nav queue write failed:', e);
       }
-      // App chiusa: apri nuova finestra
-      return clients.openWindow(targetUrl);
-    })
-  );
+    }
+
+    // 2. Cerca client attivo e notifica via postMessage (best effort — app già aperta)
+    const clientList = await clients.matchAll({ type: 'window', includeUncontrolled: true });
+    for (const client of clientList) {
+      if (client.url.includes('/dashboard')) {
+        if (noteId) client.postMessage({ type: 'OPEN_NOTE', noteId });
+        return client.focus();
+      }
+    }
+
+    // 3. App chiusa/dormiente: apri/risveglia con URL corretto
+    return clients.openWindow(targetUrl);
+  })());
 });

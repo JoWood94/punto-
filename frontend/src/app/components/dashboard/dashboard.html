@@ -101,13 +101,13 @@
       <!-- Notes list -->
       <div class="notes-list">
 
-        <!-- Loader lista note -->
-        <div *ngIf="!notesLoaded" class="notes-loading">
+        <!-- Loader lista note (anche durante attesa deep link) -->
+        <div *ngIf="!notesLoaded || hasDeepLink" class="notes-loading">
           <mat-spinner diameter="32" color="primary"></mat-spinner>
         </div>
 
-        <!-- Contenuto — mostra solo quando caricato -->
-        <ng-container *ngIf="notesLoaded">
+        <!-- Contenuto — mostra solo quando caricato e nessun deep link in attesa -->
+        <ng-container *ngIf="notesLoaded && !hasDeepLink">
 
           <!-- Tab "Note" -->
           <ng-container *ngIf="activeListTab === 'notes'">

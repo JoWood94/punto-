@@ -1,8 +1,4 @@
-<!-- task inviato: 2026-04-03T12:23:45.700Z | task-id: BF-53-deeplink-no-flash -->
-task-id: BF-53-deeplink-no-flash
-state-file: agents/state/BF-53-deeplink-no-flash.md
-
-status: in_progress
+status: done
 agent: alpha
 task: Fix deep link — eliminare flash lista note prima di navigare alla nota
 
@@ -82,4 +78,4 @@ Il `mat-spinner` è già disponibile (Angular Material è già importato nel pro
 - Aggiorna questo file con `status: done` e `completed:`
 
 ## ⛔ NO deploy — attendo validazione Giuseppe in locale
-
+completed: dashboard.ts: hasDeepLink flag aggiunto, settato dopo checkNavigationQueue(), resettato in notesSub (sia nota trovata che non trovata). dashboard.html: spinner visibile anche con hasDeepLink=true, lista nascosta finché hasDeepLink.
