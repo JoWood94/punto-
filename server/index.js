@@ -91,14 +91,14 @@ async function checkAndSendReminders() {
 
       if (!tokensCache[uid]) {
         const userDoc = await db.collection('users').doc(uid).get();
-        if (userDoc.exists && userDoc.data().fcmTokens) {
-          tokensCache[uid] = userDoc.data().fcmTokens;
-        } else {
-          tokensCache[uid] = [];
-        }
+        const userData = userDoc.exists ? userDoc.data() : {};
+        tokensCache[uid] = {
+          tokens: userData.fcmTokens ?? [],
+          notifTitleEnabled: userData.notifTitleEnabled === true,
+        };
       }
 
-      const tokens = tokensCache[uid];
+      const { tokens, notifTitleEnabled } = tokensCache[uid];
 
       if (tokens && tokens.length > 0) {
         const PGP_MARKER = '-----BEGIN PGP MESSAGE-----';
@@ -113,7 +113,10 @@ async function checkAndSendReminders() {
               timeZone: 'Europe/Rome'
             })
           : null;
-        const msgTitle = 'punto! — Promemoria';
+        const rawTitle = note.title;
+        const msgTitle = (notifTitleEnabled && rawTitle && !isEncrypted(rawTitle))
+          ? rawTitle
+          : 'punto! — Promemoria';
         const bodyText = reminderDate
           ? `Hai un promemoria per il ${reminderDate}`
           : 'Hai un promemoria in scadenza!';
