@@ -1,47 +1,40 @@
-<!-- task inviato: 2026-04-03T16:00:27.984Z | task-id: IMPL-23-recurring-reminders-review -->
-task-id: IMPL-23-recurring-reminders-review
-state-file: agents/state/IMPL-23-recurring-reminders-review.md
+<!-- task inviato: 2026-04-03T17:38:24.562Z | task-id: BF-86-desktop-always-calendar -->
+task-id: BF-86-desktop-always-calendar
+state-file: agents/state/BF-86-desktop-always-calendar.md
 
 status: in_progress
 agent: alpha
-task: Review UX flusso promemoria + proposta categoria note ricorrenti
+task: Fix desktop — calendario sempre visibile a destra quando nessuna nota è selezionata
 
-## Obiettivo
+## Comportamento atteso
+Su desktop, l'area destra mostra SEMPRE il calendario quando nessuna nota è selezionata,
+indipendentemente da quante note ci sono nella lista sinistra.
+Il placeholder "Seleziona una nota o creane una." va rimosso completamente.
 
-NON implementare ancora. Prima fare una review del flusso promemoria attuale con Impeccable,
-poi tornare con una proposta strutturata da validare con il Team Lead.
+## Fix in `dashboard.html`
 
-## Step 1 — Review con Impeccable
+### 1. Rimuovere il `no-selection-state`
+Eliminare (o commentare) il div `.no-selection-state` — non è mai utile dato che
+il calendario sarà sempre visibile al suo posto.
 
-Usa `impeccable:critique` per valutare il flusso promemoria attuale:
-- Come vengono mostrati i reminder nella lista note (dashboard)
-- Come si distinguono note con reminder pending / sent / ricorrenti
-- Il tab "Evasi" e cosa contiene
-- L'esperienza di impostare un reminder nell'editor
+### 2. Mostrare il calendario sempre su desktop in list view senza nota selezionata
 
-Poi usa `impeccable:frontend-design` per esplorare possibili design della nuova categoria
-"Ricorrenti" nella lista note.
+```html
+<!-- Prima (riga 246): -->
+<div class="calendar-wrapper" *ngIf="(currentMainView === 'calendar' || (!isMobile && currentMainView === 'list' && filteredNotes.length === 0)) && activeNote === undefined">
 
-## Step 2 — Proposta da documentare in questo file
+<!-- Dopo: -->
+<div class="calendar-wrapper" *ngIf="(currentMainView === 'calendar' || (!isMobile && currentMainView === 'list')) && activeNote === undefined">
+```
 
-Dopo la review, documenta una proposta che risponda a queste domande:
+In questo modo su desktop con `currentMainView === 'list'`:
+- Sinistra: lista note (o empty state se non ci sono note)
+- Destra: calendario sempre visibile
 
-1. **Struttura**: nuova tab separata "Ricorrenti" oppure sezione dentro la lista esistente?
-2. **Contenuto**: solo note con `recurrence != 'none'`, o anche note con reminder `pending`?
-3. **Visivo**: come si distingue una nota ricorrente da una con reminder singolo?
-4. **Interazione**: cosa succede quando si tappa una nota ricorrente dalla lista?
-5. **Edge case**: nota ricorrente con reminder `sent` (in attesa del prossimo slot) — dove appare?
+## Output atteso
+- Fix in `dashboard.html`
+- Build production OK
+- Aggiorna questo file con `status: done` e `completed:`
 
-## Step 3 — NON implementare
-
-Scrivi la proposta in questo file sotto "## Proposta", poi aggiorna `status: done`.
-Il Team Lead valuterà e darà il go all'implementazione.
-
-## Contesto tecnico
-- Campo `recurrence` su nota: `'none' | 'daily' | 'weekly' | 'monthly'`
-- Campo `reminderStatus`: `'pending' | 'sent' | null`
-- Tab esistenti: lista note principale + "Evasi" (reminder completati/evasi)
-- Design system: `--punto-primary: #1C1B1F`, M3 Angular Material
-
-## ⛔ NO implementazione — solo review e proposta
+## ⛔ NO deploy — attendo validazione Giuseppe in locale
 

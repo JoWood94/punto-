@@ -1,7 +1,3 @@
-<!-- task inviato: 2026-04-03T17:45:16.190Z | task-id: DEPLOY-v3.4.0 -->
-task-id: DEPLOY-v3.4.0
-state-file: agents/state/DEPLOY-v3.4.0.md
-
 status: in_progress
 agent: beta
 task: Deploy v3.4.0 — ricorrenti, encryption, UX fixes
@@ -58,4 +54,3 @@ agents/ (inbox, state files)
 4. `git push origin main`
 5. Attendi build GitHub Actions verde
 6. Aggiorna questo file con `status: done` e `completed:`
-

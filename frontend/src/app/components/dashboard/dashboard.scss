@@ -102,6 +102,28 @@
   letter-spacing: 0.01em;
 }
 
+// ─── Recurring section collapsible header ────────────────────
+.section-header-collapsible {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: var(--punto-primary);
+  padding: 8px 6px 4px;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  user-select: none;
+
+  .section-chevron {
+    font-size: 18px !important;
+    width: 18px !important;
+    height: 18px !important;
+    transition: transform 180ms ease;
+    &.rotated { transform: rotate(-90deg); }
+  }
+}
+
 // ─── Note card time (reminder di oggi) ──────────────────────
 .note-card-time {
   font-size: 0.72rem;
@@ -380,14 +402,11 @@
 
   button {
     border-radius: var(--punto-shape-full, 9999px);
+  }
 
-    mat-icon {
-      font-size: 18px;
-      width: 18px;
-      height: 18px;
-      margin-right: 4px;
-      opacity: 1;
-    }
+  .empty-state-plus {
+    margin-right: 6px;
+    letter-spacing: normal;
   }
 }
 
@@ -615,23 +634,6 @@
   }
 }
 
-// Pulsante calendario desktop — dot indicator sotto l'icona
-.calendar-btn-active {
-  position: relative;
-
-  &::after {
-    content: '';
-    position: absolute;
-    bottom: 5px;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 4px;
-    height: 4px;
-    border-radius: 50%;
-    background: var(--punto-primary);
-    pointer-events: none;
-  }
-}
 
 // Spaziatura tra bottone calendario e more_vert nell'header
 .settings-menu-btn {

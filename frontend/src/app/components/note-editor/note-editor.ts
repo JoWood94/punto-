@@ -32,6 +32,7 @@ import { LinkDialogComponent } from '../link-dialog/link-dialog';
 // import { getStorage, ref as storageRef, uploadBytesResumable, getDownloadURL, deleteObject } from 'firebase/storage';
 // import { getApp } from 'firebase/app';
 
+
 @Component({
   selector: 'app-note-editor',
   standalone: true,
@@ -200,6 +201,7 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewInit, Af
             rb.hour = now.getHours().toString().padStart(2, '0');
             rb.minute = now.getMinutes().toString().padStart(2, '0');
           }
+          this.checkStalledEvasion(rb);
         }
       });
       this.note = {
@@ -532,10 +534,12 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewInit, Af
   onNonTextFieldBlur()  { this.nonTextFieldFocused.set(false); }
 
   onReminderChange() {
-    // L'utente ha modificato il reminder → resetta lo status a 'pending', ma non tocca 'completed'
+    // L'utente ha modificato il reminder → resetta status e flag evasione su tutti i reminder
     this.note.blocks.forEach(b => {
-      if (b.type === 'reminder' && (b as any).status !== 'completed') {
+      if (b.type === 'reminder') {
         (b as any).status = 'pending';
+        (b as any)._evaded = false;
+        (b as any)._prevTime = null;
       }
     });
     this.triggerAutoSave();
@@ -546,17 +550,47 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewInit, Af
     if (recurrence === 'none') {
       block.status = 'completed';
       (this.note as any).lastCompletedAt = Date.now();
-      this.triggerAutoSave(); // diretto: onReminderChange resetterebbe 'completed' a 'pending'
+      this.triggerAutoSave();
     } else {
-      const next = this.getNextRecurrence(block.time!, recurrence);
-      const d = new Date(next);
-      block.time = next;
-      block.date = d;
-      block.hour = d.getHours().toString().padStart(2, '0');
-      block.minute = d.getMinutes().toString().padStart(2, '0');
+      // Salva timestamp originale per undo, avanza alla prossima occorrenza
+      block._prevTime = block.time;
+      block._evaded = true;
+      block.time = this.getNextRecurrence(block.time, block.recurrence);
       block.status = 'pending';
-      (this.note as any).lastCompletedAt = Date.now();
-      this.onReminderChange(); // ok per ricorrenti: reimposta pending + salva
+      this.triggerAutoSave();
+    }
+  }
+
+  undoRecurringEvasion(block: any): void {
+    block.time = block._prevTime;
+    block._prevTime = null;
+    block._evaded = false;
+    block.status = 'pending';
+    this.triggerAutoSave();
+  }
+
+  isReminderActionable(block: any): boolean {
+    if (!this.note?.id) return false;
+    if ((block.status as string) === 'completed') return false;
+    if ((block.recurrence ?? 'none') !== 'none') {
+      return !block._evaded;
+    }
+    return true;
+  }
+
+  getReminderActionLabel(_block: any): string {
+    // Il badge ricorrente mostra "Evaso — prossima [data]"; il bottone mostra sempre questo
+    return 'Segna come evaso';
+  }
+
+  private checkStalledEvasion(block: any): void {
+    if (block._evaded && block._prevTime) {
+      const prevDay = new Date(block._prevTime).setHours(0, 0, 0, 0);
+      const today = new Date().setHours(0, 0, 0, 0);
+      if (prevDay < today) {
+        block._evaded = false;
+        block._prevTime = null;
+      }
     }
   }
 

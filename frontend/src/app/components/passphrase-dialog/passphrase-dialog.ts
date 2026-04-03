@@ -11,12 +11,6 @@ export interface PassphraseDialogData {
   mode: 'setup' | 'unlock';
 }
 
-export interface PassphraseStrength {
-  score: number; // 0-4
-  label: 'debole' | 'media' | 'forte';
-  color: string;
-}
-
 @Component({
   selector: 'app-passphrase-dialog',
   standalone: true,
@@ -44,15 +38,6 @@ export interface PassphraseStrength {
       </mat-form-field>
 
       @if (isSetup) {
-        <div class="strength-bar-wrap" [class.visible]="passphrase.length > 0">
-          <div class="strength-bar">
-            <div class="strength-fill" [style.width.%]="strengthPercent" [style.background]="strength.color"></div>
-          </div>
-          <span class="strength-label" [style.color]="strength.color">{{ strength.label }}</span>
-        </div>
-
-        <p class="passphrase-hint">Scegli una passphrase memorabile — non ci sono vincoli di formato.</p>
-
         <mat-form-field appearance="outline" class="full-width" style="margin-top: 8px;">
           <mat-label>Conferma passphrase</mat-label>
           <input matInput
@@ -84,12 +69,6 @@ export interface PassphraseStrength {
     mat-dialog-content { display: flex; flex-direction: column; gap: 4px; padding-top: 8px; }
     .full-width { width: 100%; }
     .dialog-hint { font-size: 13px; color: rgba(0,0,0,.6); margin-bottom: 8px; }
-    .strength-bar-wrap { display: flex; align-items: center; gap: 8px; opacity: 0; transition: opacity .2s; }
-    .strength-bar-wrap.visible { opacity: 1; }
-    .strength-bar { flex: 1; height: 4px; background: rgba(0,0,0,.12); border-radius: 2px; overflow: hidden; }
-    .strength-fill { height: 100%; border-radius: 2px; transition: width .3s, background .3s; }
-    .strength-label { font-size: 12px; min-width: 40px; }
-    .passphrase-hint { font-size: 12px; color: rgba(0,0,0,.45); margin: 0; padding: 2px 0 4px; }
     .error-message { color: #B3261E; font-size: 13px; margin-top: 4px; }
   `]
 })
@@ -100,9 +79,6 @@ export class PassphraseDialogComponent {
   showConfirm = false;
   errorMessage = '';
 
-  req = { minLen: false, upper: false, number: false, special: false };
-  strength: PassphraseStrength = { score: 0, label: 'debole', color: '#B3261E' };
-
   constructor(
     public dialogRef: MatDialogRef<PassphraseDialogComponent>,
     @Inject(MAT_DIALOG_DATA) public data: PassphraseDialogData
@@ -110,30 +86,13 @@ export class PassphraseDialogComponent {
 
   get isSetup(): boolean { return this.data.mode === 'setup'; }
 
-  get strengthPercent(): number { return (this.strength.score / 4) * 100; }
-
   get canConfirm(): boolean {
     if (!this.passphrase) return false;
-    if (this.isSetup) {
-      return this.passphrase === this.confirmPassphrase;
-    }
+    if (this.isSetup) return this.passphrase === this.confirmPassphrase;
     return true;
   }
 
-  onPassphraseChange() {
-    const p = this.passphrase;
-    this.req = {
-      minLen: p.length >= 8,
-      upper: /[A-Z]/.test(p),
-      number: /[0-9]/.test(p),
-      special: /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(p)
-    };
-    const score = [this.req.minLen, this.req.upper, this.req.number, this.req.special].filter(Boolean).length;
-    const labels: PassphraseStrength['label'][] = ['debole', 'debole', 'media', 'media', 'forte'];
-    const colors = ['#B3261E', '#B3261E', '#E65100', '#E65100', '#2e7d32'];
-    this.strength = { score, label: labels[score], color: colors[score] };
-    this.errorMessage = '';
-  }
+  onPassphraseChange() { this.errorMessage = ''; }
 
   setError(msg: string) { this.errorMessage = msg; }
 

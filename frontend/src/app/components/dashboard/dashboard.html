@@ -7,7 +7,7 @@
           (click)="setDefaultView('calendar')"
           aria-label="Vista Calendario"
           class="header-btn-animated">
-    <mat-icon>calendar_today</mat-icon>
+    <mat-icon>calendar_month</mat-icon>
   </button>
 
   <!-- Mobile: calendario → lista -->
@@ -51,12 +51,12 @@
           matTooltip="Vista Calendario"
           aria-label="Vista Calendario"
           class="header-btn-animated">
-    <mat-icon>calendar_today</mat-icon>
+    <mat-icon>calendar_month</mat-icon>
   </button>
 
   <!-- Menu impostazioni — nascosto nell'editor -->
   <button mat-icon-button [disableRipple]="true" [matMenuTriggerFor]="settingsMenu" aria-label="Menu"
-          *ngIf="activeNote === undefined" class="settings-menu-btn">
+          *ngIf="activeNote === undefined" [disabled]="!settingsMenuEnabled" class="settings-menu-btn">
     <mat-icon>more_vert</mat-icon>
   </button>
 
@@ -112,34 +112,50 @@
           <!-- Tab "Note" -->
           <ng-container *ngIf="activeListTab === 'notes'">
 
-            <!-- Sezione "Fissate" — solo se ci sono entrambi pinned e non-pinned -->
-            <ng-container *ngIf="pinnedNotes.length > 0 && unpinnedNotes.length > 0">
-              <div class="section-label">Fissate</div>
-              <ng-container *ngFor="let note of pinnedNotes">
-                <ng-container *ngTemplateOutlet="noteCard; context: { note: note }"></ng-container>
-              </ng-container>
-              <div class="section-label">Note</div>
-              <ng-container *ngFor="let note of unpinnedNotes">
-                <ng-container *ngTemplateOutlet="noteCard; context: { note: note }"></ng-container>
-              </ng-container>
-            </ng-container>
-
-            <!-- Lista unica -->
-            <ng-container *ngIf="pinnedNotes.length === 0 || unpinnedNotes.length === 0">
-              <ng-container *ngFor="let note of unpinnedNotes">
-                <ng-container *ngTemplateOutlet="noteCard; context: { note: note }"></ng-container>
-              </ng-container>
-              <ng-container *ngFor="let note of pinnedNotes">
-                <ng-container *ngTemplateOutlet="noteCard; context: { note: note }"></ng-container>
+            <!-- Sezione "Ricorrenti" -->
+            <ng-container *ngIf="recurringNotes.length > 0">
+              <div class="section-header-collapsible" (click)="isRecurringSectionExpanded = !isRecurringSectionExpanded">
+                <span>Ricorrenti</span>
+                <mat-icon class="section-chevron" [class.rotated]="!isRecurringSectionExpanded">expand_more</mat-icon>
+              </div>
+              <ng-container *ngIf="isRecurringSectionExpanded">
+                <ng-container *ngFor="let note of recurringNotes">
+                  <ng-container *ngTemplateOutlet="noteCard; context: { note: note }"></ng-container>
+                </ng-container>
               </ng-container>
             </ng-container>
 
-            <div class="empty-state" *ngIf="pinnedNotes.length === 0 && unpinnedNotes.length === 0 && !searchQuery">
+            <!-- Sezione "Fissate" -->
+            <ng-container *ngIf="pinnedNotes.length > 0">
+              <div class="section-header-collapsible" (click)="isPinnedSectionExpanded = !isPinnedSectionExpanded">
+                <span>Fissate</span>
+                <mat-icon class="section-chevron" [class.rotated]="!isPinnedSectionExpanded">expand_more</mat-icon>
+              </div>
+              <ng-container *ngIf="isPinnedSectionExpanded">
+                <ng-container *ngFor="let note of pinnedNotes">
+                  <ng-container *ngTemplateOutlet="noteCard; context: { note: note }"></ng-container>
+                </ng-container>
+              </ng-container>
+            </ng-container>
+
+            <!-- Sezione "Note" -->
+            <ng-container *ngIf="unpinnedNotes.length > 0">
+              <div class="section-header-collapsible" (click)="isNotesSectionExpanded = !isNotesSectionExpanded">
+                <span>Note</span>
+                <mat-icon class="section-chevron" [class.rotated]="!isNotesSectionExpanded">expand_more</mat-icon>
+              </div>
+              <ng-container *ngIf="isNotesSectionExpanded">
+                <ng-container *ngFor="let note of unpinnedNotes">
+                  <ng-container *ngTemplateOutlet="noteCard; context: { note: note }"></ng-container>
+                </ng-container>
+              </ng-container>
+            </ng-container>
+
+            <div class="empty-state" *ngIf="pinnedNotes.length === 0 && unpinnedNotes.length === 0 && recurringNotes.length === 0 && !searchQuery">
               <mat-icon>edit_note</mat-icon>
               <p>Ancora nessuna nota.</p>
               <button mat-flat-button color="primary" (click)="openNoteEditor()">
-                <mat-icon>add</mat-icon>
-                Nuova nota
+                <span class="empty-state-plus">+</span> Nuova nota
               </button>
             </div>
             <div class="empty-state" *ngIf="filteredNotes.length === 0 && searchQuery">
@@ -174,7 +190,8 @@
           <div class="note-card-body">
             <div class="note-card-title-row">
               <mat-icon class="note-card-bell" *ngIf="note.reminderStatus === 'completed'">task_alt</mat-icon>
-              <mat-icon class="note-card-bell" *ngIf="note.reminderTime && note.reminderStatus !== 'completed'">notifications</mat-icon>
+              <mat-icon class="note-card-bell" *ngIf="note.recurrence && note.recurrence !== 'none'">repeat</mat-icon>
+              <mat-icon class="note-card-bell" *ngIf="note.reminderTime && note.reminderStatus !== 'completed' && (!note.recurrence || note.recurrence === 'none')">notifications</mat-icon>
               <span class="note-item-title">{{ note.title || 'Nuova Nota' }}</span>
             </div>
 
@@ -196,7 +213,10 @@
           </div>
 
           <div class="note-meta-actions">
-            <span class="note-card-time" *ngIf="getReminderTimeToday(note) as t">{{ t }}</span>
+            <span class="note-card-time" *ngIf="note.recurrence && note.recurrence !== 'none' && note.reminderTime">{{ formatNextOccurrence(note) }}</span>
+            <ng-container *ngIf="!note.recurrence || note.recurrence === 'none'">
+              <span class="note-card-time" *ngIf="getReminderTimeToday(note) as t">{{ t }}</span>
+            </ng-container>
             <button mat-icon-button
                     (click)="togglePin(note, $event)"
                     [matTooltip]="note.pinned ? 'Rimuovi pin' : 'Fissa nota'"
@@ -222,15 +242,9 @@
       </app-note-editor>
     </div>
 
-    <div class="calendar-wrapper" *ngIf="currentMainView === 'calendar' && activeNote === undefined">
+    <div class="calendar-wrapper" *ngIf="(currentMainView === 'calendar' || (!isMobile && currentMainView === 'list')) && activeNote === undefined">
       <app-calendar-view [notes]="allNotes" [isMobile]="isMobile" (noteSelected)="onCalendarNoteSelected($event)">
       </app-calendar-view>
-    </div>
-
-    <div class="no-selection-state" *ngIf="currentMainView === 'list' && activeNote === undefined && !isMobile">
-      <img src="punto_logo_no_bg.png" alt="" aria-hidden="true" class="no-selection-logo" />
-      <p>Seleziona una nota o creane una.</p>
-      <button mat-flat-button color="primary" (click)="openNoteEditor()">Nuova Nota</button>
     </div>
 
     <!-- FAB desktop: fixed bottom-right -->

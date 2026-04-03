@@ -238,7 +238,9 @@ export class NoteService {
     const uid = this.authService.getCurrentUserId();
     if (!uid) throw new Error('saveEncryptionKeys: utente non autenticato');
     const userRef = doc(this.db, `users/${uid}`);
-    const sessionVersion = 1;
+    const snap = await getDocFromServer(userRef);
+    const current = snap.exists() ? (snap.data()?.['sessionVersion'] ?? 0) : 0;
+    const sessionVersion = current + 1;
     console.log('[E2E] saveEncryptionKeys — uid:', uid, 'publicKey len:', publicKey?.length);
     await setDoc(userRef, { publicKey, encryptedPrivateKey, encryptionEnabled: true, encryptionSetup: true, sessionVersion }, { merge: true });
     console.log('[E2E] saveEncryptionKeys — scritto su Firestore OK');

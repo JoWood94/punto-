@@ -144,8 +144,13 @@ body {
       color: #FFFFFF !important;
     }
 
-    &:hover, &:focus {
+    &:hover {
       background: rgba(255, 255, 255, 0.08) !important;
+    }
+
+    &.cdk-focused,
+    &.cdk-keyboard-focused {
+      background: transparent !important;
     }
   }
 }

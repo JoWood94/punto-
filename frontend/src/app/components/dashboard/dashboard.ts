@@ -71,7 +71,8 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   activeNote?: Note | null = undefined;
   isMobile = false;
-  currentMainView: 'list' | 'calendar' = 'calendar';
+  currentMainView: 'list' | 'calendar' =
+    (localStorage.getItem('punto_defaultView') as 'list' | 'calendar') ?? 'list';
   activeListTab: 'notes' | 'evasi' = 'notes';
   isOffline = !navigator.onLine;
   hasFirestoreError = false;
@@ -91,6 +92,8 @@ export class DashboardComponent implements OnInit, OnDestroy {
   private authSub?: Subscription;
   private sessionCheckInterval?: ReturnType<typeof setInterval>;
   private userDocUnsub?: () => void;
+  private settingsMenuTimer?: ReturnType<typeof setTimeout>;
+  settingsMenuEnabled = true;
   isReady = false;
   private deepLinkNoteId: string | null = null;
   private swMessageListener?: (event: MessageEvent) => void;
@@ -147,7 +150,9 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
     // Carica preferenza vista di default (solo mobile)
     if (this.isMobile) {
-      this.currentMainView = await this.noteService.getUserPreference<'list' | 'calendar'>(this.defaultViewKey, 'list');
+      const firestoreView = await this.noteService.getUserPreference<'list' | 'calendar'>(this.defaultViewKey, 'list');
+      this.currentMainView = firestoreView;
+      localStorage.setItem('punto_defaultView', firestoreView);
     }
 
     // Tutti gli init async completati — mostra il contenuto
@@ -238,6 +243,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.notesSub?.unsubscribe();
     this.authSub?.unsubscribe();
     clearInterval(this.sessionCheckInterval);
+    clearTimeout(this.settingsMenuTimer);
     this.userDocUnsub?.();
     window.removeEventListener('popstate', this.onMobilePopState);
     window.removeEventListener('online', this.onOnline);
@@ -253,10 +259,17 @@ export class DashboardComponent implements OnInit, OnDestroy {
   // isTagSelected(tag: string): boolean { ... }
   // clearTagFilters() { ... }
 
-  // ─── Pinned/Unpinned getters ────────────────────────────────────────────────
+  // ─── Pinned/Unpinned/Recurring getters ─────────────────────────────────────
 
-  get pinnedNotes(): Note[] { return this.filteredNotes.filter(n => n.pinned && n.reminderStatus !== 'completed'); }
-  get unpinnedNotes(): Note[] { return this.filteredNotes.filter(n => !n.pinned && n.reminderStatus !== 'completed'); }
+  isRecurringSectionExpanded = true;
+  isPinnedSectionExpanded = true;
+  isNotesSectionExpanded = true;
+
+  private isRecurring(n: Note): boolean { return !!(n.recurrence && n.recurrence !== 'none'); }
+
+  get recurringNotes(): Note[] { return this.filteredNotes.filter(n => this.isRecurring(n)); }
+  get pinnedNotes(): Note[] { return this.filteredNotes.filter(n => n.pinned && n.reminderStatus !== 'completed' && !this.isRecurring(n)); }
+  get unpinnedNotes(): Note[] { return this.filteredNotes.filter(n => !n.pinned && n.reminderStatus !== 'completed' && !this.isRecurring(n)); }
   get completedReminderNotes(): Note[] {
     const completed = this.filteredNotes.filter(n => n.reminderStatus === 'completed');
     if (completed.length === 0 && this.activeListTab === 'evasi') {
@@ -317,6 +330,19 @@ export class DashboardComponent implements OnInit, OnDestroy {
     return null;
   }
 
+  formatNextOccurrence(note: Note): string {
+    if (!note.reminderTime || !note.recurrence || note.recurrence === 'none') return '';
+    const d = new Date(note.reminderTime);
+    const timeStr = d.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
+    if (note.recurrence === 'daily') {
+      const day = d.toLocaleDateString('it-IT', { weekday: 'short' });
+      return `${day.charAt(0).toUpperCase() + day.slice(1)} ${timeStr}`;
+    }
+    const dd = d.getDate().toString().padStart(2, '0');
+    const mm = (d.getMonth() + 1).toString().padStart(2, '0');
+    return `${dd}/${mm} ${timeStr}`;
+  }
+
   /** Colore di sfondo della card nota — null → CSS default (secondary-container) */
   getNoteCardBg(note: Note): string | null {
     if (note.color && note.color !== 'default') return note.color;
@@ -365,13 +391,13 @@ export class DashboardComponent implements OnInit, OnDestroy {
       return;
     }
 
-    // ── BF-09: Check sessionVersion PRIMA del salvataggio — logout immediato se mismatch
+    // ── BF-09: Check sessionVersion PRIMA del salvataggio — chiave stantia → reload per risblocco
     const localVersion = this.cryptoService.getLocalSessionVersion(uid);
     const remoteVersion = userDoc['sessionVersion'] as number | undefined;
     if (localVersion !== null && remoteVersion !== undefined && localVersion !== remoteVersion) {
-      this.userDocUnsub?.();
-      await this.authService.logout();
-      this.router.navigate(['/login']);
+      this.cryptoService.clearLocalKey(uid);
+      this.cryptoService.clearLocalSessionVersion(uid);
+      window.location.reload();
       return;
     }
 
@@ -384,12 +410,19 @@ export class DashboardComponent implements OnInit, OnDestroy {
       const remoteVersion = latestDoc['sessionVersion'];
       if (localVersion !== null && remoteVersion !== undefined && localVersion !== remoteVersion) {
         this.userDocUnsub?.();
-        // try/finally garantisce navigate anche se logout lancia eccezione
-        this.authService.logout().catch(() => {}).finally(() => {
-          this.router.navigate(['/login']);
-        });
+        this.cryptoService.clearLocalKey(uid);
+        this.cryptoService.clearLocalSessionVersion(uid);
+        window.location.reload();
       }
     });
+
+    // ── Reset su altro device: Firestore dice encryptionSetup === false → chiave locale stantia
+    if (!userDoc['encryptionSetup']) {
+      this.cryptoService.clearLocalKey(uid);
+      this.cryptoService.clearLocalSessionVersion(uid);
+      await this.showSetupDialog(uid);
+      return;
+    }
 
     // ── Check E2E: encryptionSetup === true OPPURE chiavi presenti (fallback backward compat cache)
     const isEncryptionConfigured =
@@ -526,15 +559,25 @@ export class DashboardComponent implements OnInit, OnDestroy {
     if (note) this.selectNote(note);
   }
 
-  closeEditor() { this.activeNote = undefined; this.newNoteCalendarDate = undefined; }
+  closeEditor() { this.deactivateNote(); }
   handleBackButton() {
-    if (this.activeNote !== undefined) this.activeNote = undefined;
+    if (this.activeNote !== undefined) this.deactivateNote();
     else this.currentMainView = 'list';
+  }
+
+  private deactivateNote() {
+    this.activeNote = undefined;
+    this.newNoteCalendarDate = undefined;
+    // Previene che eventi touch residui triggherino il menu impostazioni al ritorno dal editor
+    this.settingsMenuEnabled = false;
+    clearTimeout(this.settingsMenuTimer);
+    this.settingsMenuTimer = setTimeout(() => { this.settingsMenuEnabled = true; }, 150);
   }
   onCalendarNoteSelected(note: Note) { this.activeNote = note; }
 
   async setDefaultView(view: 'list' | 'calendar') {
     this.currentMainView = view;
+    localStorage.setItem('punto_defaultView', view);
     if (this.isMobile) {
       await this.noteService.setUserPreference(this.defaultViewKey, view);
     }

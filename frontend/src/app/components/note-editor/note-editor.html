@@ -164,7 +164,17 @@
             </mat-form-field>
           </div>
 
-          <!-- Stato completato -->
+          <!-- Badge evaso ricorrente — con undo -->
+          <button class="reminder-completed-badge" type="button"
+                  *ngIf="note?.id && $any(block).recurrence !== 'none' && $any(block)._evaded"
+                  (click)="undoRecurringEvasion($any(block))"
+                  matTooltip="Tocca per annullare evasione">
+            <mat-icon>task_alt</mat-icon>
+            <span>Evaso — prossima {{ $any(block).time | date:'d MMM':'':'it' }}</span>
+            <mat-icon class="undo-icon">undo</mat-icon>
+          </button>
+
+          <!-- Stato completato (singolo) -->
           <button class="reminder-completed-badge" type="button"
                   *ngIf="$any(block).status === 'completed'"
                   (click)="undoReminderCompleted($any(block))"
@@ -174,12 +184,12 @@
             <mat-icon class="undo-icon">undo</mat-icon>
           </button>
 
-          <!-- CTA segna evaso — visibile per null, pending, sent -->
+          <!-- CTA evado — sempre visibile se nota salvata e non completata -->
           <button mat-stroked-button class="mark-done-btn" type="button"
-                  *ngIf="$any(block).status !== 'completed'"
+                  *ngIf="isReminderActionable($any(block))"
                   (click)="markReminderCompleted($any(block))">
             <mat-icon>check_circle</mat-icon>
-            {{ $any(block).recurrence !== 'none' ? 'Evaso — prossimo ' + getNextRecurrenceLabel($any(block)) : 'Segna come evaso' }}
+            {{ getReminderActionLabel($any(block)) }}
           </button>
         </div>
       </ng-container>
