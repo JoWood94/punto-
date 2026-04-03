@@ -128,21 +128,59 @@ body {
   box-shadow: var(--punto-shadow-4);
 }
 
-/* menu: palette punto! */
+/* menu: palette punto! — sfondo scuro */
 .mat-mdc-menu-panel {
   box-shadow: var(--punto-shadow-3);
-  background: var(--punto-bg, #FFFBFE) !important;
+  background: var(--punto-primary, #1C1B1F) !important;
   border-radius: var(--punto-shape-md, 12px) !important;
 
   .mat-mdc-menu-item {
-    color: var(--punto-primary, #1C1B1F);
+    color: #FFFFFF !important;
 
-    .mat-icon { color: var(--punto-primary, #1C1B1F); }
+    .mat-icon { color: #FFFFFF !important; }
 
     &:hover .mdc-list-item__primary-text,
     &:focus .mdc-list-item__primary-text {
-      color: var(--punto-primary, #1C1B1F);
+      color: #FFFFFF !important;
     }
+
+    &:hover, &:focus {
+      background: rgba(255, 255, 255, 0.08) !important;
+    }
+  }
+}
+
+/* app-header globale — usato in dashboard e settings */
+:root {
+  --app-header-h: calc(80px + env(safe-area-inset-top, 0px));
+}
+
+.app-header {
+  box-shadow: var(--punto-shadow-1, 0 1px 2px rgba(0, 0, 0, 0.05));
+  z-index: 100;
+  background: var(--mat-sys-surface) !important;
+  padding-top: env(safe-area-inset-top, 0px);
+  flex-shrink: 0;
+
+  &.mat-toolbar {
+    height: var(--app-header-h) !important;
+  }
+
+  // Rimuove ripple e state layer dai bottoni nell'header
+  .mat-mdc-icon-button {
+    --mat-icon-button-state-layer-color: transparent;
+    --mat-icon-button-ripple-color: transparent;
+
+    .mat-mdc-button-persistent-ripple::before { display: none; }
+    .mdc-icon-button__ripple { display: none; }
+    .mat-ripple { display: none; }
+  }
+
+  mat-icon {
+    font-size: 24px !important;
+    width: 24px !important;
+    height: 24px !important;
+    color: var(--punto-primary) !important;
   }
 }
 

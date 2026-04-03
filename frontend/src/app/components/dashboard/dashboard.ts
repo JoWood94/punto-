@@ -502,6 +502,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
     }
   }
 
+  openSettings() { this.router.navigate(['/settings']); }
   logout() { this.authService.logout().then(() => this.router.navigate(['/login'])); }
   openNoteEditor() { this.newNoteCalendarDate = undefined; this.activeNote = null; }
   openNoteEditorFromCalendar(date?: Date) {

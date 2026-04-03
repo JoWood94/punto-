@@ -399,37 +399,7 @@
   overflow-y: hidden;
 }
 
-.app-header {
-  box-shadow: var(--punto-shadow-1, 0 1px 2px rgba(0, 0, 0, 0.05));
-  z-index: 100;
-  background: var(--mat-sys-surface) !important;
-  // Padding-top safe-area: spinge il contenuto (icone, logo) sotto la Dynamic Island
-  padding-top: env(safe-area-inset-top, 0px);
-
-  &.mat-toolbar {
-    height: var(--app-header-h) !important;
-  }
-}
-
-// Rimuovere completamente ripple e state layer dai bottoni nell'header
-.app-header {
-  .mat-mdc-icon-button {
-    --mat-icon-button-state-layer-color: transparent;
-    --mat-icon-button-ripple-color: transparent;
-
-    .mat-mdc-button-persistent-ripple::before { display: none; }
-    .mdc-icon-button__ripple { display: none; }
-    .mat-ripple { display: none; }
-  }
-}
-
-// Icone header: dimensione uniforme + colore primary
-.app-header mat-icon {
-  font-size: 24px !important;
-  width: 24px !important;
-  height: 24px !important;
-  color: var(--punto-primary) !important;
-}
+// .app-header — stilato globalmente in styles.scss
 
 .header-logo {
   height: 55px;

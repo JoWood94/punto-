@@ -1,8 +1,4 @@
-<!-- task inviato: 2026-04-03T14:18:12.372Z | task-id: IMPL-21-settings-page -->
-task-id: IMPL-21-settings-page
-state-file: agents/state/IMPL-21-settings-page.md
-
-status: in_progress
+status: done
 agent: alpha
 task: Nuova pagina Impostazioni + restyling menu tre puntini
 
@@ -103,4 +99,4 @@ Creare `frontend/src/app/components/settings/` con:
 - Aggiorna questo file con `status: done` e `completed:`
 
 ## ⛔ NO deploy — attendo validazione Giuseppe in locale
-
+completed: styles.scss: menu dark (#1C1B1F bg, testo bianco, hover rgba). dashboard.html: voce "Impostazioni" aggiunta. dashboard.ts: openSettings(). app.routes.ts: route /settings con authGuard. Nuovo componente settings/ (ts+html+scss): sezione vista default con radio card + sezione notifTitle con slide-toggle, tutto via NoteService.getUserPreference/setUserPreference.

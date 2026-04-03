@@ -1,8 +1,7 @@
-status: in_progress
+status: done
 agent: beta
 task: Deploy v3.1.0 — deeplink notifiche fix
-
-## Deploy autorizzato da Giuseppe
+completed: Commit 7f926c2 pushato. Deploy #123 completato con success. Frontend su GitHub Pages + Firebase. Fix workflow deploy.yml git config --global nel process. Bonus: rimosso fix inutile server/index.js [LOCAL] prefix e riapplicato fix reale: rimosso notifica duplicata da push-notification.ts onMessage.
 
 ## File da includere nel commit
 - `frontend/public/firebase-messaging-sw.js`

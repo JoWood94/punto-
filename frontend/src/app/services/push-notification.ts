@@ -1,6 +1,6 @@
 import { Injectable, inject, Injector, runInInjectionContext } from '@angular/core';
 import { Messaging, getToken, onMessage } from '@angular/fire/messaging';
-import { getFirestore, doc, setDoc, arrayUnion } from 'firebase/firestore';
+import { getFirestore, doc, setDoc, getDoc, arrayUnion } from 'firebase/firestore';
 import { getApp, getApps, initializeApp } from 'firebase/app';
 import { AuthService } from './auth';
 import { environment } from '../../environments/environment';
@@ -38,8 +38,20 @@ export class PushNotificationService {
         
         const uid = this.authService.getCurrentUserId();
         if (uid && token) {
-           const userRef = doc(this.db, `users/${uid}`);
-           await setDoc(userRef, { fcmTokens: arrayUnion(token) }, { merge: true });
+          const userRef = doc(this.db, `users/${uid}`);
+          // arrayUnion è atomic: safe con scritture concorrenti da più dispositivi.
+          // Aggiunge il token solo se non già presente, senza sovrascrivere l'array.
+          await setDoc(userRef, { fcmTokens: arrayUnion(token) }, { merge: true });
+
+          // Cleanup asincrono: se l'array supera 5 token, tronca i più vecchi.
+          // Separato dall'arrayUnion per non introdurre race condition.
+          const userSnap = await getDoc(userRef);
+          if (userSnap.exists()) {
+            const tokens: string[] = userSnap.data()['fcmTokens'] ?? [];
+            if (tokens.length > 5) {
+              await setDoc(userRef, { fcmTokens: tokens.slice(-5) }, { merge: true });
+            }
+          }
         }
         
         return token;

@@ -265,6 +265,10 @@
 
 <!-- Menu impostazioni globale -->
 <mat-menu #settingsMenu="matMenu" xPosition="before">
+  <button mat-menu-item (click)="openSettings()">
+    <mat-icon>settings</mat-icon>
+    <span>Impostazioni</span>
+  </button>
   <button mat-menu-item (click)="logout()">
     <mat-icon>logout</mat-icon>
     <span>Esci</span>

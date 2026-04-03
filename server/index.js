@@ -121,19 +121,11 @@ async function checkAndSendReminders() {
         try {
           const response = await messaging.sendEachForMulticast({
             tokens: tokens,
-            // webpush.notification sovrascrive root notification per i token browser.
-            // title e body vanno esplicitamente in webpush.notification, altrimenti
-            // FCM invia solo l'icona e la notifica viene scartata silenziosamente.
+            // Solo webpush.data — nessuna webpush.notification.
+            // Il browser mostrerebbe webpush.notification in automatico (push protocol
+            // nativo) E il SW chiamerebbe showNotification in onBackgroundMessage →
+            // duplicato. Con solo data, è il SW a mostrare la notifica una sola volta.
             webpush: {
-              notification: {
-                title: msgTitle,
-                body: bodyText,
-                icon: '/icons/icon-192x192.png',
-                // noteId nel data della notifica → usato dal notificationclick handler
-                // nel service worker per aprire direttamente la nota giusta
-                data: { noteId: doc.id }
-              },
-              // data: usato dal foreground handler (onMessage) dell'app Angular
               data: {
                 title: msgTitle,
                 body: bodyText,

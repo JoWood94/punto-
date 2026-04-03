@@ -1,0 +1,57 @@
+<mat-toolbar class="app-header">
+  <button mat-icon-button [disableRipple]="true" (click)="goBack()" aria-label="Torna indietro">
+    <mat-icon>arrow_back</mat-icon>
+  </button>
+  <span class="settings-title">Impostazioni</span>
+</mat-toolbar>
+
+<div class="settings-content">
+
+  <!-- Sezione 1: Interfaccia mobile -->
+  <section class="settings-section">
+    <div class="section-header">
+      <span class="section-label">Interfaccia mobile</span>
+      <span class="section-badge">solo mobile</span>
+    </div>
+    <p class="section-description">Su desktop lista e calendario sono sempre mostrati insieme.</p>
+
+    <mat-radio-group class="view-options" [value]="defaultView" (change)="onDefaultViewChange($event.value)">
+      <label class="view-option" [class.view-option--active]="defaultView === 'list'">
+        <mat-radio-button value="list" [disableRipple]="true">
+          <div class="view-option-content">
+            <mat-icon>format_list_bulleted</mat-icon>
+            <span>Note</span>
+          </div>
+        </mat-radio-button>
+      </label>
+      <label class="view-option" [class.view-option--active]="defaultView === 'calendar'">
+        <mat-radio-button value="calendar" [disableRipple]="true">
+          <div class="view-option-content">
+            <mat-icon>calendar_today</mat-icon>
+            <span>Calendario</span>
+          </div>
+        </mat-radio-button>
+      </label>
+    </mat-radio-group>
+  </section>
+
+  <mat-divider></mat-divider>
+
+  <!-- Sezione 2: Titolo nelle notifiche -->
+  <section class="settings-section">
+    <div class="section-header">
+      <span class="section-label">Titolo nelle notifiche</span>
+    </div>
+
+    <div class="toggle-row">
+      <span class="toggle-label">Mostra titolo nella notifica</span>
+      <mat-slide-toggle
+        [checked]="notifTitleEnabled"
+        (change)="onNotifTitleToggle($event.checked)"
+        [disableRipple]="true"
+        color="primary">
+      </mat-slide-toggle>
+    </div>
+  </section>
+
+</div>
