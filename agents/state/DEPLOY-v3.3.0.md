@@ -1,8 +1,7 @@
-status: in_progress
+status: done
 agent: beta
 task: Deploy v3.3.0 — deeplink polish + impostazioni reset encryption
-
-## Deploy autorizzato da Giuseppe
+completed: Commit 0088024 pushato. Deploy #126 success. isReady flag elimina flash su apertura. Settings reset encryption completo con danger zone modale.
 
 ## File da committare
 Frontend:
