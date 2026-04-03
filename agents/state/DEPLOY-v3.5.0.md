@@ -1,6 +1,7 @@
-status: in_progress
+status: done
 agent: beta
 task: Deploy v3.5.0 — ricorrenti overdue, persistenza evasione, fix desktop
+completed: Commit 8d5e172 pushato. Deploy #132 success. Ricorrenti overdue, persistenza evasione, fix desktop icon impostazioni deployato su GitHub Pages + Firebase.
 
 ## Autorizzazione
 Deploy autorizzato da Giuseppe.
