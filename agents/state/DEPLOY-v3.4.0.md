@@ -1,6 +1,7 @@
-status: in_progress
+status: done
 agent: beta
 task: Deploy v3.4.0 — ricorrenti, encryption, UX fixes
+completed: Commit 60e1742 pushato. Deploy #129 success. Ricorrenti, encryption fixes, UX polish deployato su GitHub Pages + Firebase.
 
 ## Autorizzazione
 Deploy autorizzato da Giuseppe.
