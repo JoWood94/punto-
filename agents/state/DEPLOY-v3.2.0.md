@@ -1,8 +1,7 @@
-status: in_progress
+status: done
 agent: beta
 task: Deploy v3.2.0 — fix notifiche doppie + pagina impostazioni
-
-## Deploy autorizzato da Giuseppe
+completed: Commit ec54a66 pushato. Deploy #124 success. Frontend + server su GitHub Pages + Firebase. Fix notifiche doppie: rimossa webpush.notification da server/index.js (solo webpush.data). FCM token cleanup con arrayUnion atomico. Settings page su /settings.
 
 ## File da committare
 Frontend:
