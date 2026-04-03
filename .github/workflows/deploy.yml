@@ -29,9 +29,9 @@ jobs:
         working-directory: ./frontend
         run: npm ci
 
-      - name: Build Angular App
+      - name: Build Angular App for Firebase (base-href /)
         working-directory: ./frontend
-        run: npm run build -- --configuration production --base-href /punto-/
+        run: npm run build -- --configuration production --base-href / --output-path dist/firebase
 
       - name: Deploy to Firebase Hosting
         uses: FirebaseExtended/action-hosting-deploy@v0
@@ -41,9 +41,13 @@ jobs:
           projectId: punto-84646
           channelId: live
 
+      - name: Build Angular App for GitHub Pages (base-href /punto-/)
+        working-directory: ./frontend
+        run: npm run build -- --configuration production --base-href /punto-/ --output-path dist/ghpages
+
       - name: Deploy to GitHub Pages (release_pages branch)
         run: |
-          cd frontend/dist/frontend/browser
+          cd frontend/dist/ghpages/browser
           touch .nojekyll
           cp index.html 404.html
           git config --global user.name "github-actions[bot]"

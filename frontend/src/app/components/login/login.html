@@ -5,10 +5,10 @@
       <p class="subtitle mat-body-medium">{{ isRecoveringPassword ? 'Recupera Password' : (isRegistering ? 'Crea un Account' : 'Accedi al tuo Account') }}</p>
     </div>
 
-    <form (ngSubmit)="isRecoveringPassword ? recoverPassword() : onSubmit()">
+    <form autocomplete="on" (ngSubmit)="isRecoveringPassword ? recoverPassword() : onSubmit()">
       <mat-form-field appearance="outline" class="full-width">
         <mat-label>Email</mat-label>
-        <input matInput type="email" name="email" [(ngModel)]="email" required autocomplete="email">
+        <input matInput type="email" name="email" [(ngModel)]="email" required autocomplete="username">
       </mat-form-field>
 
       <ng-container *ngIf="!isRecoveringPassword">
