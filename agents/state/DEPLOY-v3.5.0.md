@@ -1,7 +1,3 @@
-<!-- task inviato: 2026-04-03T18:44:15.690Z | task-id: DEPLOY-v3.5.0 -->
-task-id: DEPLOY-v3.5.0
-state-file: agents/state/DEPLOY-v3.5.0.md
-
 status: in_progress
 agent: beta
 task: Deploy v3.5.0 — ricorrenti overdue, persistenza evasione, fix desktop
@@ -28,4 +24,3 @@ Deploy autorizzato da Giuseppe.
 4. `git push origin main`
 5. Attendi build GitHub Actions verde (sia Firebase che GitHub Pages)
 6. Aggiorna questo file con `status: done` e `completed:`
-

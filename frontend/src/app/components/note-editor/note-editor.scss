@@ -666,6 +666,15 @@
 
 .undo-done-btn { display: none; }
 
+// Badge scaduto — non cliccabile, colore di allerta
+.reminder-overdue-badge {
+  background: color-mix(in srgb, #B3261E 15%, #FFFBFE);
+  color: #B3261E;
+  cursor: default;
+
+  mat-icon { color: #B3261E; }
+}
+
 // ─── Image block ─────────────────────────────────────────────
 .image-upload-area {
   display: flex;

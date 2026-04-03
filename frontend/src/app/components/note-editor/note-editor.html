@@ -164,9 +164,23 @@
             </mat-form-field>
           </div>
 
+          <!-- Badge scaduto ricorrente — senza undo -->
+          <div class="reminder-completed-badge reminder-overdue-badge"
+               *ngIf="isOverdueRecurring($any(block))">
+            <mat-icon>schedule</mat-icon>
+            <span>Scaduto il {{ $any(block).time | date:'d MMM':'':'it' }}</span>
+          </div>
+
+          <!-- Stato evaso post-scaduto — disabilitato, nessun undo -->
+          <button mat-flat-button disabled class="mark-done-btn"
+                  *ngIf="note?.id && $any(block).recurrence !== 'none' && $any(block)._evaded && $any(block)._wasOverdue">
+            <mat-icon>check_circle</mat-icon>
+            Evaso — prossima ricorrenza {{ $any(block).time | date:'d MMM':'':'it' }}
+          </button>
+
           <!-- Badge evaso ricorrente — con undo -->
           <button class="reminder-completed-badge" type="button"
-                  *ngIf="note?.id && $any(block).recurrence !== 'none' && $any(block)._evaded"
+                  *ngIf="note?.id && $any(block).recurrence !== 'none' && $any(block)._evaded && !$any(block)._wasOverdue"
                   (click)="undoRecurringEvasion($any(block))"
                   matTooltip="Tocca per annullare evasione">
             <mat-icon>task_alt</mat-icon>
@@ -182,6 +196,14 @@
             <mat-icon>task_alt</mat-icon>
             <span>Evaso</span>
             <mat-icon class="undo-icon">undo</mat-icon>
+          </button>
+
+          <!-- CTA evadi ricorrenza scaduta -->
+          <button mat-stroked-button class="mark-done-btn" type="button"
+                  *ngIf="note?.id && isOverdueRecurring($any(block))"
+                  (click)="markReminderCompleted($any(block), true)">
+            <mat-icon>check_circle</mat-icon>
+            Evadi ricorrenza scaduta
           </button>
 
           <!-- CTA evado — sempre visibile se nota salvata e non completata -->

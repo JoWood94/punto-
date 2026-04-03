@@ -54,9 +54,9 @@
     <mat-icon>calendar_month</mat-icon>
   </button>
 
-  <!-- Menu impostazioni — nascosto nell'editor -->
+  <!-- Menu impostazioni — nascosto nell'editor su mobile, sempre visibile su desktop -->
   <button mat-icon-button [disableRipple]="true" [matMenuTriggerFor]="settingsMenu" aria-label="Menu"
-          *ngIf="activeNote === undefined" [disabled]="!settingsMenuEnabled" class="settings-menu-btn">
+          *ngIf="!isMobile || activeNote === undefined" [disabled]="!settingsMenuEnabled" class="settings-menu-btn">
     <mat-icon>more_vert</mat-icon>
   </button>
 

@@ -201,6 +201,9 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewInit, Af
             rb.hour = now.getHours().toString().padStart(2, '0');
             rb.minute = now.getMinutes().toString().padStart(2, '0');
           }
+          // Ripristina campi runtime da Firestore
+          rb._evaded = rb.evaded ?? false;
+          rb._wasOverdue = rb.wasOverdue ?? false;
           this.checkStalledEvasion(rb);
         }
       });
@@ -545,7 +548,7 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewInit, Af
     this.triggerAutoSave();
   }
 
-  markReminderCompleted(block: any): void {
+  markReminderCompleted(block: any, wasOverdue = false): void {
     const recurrence = block.recurrence ?? 'none';
     if (recurrence === 'none') {
       block.status = 'completed';
@@ -555,7 +558,13 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewInit, Af
       // Salva timestamp originale per undo, avanza alla prossima occorrenza
       block._prevTime = block.time;
       block._evaded = true;
+      block._wasOverdue = wasOverdue;
       block.time = this.getNextRecurrence(block.time, block.recurrence);
+      // Aggiorna i campi UI usati da buildPayload per serializzare il tempo
+      const nextDate = new Date(block.time);
+      block.date = nextDate;
+      block.hour = nextDate.getHours().toString().padStart(2, '0');
+      block.minute = nextDate.getMinutes().toString().padStart(2, '0');
       block.status = 'pending';
       this.triggerAutoSave();
     }
@@ -566,6 +575,11 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewInit, Af
     block._prevTime = null;
     block._evaded = false;
     block.status = 'pending';
+    // Ripristina i campi UI usati da buildPayload
+    const prevDate = new Date(block.time);
+    block.date = prevDate;
+    block.hour = prevDate.getHours().toString().padStart(2, '0');
+    block.minute = prevDate.getMinutes().toString().padStart(2, '0');
     this.triggerAutoSave();
   }
 
@@ -573,10 +587,23 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewInit, Af
     if (!this.note?.id) return false;
     if ((block.status as string) === 'completed') return false;
     if ((block.recurrence ?? 'none') !== 'none') {
+      if (this.isOverdueRecurring(block)) return false;
       return !block._evaded;
     }
     return true;
   }
+
+  isOverdueRecurring(block: any): boolean {
+    if ((block.recurrence ?? 'none') === 'none' || block._evaded) return false;
+    let effectiveTime: number | null = block.time;
+    if (block.date) {
+      const d = new Date(block.date);
+      d.setHours(parseInt(block.hour ?? '12', 10), parseInt(block.minute ?? '00', 10), 0, 0);
+      effectiveTime = d.getTime();
+    }
+    return effectiveTime != null && effectiveTime < Date.now();
+  }
+
 
   getReminderActionLabel(_block: any): string {
     // Il badge ricorrente mostra "Evaso — prossima [data]"; il bottone mostra sempre questo
@@ -584,7 +611,10 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewInit, Af
   }
 
   private checkStalledEvasion(block: any): void {
-    if (block._evaded && block._prevTime) {
+    if (block._evaded && block._wasOverdue && block.time <= Date.now()) {
+      block._evaded = false;
+      block._wasOverdue = false;
+    } else if (block._evaded && block._prevTime) {
       const prevDay = new Date(block._prevTime).setHours(0, 0, 0, 0);
       const today = new Date().setHours(0, 0, 0, 0);
       if (prevDay < today) {
@@ -682,9 +712,11 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewInit, Af
           d.setSeconds(0); d.setMilliseconds(0);
           // Preserva lo status esistente (es. 'sent', 'completed'): solo onReminderChange lo resetta a 'pending'
           const status: 'pending' | 'sent' | 'completed' | null = rb.status ?? 'pending';
-          return { type: 'reminder' as const, time: d.getTime(), recurrence: rb.recurrence ?? 'none', status };
+          return { type: 'reminder' as const, time: d.getTime(), recurrence: rb.recurrence ?? 'none', status,
+            evaded: rb._evaded ?? false, wasOverdue: rb._wasOverdue ?? false };
         }
-        return { type: 'reminder' as const, time: null, recurrence: rb.recurrence ?? 'none', status: null };
+        return { type: 'reminder' as const, time: null, recurrence: rb.recurrence ?? 'none', status: null,
+          evaded: false, wasOverdue: false };
       }
       if (block.type === 'location') {
         const lb = block as any;

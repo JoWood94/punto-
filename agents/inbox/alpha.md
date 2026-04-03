@@ -1,40 +1,28 @@
-<!-- task inviato: 2026-04-03T17:38:24.562Z | task-id: BF-86-desktop-always-calendar -->
-task-id: BF-86-desktop-always-calendar
-state-file: agents/state/BF-86-desktop-always-calendar.md
+<!-- task inviato: 2026-04-03T18:38:56.898Z | task-id: BF-96-overdue-time-calc -->
+task-id: BF-96-overdue-time-calc
+state-file: agents/state/BF-96-overdue-time-calc.md
 
 status: in_progress
 agent: alpha
-task: Fix desktop — calendario sempre visibile a destra quando nessuna nota è selezionata
+task: Bug — "Scaduto il" mostrato su promemoria non ancora scaduto
 
-## Comportamento atteso
-Su desktop, l'area destra mostra SEMPRE il calendario quando nessuna nota è selezionata,
-indipendentemente da quante note ci sono nella lista sinistra.
-Il placeholder "Seleziona una nota o creane una." va rimosso completamente.
+## Problema
+Un promemoria ricorrente con data 03/04/2026 ore 20:40 mostra "Scaduto il" anche se non sono ancora le 20:40.
+`isOverdueRecurring` usa `block.time < Date.now()` — quindi `block.time` viene calcolato come mezzanotte della data invece che come data+ora corretta.
 
-## Fix in `dashboard.html`
+## Diagnosi
+In `note-editor.ts`, verifica come viene calcolato `block.time`:
+- Probabilmente viene calcolato da `block.date` (Date a mezzanotte) senza aggiungere `block.hour` e `block.minute`
+- Oppure BF-93 ha introdotto un bug nel calcolo di `block.date` durante `markReminderCompleted`
 
-### 1. Rimuovere il `no-selection-state`
-Eliminare (o commentare) il div `.no-selection-state` — non è mai utile dato che
-il calendario sarà sempre visibile al suo posto.
-
-### 2. Mostrare il calendario sempre su desktop in list view senza nota selezionata
-
-```html
-<!-- Prima (riga 246): -->
-<div class="calendar-wrapper" *ngIf="(currentMainView === 'calendar' || (!isMobile && currentMainView === 'list' && filteredNotes.length === 0)) && activeNote === undefined">
-
-<!-- Dopo: -->
-<div class="calendar-wrapper" *ngIf="(currentMainView === 'calendar' || (!isMobile && currentMainView === 'list')) && activeNote === undefined">
+## Fix atteso
+`block.time` deve essere il timestamp unix di `block.date` + ore + minuti:
+```ts
+const d = new Date(block.date);
+d.setHours(block.hour, block.minute, 0, 0);
+block.time = d.getTime();
 ```
-
-In questo modo su desktop con `currentMainView === 'list'`:
-- Sinistra: lista note (o empty state se non ci sono note)
-- Destra: calendario sempre visibile
-
-## Output atteso
-- Fix in `dashboard.html`
-- Build production OK
-- Aggiorna questo file con `status: done` e `completed:`
+Verifica che questo calcolo sia corretto ovunque `block.time` viene impostato o aggiornato.
 
 ## ⛔ NO deploy — attendo validazione Giuseppe in locale
 
