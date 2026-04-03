@@ -1,8 +1,4 @@
-<!-- task inviato: 2026-04-03T16:00:27.984Z | task-id: IMPL-23-recurring-reminders-review -->
-task-id: IMPL-23-recurring-reminders-review
-state-file: agents/state/IMPL-23-recurring-reminders-review.md
-
-status: in_progress
+status: done
 agent: alpha
 task: Review UX flusso promemoria + proposta categoria note ricorrenti
 
@@ -44,4 +40,3 @@ Il Team Lead valuterà e darà il go all'implementazione.
 - Design system: `--punto-primary: #1C1B1F`, M3 Angular Material
 
 ## ⛔ NO implementazione — solo review e proposta
-

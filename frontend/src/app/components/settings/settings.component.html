@@ -54,4 +54,22 @@
     </div>
   </section>
 
+  <mat-divider></mat-divider>
+
+  <!-- Sezione 3: Zona pericolosa -->
+  <section class="danger-zone">
+    <div class="section-header">
+      <span class="section-label danger-label">Zona pericolosa</span>
+    </div>
+    <p class="section-description">Il reset elimina tutte le note e ti permette di impostare una nuova chiave di cifratura.</p>
+    <button mat-stroked-button color="warn"
+            (click)="confirmResetEncryption()"
+            [disabled]="resetInProgress"
+            class="reset-btn">
+      <mat-spinner *ngIf="resetInProgress" diameter="16"></mat-spinner>
+      <mat-icon *ngIf="!resetInProgress">lock_reset</mat-icon>
+      {{ resetInProgress ? 'Reset in corso…' : 'Reset chiave di cifratura' }}
+    </button>
+  </section>
+
 </div>

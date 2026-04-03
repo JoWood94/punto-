@@ -1,7 +1,3 @@
-<!-- task inviato: 2026-04-03T16:01:37.820Z | task-id: DEPLOY-v3.3.0 -->
-task-id: DEPLOY-v3.3.0
-state-file: agents/state/DEPLOY-v3.3.0.md
-
 status: in_progress
 agent: beta
 task: Deploy v3.3.0 — deeplink polish + impostazioni reset encryption
@@ -45,4 +41,3 @@ feat: v3.3.0 — deeplink senza flash + impostazioni complete
 4. `git push`
 5. Attendi build GitHub Actions verde
 6. Aggiorna questo file con `status: done`
-

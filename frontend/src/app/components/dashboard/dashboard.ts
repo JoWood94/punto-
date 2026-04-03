@@ -91,7 +91,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
   private authSub?: Subscription;
   private sessionCheckInterval?: ReturnType<typeof setInterval>;
   private userDocUnsub?: () => void;
-  hasDeepLink = false;
+  isReady = false;
   private deepLinkNoteId: string | null = null;
   private swMessageListener?: (event: MessageEvent) => void;
   private readonly onOnline = () => { this.isOffline = false; this.hasFirestoreError = false; };
@@ -109,7 +109,6 @@ export class DashboardComponent implements OnInit, OnDestroy {
     // Deep link da notifica push: legge ?openNote=<id> o navigation queue (iOS deep sleep)
     const urlParams = new URLSearchParams(window.location.search);
     this.deepLinkNoteId = urlParams.get('openNote') || await this.checkNavigationQueue();
-    this.hasDeepLink = !!this.deepLinkNoteId;
 
     // Ascolta messaggi dal Service Worker (quando l'app è già aperta)
     if ('serviceWorker' in navigator) {
@@ -150,6 +149,9 @@ export class DashboardComponent implements OnInit, OnDestroy {
     if (this.isMobile) {
       this.currentMainView = await this.noteService.getUserPreference<'list' | 'calendar'>(this.defaultViewKey, 'list');
     }
+
+    // Tutti gli init async completati — mostra il contenuto
+    this.isReady = true;
 
     if (window.visualViewport) {
       const vv = window.visualViewport;
@@ -202,11 +204,9 @@ export class DashboardComponent implements OnInit, OnDestroy {
           if (target) {
             this.selectNote(target);
             this.deepLinkNoteId = null;
-            this.hasDeepLink = false;
           } else {
             // Nota non trovata (es. eliminata) → mostra lista normalmente
             this.deepLinkNoteId = null;
-            this.hasDeepLink = false;
           }
         }
       },
