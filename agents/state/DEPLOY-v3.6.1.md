@@ -1,6 +1,7 @@
-status: in_progress
+status: done
 agent: beta
 task: Deploy v3.6.1 — reset chiave cifratura da modale unlock
+completed: Build verde Firebase + GitHub Pages. Commit a5690fa. Run: https://github.com/JoWood94/punto-/actions/runs/23980943449
 
 ## Autorizzazione
 Deploy autorizzato dal Team Lead.
