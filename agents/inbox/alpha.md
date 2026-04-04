@@ -1,28 +1,45 @@
-<!-- task inviato: 2026-04-04T15:17:48.355Z | task-id: BF-61-duplicate-overdue-badge -->
-task-id: BF-61-duplicate-overdue-badge
-state-file: agents/state/BF-61-duplicate-overdue-badge.md
+<!-- task inviato: 2026-04-04T15:34:47.634Z | task-id: BF-62-push-token-retry -->
+task-id: BF-62-push-token-retry
+state-file: agents/state/BF-62-push-token-retry.md
 
 status: in_progress
 agent: alpha
-task: Fix badge "Scaduto" duplicato nel reminder block
+task: Fix strategia registrazione FCM token — deleteToken solo come fallback
 
-## Problema
-In `frontend/src/app/components/note-editor/note-editor.html` il blocco "Badge scaduto singolo" appare due volte identico (righe ~167-172 e ~174-179), causando due badge "Scaduto il X" sovrapposti.
+## Problema con BF-60
+`deleteToken()` viene chiamato ad ogni login prima di `getToken()`. Su Brave (e altri browser con blocco FCM), `deleteToken()` fallisce silenziosamente, poi `getToken()` fallisce con AbortError → nessun token registrato.
 
-## Fix
-Rimuovere il secondo blocco duplicato (righe ~174-179):
+## Fix richiesto
+In `frontend/src/app/services/push-notification.ts`, cambia la strategia:
+- Rimuovere il blocco `deleteToken()` che precede `getToken()`
+- Prima prova `getToken()` direttamente
+- Se fallisce, allora prova il ciclo `deleteToken()` → `getToken()` come fallback
 
-```html
-<!-- Badge scaduto singolo -->
-<div class="reminder-completed-badge reminder-overdue-badge"
-     *ngIf="isSingleOverdue($any(block))">
-  <mat-icon>schedule</mat-icon>
-  <span>Scaduto il {{ $any(block).time | date:'d MMM, HH:mm':'':'it' }}</span>
-</div>
+```ts
+let token: string | null = null;
+
+// Tentativo 1: token cached (caso normale)
+try {
+  token = await runInInjectionContext(this.injector, () => getToken(this.messaging, {
+    vapidKey: environment.firebase.vapidKey,
+    serviceWorkerRegistration: registration
+  }));
+} catch {
+  // Tentativo 2: subscription stale → forza rigenerazione
+  try {
+    await runInInjectionContext(this.injector, () => deleteToken(this.messaging));
+  } catch {
+    // nessun token da cancellare, ignora
+  }
+  token = await runInInjectionContext(this.injector, () => getToken(this.messaging, {
+    vapidKey: environment.firebase.vapidKey,
+    serviceWorkerRegistration: registration
+  }));
+}
 ```
 
-Tenere solo la prima occorrenza, cancellare la seconda.
+Sostituisce il blocco attuale (deleteToken sempre + getToken) con questo pattern try→fallback.
 
 ## File
-- `frontend/src/app/components/note-editor/note-editor.html`
+- `frontend/src/app/services/push-notification.ts`
 

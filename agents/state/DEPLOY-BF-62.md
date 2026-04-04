@@ -1,7 +1,3 @@
-<!-- task inviato: 2026-04-04T15:36:04.355Z | task-id: DEPLOY-BF-62 -->
-task-id: DEPLOY-BF-62
-state-file: agents/state/DEPLOY-BF-62.md
-
 status: in_progress
 agent: beta
 task: Deploy BF-62 — FCM token retry strategy
@@ -13,4 +9,3 @@ task: Deploy BF-62 — FCM token retry strategy
 3. Commit: "fix: FCM token — deleteToken solo come fallback se getToken fallisce (BF-62)"
 4. Push → attendi build verde su Firebase + GitHub Pages
 5. Conferma deploy OK. NON triggerare notifica.
-

@@ -30,18 +30,26 @@ export class PushNotificationService {
         const registration = await navigator.serviceWorker.register(swUrl);
         console.log('[Push] Service worker registered at:', swUrl);
         
-        // Forza rigenerazione del token: pulisce subscription stale dal SW
-        // prima di richiedere un nuovo token a FCM.
-        try {
-          await runInInjectionContext(this.injector, () => deleteToken(this.messaging));
-        } catch {
-          // Ignora se non c'era token da cancellare
-        }
+        let token: string | null = null;
 
-        const token = await runInInjectionContext(this.injector, () => getToken(this.messaging, {
-          vapidKey: environment.firebase.vapidKey,
-          serviceWorkerRegistration: registration
-        }));
+        // Tentativo 1: token cached (caso normale)
+        try {
+          token = await runInInjectionContext(this.injector, () => getToken(this.messaging, {
+            vapidKey: environment.firebase.vapidKey,
+            serviceWorkerRegistration: registration
+          }));
+        } catch {
+          // Tentativo 2: subscription stale → forza rigenerazione
+          try {
+            await runInInjectionContext(this.injector, () => deleteToken(this.messaging));
+          } catch {
+            // nessun token da cancellare, ignora
+          }
+          token = await runInInjectionContext(this.injector, () => getToken(this.messaging, {
+            vapidKey: environment.firebase.vapidKey,
+            serviceWorkerRegistration: registration
+          }));
+        }
         console.log('Firebase Cloud Messaging Token:', token);
         
         const uid = this.authService.getCurrentUserId();
