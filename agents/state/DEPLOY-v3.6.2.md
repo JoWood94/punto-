@@ -1,7 +1,3 @@
-<!-- task inviato: 2026-04-04T14:40:23.956Z | task-id: DEPLOY-v3.6.2 -->
-task-id: DEPLOY-v3.6.2
-state-file: agents/state/DEPLOY-v3.6.2.md
-
 status: in_progress
 agent: beta
 task: Deploy v3.6.2 — fix modale passphrase unlock
@@ -20,4 +16,3 @@ Deploy autorizzato dal Team Lead.
 4. Push su main → workflow deploy.yml parte automaticamente
 5. Attendi build verde su ENTRAMBI Firebase e GitHub Pages
 6. Riporta conferma build
-

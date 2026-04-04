@@ -33,6 +33,7 @@ export type PassphraseDialogResult = string | 'reset' | null;
           [(ngModel)]="passphrase"
           [type]="showPassphrase ? 'text' : 'password'"
           (ngModelChange)="onPassphraseChange()"
+          (keydown.enter)="canConfirm && confirm()"
           autocomplete="new-password" />
         <button mat-icon-button matSuffix type="button" (click)="showPassphrase = !showPassphrase">
           <mat-icon>{{ showPassphrase ? 'visibility_off' : 'visibility' }}</mat-icon>
@@ -61,7 +62,9 @@ export type PassphraseDialogResult = string | 'reset' | null;
     </mat-dialog-content>
 
     <mat-dialog-actions align="end">
-      <button mat-button (click)="cancel()">Annulla</button>
+      @if (isSetup) {
+        <button mat-button (click)="cancel()">Annulla</button>
+      }
       @if (!isSetup) {
         <button mat-button color="warn" (click)="reset()" title="Elimina la secret e ricomincia il setup">
           Reset
