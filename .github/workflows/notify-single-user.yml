@@ -1,0 +1,28 @@
+name: Send Notification to Single User
+
+on:
+  workflow_dispatch:
+    inputs:
+      target_uid:
+        description: 'User UID to send notification to'
+        required: true
+        default: 'W42XL7UVYFRMakpZJdrpcGkgsQr1'
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm ci
+        working-directory: server
+      - run: node send-notif-single-user.js
+        working-directory: server
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          TARGET_UID: ${{ inputs.target_uid }}
