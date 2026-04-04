@@ -1,6 +1,7 @@
-status: in_progress
+status: done
 agent: beta
 task: Deploy v3.6.2 — fix modale passphrase unlock
+completed: Build verde Firebase + GitHub Pages. Commit 1757788. Run: https://github.com/JoWood94/punto-/actions/runs/23981056824
 
 ## Autorizzazione
 Deploy autorizzato dal Team Lead.
