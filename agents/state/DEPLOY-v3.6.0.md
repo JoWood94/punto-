@@ -1,6 +1,7 @@
-status: in_progress
+status: done
 agent: beta
 task: Deploy v3.6.0 — fix notifiche titolo + badge scaduto + bottone evadi
+completed: Build verde su GitHub Actions (Firebase + GitHub Pages). Commit 985e0cc. Run: https://github.com/JoWood94/punto-/actions/runs/23980603550
 
 ## Autorizzazione
 Deploy autorizzato dal Team Lead.
