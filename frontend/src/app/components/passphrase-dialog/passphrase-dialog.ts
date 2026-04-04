@@ -11,6 +11,8 @@ export interface PassphraseDialogData {
   mode: 'setup' | 'unlock';
 }
 
+export type PassphraseDialogResult = string | 'reset' | null;
+
 @Component({
   selector: 'app-passphrase-dialog',
   standalone: true,
@@ -60,6 +62,11 @@ export interface PassphraseDialogData {
 
     <mat-dialog-actions align="end">
       <button mat-button (click)="cancel()">Annulla</button>
+      @if (!isSetup) {
+        <button mat-button color="warn" (click)="reset()" title="Elimina la secret e ricomincia il setup">
+          Reset
+        </button>
+      }
       <button mat-flat-button (click)="confirm()" [disabled]="!canConfirm">
         {{ isSetup ? 'Imposta' : 'Sblocca' }}
       </button>
@@ -98,4 +105,5 @@ export class PassphraseDialogComponent {
 
   confirm() { this.dialogRef.close(this.passphrase); }
   cancel() { this.dialogRef.close(null); }
+  reset() { this.dialogRef.close('reset'); }
 }

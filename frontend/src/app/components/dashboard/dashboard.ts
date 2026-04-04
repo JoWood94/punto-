@@ -494,10 +494,31 @@ export class DashboardComponent implements OnInit, OnDestroy {
         width: '420px',
         maxWidth: '95vw'
       });
-      const passphrase = await firstValueFrom(ref.afterClosed());
-      if (!passphrase) return; // utente annulla
+      const result = await firstValueFrom(ref.afterClosed());
+      if (!result) return; // utente annulla
+      if (result === 'reset') {
+        // Utente richiede di resettare la secret
+        const confirmed = await firstValueFrom(this.dialog.open(ConfirmDialogComponent, {
+          data: {
+            title: 'Resetta secret di crittografia?',
+            message: 'Eliminerai la secret e dovrai reimpostarne una nuova. Le note attuali saranno ancora cifrate con la vecchia secret.',
+            confirmLabel: 'Resetta',
+            cancelLabel: 'Annulla'
+          },
+          disableClose: true,
+          width: '420px',
+          maxWidth: '95vw'
+        }).afterClosed());
+        if (confirmed) {
+          await this.noteService.clearEncryptionKeys();
+          this.cryptoService.clearSession();
+          this.router.navigate(['/dashboard'], { replaceUrl: true });
+          return;
+        }
+        continue; // Dialogo di reset annullato, riapri lo sblocco
+      }
       try {
-        await this.cryptoService.unlockPrivateKey(uid, encryptedPrivateKey, passphrase);
+        await this.cryptoService.unlockPrivateKey(uid, encryptedPrivateKey, result);
         this.cryptoService.setSession(uid, publicKey);
         this.cryptoService.saveLocalSessionVersion(uid, sessionVersion);
         unlocked = true;

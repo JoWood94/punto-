@@ -1,7 +1,3 @@
-<!-- task inviato: 2026-04-04T14:33:42.835Z | task-id: DEPLOY-v3.6.1 -->
-task-id: DEPLOY-v3.6.1
-state-file: agents/state/DEPLOY-v3.6.1.md
-
 status: in_progress
 agent: beta
 task: Deploy v3.6.1 — reset chiave cifratura da modale unlock
@@ -21,4 +17,3 @@ Deploy autorizzato dal Team Lead.
 4. Push su main → workflow deploy.yml parte automaticamente
 5. Attendi build verde su ENTRAMBI Firebase e GitHub Pages
 6. Riporta conferma build
-

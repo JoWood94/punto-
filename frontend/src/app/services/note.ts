@@ -265,6 +265,22 @@ export class NoteService {
     return sessionVersion;
   }
 
+  /** Elimina le chiavi di crittografia e disabilita encryption. Incrementa sessionVersion per invalidare altre sessioni. */
+  async clearEncryptionKeys(): Promise<void> {
+    const uid = this.authService.getCurrentUserId();
+    if (!uid) throw new Error('Not authenticated');
+    const userRef = doc(this.db, `users/${uid}`);
+    const snap = await getDoc(userRef);
+    const current = snap.exists() ? (snap.data()?.['sessionVersion'] ?? 0) : 0;
+    const sessionVersion = current + 1;
+    await setDoc(userRef, {
+      publicKey: null,
+      encryptedPrivateKey: null,
+      encryptionEnabled: false,
+      sessionVersion
+    }, { merge: true });
+  }
+
   /** Cifra in batch le note esistenti dopo il setup E2E (migrazione). */
   async encryptExistingNotes(): Promise<void> {
     const uid = this.authService.getCurrentUserId();
