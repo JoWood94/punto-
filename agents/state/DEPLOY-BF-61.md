@@ -1,7 +1,3 @@
-<!-- task inviato: 2026-04-04T15:19:16.929Z | task-id: DEPLOY-BF-61 -->
-task-id: DEPLOY-BF-61
-state-file: agents/state/DEPLOY-BF-61.md
-
 status: in_progress
 agent: beta
 task: Deploy BF-61 + notifica specifica al solo UID W42XL7UVYFRMakpZJdrpcGkgsQr1
@@ -20,4 +16,3 @@ In `server/send-notif-single-user.js` aggiorna title e body (sia in `notificatio
 ## Step 3 — Notifica
 Dopo build verde, triggera il workflow `notify-single-user.yml` con `target_uid=W42XL7UVYFRMakpZJdrpcGkgsQr1`.
 Conferma risultato.
-

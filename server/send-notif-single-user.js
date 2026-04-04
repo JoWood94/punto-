@@ -64,13 +64,13 @@ async function sendToSingleUser() {
       tokens: fcmTokens,
       webpush: {
         notification: {
-          title: 'punto! — Patch',
-          body: 'Bugfix e miglioramenti. Chiudi e riapri l\'app per aggiornare.',
+          title: 'punto! — Fix promemoria',
+          body: 'Il badge scaduto duplicato è stato rimosso. Chiudi e riapri l\'app per aggiornare.',
           icon: '/icons/icon-192x192.png'
         },
         data: {
-          title: 'punto! — Patch',
-          body: 'Bugfix e miglioramenti. Chiudi e riapri l\'app per aggiornare.'
+          title: 'punto! — Fix promemoria',
+          body: 'Il badge scaduto duplicato è stato rimosso. Chiudi e riapri l\'app per aggiornare.'
         }
       }
     });

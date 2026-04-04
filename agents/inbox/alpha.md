@@ -1,51 +1,28 @@
-<!-- task inviato: 2026-04-04T15:11:23.857Z | task-id: BF-60-fcm-token-stale -->
-task-id: BF-60-fcm-token-stale
-state-file: agents/state/BF-60-fcm-token-stale.md
+<!-- task inviato: 2026-04-04T15:17:48.355Z | task-id: BF-61-duplicate-overdue-badge -->
+task-id: BF-61-duplicate-overdue-badge
+state-file: agents/state/BF-61-duplicate-overdue-badge.md
 
 status: in_progress
 agent: alpha
-task: Fix FCM token stale/non-rigenerato dopo login
+task: Fix badge "Scaduto" duplicato nel reminder block
 
 ## Problema
-- FCM invalida push subscription nel SW quando i token sono scaduti (60+ giorni, cambio device, etc.)
-- Il codice attuale chiama `getToken()` senza mai chiamare `deleteToken()` prima
-- Se la subscription sottostante è invalida, `getToken()` fallisce silenziosamente (errore caught, ritorna null)
-- Risultato: nessun token scritto in Firestore → notifiche non arrivano
+In `frontend/src/app/components/note-editor/note-editor.html` il blocco "Badge scaduto singolo" appare due volte identico (righe ~167-172 e ~174-179), causando due badge "Scaduto il X" sovrapposti.
 
-## Fix richiesto
+## Fix
+Rimuovere il secondo blocco duplicato (righe ~174-179):
 
-In `frontend/src/app/services/push-notification.ts`, nella funzione `requestPermission()`:
-
-**Prima** di chiamare `getToken(...)`, aggiungere un tentativo di `deleteToken()` per pulire la subscription stale dal SW:
-
-```ts
-import { Messaging, getToken, deleteToken, onMessage } from '@angular/fire/messaging';
+```html
+<!-- Badge scaduto singolo -->
+<div class="reminder-completed-badge reminder-overdue-badge"
+     *ngIf="isSingleOverdue($any(block))">
+  <mat-icon>schedule</mat-icon>
+  <span>Scaduto il {{ $any(block).time | date:'d MMM, HH:mm':'':'it' }}</span>
+</div>
 ```
 
-Nel blocco dopo `const registration = await navigator.serviceWorker.register(swUrl)`:
+Tenere solo la prima occorrenza, cancellare la seconda.
 
-```ts
-// Forza rigenerazione del token: pulisce subscription stale dal SW
-// prima di richiedere un nuovo token a FCM.
-try {
-  await runInInjectionContext(this.injector, () => deleteToken(this.messaging));
-} catch {
-  // Ignora se non c'era token da cancellare
-}
-
-const token = await runInInjectionContext(this.injector, () => getToken(this.messaging, {
-  vapidKey: environment.firebase.vapidKey,
-  serviceWorkerRegistration: registration
-}));
-```
-
-Questo garantisce che ogni volta che l'utente apre l'app (login o reload), la subscription FCM sia fresca e il token sia valido.
-
-## File da modificare
-- `frontend/src/app/services/push-notification.ts`
-
-## Note
-- `deleteToken()` è idempotente: se non c'è token, ritorna false senza errori (ma wrappato nel try/catch per sicurezza)
-- Il costo aggiuntivo è minimo: una chiamata FCM al login/refresh
-- Non toccare il resto della logica (arrayUnion, cleanup >5 token, ecc.)
+## File
+- `frontend/src/app/components/note-editor/note-editor.html`
 
