@@ -1,5 +1,5 @@
 import { Injectable, inject, Injector, runInInjectionContext } from '@angular/core';
-import { Messaging, getToken, onMessage } from '@angular/fire/messaging';
+import { Messaging, getToken, deleteToken, onMessage } from '@angular/fire/messaging';
 import { getFirestore, doc, setDoc, getDoc, arrayUnion } from 'firebase/firestore';
 import { getApp, getApps, initializeApp } from 'firebase/app';
 import { AuthService } from './auth';
@@ -30,6 +30,14 @@ export class PushNotificationService {
         const registration = await navigator.serviceWorker.register(swUrl);
         console.log('[Push] Service worker registered at:', swUrl);
         
+        // Forza rigenerazione del token: pulisce subscription stale dal SW
+        // prima di richiedere un nuovo token a FCM.
+        try {
+          await runInInjectionContext(this.injector, () => deleteToken(this.messaging));
+        } catch {
+          // Ignora se non c'era token da cancellare
+        }
+
         const token = await runInInjectionContext(this.injector, () => getToken(this.messaging, {
           vapidKey: environment.firebase.vapidKey,
           serviceWorkerRegistration: registration

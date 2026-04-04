@@ -1,52 +1,51 @@
-<!-- task inviato: 2026-04-04T13:53:27.628Z | task-id: BF-57-single-reminder-overdue -->
-task-id: BF-57-single-reminder-overdue
-state-file: agents/state/BF-57-single-reminder-overdue.md
+<!-- task inviato: 2026-04-04T15:11:23.857Z | task-id: BF-60-fcm-token-stale -->
+task-id: BF-60-fcm-token-stale
+state-file: agents/state/BF-60-fcm-token-stale.md
 
 status: in_progress
 agent: alpha
-task: Badge "Scaduto" per promemoria singoli non-ricorrenti passati
+task: Fix FCM token stale/non-rigenerato dopo login
 
-## Bug
-Un promemoria singolo (Ripeti: Mai) che ha superato l'orario impostato non mostra
-nessun feedback visivo. Il badge "Scaduto il [data]" esiste solo per i ricorrenti
-(`isOverdueRecurring` skippa esplicitamente `recurrence === 'none'`).
+## Problema
+- FCM invalida push subscription nel SW quando i token sono scaduti (60+ giorni, cambio device, etc.)
+- Il codice attuale chiama `getToken()` senza mai chiamare `deleteToken()` prima
+- Se la subscription sottostante è invalida, `getToken()` fallisce silenziosamente (errore caught, ritorna null)
+- Risultato: nessun token scritto in Firestore → notifiche non arrivano
 
-## Fix
+## Fix richiesto
 
-### 1. `note-editor.ts` — aggiungi metodo `isSingleOverdue`
-```typescript
-isSingleOverdue(block: any): boolean {
-  if ((block.recurrence ?? 'none') !== 'none') return false;
-  if ((block.status as string) === 'completed') return false;
-  let effectiveTime: number | null = block.time;
-  if (block.date) {
-    const d = new Date(block.date);
-    d.setHours(parseInt(block.hour ?? '12', 10), parseInt(block.minute ?? '00', 10), 0, 0);
-    effectiveTime = d.getTime();
-  }
-  return effectiveTime != null && effectiveTime < Date.now();
+In `frontend/src/app/services/push-notification.ts`, nella funzione `requestPermission()`:
+
+**Prima** di chiamare `getToken(...)`, aggiungere un tentativo di `deleteToken()` per pulire la subscription stale dal SW:
+
+```ts
+import { Messaging, getToken, deleteToken, onMessage } from '@angular/fire/messaging';
+```
+
+Nel blocco dopo `const registration = await navigator.serviceWorker.register(swUrl)`:
+
+```ts
+// Forza rigenerazione del token: pulisce subscription stale dal SW
+// prima di richiedere un nuovo token a FCM.
+try {
+  await runInInjectionContext(this.injector, () => deleteToken(this.messaging));
+} catch {
+  // Ignora se non c'era token da cancellare
 }
+
+const token = await runInInjectionContext(this.injector, () => getToken(this.messaging, {
+  vapidKey: environment.firebase.vapidKey,
+  serviceWorkerRegistration: registration
+}));
 ```
 
-### 2. `note-editor.html` — aggiungi badge subito dopo il badge ricorrente (riga ~172)
-Inserisci dopo il `</div>` del badge ricorrente (`isOverdueRecurring`), prima del badge evaso post-scaduto:
-```html
-<!-- Badge scaduto singolo -->
-<div class="reminder-completed-badge reminder-overdue-badge"
-     *ngIf="isSingleOverdue($any(block))">
-  <mat-icon>schedule</mat-icon>
-  <span>Scaduto il {{ $any(block).time | date:'d MMM, HH:mm':'':'it' }}</span>
-</div>
-```
+Questo garantisce che ogni volta che l'utente apre l'app (login o reload), la subscription FCM sia fresca e il token sia valido.
 
-Lo stile `.reminder-overdue-badge` esiste già in `note-editor.scss` (riga 670) — nessuna modifica CSS necessaria.
+## File da modificare
+- `frontend/src/app/services/push-notification.ts`
 
-### Note
-- Il bottone "Segna come evaso" rimane visibile anche quando scaduto (è ancora actionable)
-- `isSingleOverdue` non interferisce con `isReminderActionable` — i due sono indipendenti
-
-## Output atteso
-- Fix in `note-editor.ts` e `note-editor.html`
-- Build production OK
-- ⛔ NO deploy — attendo validazione Giuseppe
+## Note
+- `deleteToken()` è idempotente: se non c'è token, ritorna false senza errori (ma wrappato nel try/catch per sicurezza)
+- Il costo aggiuntivo è minimo: una chiamata FCM al login/refresh
+- Non toccare il resto della logica (arrayUnion, cleanup >5 token, ecc.)
 

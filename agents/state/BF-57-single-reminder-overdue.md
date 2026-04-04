@@ -1,6 +1,7 @@
 status: done
 agent: alpha
 task: Badge "Scaduto" per promemoria singoli non-ricorrenti passati
+completed: isSingleOverdue già presente in note-editor.ts (l.606) — aggiunto solo badge HTML in note-editor.html prima del badge ricorrente. Build production OK.
 
 ## Bug
 Un promemoria singolo (Ripeti: Mai) che ha superato l'orario impostato non mostra

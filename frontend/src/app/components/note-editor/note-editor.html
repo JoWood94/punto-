@@ -171,6 +171,13 @@
             <span>Scaduto il {{ $any(block).time | date:'d MMM, HH:mm':'':'it' }}</span>
           </div>
 
+          <!-- Badge scaduto singolo -->
+          <div class="reminder-completed-badge reminder-overdue-badge"
+               *ngIf="isSingleOverdue($any(block))">
+            <mat-icon>schedule</mat-icon>
+            <span>Scaduto il {{ $any(block).time | date:'d MMM, HH:mm':'':'it' }}</span>
+          </div>
+
           <!-- Badge scaduto ricorrente — senza undo -->
           <div class="reminder-completed-badge reminder-overdue-badge"
                *ngIf="isOverdueRecurring($any(block))">

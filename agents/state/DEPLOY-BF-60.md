@@ -1,7 +1,3 @@
-<!-- task inviato: 2026-04-04T15:12:22.418Z | task-id: DEPLOY-BF-60 -->
-task-id: DEPLOY-BF-60
-state-file: agents/state/DEPLOY-BF-60.md
-
 status: in_progress
 agent: beta
 task: Deploy BF-60 — FCM token fix (deleteToken + getToken)
@@ -14,4 +10,3 @@ Esegui:
 3. Commit: "fix: FCM token stale — deleteToken prima di getToken per subscription fresca"
 4. Push → attendi build verde su entrambi Firebase e GitHub Pages
 5. Conferma deploy OK
-
