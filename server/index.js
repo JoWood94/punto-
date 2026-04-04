@@ -124,11 +124,12 @@ async function checkAndSendReminders() {
         try {
           const response = await messaging.sendEachForMulticast({
             tokens: tokens,
-            // Solo webpush.data — nessuna webpush.notification.
-            // Il browser mostrerebbe webpush.notification in automatico (push protocol
-            // nativo) E il SW chiamerebbe showNotification in onBackgroundMessage →
-            // duplicato. Con solo data, è il SW a mostrare la notifica una sola volta.
             webpush: {
+              notification: {
+                title: msgTitle,
+                body: bodyText,
+                icon: '/icons/icon-192x192.png'
+              },
               data: {
                 title: msgTitle,
                 body: bodyText,

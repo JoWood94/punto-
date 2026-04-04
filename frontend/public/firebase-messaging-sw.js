@@ -15,22 +15,6 @@ firebase.initializeApp(firebaseConfig);
 
 const messaging = firebase.messaging();
 
-messaging.onBackgroundMessage((payload) => {
-  console.log('Ricevuto messaggio FCM in background: ', payload);
-  // Mostriamo SEMPRE la notifica manualmente: quando onBackgroundMessage è registrato,
-  // il SDK compat non auto-visualizza — siamo noi responsabili di showNotification.
-  // Usare payload.data?.noteId (da webpush.data) garantisce che noteId sia sempre
-  // disponibile nel notificationclick handler per il deep link.
-  const noteId = payload.data?.noteId || null;
-  const notificationTitle = payload.notification?.title || payload.data?.title || 'Nuovo Promemoria da punto!';
-  const notificationOptions = {
-    body: payload.notification?.body || payload.data?.body || '',
-    icon: 'punto_icon.png',
-    data: { noteId }
-  };
-  self.registration.showNotification(notificationTitle, notificationOptions);
-});
-
 // Deep link: apre la nota giusta al click della notifica su mobile e desktop
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();

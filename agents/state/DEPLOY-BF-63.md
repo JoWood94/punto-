@@ -1,7 +1,3 @@
-<!-- task inviato: 2026-04-04T15:43:27.772Z | task-id: DEPLOY-BF-63 -->
-task-id: DEPLOY-BF-63
-state-file: agents/state/DEPLOY-BF-63.md
-
 status: in_progress
 agent: beta
 task: Deploy BF-63 + notifica test al solo UID W42XL7UVYFRMakpZJdrpcGkgsQr1
@@ -14,4 +10,3 @@ task: Deploy BF-63 + notifica test al solo UID W42XL7UVYFRMakpZJdrpcGkgsQr1
 4. Push → attendi build verde su Firebase + GitHub Pages
 5. Triggera workflow `notify-single-user.yml` con `target_uid=W42XL7UVYFRMakpZJdrpcGkgsQr1`
 6. Conferma risultato notifica
-
