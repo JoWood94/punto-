@@ -235,7 +235,10 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewInit, Af
       this.savedNoteId = null;
       // Crea subito su Firestore per avere un ID
       this.createNotePromise = this.noteService.createNote(this.buildPayload())
-        .then(result => { this.savedNoteId = result.id; })
+        .then(result => {
+          this.savedNoteId = result.id;
+          (this.note as any).id = result.id;
+        })
         .catch(err => console.error('[AutoSave] createNote error:', err));
     }
     this.textBlocksNeedInit = true;
@@ -555,11 +558,18 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewInit, Af
       (this.note as any).lastCompletedAt = Date.now();
       this.triggerAutoSave();
     } else {
-      // Salva timestamp originale per undo, avanza alla prossima occorrenza
-      block._prevTime = block.time;
+      // Usa i campi UI (date/hour/minute) come base, non block.time che potrebbe essere stale
+      let currentTime = block.time as number;
+      if (block.date) {
+        const d = new Date(block.date);
+        d.setHours(parseInt(block.hour ?? '12', 10), parseInt(block.minute ?? '00', 10), 0, 0);
+        currentTime = d.getTime();
+      }
+      // Salva timestamp corrente per undo, avanza alla prossima occorrenza
+      block._prevTime = currentTime;
       block._evaded = true;
       block._wasOverdue = wasOverdue;
-      block.time = this.getNextRecurrence(block.time, block.recurrence);
+      block.time = this.getNextRecurrence(currentTime, block.recurrence);
       // Aggiorna i campi UI usati da buildPayload per serializzare il tempo
       const nextDate = new Date(block.time);
       block.date = nextDate;
@@ -591,6 +601,18 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewInit, Af
       return !block._evaded;
     }
     return true;
+  }
+
+  isSingleOverdue(block: any): boolean {
+    if ((block.recurrence ?? 'none') !== 'none') return false;
+    if ((block.status as string) === 'completed') return false;
+    let effectiveTime: number | null = block.time;
+    if (block.date) {
+      const d = new Date(block.date);
+      d.setHours(parseInt(block.hour ?? '12', 10), parseInt(block.minute ?? '00', 10), 0, 0);
+      effectiveTime = d.getTime();
+    }
+    return effectiveTime != null && effectiveTime + 60_000 < Date.now();
   }
 
   isOverdueRecurring(block: any): boolean {

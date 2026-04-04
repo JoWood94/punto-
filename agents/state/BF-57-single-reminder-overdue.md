@@ -1,8 +1,4 @@
-<!-- task inviato: 2026-04-04T13:53:27.628Z | task-id: BF-57-single-reminder-overdue -->
-task-id: BF-57-single-reminder-overdue
-state-file: agents/state/BF-57-single-reminder-overdue.md
-
-status: in_progress
+status: done
 agent: alpha
 task: Badge "Scaduto" per promemoria singoli non-ricorrenti passati
 
@@ -49,4 +45,4 @@ Lo stile `.reminder-overdue-badge` esiste già in `note-editor.scss` (riga 670) 
 - Fix in `note-editor.ts` e `note-editor.html`
 - Build production OK
 - ⛔ NO deploy — attendo validazione Giuseppe
-
+completed: note-editor.ts — aggiunto isSingleOverdue(). note-editor.html — badge "Scaduto il [data+ora]" per singoli, inserito prima del badge ricorrente. Build OK.

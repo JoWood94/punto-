@@ -1,7 +1,3 @@
-<!-- task inviato: 2026-04-04T14:13:26.863Z | task-id: DEPLOY-v3.6.0 -->
-task-id: DEPLOY-v3.6.0
-state-file: agents/state/DEPLOY-v3.6.0.md
-
 status: in_progress
 agent: beta
 task: Deploy v3.6.0 — fix notifiche titolo + badge scaduto + bottone evadi
@@ -30,4 +26,3 @@ Il workflow deploy.yml fa DUE build separate:
 - Firebase: `--base-href /` → dist/firebase
 - GitHub Pages: `--base-href /punto-/` → dist/ghpages
 Non toccare deploy.yml.
-

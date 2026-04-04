@@ -111,12 +111,13 @@ export class CryptoService {
 
   // ─── Note Encryption ───────────────────────────────────────────────────────
 
-  async encryptNote(note: Partial<Note>): Promise<Partial<Note>> {
+  async encryptNote(note: Partial<Note>, skipFields: (keyof Note)[] = []): Promise<Partial<Note>> {
     if (!this._publicKey) return note;
     const publicKey = await openpgp.readKey({ armoredKey: this._publicKey });
     const result = { ...note };
 
     for (const field of ENCRYPTED_FIELDS) {
+      if (skipFields.includes(field)) continue;
       const value = (result as any)[field];
       if (!value || typeof value !== 'string') continue;
       if (value.startsWith(PGP_MARKER)) continue; // already encrypted

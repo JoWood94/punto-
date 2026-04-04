@@ -71,8 +71,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   activeNote?: Note | null = undefined;
   isMobile = false;
-  currentMainView: 'list' | 'calendar' =
-    (localStorage.getItem('punto_defaultView') as 'list' | 'calendar') ?? 'list';
+  currentMainView: 'list' | 'calendar' = 'calendar';
   activeListTab: 'notes' | 'evasi' = 'notes';
   isOffline = !navigator.onLine;
   hasFirestoreError = false;
@@ -154,6 +153,10 @@ export class DashboardComponent implements OnInit, OnDestroy {
       this.currentMainView = firestoreView;
       localStorage.setItem('punto_defaultView', firestoreView);
     }
+
+    // Carica preferenza titolo notifiche
+    const notifTitle = await this.noteService.getUserPreference<boolean>('notifTitleEnabled', false);
+    this.noteService.setNotifTitleEnabled(notifTitle);
 
     // Tutti gli init async completati — mostra il contenuto
     this.isReady = true;

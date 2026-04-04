@@ -54,6 +54,7 @@ export class SettingsComponent implements OnInit {
   async ngOnInit() {
     this.defaultView = await this.noteService.getUserPreference<'list' | 'calendar'>('defaultView', 'list');
     this.notifTitleEnabled = await this.noteService.getUserPreference<boolean>('notifTitleEnabled', false);
+    this.noteService.setNotifTitleEnabled(this.notifTitleEnabled);
   }
 
   goBack() {
@@ -83,6 +84,7 @@ export class SettingsComponent implements OnInit {
       }
     }
     this.notifTitleEnabled = enabled;
+    this.noteService.setNotifTitleEnabled(enabled);
     await this.noteService.setUserPreference('notifTitleEnabled', enabled);
   }
 

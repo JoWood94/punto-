@@ -119,6 +119,10 @@ export class NoteService {
   private cryptoService: CryptoService = inject(CryptoService);
   private db: RawFirestore;
 
+  notifTitleEnabled = false;
+
+  setNotifTitleEnabled(val: boolean) { this.notifTitleEnabled = val; }
+
   constructor() {
     const app: FirebaseApp = getApps().length ? getApp() : initializeApp(environment.firebase);
     getAuth(app);
@@ -136,8 +140,9 @@ export class NoteService {
     if (!uid) throw new Error('Not authenticated');
     console.log('[NoteService] createNote for uid:', uid);
     const notesRef = collection(this.db, 'notes');
+    const skipFields: (keyof Note)[] = this.notifTitleEnabled ? ['title'] : [];
     const payload = this.cryptoService.isEnabled
-      ? await this.cryptoService.encryptNote({ ...noteData, uid, createdAt: Date.now() })
+      ? await this.cryptoService.encryptNote({ ...noteData, uid, createdAt: Date.now() }, skipFields)
       : { ...noteData, uid, createdAt: Date.now() };
     const result = await addDoc(notesRef, payload);
     console.log('[NoteService] Note saved with ID:', result.id);
@@ -180,8 +185,9 @@ export class NoteService {
 
   async updateNote(id: string, data: Partial<Note>) {
     const noteRef = doc(this.db, `notes/${id}`);
+    const skipFields: (keyof Note)[] = this.notifTitleEnabled ? ['title'] : [];
     const payload = this.cryptoService.isEnabled
-      ? await this.cryptoService.encryptNote({ ...data, updatedAt: Date.now() })
+      ? await this.cryptoService.encryptNote({ ...data, updatedAt: Date.now() }, skipFields)
       : { ...data, updatedAt: Date.now() };
     await updateDoc(noteRef, payload as any);
   }
