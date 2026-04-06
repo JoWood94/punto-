@@ -129,7 +129,11 @@ async function checkAndSendReminders() {
                 title: msgTitle,
                 body: bodyText,
                 icon: '/icons/icon-192x192.png',
+                tag: doc.id,
                 data: { noteId: doc.id }
+              },
+              fcm_options: {
+                link: `https://giuseppebosco.github.io/punto-/dashboard?openNote=${encodeURIComponent(doc.id)}`
               },
               data: {
                 title: msgTitle,

@@ -19,7 +19,7 @@ const messaging = firebase.messaging();
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
 
-  const noteId = event.notification.data?.noteId;
+  const noteId = event.notification.data?.noteId || event.notification.tag;
   const appOrigin = self.location.origin;
   // Ricava il basePath dal percorso del SW: '/punto-/firebase-messaging-sw.js' → '/punto-/'
   // In locale: '/firebase-messaging-sw.js' → '/' → funziona anche in dev
