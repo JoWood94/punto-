@@ -128,7 +128,8 @@ async function checkAndSendReminders() {
               notification: {
                 title: msgTitle,
                 body: bodyText,
-                icon: '/icons/icon-192x192.png'
+                icon: '/icons/icon-192x192.png',
+                data: { noteId: doc.id }
               },
               data: {
                 title: msgTitle,
