@@ -132,9 +132,9 @@ async function checkAndSendReminders() {
                 tag: doc.id,
                 data: { noteId: doc.id }
               },
-              fcm_options: {
-                link: `https://giuseppebosco.github.io/punto-/dashboard?openNote=${encodeURIComponent(doc.id)}`
-              },
+              // fcm_options.link rimosso: il custom notificationclick handler nel SW
+              // gestisce tutta la navigazione. Mantenerlo causava doppia apertura finestra
+              // e conflitto con l'handler FCM SDK.
               data: {
                 title: msgTitle,
                 body: bodyText,

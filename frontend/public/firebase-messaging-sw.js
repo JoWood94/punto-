@@ -15,8 +15,11 @@ firebase.initializeApp(firebaseConfig);
 
 const messaging = firebase.messaging();
 
-// Deep link: apre la nota giusta al click della notifica su mobile e desktop
+// Deep link: apre la nota giusta al click della notifica su mobile e desktop.
+// capture:true → gira nella fase di cattura, PRIMA dell'handler interno dell'SDK FCM.
+// stopImmediatePropagation impedisce che l'SDK apra fcm_options.link in parallelo.
 self.addEventListener('notificationclick', (event) => {
+  event.stopImmediatePropagation();
   event.notification.close();
 
   const noteId = event.notification.data?.noteId || event.notification.tag;
@@ -56,4 +59,4 @@ self.addEventListener('notificationclick', (event) => {
     // 3. App chiusa/dormiente: apri/risveglia con URL corretto
     return clients.openWindow(targetUrl);
   })());
-});
+}, true); // capture:true → precede l'handler FCM SDK registrato in bubble phase

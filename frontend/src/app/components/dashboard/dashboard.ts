@@ -1,7 +1,7 @@
 import { Component, inject, OnInit, OnDestroy, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { Router } from '@angular/router';
+import { Router, ActivatedRoute } from '@angular/router';
 import { AuthService } from '../../services/auth';
 import { NoteService, Note, getNotePreview, getChecklistProgress } from '../../services/note';
 import { CryptoService } from '../../services/crypto';
@@ -89,9 +89,11 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   private notesSub?: Subscription;
   private authSub?: Subscription;
+  private routeSub?: Subscription;
   private sessionCheckInterval?: ReturnType<typeof setInterval>;
   private userDocUnsub?: () => void;
   private settingsMenuTimer?: ReturnType<typeof setTimeout>;
+  private deepLinkTimeout?: ReturnType<typeof setTimeout>;
   settingsMenuEnabled = true;
   isReady = false;
   private deepLinkNoteId: string | null = null;
@@ -101,16 +103,34 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   constructor(
     private noteService: NoteService,
-    private pushService: PushNotificationService
+    private pushService: PushNotificationService,
+    private route: ActivatedRoute
   ) {}
 
   async ngOnInit() {
     this.isMobile = this.breakpointObserver.isMatched([Breakpoints.Handset]);
     this.checkMobile();
 
-    // Deep link da notifica push: legge ?openNote=<id> o navigation queue (iOS deep sleep)
-    const urlParams = new URLSearchParams(window.location.search);
-    this.deepLinkNoteId = urlParams.get('openNote') || await this.checkNavigationQueue();
+    // Deep link da notifica push: navigation queue (iOS deep sleep)
+    const navQueueNoteId = await this.checkNavigationQueue();
+    if (navQueueNoteId) {
+      this.deepLinkNoteId = navQueueNoteId;
+      this.armDeepLinkTimeout();
+    }
+
+    // Reagisce a ?openNote= sia al caricamento iniziale sia a cambi URL successivi
+    // (es. app già aperta, SW chiama clients.openWindow con nuovo URL)
+    this.routeSub = this.route.queryParams.subscribe(params => {
+      const noteId = params['openNote'];
+      if (!noteId || noteId === this.deepLinkNoteId) return;
+      const note = this.allNotes.find(n => n.id === noteId);
+      if (note) {
+        this.selectNote(note);
+      } else {
+        this.deepLinkNoteId = noteId;
+        this.armDeepLinkTimeout();
+      }
+    });
 
     // Ascolta messaggi dal Service Worker (quando l'app è già aperta)
     if ('serviceWorker' in navigator) {
@@ -122,6 +142,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
           } else {
             // Note non ancora caricate (encryption init in corso) → riusa il meccanismo deepLink
             this.deepLinkNoteId = event.data.noteId;
+            this.armDeepLinkTimeout();
           }
         }
       };
@@ -206,15 +227,15 @@ export class DashboardComponent implements OnInit, OnDestroy {
         this.allNotes = notes;
         // this.updateAllTags(); // TODO: tags disabilitati temporaneamente
         this.applyFilter();
-        // Apre la nota richiesta dal deep link (solo alla prima emissione utile)
+        // Apre la nota richiesta dal deep link alla prima emissione utile.
+        // Non azzerare se non trovata: encryption potrebbe ancora inizializzarsi
+        // e le note arrivare in emissioni successive. Il timeout (10s) fa da safety net.
         if (this.deepLinkNoteId) {
           const target = notes.find(n => n.id === this.deepLinkNoteId);
           if (target) {
             this.selectNote(target);
             this.deepLinkNoteId = null;
-          } else {
-            // Nota non trovata (es. eliminata) → mostra lista normalmente
-            this.deepLinkNoteId = null;
+            clearTimeout(this.deepLinkTimeout);
           }
         }
       },
@@ -242,11 +263,18 @@ export class DashboardComponent implements OnInit, OnDestroy {
     });
   }
 
+  private armDeepLinkTimeout() {
+    clearTimeout(this.deepLinkTimeout);
+    this.deepLinkTimeout = setTimeout(() => { this.deepLinkNoteId = null; }, 10000);
+  }
+
   ngOnDestroy() {
     this.notesSub?.unsubscribe();
     this.authSub?.unsubscribe();
+    this.routeSub?.unsubscribe();
     clearInterval(this.sessionCheckInterval);
     clearTimeout(this.settingsMenuTimer);
+    clearTimeout(this.deepLinkTimeout);
     this.userDocUnsub?.();
     window.removeEventListener('popstate', this.onMobilePopState);
     window.removeEventListener('online', this.onOnline);
