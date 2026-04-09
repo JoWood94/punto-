@@ -4,6 +4,16 @@ on:
   push:
     branches:
       - 'main'
+  workflow_dispatch:
+    inputs:
+      changelog_title:
+        description: 'Notification title (optional — leave empty to skip notification)'
+        required: false
+        default: ''
+      changelog_body:
+        description: 'Notification body / changelog (optional — leave empty to skip notification)'
+        required: false
+        default: ''
 
 permissions:
   contents: write
@@ -56,3 +66,13 @@ jobs:
           git add .
           git commit -m "deploy: $(cd ../../../.. && git log -1 --pretty=format:'%s')"
           git push --force https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git HEAD:release_pages
+
+      - name: Send changelog notification (if provided)
+        if: ${{ inputs.changelog_title != '' && inputs.changelog_body != '' }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh workflow run notify-all-users.yml \
+            --repo ${{ github.repository }} \
+            -f title="${{ inputs.changelog_title }}" \
+            -f body="${{ inputs.changelog_body }}"
