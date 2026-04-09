@@ -1,4 +1,8 @@
 /* eslint-disable no-undef */
+// Combined Service Worker: Firebase Messaging + Angular NGSW
+// Unico SW registrato per lo scope /punto-/ — elimina il conflitto tra i due SW.
+
+// ── 1. Firebase Messaging ──────────────────────────────────────────────────
 importScripts("https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js");
 importScripts("https://www.gstatic.com/firebasejs/10.8.0/firebase-messaging-compat.js");
 
@@ -12,20 +16,18 @@ const firebaseConfig = {
 };
 
 firebase.initializeApp(firebaseConfig);
-
 const messaging = firebase.messaging();
 
-// Deep link: apre la nota giusta al click della notifica su mobile e desktop.
-// capture:true → gira nella fase di cattura, PRIMA dell'handler interno dell'SDK FCM.
-// stopImmediatePropagation impedisce che l'SDK apra fcm_options.link in parallelo.
+// ── 2. Deep link handler ───────────────────────────────────────────────────
+// capture:true → precede l'handler FCM SDK (bubble phase).
+// stopImmediatePropagation impedisce aperture doppie.
 self.addEventListener('notificationclick', (event) => {
   event.stopImmediatePropagation();
   event.notification.close();
 
   const noteId = event.notification.data?.noteId || event.notification.tag;
   const appOrigin = self.location.origin;
-  // Ricava il basePath dal percorso del SW: '/punto-/firebase-messaging-sw.js' → '/punto-/'
-  // In locale: '/firebase-messaging-sw.js' → '/' → funziona anche in dev
+  // Ricava il basePath dal percorso del SW: '/punto-/combined-sw.js' → '/punto-/'
   const swPath = self.location.pathname;
   const basePath = swPath.substring(0, swPath.lastIndexOf('/') + 1);
   const targetUrl = noteId
@@ -33,8 +35,7 @@ self.addEventListener('notificationclick', (event) => {
     : `${appOrigin}${basePath}dashboard`;
 
   event.waitUntil((async () => {
-    // 1. Scrivi in navigation queue (sopravvive al deep sleep iOS)
-    //    Cache API è accessibile sia dal SW che dall'app Angular.
+    // 1. Nav queue: sopravvive al deep sleep iOS
     if (noteId) {
       try {
         const cache = await caches.open('punto-nav-queue');
@@ -47,7 +48,7 @@ self.addEventListener('notificationclick', (event) => {
       }
     }
 
-    // 2. Cerca client attivo e notifica via postMessage (best effort — app già aperta)
+    // 2. App già aperta: postMessage al client dashboard
     const clientList = await clients.matchAll({ type: 'window', includeUncontrolled: true });
     for (const client of clientList) {
       if (client.url.includes('/dashboard')) {
@@ -56,7 +57,12 @@ self.addEventListener('notificationclick', (event) => {
       }
     }
 
-    // 3. App chiusa/dormiente: apri/risveglia con URL corretto
+    // 3. App chiusa/dormiente: apri con URL corretto
     return clients.openWindow(targetUrl);
   })());
-}, true); // capture:true → precede l'handler FCM SDK registrato in bubble phase
+}, true);
+
+// ── 3. Angular NGSW ────────────────────────────────────────────────────────
+// Importato per ultimo: gestisce fetch caching Angular.
+// Firebase (sopra) gestisce push; NGSW gestisce il resto.
+importScripts('./ngsw-worker.js');

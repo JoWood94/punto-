@@ -24,7 +24,7 @@ export class PushNotificationService {
       if (permission === 'granted') {
         // Determine the correct service worker path based on base href
         const baseHref = document.querySelector('base')?.getAttribute('href') || '/';
-        const swUrl = `${baseHref}firebase-messaging-sw.js`;
+        const swUrl = `${baseHref}combined-sw.js`;
         
         // Register the service worker at the correct path
         const registration = await navigator.serviceWorker.register(swUrl);
