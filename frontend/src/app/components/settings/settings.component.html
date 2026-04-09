@@ -86,6 +86,25 @@
 
   <mat-divider></mat-divider>
 
+  <!-- Sezione aggiornamento app (condizionale) -->
+  <ng-container *ngIf="updateAvailable">
+    <mat-divider></mat-divider>
+    <section class="settings-section update-section">
+      <div class="update-row">
+        <div class="update-info">
+          <mat-icon class="update-icon">system_update</mat-icon>
+          <div>
+            <span class="section-label">Aggiornamento disponibile</span>
+            <span class="update-sublabel">Una nuova versione di punto! è pronta.</span>
+          </div>
+        </div>
+        <button mat-flat-button class="update-btn" (click)="reloadApp()">
+          Aggiorna
+        </button>
+      </div>
+    </section>
+  </ng-container>
+
   <!-- Sezione 4: Zona pericolosa -->
   <section class="danger-zone">
     <div class="section-header">

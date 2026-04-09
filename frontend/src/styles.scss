@@ -123,9 +123,10 @@ body {
   border-radius: var(--punto-shape-xl);
 }
 
-/* dialog: elevation livello 3 */
+/* dialog: elevation livello 3, shape large */
 .mat-mdc-dialog-surface {
   box-shadow: var(--punto-shadow-4);
+  border-radius: var(--punto-shape-lg, 16px) !important;
 }
 
 /* menu: palette punto! — sfondo scuro */

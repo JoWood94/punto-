@@ -15,6 +15,7 @@ import { firstValueFrom } from 'rxjs';
 import {
   getFirestore, collection, query, where, getDocs, deleteDoc, doc, updateDoc, deleteField
 } from 'firebase/firestore';
+import { SwUpdate } from '@angular/service-worker';
 import { NoteService } from '../../services/note';
 import { AuthService } from '../../services/auth';
 import { CryptoService } from '../../services/crypto';
@@ -46,13 +47,20 @@ export class SettingsComponent implements OnInit {
   private cryptoService = inject(CryptoService);
   private dialog = inject(MatDialog);
   private snackBar = inject(MatSnackBar);
+  private swUpdate = inject(SwUpdate);
 
   defaultView: 'list' | 'calendar' | 'reminders' = 'list';
   notifTitleEnabled = false;
   calendarShowAllNotes = true;
   resetInProgress = false;
+  updateAvailable = false;
 
   async ngOnInit() {
+    if (this.swUpdate.isEnabled) {
+      this.swUpdate.versionUpdates.subscribe(event => {
+        if (event.type === 'VERSION_READY') this.updateAvailable = true;
+      });
+    }
     this.defaultView = await this.noteService.getUserPreference<'list' | 'calendar' | 'reminders'>('defaultView', 'list');
     this.notifTitleEnabled = await this.noteService.getUserPreference<boolean>('notifTitleEnabled', false);
     this.noteService.setNotifTitleEnabled(this.notifTitleEnabled);
@@ -61,6 +69,10 @@ export class SettingsComponent implements OnInit {
 
   goBack() {
     this.router.navigate(['/dashboard']);
+  }
+
+  reloadApp() {
+    document.location.reload();
   }
 
   async onDefaultViewChange(value: 'list' | 'calendar' | 'reminders') {

@@ -160,6 +160,54 @@ mat-divider {
   --mdc-switch-selected-pressed-track-color: var(--punto-primary);
 }
 
+// ─── Update section ──────────────────────────────────────────
+.update-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 16px;
+  background: var(--punto-primary-container, #EEECF0);
+  border: 1.5px solid var(--punto-primary);
+  border-radius: var(--punto-shape-lg, 16px);
+}
+
+.update-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+  min-width: 0;
+
+  div {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+}
+
+.update-icon {
+  font-size: 22px;
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+  color: var(--punto-primary);
+}
+
+.update-sublabel {
+  font-size: 0.75rem;
+  color: var(--mat-sys-on-surface-variant);
+  line-height: 1.4;
+}
+
+.update-btn {
+  background: var(--punto-primary) !important;
+  color: var(--punto-on-primary) !important;
+  border-radius: 99px !important;
+  flex-shrink: 0;
+  min-height: 36px;
+}
+
 // ─── Danger zone ─────────────────────────────────────────────
 .danger-zone {
   display: flex;

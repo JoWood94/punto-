@@ -23,6 +23,7 @@ import { NoteEditorComponent } from '../note-editor/note-editor';
 import { CalendarViewComponent } from '../calendar-view/calendar-view.component';
 import { ConfirmDialogComponent } from '../confirm-dialog/confirm-dialog';
 import { PassphraseDialogComponent } from '../passphrase-dialog/passphrase-dialog';
+import { UpdateDialogComponent } from '../update-dialog/update-dialog';
 import { Observable, Subscription, firstValueFrom, skip } from 'rxjs';
 import { Location } from '@angular/common';
 import { PushNotificationService } from '../../services/push-notification';
@@ -128,12 +129,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
     if (this.swUpdate.isEnabled) {
       this.swUpdate.versionUpdates.subscribe(event => {
         if (event.type === 'VERSION_READY') {
-          const snack = this.snackBar.open('Nuova versione disponibile', 'Aggiorna', {
-            duration: 0,
-            horizontalPosition: 'center',
-            verticalPosition: 'bottom',
-          });
-          snack.onAction().subscribe(() => document.location.reload());
+          this.dialog.open(UpdateDialogComponent);
         }
       });
     }
