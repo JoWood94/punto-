@@ -79,6 +79,8 @@ mat-divider {
 .view-option {
   flex: 1;
   display: flex;
+  align-items: stretch;
+  justify-content: center;
   cursor: pointer;
   background: var(--mat-sys-surface);
   border: 1.5px solid var(--mat-sys-outline-variant);
@@ -95,9 +97,31 @@ mat-divider {
 
   // Nasconde il radio button nativo, usiamo solo il label
   ::ng-deep .mdc-radio { display: none; }
-  ::ng-deep .mat-mdc-radio-button .mdc-form-field { padding: 0; }
-  ::ng-deep .mat-mdc-radio-button .mat-internal-form-field { gap: 0; }
-  ::ng-deep .mat-mdc-radio-button label { cursor: pointer; padding: 0; }
+  ::ng-deep .mat-mdc-radio-button {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    .mdc-form-field,
+    .mat-internal-form-field {
+      padding: 0;
+      gap: 0;
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    label {
+      cursor: pointer;
+      padding: 0;
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+  }
 }
 
 .view-option-content {

@@ -66,6 +66,24 @@
 
         .mat-button-toggle-button {
           border-radius: 99px !important;
+          height: 36px;
+          display: flex;
+          align-items: center;
+        }
+
+        .mat-button-toggle-label-content {
+          display: flex;
+          align-items: center;
+          gap: 4px;
+          line-height: 1;
+          padding: 0 12px;
+
+          .mat-pseudo-checkbox {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+          }
         }
 
         & + .mat-button-toggle {
