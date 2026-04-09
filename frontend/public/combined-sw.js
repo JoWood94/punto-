@@ -18,7 +18,13 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const messaging = firebase.messaging();
 
-// ── 2. Deep link handler ───────────────────────────────────────────────────
+// ── 2. Lifecycle: attivazione immediata ────────────────────────────────────
+// skipWaiting: il nuovo SW si attiva senza aspettare la chiusura di tutti i tab.
+// clients.claim: prende subito il controllo dei client esistenti.
+self.addEventListener('install', () => self.skipWaiting());
+self.addEventListener('activate', (event) => event.waitUntil(clients.claim()));
+
+// ── 3. Deep link handler ───────────────────────────────────────────────────
 // capture:true → precede l'handler FCM SDK (bubble phase).
 // stopImmediatePropagation impedisce aperture doppie.
 self.addEventListener('notificationclick', (event) => {
@@ -62,7 +68,7 @@ self.addEventListener('notificationclick', (event) => {
   })());
 }, true);
 
-// ── 3. Angular NGSW ────────────────────────────────────────────────────────
+// ── 4. Angular NGSW ────────────────────────────────────────────────────────
 // Importato per ultimo: gestisce fetch caching Angular.
 // Firebase (sopra) gestisce push; NGSW gestisce il resto.
 importScripts('./ngsw-worker.js');

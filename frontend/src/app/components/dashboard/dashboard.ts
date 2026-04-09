@@ -27,6 +27,7 @@ import { Observable, Subscription, firstValueFrom, skip } from 'rxjs';
 import { Location } from '@angular/common';
 import { PushNotificationService } from '../../services/push-notification';
 import { BreakpointObserver, Breakpoints } from '@angular/cdk/layout';
+import { SwUpdate } from '@angular/service-worker';
 
 @Component({
   selector: 'app-dashboard',
@@ -101,6 +102,8 @@ export class DashboardComponent implements OnInit, OnDestroy {
   private readonly onOnline = () => { this.isOffline = false; this.hasFirestoreError = false; };
   private readonly onOffline = () => { this.isOffline = true; };
 
+  private swUpdate = inject(SwUpdate);
+
   constructor(
     private noteService: NoteService,
     private pushService: PushNotificationService,
@@ -110,6 +113,19 @@ export class DashboardComponent implements OnInit, OnDestroy {
   async ngOnInit() {
     this.isMobile = this.breakpointObserver.isMatched([Breakpoints.Handset]);
     this.checkMobile();
+
+    if (this.swUpdate.isEnabled) {
+      this.swUpdate.versionUpdates.subscribe(event => {
+        if (event.type === 'VERSION_READY') {
+          const snack = this.snackBar.open('Nuova versione disponibile', 'Aggiorna', {
+            duration: 0,
+            horizontalPosition: 'center',
+            verticalPosition: 'bottom',
+          });
+          snack.onAction().subscribe(() => document.location.reload());
+        }
+      });
+    }
 
     // Deep link da notifica push: navigation queue (iOS deep sleep)
     const navQueueNoteId = await this.checkNavigationQueue();
