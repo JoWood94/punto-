@@ -39,7 +39,9 @@ const messaging = admin.messaging();
 
 async function sendToSingleUser() {
   const targetUid = process.env.TARGET_UID || 'W42XL7UVYFRMakpZJdrpcGkgsQr1';
-  console.log(`[punto! v3.6 Patch] Invio notifica a user: ${targetUid}...`);
+  const title = process.env.NOTIF_TITLE || 'punto! — Aggiornamento';
+  const body = process.env.NOTIF_BODY || 'Nuova versione disponibile.';
+  console.log(`[punto! BF-68] Invio notifica a user: ${targetUid}...`);
 
   try {
     const userRef = db.collection('users').doc(targetUid);
@@ -64,13 +66,13 @@ async function sendToSingleUser() {
       tokens: fcmTokens,
       webpush: {
         notification: {
-          title: 'punto! — Fix promemoria',
-          body: 'Il badge scaduto duplicato è stato rimosso. Chiudi e riapri l\'app per aggiornare.',
+          title,
+          body,
           icon: '/icons/icon-192x192.png'
         },
         data: {
-          title: 'punto! — Fix promemoria',
-          body: 'Il badge scaduto duplicato è stato rimosso. Chiudi e riapri l\'app per aggiornare.'
+          title,
+          body
         }
       }
     });

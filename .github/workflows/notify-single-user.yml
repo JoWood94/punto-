@@ -7,6 +7,14 @@ on:
         description: 'User UID to send notification to'
         required: true
         default: 'W42XL7UVYFRMakpZJdrpcGkgsQr1'
+      title:
+        description: 'Notification title'
+        required: true
+        default: 'punto! — Aggiornamento'
+      body:
+        description: 'Notification body (changelog)'
+        required: true
+        default: 'Nuova versione disponibile. Chiudi e riapri l app per aggiornare.'
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
@@ -26,3 +34,5 @@ jobs:
         env:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
           TARGET_UID: ${{ inputs.target_uid }}
+          NOTIF_TITLE: ${{ inputs.title }}
+          NOTIF_BODY: ${{ inputs.body }}
