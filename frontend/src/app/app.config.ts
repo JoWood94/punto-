@@ -11,7 +11,7 @@ import { provideServiceWorker } from '@angular/service-worker';
 import { LOCALE_ID } from '@angular/core';
 import { registerLocaleData } from '@angular/common';
 import localeIt from '@angular/common/locales/it';
-import { MAT_DATE_LOCALE } from '@angular/material/core';
+import { MAT_DATE_LOCALE, provideNativeDateAdapter } from '@angular/material/core';
 import { provideTranslateService } from '@ngx-translate/core';
 import { provideTranslateHttpLoader } from '@ngx-translate/http-loader';
 
@@ -31,6 +31,7 @@ export const appConfig: ApplicationConfig = {
     }),
     { provide: LOCALE_ID, useValue: 'it-IT' },
     { provide: MAT_DATE_LOCALE, useValue: 'it-IT' },
+    provideNativeDateAdapter(),
     provideTranslateService({ defaultLanguage: 'it' }),
     provideTranslateHttpLoader({ prefix: 'assets/i18n/', suffix: '.json' }),
   ],
