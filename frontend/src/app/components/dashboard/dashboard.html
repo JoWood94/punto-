@@ -1,24 +1,6 @@
 <!-- Header unico globale — fuori dal sidenav container -->
 <mat-toolbar class="app-header">
 
-  <!-- Mobile: lista → calendario -->
-  <button mat-icon-button [disableRipple]="true"
-          *ngIf="isMobile && currentMainView === 'list' && activeNote === undefined"
-          (click)="setDefaultView('calendar')"
-          aria-label="Vista Calendario"
-          class="header-btn-animated">
-    <mat-icon>calendar_month</mat-icon>
-  </button>
-
-  <!-- Mobile: calendario → lista -->
-  <button mat-icon-button [disableRipple]="true"
-          *ngIf="isMobile && currentMainView === 'calendar' && activeNote === undefined"
-          (click)="setDefaultView('list')"
-          aria-label="Vista Lista"
-          class="header-btn-animated">
-    <mat-icon>format_list_bulleted</mat-icon>
-  </button>
-
   <!-- Mobile: editor → indietro -->
   <button mat-icon-button [disableRipple]="true"
           *ngIf="isMobile && activeNote !== undefined"
@@ -73,20 +55,22 @@
 
       <!-- Search bar -->
       <div class="search-bar-wrapper">
-        <mat-form-field appearance="outline" class="search-field">
-          <mat-icon matPrefix>search</mat-icon>
-          <mat-label>Cerca note</mat-label>
-          <input matInput [(ngModel)]="searchQuery" (ngModelChange)="onSearchChange()" placeholder="Titolo o contenuto..." />
-          <button mat-icon-button matSuffix *ngIf="searchQuery" (click)="clearSearch()" type="button" aria-label="Cancella ricerca">
+        <div class="search-pill">
+          <mat-icon class="search-icon">search</mat-icon>
+          <input
+            class="search-input"
+            [(ngModel)]="searchQuery"
+            (ngModelChange)="onSearchChange()"
+            [placeholder]="searchPlaceholder"
+            [attr.aria-label]="searchPlaceholder"
+            type="search"
+            autocomplete="off"
+            spellcheck="false"
+          />
+          <button class="search-clear" *ngIf="searchQuery" (click)="clearSearch()" type="button" aria-label="Cancella ricerca">
             <mat-icon>close</mat-icon>
           </button>
-        </mat-form-field>
-      </div>
-
-      <!-- Tab selector Note / Evasi — visibile solo se ci sono evasi -->
-      <div class="list-tab-selector" *ngIf="completedReminderNotes.length > 0">
-        <button [class.tab-active]="activeListTab === 'notes'" (click)="activeListTab = 'notes'">Note</button>
-        <button [class.tab-active]="activeListTab === 'evasi'" (click)="activeListTab = 'evasi'">Evasi</button>
+        </div>
       </div>
 
       <!-- Indicatore offline / errore Firestore -->
@@ -109,21 +93,8 @@
         <!-- Contenuto — mostra solo quando tutto è pronto -->
         <ng-container *ngIf="isReady && notesLoaded">
 
-          <!-- Tab "Note" -->
-          <ng-container *ngIf="activeListTab === 'notes'">
-
-            <!-- Sezione "Ricorrenti" -->
-            <ng-container *ngIf="recurringNotes.length > 0">
-              <div class="section-header-collapsible" (click)="isRecurringSectionExpanded = !isRecurringSectionExpanded">
-                <span>Ricorrenti</span>
-                <mat-icon class="section-chevron" [class.rotated]="!isRecurringSectionExpanded">expand_more</mat-icon>
-              </div>
-              <ng-container *ngIf="isRecurringSectionExpanded">
-                <ng-container *ngFor="let note of recurringNotes">
-                  <ng-container *ngTemplateOutlet="noteCard; context: { note: note }"></ng-container>
-                </ng-container>
-              </ng-container>
-            </ng-container>
+          <!-- ══ Vista NOTE ══ -->
+          <ng-container *ngIf="activeView === 'notes'">
 
             <!-- Sezione "Fissate" -->
             <ng-container *ngIf="pinnedNotes.length > 0">
@@ -139,44 +110,109 @@
             </ng-container>
 
             <!-- Sezione "Note" -->
-            <ng-container *ngIf="unpinnedNotes.length > 0">
+            <ng-container *ngIf="plainNotes.length > 0">
               <div class="section-header-collapsible" (click)="isNotesSectionExpanded = !isNotesSectionExpanded">
                 <span>Note</span>
                 <mat-icon class="section-chevron" [class.rotated]="!isNotesSectionExpanded">expand_more</mat-icon>
               </div>
               <ng-container *ngIf="isNotesSectionExpanded">
-                <ng-container *ngFor="let note of unpinnedNotes">
+                <ng-container *ngFor="let note of plainNotes">
                   <ng-container *ngTemplateOutlet="noteCard; context: { note: note }"></ng-container>
                 </ng-container>
               </ng-container>
             </ng-container>
 
-            <div class="empty-state" *ngIf="pinnedNotes.length === 0 && unpinnedNotes.length === 0 && recurringNotes.length === 0 && !searchQuery">
+            <div class="empty-state" *ngIf="pinnedNotes.length === 0 && plainNotes.length === 0 && !searchQuery">
               <mat-icon>edit_note</mat-icon>
               <p>Ancora nessuna nota.</p>
-              <button mat-flat-button color="primary" (click)="openNoteEditor()">
+              <button mat-flat-button color="primary" (click)="openNoteEditor()" *ngIf="!isMobile">
                 <span class="empty-state-plus">+</span> Nuova nota
               </button>
             </div>
-            <div class="empty-state" *ngIf="filteredNotes.length === 0 && searchQuery">
+            <div class="empty-state" *ngIf="pinnedNotes.length === 0 && plainNotes.length === 0 && searchQuery">
               <mat-icon>search_off</mat-icon>
               <p>Nessun risultato.</p>
             </div>
 
           </ng-container>
 
-          <!-- Tab "Evasi" -->
-          <ng-container *ngIf="activeListTab === 'evasi'">
-            <ng-container *ngFor="let note of completedReminderNotes">
-              <ng-container *ngTemplateOutlet="noteCard; context: { note: note }"></ng-container>
+          <!-- ══ Vista PROMEMORIA ══ -->
+          <ng-container *ngIf="activeView === 'reminders'">
+
+            <!-- Sezione "Attivi" -->
+            <ng-container *ngIf="activeReminderNotes.length > 0">
+              <div class="section-header-collapsible" (click)="isActiveReminderSectionExpanded = !isActiveReminderSectionExpanded">
+                <span>Attivi</span>
+                <mat-icon class="section-chevron" [class.rotated]="!isActiveReminderSectionExpanded">expand_more</mat-icon>
+              </div>
+              <ng-container *ngIf="isActiveReminderSectionExpanded">
+                <ng-container *ngFor="let note of activeReminderNotes">
+                  <ng-container *ngTemplateOutlet="noteCard; context: { note: note }"></ng-container>
+                </ng-container>
+              </ng-container>
             </ng-container>
-            <div class="empty-state" *ngIf="completedReminderNotes.length === 0">
-              <mat-icon>task_alt</mat-icon>
-              <p>Nessun promemoria evaso.</p>
+
+            <!-- Sezione "Ricorrenti" -->
+            <ng-container *ngIf="recurringReminderNotes.length > 0">
+              <div class="section-header-collapsible" (click)="isReminderRecurringSectionExpanded = !isReminderRecurringSectionExpanded">
+                <span>Ricorrenti</span>
+                <mat-icon class="section-chevron" [class.rotated]="!isReminderRecurringSectionExpanded">expand_more</mat-icon>
+              </div>
+              <ng-container *ngIf="isReminderRecurringSectionExpanded">
+                <ng-container *ngFor="let note of recurringReminderNotes">
+                  <ng-container *ngTemplateOutlet="noteCard; context: { note: note }"></ng-container>
+                </ng-container>
+              </ng-container>
+            </ng-container>
+
+            <!-- Sezione "Evasi" -->
+            <ng-container *ngIf="evadedNotes.length > 0">
+              <div class="section-header-collapsible" (click)="isEvadedSectionExpanded = !isEvadedSectionExpanded">
+                <span>Evasi</span>
+                <mat-icon class="section-chevron" [class.rotated]="!isEvadedSectionExpanded">expand_more</mat-icon>
+              </div>
+              <ng-container *ngIf="isEvadedSectionExpanded">
+                <ng-container *ngFor="let note of evadedNotes">
+                  <ng-container *ngTemplateOutlet="noteCard; context: { note: note }"></ng-container>
+                </ng-container>
+              </ng-container>
+            </ng-container>
+
+            <div class="empty-state"
+                 *ngIf="activeReminderNotes.length === 0 && recurringReminderNotes.length === 0 && evadedNotes.length === 0 && !searchQuery">
+              <mat-icon>notifications_none</mat-icon>
+              <p>Nessun promemoria.</p>
+              <button mat-flat-button color="primary" (click)="openNoteEditor()" *ngIf="!isMobile">
+                <span class="empty-state-plus">+</span> Nuova nota con promemoria
+              </button>
             </div>
+            <div class="empty-state"
+                 *ngIf="activeReminderNotes.length === 0 && recurringReminderNotes.length === 0 && evadedNotes.length === 0 && searchQuery">
+              <mat-icon>search_off</mat-icon>
+              <p>Nessun risultato.</p>
+            </div>
+
           </ng-container>
 
         </ng-container>
+      </div>
+
+      <!-- Floating toolbar Note / Promemoria (solo desktop) -->
+      <div class="list-mode-toolbar" *ngIf="!isMobile">
+        <div class="lmt-pill">
+          <button class="lmt-btn" type="button"
+                  [class.lmt-btn--active]="activeView === 'notes'"
+                  (click)="activeView = 'notes'">
+            <mat-icon>edit_note</mat-icon>
+            <span>Note</span>
+          </button>
+          <button class="lmt-btn" type="button"
+                  [class.lmt-btn--active]="activeView === 'reminders'"
+                  (click)="activeView = 'reminders'">
+            <mat-icon>notifications</mat-icon>
+            <span>Promemoria</span>
+          </button>
+        </div>
       </div>
 
       <!-- Template riutilizzabile per la nota card -->
@@ -217,7 +253,17 @@
             <ng-container *ngIf="!note.recurrence || note.recurrence === 'none'">
               <span class="note-card-time" *ngIf="getReminderTimeToday(note) as t">{{ t }}</span>
             </ng-container>
+            <!-- Evadi button: solo in vista Promemoria per note attive non ancora evase -->
             <button mat-icon-button
+                    *ngIf="activeView === 'reminders' && note.reminderTime && note.reminderStatus !== 'completed'"
+                    (click)="quickEvadi(note, $event)"
+                    matTooltip="Evadi"
+                    class="evadi-btn">
+              <mat-icon>task_alt</mat-icon>
+            </button>
+            <!-- Pin button: nascosto nella vista Promemoria -->
+            <button mat-icon-button
+                    *ngIf="!(activeView === 'reminders' && note.reminderTime)"
                     (click)="togglePin(note, $event)"
                     [matTooltip]="note.pinned ? 'Rimuovi pin' : 'Fissa nota'"
                     class="pin-btn"
@@ -243,7 +289,7 @@
     </div>
 
     <div class="calendar-wrapper" *ngIf="isReady && (currentMainView === 'calendar' || (!isMobile && currentMainView === 'list')) && activeNote === undefined">
-      <app-calendar-view [notes]="allNotes" [isMobile]="isMobile" (noteSelected)="onCalendarNoteSelected($event)">
+      <app-calendar-view [notes]="calendarNotes" [isMobile]="isMobile" (noteSelected)="onCalendarNoteSelected($event)">
       </app-calendar-view>
     </div>
 
@@ -258,22 +304,46 @@
 
 </mat-sidenav-container>
 
-<!-- Swipe dots mobile: fixed overlay, cliccabili e animati -->
-<div class="swipe-dots" *ngIf="isMobile && activeNote === undefined">
-  <span class="swipe-dot"
-        [class.dot-active]="currentMainView === 'list'"
-        (click)="setDefaultView('list')"></span>
-  <span class="swipe-dot"
-        [class.dot-active]="currentMainView === 'calendar'"
-        (click)="setDefaultView('calendar')"></span>
+<!-- FAB mobile: icon-only round, position:fixed fuori dal sidenav-container -->
+<div class="mobile-fab-overlay" *ngIf="isMobile && activeNote === undefined">
+  <button mat-fab
+          (click)="currentMainView === 'calendar' ? openNoteEditorFromCalendar() : openNoteEditor()"
+          class="new-note-fab"
+          aria-label="Nuova nota">
+    <mat-icon>edit</mat-icon>
+  </button>
 </div>
 
-<!-- FAB mobile: position:fixed fuori dal sidenav-container -->
-<div class="mobile-fab-overlay" *ngIf="isMobile && activeNote === undefined">
-  <button mat-fab extended (click)="currentMainView === 'calendar' ? openNoteEditorFromCalendar() : openNoteEditor()"
-          class="new-note-fab">
-    <mat-icon>edit</mat-icon>
-    Nuova Nota
+<!-- Unified nav toolbar mobile: Note / Promemoria / Calendario -->
+<div class="unified-toolbar"
+     *ngIf="isMobile && activeNote === undefined"
+     (touchstart)="onNavTouchStart($event)"
+     (touchmove)="onNavTouchMove($event)"
+     (touchend)="onNavTouchEnd($event)">
+  <div class="unified-toolbar-indicator"
+       [style.transform]="navIndicatorTransform"
+       [class.unified-toolbar-indicator--dragging]="navDragging">
+  </div>
+  <button class="unified-toolbar-seg" type="button"
+          [class.unified-toolbar-seg--active]="mobileNav === 'notes'"
+          (click)="setMobileNav('notes')"
+          aria-label="Note">
+    <mat-icon>edit_note</mat-icon>
+    <span class="seg-label">Note</span>
+  </button>
+  <button class="unified-toolbar-seg" type="button"
+          [class.unified-toolbar-seg--active]="mobileNav === 'reminders'"
+          (click)="setMobileNav('reminders')"
+          aria-label="Promemoria">
+    <mat-icon>notifications</mat-icon>
+    <span class="seg-label">Promemoria</span>
+  </button>
+  <button class="unified-toolbar-seg" type="button"
+          [class.unified-toolbar-seg--active]="mobileNav === 'calendar'"
+          (click)="setMobileNav('calendar')"
+          aria-label="Calendario">
+    <mat-icon>calendar_month</mat-icon>
+    <span class="seg-label">Calendario</span>
   </button>
 </div>
 

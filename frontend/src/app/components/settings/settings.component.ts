@@ -47,21 +47,23 @@ export class SettingsComponent implements OnInit {
   private dialog = inject(MatDialog);
   private snackBar = inject(MatSnackBar);
 
-  defaultView: 'list' | 'calendar' = 'list';
+  defaultView: 'list' | 'calendar' | 'reminders' = 'list';
   notifTitleEnabled = false;
+  calendarShowAllNotes = true;
   resetInProgress = false;
 
   async ngOnInit() {
-    this.defaultView = await this.noteService.getUserPreference<'list' | 'calendar'>('defaultView', 'list');
+    this.defaultView = await this.noteService.getUserPreference<'list' | 'calendar' | 'reminders'>('defaultView', 'list');
     this.notifTitleEnabled = await this.noteService.getUserPreference<boolean>('notifTitleEnabled', false);
     this.noteService.setNotifTitleEnabled(this.notifTitleEnabled);
+    this.calendarShowAllNotes = await this.noteService.getUserPreference<boolean>('calendarShowAllNotes', true);
   }
 
   goBack() {
     this.router.navigate(['/dashboard']);
   }
 
-  async onDefaultViewChange(value: 'list' | 'calendar') {
+  async onDefaultViewChange(value: 'list' | 'calendar' | 'reminders') {
     this.defaultView = value;
     await this.noteService.setUserPreference('defaultView', value);
   }
@@ -86,6 +88,11 @@ export class SettingsComponent implements OnInit {
     this.notifTitleEnabled = enabled;
     this.noteService.setNotifTitleEnabled(enabled);
     await this.noteService.setUserPreference('notifTitleEnabled', enabled);
+  }
+
+  async onCalendarShowAllNotesToggle(enabled: boolean) {
+    this.calendarShowAllNotes = enabled;
+    await this.noteService.setUserPreference('calendarShowAllNotes', enabled);
   }
 
   async confirmResetEncryption() {

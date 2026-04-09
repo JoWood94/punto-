@@ -1,3 +1,125 @@
+<!-- ── Reminder strip (above title) ── -->
+<div class="reminder-strip" *ngIf="!!reminderBlock">
+
+  <!-- Row 1: form controls compatti -->
+  <div class="reminder-strip-row">
+
+    <!-- Date: button visibile che apre il datepicker -->
+    <button class="strip-date-btn" type="button"
+            (click)="reminderDatepicker.open()"
+            (focus)="onNonTextFieldFocus()"
+            (blur)="onNonTextFieldBlur()">
+      <mat-icon>event</mat-icon>
+      <span>{{ (reminderBlock.date | date:'EEE d MMM':'':'it') ?? 'Seleziona data' }}</span>
+      <input [matDatepicker]="reminderDatepicker"
+             [(ngModel)]="reminderBlock.date"
+             (ngModelChange)="onReminderChange()"
+             style="position:absolute;opacity:0;pointer-events:none;width:0;height:0;">
+      <mat-datepicker #reminderDatepicker
+                      (opened)="onNonTextFieldFocus()"
+                      (closed)="onNonTextFieldBlur(); onReminderChange()">
+      </mat-datepicker>
+    </button>
+
+    <span class="strip-dot">·</span>
+
+    <!-- Ora e minuti: select nativi compatti -->
+    <div class="strip-time">
+      <select [(ngModel)]="reminderBlock.hour"
+              (change)="onReminderChange()"
+              (focus)="onNonTextFieldFocus()"
+              (blur)="onNonTextFieldBlur()"
+              class="strip-select">
+        <option *ngFor="let h of hours" [value]="h">{{ h }}</option>
+      </select>
+      <span class="strip-colon">:</span>
+      <select [(ngModel)]="reminderBlock.minute"
+              (change)="onReminderChange()"
+              (focus)="onNonTextFieldFocus()"
+              (blur)="onNonTextFieldBlur()"
+              class="strip-select">
+        <option *ngFor="let m of minutes" [value]="m">{{ m }}</option>
+      </select>
+    </div>
+
+    <span class="strip-dot">·</span>
+
+    <!-- Ricorrenza: select nativo -->
+    <select [(ngModel)]="reminderBlock.recurrence"
+            (change)="onReminderChange()"
+            (focus)="onNonTextFieldFocus()"
+            (blur)="onNonTextFieldBlur()"
+            class="strip-select strip-recurrence">
+      <option value="none">Una volta</option>
+      <option value="daily">Ogni giorno</option>
+      <option value="weekly">Ogni settimana</option>
+      <option value="monthly">Ogni mese</option>
+      <option value="yearly">Ogni anno</option>
+    </select>
+
+  </div><!-- /reminder-strip-row -->
+
+  <!-- Row 2: badge/CTA condizionali -->
+
+  <!-- Scaduto singolo -->
+  <div class="strip-badge strip-badge--overdue"
+       *ngIf="isSingleOverdue(reminderBlock)">
+    <mat-icon>schedule</mat-icon>
+    <span>Scaduto il {{ reminderBlock.time | date:'d MMM, HH:mm':'':'it' }}</span>
+  </div>
+
+  <!-- Scaduto ricorrente -->
+  <div class="strip-badge strip-badge--overdue"
+       *ngIf="isOverdueRecurring(reminderBlock)">
+    <mat-icon>schedule</mat-icon>
+    <span>Scaduto il {{ reminderBlock.time | date:'d MMM':'':'it' }}</span>
+  </div>
+
+  <!-- Evaso post-scaduto (no undo) -->
+  <div class="strip-badge strip-badge--evaded"
+       *ngIf="note?.id && reminderBlock.recurrence !== 'none' && reminderBlock._evaded && reminderBlock._wasOverdue">
+    <mat-icon>check_circle</mat-icon>
+    <span>Evaso — prossima {{ reminderBlock.time | date:'d MMM':'':'it' }}</span>
+  </div>
+
+  <!-- Evaso ricorrente con undo -->
+  <button class="strip-badge strip-badge--evaded strip-badge--clickable" type="button"
+          *ngIf="note?.id && reminderBlock.recurrence !== 'none' && reminderBlock._evaded && !reminderBlock._wasOverdue"
+          (click)="undoRecurringEvasion(reminderBlock)"
+          matTooltip="Tocca per annullare evasione">
+    <mat-icon>task_alt</mat-icon>
+    <span>Evaso — prossima {{ reminderBlock.time | date:'d MMM':'':'it' }}</span>
+    <mat-icon class="undo-icon">undo</mat-icon>
+  </button>
+
+  <!-- Completato singolo con undo -->
+  <button class="strip-badge strip-badge--evaded strip-badge--clickable" type="button"
+          *ngIf="reminderBlock.status === 'completed'"
+          (click)="undoReminderCompleted(reminderBlock)"
+          matTooltip="Tocca per annullare">
+    <mat-icon>task_alt</mat-icon>
+    <span>Evaso</span>
+    <mat-icon class="undo-icon">undo</mat-icon>
+  </button>
+
+  <!-- CTA: evadi ricorrenza scaduta -->
+  <button class="strip-cta" type="button"
+          *ngIf="note?.id && isOverdueRecurring(reminderBlock)"
+          (click)="markReminderCompleted(reminderBlock, true)">
+    <mat-icon>check_circle</mat-icon>
+    Evadi ricorrenza scaduta
+  </button>
+
+  <!-- CTA: segna come evaso -->
+  <button class="strip-cta" type="button"
+          *ngIf="isReminderActionable(reminderBlock)"
+          (click)="markReminderCompleted(reminderBlock)">
+    <mat-icon>check_circle</mat-icon>
+    {{ getReminderActionLabel(reminderBlock) }}
+  </button>
+
+</div><!-- /reminder-strip -->
+
 <div class="editor-header">
   <input #titleInput class="title-input-raw" [(ngModel)]="note.title" placeholder="Titolo"
        (ngModelChange)="onTitleChange()" (blur)="onTitleChange()" />
@@ -8,7 +130,8 @@
   <!-- ── Block list with drag-and-drop ── -->
   <div cdkDropList (cdkDropListDropped)="onBlockDrop($event)" class="blocks-container">
 
-    <div *ngFor="let block of note.blocks; let i = index"
+    <ng-container *ngFor="let block of note.blocks; let i = index">
+    <div *ngIf="block.type !== 'reminder'"
          cdkDrag class="block-item" [ngClass]="'block-type-' + block.type">
 
       <!-- Drag placeholder (styled by Agent 2) -->
@@ -115,114 +238,6 @@
         </div>
       </ng-container>
 
-      <!-- ════ REMINDER BLOCK ════ -->
-      <ng-container *ngIf="block.type === 'reminder'">
-        <div class="metadata-section reminder-block">
-          <div class="block-label-row">
-            <mat-icon >notifications</mat-icon>
-            <span class="block-label">Promemoria</span>
-            <button mat-icon-button class="remove-reminder-btn"
-                    (click)="clearReminder($any(block))" matTooltip="Azzera promemoria">
-              <mat-icon>delete</mat-icon>
-            </button>
-          </div>
-          <div class="reminder-inputs">
-            <mat-form-field appearance="fill" class="date-field">
-              <mat-label>Data</mat-label>
-              <input matInput [matDatepicker]="picker" [(ngModel)]="$any(block).date" (ngModelChange)="onReminderChange()">
-              <mat-datepicker-toggle matIconSuffix [for]="picker"></mat-datepicker-toggle>
-              <mat-datepicker #picker (closed)="onReminderChange()"></mat-datepicker>
-            </mat-form-field>
-
-            <div class="time-selects-wrapper">
-              <mat-form-field appearance="fill" class="hour-field">
-                <mat-label>Ora</mat-label>
-                <mat-select [(ngModel)]="$any(block).hour" (ngModelChange)="onReminderChange()">
-                  <mat-option *ngFor="let h of hours" [value]="h">{{ h }}</mat-option>
-                </mat-select>
-              </mat-form-field>
-
-              <span class="time-separator">:</span>
-
-              <mat-form-field appearance="fill" class="minute-field">
-                <mat-label>Min</mat-label>
-                <mat-select [(ngModel)]="$any(block).minute" (ngModelChange)="onReminderChange()">
-                  <mat-option *ngFor="let m of minutes" [value]="m">{{ m }}</mat-option>
-                </mat-select>
-              </mat-form-field>
-            </div>
-
-            <mat-form-field appearance="fill" class="recurrence-field">
-              <mat-label>Ripeti</mat-label>
-              <mat-select [(ngModel)]="$any(block).recurrence" (ngModelChange)="onReminderChange()">
-                <mat-option value="none">Mai</mat-option>
-                <mat-option value="daily">Ogni giorno</mat-option>
-                <mat-option value="weekly">Ogni settimana</mat-option>
-                <mat-option value="monthly">Ogni mese</mat-option>
-                <mat-option value="yearly">Ogni anno</mat-option>
-              </mat-select>
-            </mat-form-field>
-          </div>
-
-          <!-- Badge scaduto singolo -->
-          <div class="reminder-completed-badge reminder-overdue-badge"
-               *ngIf="isSingleOverdue($any(block))">
-            <mat-icon>schedule</mat-icon>
-            <span>Scaduto il {{ $any(block).time | date:'d MMM, HH:mm':'':'it' }}</span>
-          </div>
-
-          <!-- Badge scaduto ricorrente — senza undo -->
-          <div class="reminder-completed-badge reminder-overdue-badge"
-               *ngIf="isOverdueRecurring($any(block))">
-            <mat-icon>schedule</mat-icon>
-            <span>Scaduto il {{ $any(block).time | date:'d MMM':'':'it' }}</span>
-          </div>
-
-          <!-- Stato evaso post-scaduto — disabilitato, nessun undo -->
-          <button mat-flat-button disabled class="mark-done-btn"
-                  *ngIf="note?.id && $any(block).recurrence !== 'none' && $any(block)._evaded && $any(block)._wasOverdue">
-            <mat-icon>check_circle</mat-icon>
-            Evaso — prossima ricorrenza {{ $any(block).time | date:'d MMM':'':'it' }}
-          </button>
-
-          <!-- Badge evaso ricorrente — con undo -->
-          <button class="reminder-completed-badge" type="button"
-                  *ngIf="note?.id && $any(block).recurrence !== 'none' && $any(block)._evaded && !$any(block)._wasOverdue"
-                  (click)="undoRecurringEvasion($any(block))"
-                  matTooltip="Tocca per annullare evasione">
-            <mat-icon>task_alt</mat-icon>
-            <span>Evaso — prossima {{ $any(block).time | date:'d MMM':'':'it' }}</span>
-            <mat-icon class="undo-icon">undo</mat-icon>
-          </button>
-
-          <!-- Stato completato (singolo) -->
-          <button class="reminder-completed-badge" type="button"
-                  *ngIf="$any(block).status === 'completed'"
-                  (click)="undoReminderCompleted($any(block))"
-                  matTooltip="Tocca per annullare evasione">
-            <mat-icon>task_alt</mat-icon>
-            <span>Evaso</span>
-            <mat-icon class="undo-icon">undo</mat-icon>
-          </button>
-
-          <!-- CTA evadi ricorrenza scaduta -->
-          <button mat-stroked-button class="mark-done-btn" type="button"
-                  *ngIf="note?.id && isOverdueRecurring($any(block))"
-                  (click)="markReminderCompleted($any(block), true)">
-            <mat-icon>check_circle</mat-icon>
-            Evadi ricorrenza scaduta
-          </button>
-
-          <!-- CTA evado — sempre visibile se nota salvata e non completata -->
-          <button mat-stroked-button class="mark-done-btn" type="button"
-                  *ngIf="isReminderActionable($any(block))"
-                  (click)="markReminderCompleted($any(block))">
-            <mat-icon>check_circle</mat-icon>
-            {{ getReminderActionLabel($any(block)) }}
-          </button>
-        </div>
-      </ng-container>
-
       <!-- ════ IMAGE BLOCK ════ -->
       <!-- TODO: upload immagini disabilitato — riabilitare quando si cambia piano Firebase Storage
       <ng-container *ngIf="block.type === 'image'">
@@ -306,6 +321,7 @@
       </button>
 
     </div><!-- /block-item -->
+    </ng-container>
   </div><!-- /blocks-container -->
 
   <!-- Empty note onboarding -->
@@ -402,10 +418,6 @@
             (click)="addBlockAfterActive('location'); closeAddBlockMenu()" aria-label="Luogo">
       <mat-icon>place</mat-icon>
     </button>
-    <button mat-icon-button type="button" tabindex="-1" *ngIf="!hasReminderBlock"
-            (click)="addBlockAfterActive('reminder'); closeAddBlockMenu()" aria-label="Promemoria">
-      <mat-icon>notifications</mat-icon>
-    </button>
     <button mat-icon-button type="button" tabindex="-1"
             (click)="closeAddBlockMenu(); addLinkBlock()" aria-label="Collegamento">
       <mat-icon>link</mat-icon>
@@ -421,4 +433,14 @@
   </button>
 
 </div>
+
+<!-- Mini-FAB promemoria: fisso bottom-left, opposto al FAB + -->
+<button class="reminder-mini-fab"
+        type="button"
+        (click)="toggleReminder()"
+        [class.reminder-mini-fab--active]="!!reminderBlock"
+        [class.reminder-mini-fab--hidden]="activeTextBlockIndex() !== null"
+        [attr.aria-label]="reminderBlock ? 'Rimuovi promemoria' : 'Aggiungi promemoria'">
+  <mat-icon>{{ reminderBlock ? 'notifications' : 'notifications_none' }}</mat-icon>
+</button>
 

@@ -313,13 +313,23 @@
     opacity var(--_t),
     background 200ms var(--_e);
   color: var(--mat-sys-on-surface-variant);
+  opacity: 0.4; // non fissata: dimmed
 
-  &:hover { background: color-mix(in srgb, var(--mat-sys-on-surface) 8%, transparent); }
+  &:hover {
+    opacity: 0.7;
+    background: color-mix(in srgb, var(--mat-sys-on-surface) 8%, transparent);
+  }
   &:active { background: color-mix(in srgb, var(--mat-sys-on-surface) 12%, transparent); }
 
   &.pin-active {
+    opacity: 1; // fissata: piena
     color: var(--punto-primary);
   }
+}
+
+// Pin su card scura (default): piena bianca quando fissata
+.note-card .pin-btn.pin-active mat-icon {
+  color: rgba(255, 255, 255, 1) !important;
 }
 
 // ─── Tags row nel note item ──────────────────────────────────
@@ -508,56 +518,176 @@
 
 }
 
-// ─── Tab selector Note / Evasi ───────────────────────────────
-.list-tab-selector {
-  display: flex;
-  margin: 6px 12px 0;
-  background: var(--mat-sys-surface-variant, #f0f0f0);
-  border-radius: 20px;
-  padding: 2px;
-  gap: 2px;
+// ─── Floating toolbar Note / Promemoria ──────────────────────
+.list-mode-toolbar {
   flex-shrink: 0;
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  justify-content: center;
+  padding: 20px 16px 16px;
+  background: linear-gradient(
+    to bottom,
+    transparent 0%,
+    var(--punto-bg, #FFFBFE) 40%
+  );
+  pointer-events: none;
+  z-index: 10;
 
-  button {
-    flex: 1;
-    border: none;
-    background: transparent;
-    border-radius: 18px;
-    padding: 5px 0;
-    font-size: 13px;
-    font-family: var(--punto-font, 'Plus Jakarta Sans', sans-serif);
-    color: rgba(0, 0, 0, 0.55);
-    cursor: pointer;
-    transition: background 150ms var(--_e), color 150ms var(--_e);
-
-    &.tab-active {
-      background: var(--mat-sys-surface, #fff);
-      color: var(--mat-sys-on-surface);
-      font-weight: 500;
-      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.10);
-    }
+  @media (max-width: 599.98px) {
+    padding-bottom: calc(28px + 56px + 20px);
   }
+}
+
+.lmt-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 4px;
+  background: #1C1B1F;
+  border-radius: 99px;
+  box-shadow:
+    0 4px 12px rgba(0, 0, 0, 0.25),
+    0 1px 4px rgba(0, 0, 0, 0.15);
+  pointer-events: all;
+}
+
+.lmt-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 18px;
+  border-radius: 99px;
+  border: none;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.55);
+  font-size: 0.875rem;
+  font-weight: 500;
+  font-family: var(--punto-font, 'Plus Jakarta Sans', sans-serif);
+  cursor: pointer;
+  transition:
+    background 200ms var(--_e, ease-out),
+    color 200ms var(--_e, ease-out);
+
+  mat-icon {
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
+  }
+
+  &--active {
+    background: #FFFBFE;
+    color: #1C1B1F;
+    mat-icon { color: #1C1B1F; }
+  }
+
+  &:hover:not(.lmt-btn--active) {
+    color: rgba(255, 255, 255, 0.8);
+  }
+}
+
+// Spacer mobile: spazio tra ultime card e toolbar floating
+.notes-list-fab-spacer {
+  height: 24px;
+  flex-shrink: 0;
 }
 
 // Search bar nella sidenav
 .search-bar-wrapper {
   padding: 12px 12px 8px;
   flex-shrink: 0;
+}
 
-  .search-field {
-    width: 100%;
+.search-pill {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 10px 0 14px;
+  height: 40px;
+  border-radius: 99px;
+  // Bianco con bordo: campo chiaramente interattivo, distinto dalle card near-black
+  background: #FFFBFE;
+  border: 1.5px solid color-mix(in srgb, #1C1B1F 15%, transparent);
+  transition: background 180ms ease, border-color 180ms ease;
 
-    ::ng-deep {
-      .mat-mdc-form-field-subscript-wrapper { display: none; }
+  .search-icon {
+    color: rgba(28, 27, 31, 0.55);
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+    transition: color 180ms ease;
+  }
 
-      // M3: radius coerente con il FAB (shape-lg = 16px)
-      .mdc-notched-outline__leading {
-        border-radius: var(--punto-shape-lg, 16px) 0 0 var(--punto-shape-lg, 16px) !important;
-        min-width: 16px;
-      }
-      .mdc-notched-outline__trailing {
-        border-radius: 0 var(--punto-shape-lg, 16px) var(--punto-shape-lg, 16px) 0 !important;
-      }
+  .search-input {
+    flex: 1;
+    min-width: 0;
+    border: none;
+    background: transparent;
+    color: #1C1B1F;
+    font-size: 0.9rem;
+    font-family: inherit;
+    font-weight: 400;
+    letter-spacing: 0.01em;
+    outline: none;
+    caret-color: #1C1B1F;
+
+    &::placeholder {
+      color: rgba(28, 27, 31, 0.45);
+      letter-spacing: 0.01em;
+    }
+
+    // Previene auto-zoom iOS su focus
+    @media (max-width: 599.98px) {
+      font-size: 16px;
+    }
+
+    // Nasconde i controlli nativi di type=search
+    &::-webkit-search-decoration,
+    &::-webkit-search-cancel-button,
+    &::-webkit-search-results-button { display: none; }
+  }
+
+  .search-clear {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 26px;
+    height: 26px;
+    border: none;
+    background: color-mix(in srgb, #1C1B1F 12%, transparent);
+    border-radius: 50%;
+    cursor: pointer;
+    padding: 0;
+    transition: background 150ms ease;
+
+    mat-icon {
+      color: rgba(28, 27, 31, 0.65);
+      font-size: 15px;
+      width: 15px;
+      height: 15px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      line-height: 1;
+    }
+
+    &:hover { background: color-mix(in srgb, #1C1B1F 18%, transparent); }
+    &:active { background: color-mix(in srgb, #1C1B1F 24%, transparent); }
+  }
+
+  // Focus: bordo più definito
+  &:focus-within {
+    background: #FFFBFE;
+    border-color: color-mix(in srgb, #1C1B1F 35%, transparent);
+
+    .search-icon {
+      color: rgba(28, 27, 31, 0.75);
     }
   }
 }
@@ -612,8 +742,8 @@
 .sidenav-fab-area { z-index: 200; }
 .mobile-fab-overlay { z-index: 300; }
 
-.sidenav-fab-area .new-note-fab,
-.mobile-fab-overlay .new-note-fab {
+// Desktop FAB extended (pill con testo)
+.sidenav-fab-area .new-note-fab {
   border-radius: var(--punto-shape-lg, 16px) !important;
   height: 56px;
   font-weight: 500;
@@ -621,11 +751,7 @@
   background-color: var(--punto-primary) !important;
   color: var(--punto-on-primary) !important;
   box-shadow: var(--mat-sys-level2, 0 3px 6px rgba(0,0,0,.15)) !important;
-
   mat-icon { color: var(--punto-on-primary) !important; }
-}
-
-.sidenav-fab-area .new-note-fab {
   transition: box-shadow var(--_t), transform var(--_t);
 
   &:hover {
@@ -634,18 +760,27 @@
   }
 }
 
+// Mobile FAB: icon-only round, allineato alla toolbar
+.mobile-fab-overlay {
+  @media (max-width: 599.98px) {
+    right: 20px;
+    bottom: calc(28px + env(safe-area-inset-bottom, 0px));
+  }
+}
+.mobile-fab-overlay .new-note-fab {
+  background-color: var(--punto-primary) !important;
+  color: var(--punto-on-primary) !important;
+  box-shadow: var(--mat-sys-level2, 0 3px 6px rgba(0,0,0,.15)) !important;
+  mat-icon { color: var(--punto-on-primary) !important; }
+}
+
 
 // Spaziatura tra bottone calendario e more_vert nell'header
 .settings-menu-btn {
   margin-left: 4px;
 }
 
-// iOS Safari auto-zoom prevention: input font-size < 16px triggers zoom
-@media (max-width: 599.98px) {
-  .search-field ::ng-deep input.mat-mdc-input-element {
-    font-size: 16px !important;
-  }
-}
+// (iOS anti-zoom per search-input gestito inline nel .search-pill)
 
 // ─── Mobile tap target: pin e delete ────────────────────────
 @media (max-width: 599.98px) {
@@ -657,35 +792,104 @@
   }
 }
 
-// ─── Swipe dots mobile: fixed overlay, cliccabili e animati ─
-.swipe-dots {
-  position: fixed;
-  bottom: 46px;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 1000; // sopra mat-sidenav-content in tutte le viste
+// ─── Unified nav toolbar — SOLO MOBILE ───────────────────────
+.unified-toolbar {
+  display: none; // nascosta di default (desktop)
+
+  @media (max-width: 599.98px) {
+    display: flex;
+    align-items: center;
+    position: fixed;
+    bottom: calc(28px + env(safe-area-inset-bottom, 0px));
+    left: 20px;
+    z-index: 300;
+    background: #1C1B1F;
+    border-radius: 99px;
+    padding: 4px;
+    gap: 0;
+    box-shadow:
+      0 4px 12px rgba(0, 0, 0, 0.25),
+      0 1px 4px rgba(0, 0, 0, 0.15);
+    user-select: none;
+    -webkit-user-select: none;
+    touch-action: none;
+  }
+}
+
+.unified-toolbar-indicator {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  width: 130px; // larghezza del segmento attivo (icon + label)
+  height: calc(100% - 8px);
+  background: #FFFBFE;
+  border-radius: 99px;
+  pointer-events: none;
+  // Spring snap al rilascio / tap (width + transform)
+  transition:
+    transform 300ms cubic-bezier(0.34, 1.56, 0.64, 1),
+    width 300ms cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  // Durante drag: segue il dito 1:1, zero latenza
+  &--dragging {
+    transition: none;
+  }
+}
+
+.unified-toolbar-seg {
+  position: relative;
+  z-index: 1;
+  width: 52px;
+  height: 48px;
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 6px;
-  padding: 8px;
+  border: none;
+  background: transparent;
   cursor: pointer;
+  border-radius: 99px;
+  color: rgba(255, 255, 255, 0.5);
+  overflow: hidden;
+  // Espansione larghezza fluida al cambio voce
+  transition:
+    width 250ms cubic-bezier(0.34, 1.56, 0.64, 1),
+    color 150ms ease-out;
 
-  .swipe-dot {
-    width: 7px;
-    height: 7px;
-    border-radius: 9999px;
-    background: var(--punto-primary);
-    opacity: 0.45;
+  mat-icon {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    width: 20px;
+    height: 20px;
+    line-height: 1;
+  }
+
+  .seg-label {
+    font-size: 0.8rem;
+    font-weight: 500;
+    line-height: 1;
+    font-family: var(--punto-font, 'Plus Jakarta Sans', sans-serif);
+    white-space: nowrap;
+    max-width: 0;
+    opacity: 0;
+    overflow: hidden;
+    // Fade + slide label
     transition:
-      width 380ms cubic-bezier(0.34, 1.56, 0.64, 1),
-      opacity 280ms var(--_e),
-      transform 380ms cubic-bezier(0.34, 1.56, 0.64, 1);
-    cursor: pointer;
+      max-width 250ms cubic-bezier(0.34, 1.56, 0.64, 1),
+      opacity 180ms ease;
+  }
 
-    &.dot-active {
-      width: 24px;
-      opacity: 0.85;
-      transform: scaleY(1.15);
+  // Segmento attivo: più largo, label visibile
+  &--active {
+    width: 130px;
+    color: #1C1B1F;
+
+    .seg-label {
+      max-width: 90px; // sufficiente per "Promemoria" (la label più lunga)
+      opacity: 1;
     }
   }
 }

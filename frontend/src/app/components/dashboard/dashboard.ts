@@ -73,11 +73,22 @@ export class DashboardComponent implements OnInit, OnDestroy {
   activeNote?: Note | null = undefined;
   isMobile = false;
   currentMainView: 'list' | 'calendar' = 'calendar';
-  activeListTab: 'notes' | 'evasi' = 'notes';
+  activeView: 'notes' | 'reminders' = 'notes';
+  private viewAutoSelected = false;
+
+  // ─── Mobile unified nav toolbar ──────────────────────────────
+  mobileNav: 'notes' | 'reminders' | 'calendar' = 'notes';
+  navDragging = false;
+  navIndicatorTransform = 'translateX(0px)';
+  private navDragStartX = 0;
+  private navDragStartIndex = 0;
+  private readonly NAV_SEGMENTS: Array<'notes' | 'reminders' | 'calendar'> = ['notes', 'reminders', 'calendar'];
+  private readonly NAV_SEG_WIDTH = 52; // deve corrispondere al CSS
   isOffline = !navigator.onLine;
   hasFirestoreError = false;
   private defaultViewKey = 'defaultView';
 
+  calendarShowAllNotes = true;
   allNotes: Note[] = [];
   filteredNotes: Note[] = [];
   searchQuery = '';
@@ -186,14 +197,23 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
     // Carica preferenza vista di default (solo mobile)
     if (this.isMobile) {
-      const firestoreView = await this.noteService.getUserPreference<'list' | 'calendar'>(this.defaultViewKey, 'list');
-      this.currentMainView = firestoreView;
-      localStorage.setItem('punto_defaultView', firestoreView);
+      const firestoreView = await this.noteService.getUserPreference<'list' | 'calendar' | 'reminders'>(this.defaultViewKey, 'list');
+      if (firestoreView === 'calendar') {
+        this.setMobileNav('calendar');
+      } else if (firestoreView === 'reminders') {
+        this.setMobileNav('reminders');
+      } else {
+        this.setMobileNav('notes');
+        localStorage.setItem('punto_defaultView', 'list');
+      }
     }
 
     // Carica preferenza titolo notifiche
     const notifTitle = await this.noteService.getUserPreference<boolean>('notifTitleEnabled', false);
     this.noteService.setNotifTitleEnabled(notifTitle);
+
+    // Carica preferenza visibilità calendario
+    this.calendarShowAllNotes = await this.noteService.getUserPreference<boolean>('calendarShowAllNotes', true);
 
     // Tutti gli init async completati — mostra il contenuto
     this.isReady = true;
@@ -243,6 +263,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
         this.allNotes = notes;
         // this.updateAllTags(); // TODO: tags disabilitati temporaneamente
         this.applyFilter();
+        this.autoSelectView();
         // Apre la nota richiesta dal deep link alla prima emissione utile.
         // Non azzerare se non trovata: encryption potrebbe ancora inizializzarsi
         // e le note arrivare in emissioni successive. Il timeout (10s) fa da safety net.
@@ -308,22 +329,105 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   // ─── Pinned/Unpinned/Recurring getters ─────────────────────────────────────
 
-  isRecurringSectionExpanded = true;
   isPinnedSectionExpanded = true;
   isNotesSectionExpanded = true;
+  isActiveReminderSectionExpanded = true;
+  isReminderRecurringSectionExpanded = true;
+  isEvadedSectionExpanded = true;
 
   private isRecurring(n: Note): boolean { return !!(n.recurrence && n.recurrence !== 'none'); }
 
-  get recurringNotes(): Note[] { return this.filteredNotes.filter(n => this.isRecurring(n)); }
-  get pinnedNotes(): Note[] { return this.filteredNotes.filter(n => n.pinned && n.reminderStatus !== 'completed' && !this.isRecurring(n)); }
-  get unpinnedNotes(): Note[] { return this.filteredNotes.filter(n => !n.pinned && n.reminderStatus !== 'completed' && !this.isRecurring(n)); }
-  get completedReminderNotes(): Note[] {
-    const completed = this.filteredNotes.filter(n => n.reminderStatus === 'completed');
-    if (completed.length === 0 && this.activeListTab === 'evasi') {
-      // Reset asincrono per evitare ExpressionChangedAfterItHasBeenCheckedError
-      setTimeout(() => { this.activeListTab = 'notes'; }, 0);
+  get calendarNotes(): Note[] {
+    return this.calendarShowAllNotes
+      ? this.allNotes
+      : this.allNotes.filter(n => !!n.reminderTime);
+  }
+
+  get searchPlaceholder(): string {
+    return (this.mobileNav === 'reminders' || this.activeView === 'reminders')
+      ? 'Cerca promemoria'
+      : 'Cerca note';
+  }
+
+  // ─── Vista NOTE: solo note senza reminder e senza ricorrenza ─
+  get pinnedNotes(): Note[] {
+    return this.filteredNotes.filter(n => n.pinned && !n.reminderTime && !this.isRecurring(n));
+  }
+  get plainNotes(): Note[] {
+    return this.filteredNotes.filter(n => !n.pinned && !n.reminderTime && !this.isRecurring(n));
+  }
+
+  // ─── Vista PROMEMORIA ─────────────────────────────────────────
+  get activeReminderNotes(): Note[] {
+    return this.filteredNotes.filter(n =>
+      !!n.reminderTime && n.reminderStatus !== 'completed' && !this.isRecurring(n)
+    );
+  }
+  get recurringReminderNotes(): Note[] {
+    return this.filteredNotes.filter(n => this.isRecurring(n));
+  }
+  get evadedNotes(): Note[] {
+    return this.filteredNotes.filter(n => n.reminderStatus === 'completed');
+  }
+
+  private autoSelectView() {
+    if (this.viewAutoSelected) return;
+    this.viewAutoSelected = true;
+    const hasNotes = this.pinnedNotes.length > 0 || this.plainNotes.length > 0;
+    const hasReminders = this.activeReminderNotes.length > 0
+      || this.recurringReminderNotes.length > 0
+      || this.evadedNotes.length > 0;
+    if (!hasNotes && hasReminders) {
+      this.activeView = 'reminders';
+      if (this.isMobile) this.setMobileNav('reminders');
     }
-    return completed;
+  }
+
+  setMobileNav(view: 'notes' | 'reminders' | 'calendar') {
+    this.mobileNav = view;
+    const index = this.NAV_SEGMENTS.indexOf(view);
+    this.navIndicatorTransform = `translateX(${index * this.NAV_SEG_WIDTH}px)`;
+    if (view === 'calendar') {
+      this.currentMainView = 'calendar';
+    } else {
+      this.currentMainView = 'list';
+      this.activeView = view;
+    }
+  }
+
+  onNavTouchStart(e: TouchEvent) {
+    this.navDragging = true;
+    this.navDragStartX = e.touches[0].clientX;
+    this.navDragStartIndex = this.NAV_SEGMENTS.indexOf(this.mobileNav);
+  }
+
+  onNavTouchMove(e: TouchEvent) {
+    if (!this.navDragging) return;
+    e.preventDefault();
+    const dx = e.touches[0].clientX - this.navDragStartX;
+    const rawOffset = this.navDragStartIndex * this.NAV_SEG_WIDTH + dx;
+    const maxOffset = (this.NAV_SEGMENTS.length - 1) * this.NAV_SEG_WIDTH;
+    const clamped = Math.max(0, Math.min(maxOffset, rawOffset));
+    this.navIndicatorTransform = `translateX(${clamped}px)`;
+    // Aggiorna icona attiva in real-time
+    const liveIndex = Math.max(0, Math.min(
+      this.NAV_SEGMENTS.length - 1,
+      Math.round(rawOffset / this.NAV_SEG_WIDTH)
+    ));
+    this.mobileNav = this.NAV_SEGMENTS[liveIndex];
+  }
+
+  onNavTouchEnd(e: TouchEvent) {
+    if (!this.navDragging) return;
+    this.navDragging = false;
+    const endX = e.changedTouches[0]?.clientX ?? this.navDragStartX;
+    const dx = endX - this.navDragStartX;
+    const rawOffset = this.navDragStartIndex * this.NAV_SEG_WIDTH + dx;
+    const snapIndex = Math.max(0, Math.min(
+      this.NAV_SEGMENTS.length - 1,
+      Math.round(rawOffset / this.NAV_SEG_WIDTH)
+    ));
+    this.setMobileNav(this.NAV_SEGMENTS[snapIndex]);
   }
 
   // ─── Filtering & Sorting ────────────────────────────────────────────────────
@@ -397,6 +501,19 @@ export class DashboardComponent implements OnInit, OnDestroy {
   }
 
   // ─── Pin ────────────────────────────────────────────────────────────────────
+
+  async quickEvadi(note: Note, event: Event) {
+    event.stopPropagation();
+    if (!note.id) return;
+    try {
+      await this.noteService.updateNote(note.id, {
+        reminderStatus: 'completed',
+        lastCompletedAt: Date.now()
+      });
+    } catch (e: any) {
+      console.error('Errore evadi:', e.message);
+    }
+  }
 
   async togglePin(note: Note, event: Event) {
     event.stopPropagation();
@@ -605,7 +722,27 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   openSettings() { this.router.navigate(['/settings']); }
   logout() { this.authService.logout().then(() => this.router.navigate(['/login'])); }
-  openNoteEditor() { this.newNoteCalendarDate = undefined; this.activeNote = null; }
+  openNoteEditor() {
+    if (this.activeView === 'reminders' || this.mobileNav === 'reminders') {
+      this.newNoteCalendarDate = this.computeDefaultReminderDate();
+    } else {
+      this.newNoteCalendarDate = undefined;
+    }
+    this.activeNote = null;
+  }
+
+  private computeDefaultReminderDate(): Date {
+    const base = new Date(Date.now() + 5 * 60 * 1000);
+    const roundedMinutes = Math.ceil(base.getMinutes() / 5) * 5;
+    const d = new Date(base);
+    if (roundedMinutes >= 60) {
+      d.setHours(d.getHours() + 1);
+      d.setMinutes(roundedMinutes - 60, 0, 0);
+    } else {
+      d.setMinutes(roundedMinutes, 0, 0);
+    }
+    return d;
+  }
   openNoteEditorFromCalendar(date?: Date) {
     const now = new Date();
     // Usa la data passata (dal calendario settimana/mese) oppure oggi
@@ -646,7 +783,13 @@ export class DashboardComponent implements OnInit, OnDestroy {
   async setDefaultView(view: 'list' | 'calendar') {
     this.currentMainView = view;
     localStorage.setItem('punto_defaultView', view);
+    // Sync mobile toolbar
     if (this.isMobile) {
+      if (view === 'calendar') {
+        this.setMobileNav('calendar');
+      } else {
+        this.setMobileNav(this.activeView === 'reminders' ? 'reminders' : 'notes');
+      }
       await this.noteService.setUserPreference(this.defaultViewKey, view);
     }
   }
@@ -673,13 +816,16 @@ export class DashboardComponent implements OnInit, OnDestroy {
       this.handleBackButton();
       return;
     }
-    // Swipe sinistra su lista → calendario
-    if (deltaX < 0 && this.currentMainView === 'list' && this.activeNote === undefined) {
-      this.setDefaultView('calendar');
-    }
-    // Swipe destra su calendario → lista
-    else if (deltaX > 0 && this.currentMainView === 'calendar' && this.activeNote === undefined) {
-      this.setDefaultView('list');
+    // Swipe 3 viste: Note ↔ Promemoria ↔ Calendario (sincronizzato con toolbar)
+    if (this.activeNote === undefined) {
+      const currentIdx = this.NAV_SEGMENTS.indexOf(this.mobileNav);
+      if (deltaX < 0 && currentIdx < this.NAV_SEGMENTS.length - 1) {
+        // Swipe sinistra → avanza
+        this.setMobileNav(this.NAV_SEGMENTS[currentIdx + 1] as any);
+      } else if (deltaX > 0 && currentIdx > 0) {
+        // Swipe destra → indietro
+        this.setMobileNav(this.NAV_SEGMENTS[currentIdx - 1] as any);
+      }
     }
   }
 

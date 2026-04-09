@@ -140,6 +140,19 @@ mat-divider {
   flex: 1;
 }
 
+.toggle-label-group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+}
+
+.toggle-sublabel {
+  font-size: 0.75rem;
+  color: var(--mat-sys-on-surface-variant);
+  line-height: 1.4;
+}
+
 ::ng-deep .mat-mdc-slide-toggle.mat-primary {
   --mdc-switch-selected-track-color: var(--punto-primary);
   --mdc-switch-selected-handle-color: #FFFBFE;

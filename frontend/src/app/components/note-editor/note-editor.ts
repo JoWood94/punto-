@@ -113,6 +113,10 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewInit, Af
     return this.note.blocks.some(b => b.type === 'reminder');
   }
 
+  get reminderBlock(): any | null {
+    return this.note.blocks.find(b => b.type === 'reminder') ?? null;
+  }
+
   // ─── Lifecycle ─────────────────────────────────────────────────────────────
 
   ngOnInit() { this.initNote(); }
@@ -218,15 +222,18 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewInit, Af
 
       this.userHasModifiedContent = false;
       if (this.initialReminderDate) {
-        // Da calendario: solo blocco reminder, nessun testo di default
+        // Da vista Promemoria o da calendario: blocco reminder, nessun titolo di default
         const d = this.initialReminderDate;
+        const roundedMin = Math.ceil(d.getMinutes() / 5) * 5;
+        const reminderHour = roundedMin >= 60 ? d.getHours() + 1 : d.getHours();
+        const reminderMin = roundedMin >= 60 ? roundedMin - 60 : roundedMin;
         const reminderBlock: any = {
           type: 'reminder', time: null, recurrence: 'none', status: null,
           date: d,
-          hour: d.getHours().toString().padStart(2, '0'),
-          minute: (Math.round(d.getMinutes() / 5) * 5 % 60).toString().padStart(2, '0')
+          hour: reminderHour.toString().padStart(2, '0'),
+          minute: reminderMin.toString().padStart(2, '0')
         };
-        this.note = { title: this.PLACEHOLDER_TITLE, blocks: [reminderBlock], tags: [], color: 'default' };
+        this.note = { title: '', blocks: [reminderBlock], tags: [], color: 'default' };
       } else {
         this.note = { title: '', blocks: [], tags: [], color: 'default' };
       }
@@ -274,13 +281,12 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewInit, Af
         newBlock = { type: 'location', address: '', searchQuery: '', editing: true, addressOptions: [] } as any;
         break;
       case 'reminder': {
-        const now = new Date();
-        now.setMinutes(Math.round(now.getMinutes() / 5) * 5, 0, 0);
+        const defaultDate = this.computeDefaultReminderDate();
         newBlock = {
-          type: 'reminder', time: null, recurrence: 'none', status: null,
-          date: now,
-          hour: now.getHours().toString().padStart(2, '0'),
-          minute: now.getMinutes().toString().padStart(2, '0')
+          type: 'reminder', time: defaultDate.getTime(), recurrence: 'none', status: null,
+          date: defaultDate,
+          hour: defaultDate.getHours().toString().padStart(2, '0'),
+          minute: defaultDate.getMinutes().toString().padStart(2, '0')
         } as any;
         break;
       }
@@ -315,6 +321,25 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewInit, Af
     // in fondo con il padding-bottom bianco visibile sopra la toolbar.
     if (type !== 'text') this.scrollEditorToBottom();
     this.triggerAutoSave();
+  }
+
+  addReminder() {
+    if (!this.hasReminderBlock) {
+      this.addBlock('reminder');
+    }
+  }
+
+  removeReminderBlock() {
+    const idx = this.note.blocks.findIndex(b => b.type === 'reminder');
+    if (idx !== -1) this.removeBlock(idx);
+  }
+
+  toggleReminder() {
+    if (this.reminderBlock) {
+      this.removeReminderBlock();
+    } else {
+      this.addReminder();
+    }
   }
 
   addBlockAfterActive(type: NoteBlock['type']) {
@@ -540,9 +565,14 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewInit, Af
   onNonTextFieldBlur()  { this.nonTextFieldFocused.set(false); }
 
   onReminderChange() {
-    // L'utente ha modificato il reminder → resetta status e flag evasione su tutti i reminder
+    // L'utente ha modificato il reminder → ricalcola time e resetta status/flag evasione
     this.note.blocks.forEach(b => {
       if (b.type === 'reminder') {
+        if ((b as any).date) {
+          const d = new Date((b as any).date);
+          d.setHours(parseInt((b as any).hour ?? '12', 10), parseInt((b as any).minute ?? '00', 10), 0, 0);
+          (b as any).time = d.getTime();
+        }
         (b as any).status = 'pending';
         (b as any)._evaded = false;
         (b as any)._prevTime = null;
@@ -828,5 +858,19 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewInit, Af
       // Salva eventuali modifiche pendenti (timer interrotto dal destroy)
       this.performAutoSave().catch(() => {});
     }
+  }
+
+  /** now + 5min, arrotondato al prossimo multiplo di 5 minuti */
+  computeDefaultReminderDate(): Date {
+    const base = new Date(Date.now() + 5 * 60 * 1000);
+    const roundedMinutes = Math.ceil(base.getMinutes() / 5) * 5;
+    const d = new Date(base);
+    if (roundedMinutes >= 60) {
+      d.setHours(d.getHours() + 1);
+      d.setMinutes(roundedMinutes - 60, 0, 0);
+    } else {
+      d.setMinutes(roundedMinutes, 0, 0);
+    }
+    return d;
   }
 }

@@ -24,6 +24,14 @@
           </div>
         </mat-radio-button>
       </label>
+      <label class="view-option" [class.view-option--active]="defaultView === 'reminders'">
+        <mat-radio-button value="reminders" [disableRipple]="true">
+          <div class="view-option-content">
+            <mat-icon>notifications</mat-icon>
+            <span>Promemoria</span>
+          </div>
+        </mat-radio-button>
+      </label>
       <label class="view-option" [class.view-option--active]="defaultView === 'calendar'">
         <mat-radio-button value="calendar" [disableRipple]="true">
           <div class="view-option-content">
@@ -56,7 +64,29 @@
 
   <mat-divider></mat-divider>
 
-  <!-- Sezione 3: Zona pericolosa -->
+  <!-- Sezione 3: Calendario -->
+  <section class="settings-section">
+    <div class="section-header">
+      <span class="section-label">Calendario</span>
+    </div>
+
+    <div class="toggle-row">
+      <div class="toggle-label-group">
+        <span class="toggle-label">Mostra note senza promemoria</span>
+        <span class="toggle-sublabel">Quando disattivato, appaiono solo le note con promemoria</span>
+      </div>
+      <mat-slide-toggle
+        [checked]="calendarShowAllNotes"
+        (change)="onCalendarShowAllNotesToggle($event.checked)"
+        [disableRipple]="true"
+        color="primary">
+      </mat-slide-toggle>
+    </div>
+  </section>
+
+  <mat-divider></mat-divider>
+
+  <!-- Sezione 4: Zona pericolosa -->
   <section class="danger-zone">
     <div class="section-header">
       <span class="section-label danger-label">Zona pericolosa</span>

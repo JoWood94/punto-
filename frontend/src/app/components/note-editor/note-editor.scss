@@ -21,6 +21,71 @@
   gap: 8px;
 }
 
+// ─── Mini-FAB promemoria: fixed bottom-left, speculare al FAB + ──
+.reminder-mini-fab {
+  position: fixed;
+  bottom: calc(28px + min(env(safe-area-inset-bottom, 0px), 44px));
+  left: 28px;
+  z-index: 300;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  border: none;
+  background: #1C1B1F;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow:
+    0 2px 4px rgba(0, 0, 0, 0.3),
+    0 4px 12px rgba(0, 0, 0, 0.15);
+  transition:
+    background 200ms var(--_e),
+    color 200ms var(--_e),
+    border-color 200ms var(--_e),
+    box-shadow 200ms var(--_e),
+    transform 200ms var(--_e);
+
+  mat-icon {
+    font-size: 24px;
+    width: 24px;
+    height: 24px;
+  }
+
+  &:hover {
+    box-shadow:
+      0 4px 8px rgba(0, 0, 0, 0.35),
+      0 8px 20px rgba(0, 0, 0, 0.2);
+    transform: translateY(-1px);
+  }
+
+  // Nascosto quando la format toolbar è visibile
+  &--hidden {
+    opacity: 0;
+    pointer-events: none;
+    transform: scale(0.8) translateY(4px);
+  }
+
+  // Promemoria ATTIVO: colori invertiti
+  &--active {
+    background: #FFFBFE;
+    color: #1C1B1F;
+    border: 1px solid var(--mat-sys-outline-variant);
+    box-shadow:
+      0 1px 3px rgba(0, 0, 0, 0.12),
+      0 2px 8px rgba(0, 0, 0, 0.08);
+
+    mat-icon { color: #1C1B1F; }
+
+    &:hover {
+      box-shadow:
+        0 2px 6px rgba(0, 0, 0, 0.15),
+        0 4px 14px rgba(0, 0, 0, 0.1);
+    }
+  }
+}
+
 .title-input-raw {
   flex: 1;
   font-family: var(--punto-font, 'Plus Jakarta Sans', sans-serif);
@@ -839,6 +904,279 @@
     font-size: 18px;
     width: 18px;
     height: 18px;
+  }
+}
+
+// ─── Reminder: campanella nell'header ────────────────────────
+
+.reminder-header-btn {
+  flex-shrink: 0;
+  width: 40px !important;
+  height: 40px !important;
+  opacity: 0.4;
+  transition:
+    opacity var(--_t),
+    color var(--_t);
+
+  mat-icon {
+    font-size: 22px;
+    width: 22px;
+    height: 22px;
+    color: var(--mat-sys-on-surface-variant);
+    transition: color var(--_t);
+  }
+
+  &:hover { opacity: 0.75; }
+
+  &--active {
+    opacity: 1;
+
+    mat-icon {
+      color: var(--punto-primary);
+    }
+  }
+}
+
+// ─── Reminder strip (flex item tra header e content) ─────────
+
+.reminder-strip {
+  flex-shrink: 0;
+  background: var(--punto-bg, #FFFBFE);
+  border-bottom: 1px solid var(--mat-sys-outline-variant);
+  // Mobile (<480px): column, padding stretto
+  padding: 8px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  overflow: hidden;
+
+  // Intermedio (480-767px): row wrap — controlli riga 1, badge/CTA riga 2 side-by-side
+  @media (min-width: 480px) and (max-width: 767.98px) {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 20px;
+  }
+
+  // Desktop (>=768px): tutto su una riga
+  @media (min-width: 768px) {
+    flex-direction: row;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 24px;
+  }
+}
+
+.reminder-strip-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%; // Mobile: piena larghezza, allineata alla CTA sotto
+  flex-wrap: wrap;
+  min-width: 0;
+
+  // Intermedio: full-width → spinge badge/CTA alla riga sotto
+  @media (min-width: 480px) and (max-width: 767.98px) {
+    flex: 0 0 100%;
+    flex-wrap: nowrap;
+  }
+
+  // Desktop: auto-width → affiancato a badge/CTA
+  @media (min-width: 768px) {
+    flex: 0 0 auto;
+    flex-wrap: nowrap;
+    width: auto;
+  }
+}
+
+// Date button: chip testuale che apre il datepicker
+.strip-date-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 10px;
+  border-radius: 99px;
+  border: none;
+  background: color-mix(in srgb, var(--mat-sys-on-surface) 6%, transparent);
+  cursor: pointer;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--mat-sys-on-surface);
+  white-space: nowrap;
+  position: relative;
+  font-family: inherit;
+  transition: background var(--_t);
+  // Mobile/intermedio: cresce per riempire la riga
+  flex: 1;
+  justify-content: center;
+  @media (min-width: 768px) { flex: 0 0 auto; justify-content: flex-start; }
+
+  mat-icon {
+    font-size: 14px;
+    width: 14px;
+    height: 14px;
+    color: var(--mat-sys-on-surface-variant);
+  }
+
+  &:hover {
+    background: color-mix(in srgb, var(--mat-sys-on-surface) 10%, transparent);
+  }
+}
+
+// Select nativi compatti
+.strip-select {
+  border: none;
+  background: color-mix(in srgb, var(--mat-sys-on-surface) 6%, transparent);
+  border-radius: 99px; // pill — coerente con chip e strip-date-btn
+  padding: 5px 28px 5px 12px;
+  font-size: 1rem; // >= 16px: previene auto-zoom iOS
+  font-weight: 500;
+  font-family: inherit;
+  color: var(--mat-sys-on-surface);
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%231C1B1F' opacity='.4'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 6px center;
+  transition: background-color var(--_t);
+
+  &:hover {
+    background-color: color-mix(in srgb, var(--mat-sys-on-surface) 10%, transparent);
+  }
+
+  &:focus {
+    outline: 2px solid var(--punto-primary);
+    outline-offset: 1px;
+  }
+}
+
+.strip-recurrence {
+  max-width: 140px;
+  min-width: 80px;
+  // Mobile/intermedio: cresce per riempire la riga
+  flex: 1;
+  @media (min-width: 768px) { flex: 0 0 auto; }
+}
+
+.strip-time {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.strip-colon {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--mat-sys-on-surface);
+  opacity: 0.6;
+  flex-shrink: 0;
+}
+
+.strip-dot {
+  font-size: 0.875rem;
+  color: var(--mat-sys-on-surface-variant);
+  opacity: 0.5;
+  flex-shrink: 0;
+}
+
+// Badge riga 2 (condizionale)
+.strip-badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border-radius: 99px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  min-height: 36px;
+  width: 100%;
+
+  @media (min-width: 480px) {
+    width: auto;
+  }
+  border: none;
+  font-family: inherit;
+  overflow: visible;
+  box-sizing: border-box;
+
+  span {
+    white-space: normal;
+    overflow: visible;
+    text-overflow: unset;
+  }
+
+  mat-icon {
+    flex-shrink: 0;
+    font-size: 14px;
+    width: 14px;
+    height: 14px;
+  }
+
+  .undo-icon {
+    font-size: 13px;
+    width: 13px;
+    height: 13px;
+    opacity: 0.7;
+  }
+
+  &--overdue {
+    background: color-mix(in srgb, #B3261E 12%, var(--punto-bg, #FFFBFE));
+    color: #B3261E;
+    mat-icon { color: #B3261E; }
+  }
+
+  &--evaded {
+    background: #1C1B1F;
+    color: white;
+    mat-icon { color: white; }
+  }
+
+  &--clickable {
+    cursor: pointer;
+    transition: opacity var(--_t);
+    &:hover { opacity: 0.85; }
+  }
+}
+
+// CTA compatta in-strip
+.strip-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border-radius: 99px;
+  border: 1px solid var(--mat-sys-outline-variant);
+  background: transparent;
+  font-size: 0.85rem;
+  font-weight: 500;
+  min-height: 36px;
+  font-family: inherit;
+  color: var(--mat-sys-on-surface);
+  cursor: pointer;
+  width: 100%;
+  justify-content: center;
+  transition:
+    background var(--_t),
+    border-color var(--_t);
+
+  @media (min-width: 480px) {
+    width: auto;
+  }
+
+  mat-icon {
+    font-size: 14px;
+    width: 14px;
+    height: 14px;
+    color: var(--mat-sys-on-surface-variant);
+  }
+
+  &:hover {
+    background: color-mix(in srgb, var(--mat-sys-on-surface) 6%, transparent);
+    border-color: var(--mat-sys-outline);
   }
 }
 
