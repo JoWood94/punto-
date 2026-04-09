@@ -3,6 +3,7 @@ import { MAT_DIALOG_DATA, MatDialogRef, MatDialogModule } from '@angular/materia
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { CommonModule } from '@angular/common';
+import { TranslateModule } from '@ngx-translate/core';
 
 export interface ConfirmDialogData {
   title: string;
@@ -14,7 +15,7 @@ export interface ConfirmDialogData {
 @Component({
   selector: 'app-confirm-dialog',
   standalone: true,
-  imports: [CommonModule, MatDialogModule, MatButtonModule, MatIconModule],
+  imports: [CommonModule, MatDialogModule, MatButtonModule, MatIconModule, TranslateModule],
   template: `
     <h2 mat-dialog-title>{{ data.title }}</h2>
     <mat-dialog-content>
@@ -22,10 +23,10 @@ export interface ConfirmDialogData {
     </mat-dialog-content>
     <mat-dialog-actions align="end">
       <button mat-button (click)="dialogRef.close(false)">
-        {{ data.cancelLabel || 'Annulla' }}
+        {{ data.cancelLabel || ('COMMON.CANCEL' | translate) }}
       </button>
       <button mat-flat-button color="warn" (click)="dialogRef.close(true)">
-        {{ data.confirmLabel || 'Conferma' }}
+        {{ data.confirmLabel || ('COMMON.CONFIRM' | translate) }}
       </button>
     </mat-dialog-actions>
   `

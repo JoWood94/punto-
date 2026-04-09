@@ -7,11 +7,11 @@
     <div class="header-row-top">
       <mat-button-toggle-group [value]="viewType" (change)="setView($event.value)"
           class="view-toggle" aria-label="Vista calendario">
-        <mat-button-toggle value="day">Giorno</mat-button-toggle>
-        <mat-button-toggle value="week">Settimana</mat-button-toggle>
-        <mat-button-toggle value="month">Mese</mat-button-toggle>
+        <mat-button-toggle value="day">{{ 'CALENDAR.DAY' | translate }}</mat-button-toggle>
+        <mat-button-toggle value="week">{{ 'CALENDAR.WEEK' | translate }}</mat-button-toggle>
+        <mat-button-toggle value="month">{{ 'CALENDAR.MONTH' | translate }}</mat-button-toggle>
       </mat-button-toggle-group>
-      <button mat-stroked-button class="today-btn" (click)="goToToday()">Oggi</button>
+      <button mat-stroked-button class="today-btn" (click)="goToToday()">{{ 'CALENDAR.TODAY' | translate }}</button>
     </div>
 
     <!-- Riga 2: nav prev/next — sempre visibile -->
@@ -137,7 +137,7 @@
     </div>
     <div class="empty-day-state" *ngIf="dayNotes.length === 0">
       <mat-icon>event_available</mat-icon>
-      <p>Nessuna nota con promemoria in questo giorno</p>
+      <p>{{ 'CALENDAR.EMPTY' | translate }}</p>
     </div>
   </div>
 

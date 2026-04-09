@@ -24,6 +24,8 @@ import { CalendarViewComponent } from '../calendar-view/calendar-view.component'
 import { ConfirmDialogComponent } from '../confirm-dialog/confirm-dialog';
 import { PassphraseDialogComponent } from '../passphrase-dialog/passphrase-dialog';
 import { UpdateDialogComponent } from '../update-dialog/update-dialog';
+import { TranslateModule } from '@ngx-translate/core';
+import { TranslationService } from '../../services/translation';
 import { Observable, Subscription, firstValueFrom, skip } from 'rxjs';
 import { Location } from '@angular/common';
 import { PushNotificationService } from '../../services/push-notification';
@@ -51,7 +53,8 @@ import { SwUpdate } from '@angular/service-worker';
     MatProgressSpinnerModule,
     MatChipsModule,
     NoteEditorComponent,
-    CalendarViewComponent
+    CalendarViewComponent,
+    TranslateModule,
   ],
   templateUrl: './dashboard.html',
   styleUrls: ['./dashboard.scss']
@@ -63,6 +66,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
   private breakpointObserver = inject(BreakpointObserver);
   private dialog = inject(MatDialog);
   private snackBar = inject(MatSnackBar);
+  translationService = inject(TranslationService);
   private cryptoService: CryptoService = inject(CryptoService);
 @ViewChild('sidenav') sidenav!: MatSidenav;
   /** Riferimento all'editor attivo — usato dalla mobile toolbar in dashboard.html */
@@ -133,6 +137,9 @@ export class DashboardComponent implements OnInit, OnDestroy {
         }
       });
     }
+
+    // Inizializza lingua (legge pref Firestore, fallback a navigator.language)
+    await this.translationService.init();
 
     // Deep link da notifica push: navigation queue (iOS deep sleep)
     const navQueueNoteId = await this.checkNavigationQueue();
@@ -340,9 +347,11 @@ export class DashboardComponent implements OnInit, OnDestroy {
   }
 
   get searchPlaceholder(): string {
-    return (this.mobileNav === 'reminders' || this.activeView === 'reminders')
-      ? 'Cerca promemoria'
-      : 'Cerca note';
+    return this.translationService.instant(
+      (this.mobileNav === 'reminders' || this.activeView === 'reminders')
+        ? 'SEARCH.PLACEHOLDER_REMINDERS'
+        : 'SEARCH.PLACEHOLDER_NOTES'
+    );
   }
 
   // ─── Vista NOTE: solo note senza reminder e senza ricorrenza ─
@@ -479,10 +488,11 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   formatNextOccurrence(note: Note): string {
     if (!note.reminderTime || !note.recurrence || note.recurrence === 'none') return '';
+    const locale = this.translationService.locale;
     const d = new Date(note.reminderTime);
-    const timeStr = d.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
+    const timeStr = d.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' });
     if (note.recurrence === 'daily') {
-      const day = d.toLocaleDateString('it-IT', { weekday: 'short' });
+      const day = d.toLocaleDateString(locale, { weekday: 'short' });
       return `${day.charAt(0).toUpperCase() + day.slice(1)} ${timeStr}`;
     }
     const dd = d.getDate().toString().padStart(2, '0');
@@ -638,7 +648,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
       console.log('[E2E Setup] Setup completato.');
     } catch (e) {
       console.error('[E2E Setup] ERRORE:', e);
-      this.snackBar.open('Errore durante il setup della cifratura. Riprova.', 'OK', { duration: 5000 });
+      this.snackBar.open(this.translationService.instant('CRYPTO.SETUP_ERROR'), 'OK', { duration: 5000 });
     }
   }
 
@@ -657,10 +667,10 @@ export class DashboardComponent implements OnInit, OnDestroy {
         // Utente richiede di resettare la secret
         const confirmed = await firstValueFrom(this.dialog.open(ConfirmDialogComponent, {
           data: {
-            title: 'Resetta secret di crittografia?',
-            message: 'Eliminerai la secret e dovrai reimpostarne una nuova. Le note attuali saranno ancora cifrate con la vecchia secret.',
-            confirmLabel: 'Resetta',
-            cancelLabel: 'Annulla'
+            title: this.translationService.instant('CRYPTO.RESET_TITLE'),
+            message: this.translationService.instant('CRYPTO.RESET_MSG'),
+            confirmLabel: this.translationService.instant('CRYPTO.RESET_CONFIRM'),
+            cancelLabel: this.translationService.instant('COMMON.CANCEL')
           },
           disableClose: true,
           width: '420px',
@@ -847,9 +857,9 @@ export class DashboardComponent implements OnInit, OnDestroy {
     const note = this.activeNote as Note;
     const ref = this.dialog.open(ConfirmDialogComponent, {
       data: {
-        title: 'Elimina nota',
-        message: `Vuoi eliminare "${note.title || 'Nuova Nota'}"? L'operazione non è reversibile.`,
-        confirmLabel: 'Elimina'
+        title: this.translationService.instant('NOTE.DELETE_TITLE'),
+        message: this.translationService.instant('NOTE.DELETE_MSG', { title: note.title || this.translationService.instant('NOTE.UNTITLED') }),
+        confirmLabel: this.translationService.instant('COMMON.DELETE')
       }
     });
     const confirmed = await firstValueFrom(ref.afterClosed());
@@ -867,9 +877,9 @@ export class DashboardComponent implements OnInit, OnDestroy {
     if (!note.id) return;
     const ref = this.dialog.open(ConfirmDialogComponent, {
       data: {
-        title: 'Elimina nota',
-        message: `Vuoi eliminare "${note.title || 'Nuova Nota'}"? L'operazione non è reversibile.`,
-        confirmLabel: 'Elimina'
+        title: this.translationService.instant('NOTE.DELETE_TITLE'),
+        message: this.translationService.instant('NOTE.DELETE_MSG', { title: note.title || this.translationService.instant('NOTE.UNTITLED') }),
+        confirmLabel: this.translationService.instant('COMMON.DELETE')
       }
     });
     const confirmed = await firstValueFrom(ref.afterClosed());

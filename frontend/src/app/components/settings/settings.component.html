@@ -2,25 +2,25 @@
   <button mat-icon-button [disableRipple]="true" (click)="goBack()" aria-label="Torna indietro">
     <mat-icon>arrow_back</mat-icon>
   </button>
-  <span class="settings-title">Impostazioni</span>
+  <span class="settings-title">{{ 'MENU.SETTINGS' | translate }}</span>
 </mat-toolbar>
 
 <div class="settings-content">
 
-  <!-- Sezione 1: Interfaccia mobile -->
+  <!-- Sezione 1: Vista di default -->
   <section class="settings-section">
     <div class="section-header">
-      <span class="section-label">Vista di default</span>
-      <span class="section-badge">solo mobile</span>
+      <span class="section-label">{{ 'SETTINGS.DEFAULT_VIEW' | translate }}</span>
+      <span class="section-badge">{{ 'SETTINGS.ONLY_MOBILE' | translate }}</span>
     </div>
-    <p class="section-description">Su desktop lista e calendario sono sempre mostrati insieme.</p>
+    <p class="section-description">{{ 'SETTINGS.DEFAULT_VIEW_DESC' | translate }}</p>
 
     <mat-radio-group class="view-options" [value]="defaultView" (change)="onDefaultViewChange($event.value)">
       <label class="view-option" [class.view-option--active]="defaultView === 'list'">
         <mat-radio-button value="list" [disableRipple]="true">
           <div class="view-option-content">
             <mat-icon>format_list_bulleted</mat-icon>
-            <span>Note</span>
+            <span>{{ 'NAV.NOTES' | translate }}</span>
           </div>
         </mat-radio-button>
       </label>
@@ -28,7 +28,7 @@
         <mat-radio-button value="reminders" [disableRipple]="true">
           <div class="view-option-content">
             <mat-icon>notifications</mat-icon>
-            <span>Promemoria</span>
+            <span>{{ 'NAV.REMINDERS' | translate }}</span>
           </div>
         </mat-radio-button>
       </label>
@@ -36,7 +36,7 @@
         <mat-radio-button value="calendar" [disableRipple]="true">
           <div class="view-option-content">
             <mat-icon>calendar_today</mat-icon>
-            <span>Calendario</span>
+            <span>{{ 'NAV.CALENDAR' | translate }}</span>
           </div>
         </mat-radio-button>
       </label>
@@ -48,11 +48,11 @@
   <!-- Sezione 2: Titolo nelle notifiche -->
   <section class="settings-section">
     <div class="section-header">
-      <span class="section-label">Titolo nelle notifiche</span>
+      <span class="section-label">{{ 'SETTINGS.NOTIF_TITLE' | translate }}</span>
     </div>
 
     <div class="toggle-row">
-      <span class="toggle-label">Mostra titolo nella notifica</span>
+      <span class="toggle-label">{{ 'SETTINGS.SHOW_NOTIF_TITLE' | translate }}</span>
       <mat-slide-toggle
         [checked]="notifTitleEnabled"
         (change)="onNotifTitleToggle($event.checked)"
@@ -67,13 +67,13 @@
   <!-- Sezione 3: Calendario -->
   <section class="settings-section">
     <div class="section-header">
-      <span class="section-label">Calendario</span>
+      <span class="section-label">{{ 'SETTINGS.CALENDAR_SECTION' | translate }}</span>
     </div>
 
     <div class="toggle-row">
       <div class="toggle-label-group">
-        <span class="toggle-label">Mostra note senza promemoria</span>
-        <span class="toggle-sublabel">Quando disattivato, appaiono solo le note con promemoria</span>
+        <span class="toggle-label">{{ 'SETTINGS.SHOW_ALL_NOTES' | translate }}</span>
+        <span class="toggle-sublabel">{{ 'SETTINGS.SHOW_ALL_NOTES_DESC' | translate }}</span>
       </div>
       <mat-slide-toggle
         [checked]="calendarShowAllNotes"
@@ -86,7 +86,33 @@
 
   <mat-divider></mat-divider>
 
-  <!-- Sezione aggiornamento app (condizionale) -->
+  <!-- Sezione 4: Lingua -->
+  <section class="settings-section">
+    <div class="section-header">
+      <span class="section-label">{{ 'SETTINGS.LANGUAGE' | translate }}</span>
+    </div>
+
+    <mat-radio-group class="view-options" [value]="language" (change)="onLanguageChange($event.value)">
+      <label class="view-option" [class.view-option--active]="language === 'it'">
+        <mat-radio-button value="it" [disableRipple]="true">
+          <div class="view-option-content">
+            <mat-icon>language</mat-icon>
+            <span>Italiano</span>
+          </div>
+        </mat-radio-button>
+      </label>
+      <label class="view-option" [class.view-option--active]="language === 'en'">
+        <mat-radio-button value="en" [disableRipple]="true">
+          <div class="view-option-content">
+            <mat-icon>language</mat-icon>
+            <span>English</span>
+          </div>
+        </mat-radio-button>
+      </label>
+    </mat-radio-group>
+  </section>
+
+  <!-- Aggiornamento app (condizionale) -->
   <ng-container *ngIf="updateAvailable">
     <mat-divider></mat-divider>
     <section class="settings-section update-section">
@@ -94,30 +120,32 @@
         <div class="update-info">
           <mat-icon class="update-icon">system_update</mat-icon>
           <div>
-            <span class="section-label">Aggiornamento disponibile</span>
-            <span class="update-sublabel">Una nuova versione di punto! è pronta.</span>
+            <span class="section-label">{{ 'UPDATE.TITLE' | translate }}</span>
+            <span class="update-sublabel">{{ 'UPDATE.MESSAGE' | translate }}</span>
           </div>
         </div>
         <button mat-flat-button class="update-btn" (click)="reloadApp()">
-          Aggiorna
+          {{ 'UPDATE.UPDATE_BTN' | translate }}
         </button>
       </div>
     </section>
   </ng-container>
 
-  <!-- Sezione 4: Zona pericolosa -->
+  <mat-divider></mat-divider>
+
+  <!-- Sezione 5: Zona pericolosa -->
   <section class="danger-zone">
     <div class="section-header">
-      <span class="section-label danger-label">Zona pericolosa</span>
+      <span class="section-label danger-label">{{ 'SETTINGS.DANGER_ZONE' | translate }}</span>
     </div>
-    <p class="section-description">Il reset elimina tutte le note e ti permette di impostare una nuova chiave di cifratura.</p>
+    <p class="section-description">{{ 'SETTINGS.DANGER_ZONE_DESC' | translate }}</p>
     <button mat-stroked-button color="warn"
             (click)="confirmResetEncryption()"
             [disabled]="resetInProgress"
             class="reset-btn">
       <mat-spinner *ngIf="resetInProgress" diameter="16"></mat-spinner>
       <mat-icon *ngIf="!resetInProgress">lock_reset</mat-icon>
-      {{ resetInProgress ? 'Reset in corso…' : 'Reset chiave di cifratura' }}
+      {{ resetInProgress ? ('SETTINGS.RESETTING' | translate) : ('SETTINGS.RESET_ENCRYPTION' | translate) }}
     </button>
   </section>
 

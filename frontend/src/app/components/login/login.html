@@ -2,7 +2,7 @@
   <div class="login-inner">
     <div class="login-header">
       <img src="punto_logo_no_bg.png" alt="punto! logo" class="login-logo" />
-      <p class="subtitle mat-body-medium">{{ isRecoveringPassword ? 'Recupera Password' : (isRegistering ? 'Crea un Account' : 'Accedi al tuo Account') }}</p>
+      <p class="subtitle mat-body-medium">{{ isRecoveringPassword ? ('LOGIN.RECOVER_PASSWORD' | translate) : (isRegistering ? ('LOGIN.CREATE_ACCOUNT' | translate) : ('LOGIN.SIGN_IN' | translate)) }}</p>
     </div>
 
     <form autocomplete="on" (ngSubmit)="isRecoveringPassword ? recoverPassword() : onSubmit()">
@@ -13,10 +13,10 @@
 
       <ng-container *ngIf="!isRecoveringPassword">
         <mat-form-field appearance="outline" class="full-width">
-          <mat-label>Password</mat-label>
+          <mat-label>{{ 'LOGIN.PASSWORD' | translate }}</mat-label>
           <input matInput [type]="showPassword ? 'text' : 'password'" name="password" [(ngModel)]="password" required autocomplete="current-password">
           <button mat-icon-button matSuffix type="button" (click)="showPassword = !showPassword"
-                  [attr.aria-label]="showPassword ? 'Nascondi password' : 'Mostra password'">
+                  [attr.aria-label]="showPassword ? ('LOGIN.HIDE_PASSWORD' | translate) : ('LOGIN.SHOW_PASSWORD' | translate)">
             <mat-icon>{{ showPassword ? 'visibility_off' : 'visibility' }}</mat-icon>
           </button>
         </mat-form-field>
@@ -24,33 +24,33 @@
         <ul class="password-requirements" *ngIf="isRegistering && password.length > 0">
           <li [class.met]="passwordReq.minLen">
             <mat-icon>{{ passwordReq.minLen ? 'check_circle' : 'radio_button_unchecked' }}</mat-icon>
-            Minimo 8 caratteri
+            {{ 'LOGIN.REQ_MIN_LEN' | translate }}
           </li>
           <li [class.met]="passwordReq.upper">
             <mat-icon>{{ passwordReq.upper ? 'check_circle' : 'radio_button_unchecked' }}</mat-icon>
-            Almeno 1 lettera maiuscola
+            {{ 'LOGIN.REQ_UPPER' | translate }}
           </li>
           <li [class.met]="passwordReq.number">
             <mat-icon>{{ passwordReq.number ? 'check_circle' : 'radio_button_unchecked' }}</mat-icon>
-            Almeno 1 numero
+            {{ 'LOGIN.REQ_NUMBER' | translate }}
           </li>
           <li [class.met]="passwordReq.special">
             <mat-icon>{{ passwordReq.special ? 'check_circle' : 'radio_button_unchecked' }}</mat-icon>
-            Almeno 1 carattere speciale
+            {{ 'LOGIN.REQ_SPECIAL' | translate }}
           </li>
         </ul>
 
         <mat-form-field appearance="outline" class="full-width" *ngIf="isRegistering">
-          <mat-label>Conferma Password</mat-label>
+          <mat-label>{{ 'LOGIN.CONFIRM_PASSWORD' | translate }}</mat-label>
           <input matInput [type]="showConfirmPassword ? 'text' : 'password'" name="confirmPassword" [(ngModel)]="confirmPassword" required autocomplete="new-password">
           <button mat-icon-button matSuffix type="button" (click)="showConfirmPassword = !showConfirmPassword"
-                  [attr.aria-label]="showConfirmPassword ? 'Nascondi password' : 'Mostra password'">
+                  [attr.aria-label]="showConfirmPassword ? ('LOGIN.HIDE_PASSWORD' | translate) : ('LOGIN.SHOW_PASSWORD' | translate)">
             <mat-icon>{{ showConfirmPassword ? 'visibility_off' : 'visibility' }}</mat-icon>
           </button>
         </mat-form-field>
 
         <div class="forgot-password" *ngIf="!isRegistering">
-          <button mat-button type="button" (click)="isRecoveringPassword = true">Password dimenticata?</button>
+          <button mat-button type="button" (click)="isRecoveringPassword = true">{{ 'LOGIN.FORGOT_PASSWORD' | translate }}</button>
         </div>
       </ng-container>
 
@@ -58,8 +58,8 @@
         <button mat-flat-button type="submit" class="submit-btn"
                 [disabled]="isLoading || (isRecoveringPassword ? !email : (!email || !password || (isRegistering && !passwordAllMet)))">
           <mat-spinner *ngIf="isLoading" diameter="20" color="primary" style="display:inline-block;margin-right:8px;vertical-align:middle;"></mat-spinner>
-          <span *ngIf="!isLoading">{{ isRecoveringPassword ? 'Invia Link di Recupero' : (isRegistering ? 'Registrati' : 'Accedi') }}</span>
-          <span *ngIf="isLoading">{{ isRecoveringPassword ? 'Invio...' : (isRegistering ? 'Registrazione...' : 'Accesso...') }}</span>
+          <span *ngIf="!isLoading">{{ isRecoveringPassword ? ('LOGIN.SEND_RECOVERY' | translate) : (isRegistering ? ('LOGIN.REGISTER' | translate) : ('LOGIN.ACCESS' | translate)) }}</span>
+          <span *ngIf="isLoading">{{ isRecoveringPassword ? ('LOGIN.SENDING' | translate) : (isRegistering ? ('LOGIN.REGISTERING' | translate) : ('LOGIN.LOGGING_IN' | translate)) }}</span>
         </button>
       </div>
     </form>
@@ -71,12 +71,12 @@
       <button mat-button type="button"
               (click)="isRegistering = !isRegistering; isRecoveringPassword = false"
               *ngIf="!isRecoveringPassword">
-        {{ isRegistering ? 'Hai già un account? Accedi' : 'Non hai un account? Registrati' }}
+        {{ isRegistering ? ('LOGIN.HAS_ACCOUNT' | translate) : ('LOGIN.NO_ACCOUNT' | translate) }}
       </button>
       <button mat-button type="button"
               (click)="isRecoveringPassword = false"
               *ngIf="isRecoveringPassword">
-        Torna al Login
+        {{ 'LOGIN.BACK_TO_LOGIN' | translate }}
       </button>
     </div>
   </div>

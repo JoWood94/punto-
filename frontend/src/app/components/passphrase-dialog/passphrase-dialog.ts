@@ -6,6 +6,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
+import { TranslateModule } from '@ngx-translate/core';
 
 export interface PassphraseDialogData {
   mode: 'setup' | 'unlock';
@@ -16,19 +17,17 @@ export type PassphraseDialogResult = string | 'reset' | null;
 @Component({
   selector: 'app-passphrase-dialog',
   standalone: true,
-  imports: [CommonModule, FormsModule, MatDialogModule, MatButtonModule, MatIconModule, MatFormFieldModule, MatInputModule],
+  imports: [CommonModule, FormsModule, MatDialogModule, MatButtonModule, MatIconModule, MatFormFieldModule, MatInputModule, TranslateModule],
   template: `
-    <h2 mat-dialog-title>{{ isSetup ? 'Proteggi le tue note' : 'Sblocca le tue note' }}</h2>
+    <h2 mat-dialog-title>{{ (isSetup ? 'PASSPHRASE.TITLE_SETUP' : 'PASSPHRASE.TITLE_UNLOCK') | translate }}</h2>
 
     <mat-dialog-content>
       <p class="dialog-hint">
-        {{ isSetup
-          ? 'Questa passphrase cifra le tue note. Non è recuperabile — conservala in un posto sicuro.'
-          : 'Inserisci la passphrase per accedere alle tue note cifrate.' }}
+        {{ (isSetup ? 'PASSPHRASE.HINT_SETUP' : 'PASSPHRASE.HINT_UNLOCK') | translate }}
       </p>
 
       <mat-form-field appearance="outline" class="full-width">
-        <mat-label>Passphrase</mat-label>
+        <mat-label>{{ 'PASSPHRASE.LABEL' | translate }}</mat-label>
         <input matInput
           [(ngModel)]="passphrase"
           [type]="showPassphrase ? 'text' : 'password'"
@@ -42,7 +41,7 @@ export type PassphraseDialogResult = string | 'reset' | null;
 
       @if (isSetup) {
         <mat-form-field appearance="outline" class="full-width" style="margin-top: 8px;">
-          <mat-label>Conferma passphrase</mat-label>
+          <mat-label>{{ 'PASSPHRASE.CONFIRM_LABEL' | translate }}</mat-label>
           <input matInput
             [(ngModel)]="confirmPassphrase"
             [type]="showConfirm ? 'text' : 'password'"
@@ -51,7 +50,7 @@ export type PassphraseDialogResult = string | 'reset' | null;
             <mat-icon>{{ showConfirm ? 'visibility_off' : 'visibility' }}</mat-icon>
           </button>
           @if (confirmPassphrase && passphrase !== confirmPassphrase) {
-            <mat-hint style="color: var(--mdc-filled-text-field-error-active-indicator-color, #B3261E)">Le passphrase non coincidono</mat-hint>
+            <mat-hint style="color: var(--mdc-filled-text-field-error-active-indicator-color, #B3261E)">{{ 'PASSPHRASE.MISMATCH' | translate }}</mat-hint>
           }
         </mat-form-field>
       }
@@ -63,7 +62,7 @@ export type PassphraseDialogResult = string | 'reset' | null;
 
     <mat-dialog-actions align="end">
       @if (isSetup) {
-        <button mat-button (click)="cancel()">Annulla</button>
+        <button mat-button (click)="cancel()">{{ 'COMMON.CANCEL' | translate }}</button>
       }
       @if (!isSetup) {
         <button mat-button color="warn" (click)="reset()" title="Elimina la secret e ricomincia il setup">
@@ -71,7 +70,7 @@ export type PassphraseDialogResult = string | 'reset' | null;
         </button>
       }
       <button mat-flat-button (click)="confirm()" [disabled]="!canConfirm">
-        {{ isSetup ? 'Imposta' : 'Sblocca' }}
+        {{ (isSetup ? 'PASSPHRASE.SET' : 'PASSPHRASE.UNLOCK') | translate }}
       </button>
     </mat-dialog-actions>
   `,

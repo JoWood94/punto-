@@ -30,8 +30,8 @@
           *ngIf="!isMobile"
           (click)="currentMainView = 'calendar'; activeNote = undefined"
           [class.calendar-btn-active]="currentMainView === 'calendar' && activeNote === undefined"
-          matTooltip="Vista Calendario"
-          aria-label="Vista Calendario"
+          [matTooltip]="'MENU.CALENDAR_VIEW' | translate"
+          [attr.aria-label]="'MENU.CALENDAR_VIEW' | translate"
           class="header-btn-animated">
     <mat-icon>calendar_month</mat-icon>
   </button>
@@ -79,7 +79,7 @@
            role="status"
            aria-live="polite">
         <mat-icon>{{ isOffline ? 'cloud_off' : 'sync_problem' }}</mat-icon>
-        <span>{{ isOffline ? 'Offline' : 'Errore di connessione' }}</span>
+        <span>{{ (isOffline ? 'CONNECTIVITY.OFFLINE' : 'CONNECTIVITY.ERROR') | translate }}</span>
       </div>
 
       <!-- Notes list -->
@@ -99,7 +99,7 @@
             <!-- Sezione "Fissate" -->
             <ng-container *ngIf="pinnedNotes.length > 0">
               <div class="section-header-collapsible" (click)="isPinnedSectionExpanded = !isPinnedSectionExpanded">
-                <span>Fissate</span>
+                <span>{{ 'DASHBOARD.PINNED' | translate }}</span>
                 <mat-icon class="section-chevron" [class.rotated]="!isPinnedSectionExpanded">expand_more</mat-icon>
               </div>
               <ng-container *ngIf="isPinnedSectionExpanded">
@@ -112,7 +112,7 @@
             <!-- Sezione "Note" -->
             <ng-container *ngIf="plainNotes.length > 0">
               <div class="section-header-collapsible" (click)="isNotesSectionExpanded = !isNotesSectionExpanded">
-                <span>Note</span>
+                <span>{{ 'DASHBOARD.NOTES_SECTION' | translate }}</span>
                 <mat-icon class="section-chevron" [class.rotated]="!isNotesSectionExpanded">expand_more</mat-icon>
               </div>
               <ng-container *ngIf="isNotesSectionExpanded">
@@ -124,14 +124,14 @@
 
             <div class="empty-state" *ngIf="pinnedNotes.length === 0 && plainNotes.length === 0 && !searchQuery">
               <mat-icon>edit_note</mat-icon>
-              <p>Ancora nessuna nota.</p>
+              <p>{{ 'EMPTY.NO_NOTES' | translate }}</p>
               <button mat-flat-button color="primary" (click)="openNoteEditor()" *ngIf="!isMobile">
-                <span class="empty-state-plus">+</span> Nuova nota
+                {{ 'EMPTY.NEW_NOTE_BTN' | translate }}
               </button>
             </div>
             <div class="empty-state" *ngIf="pinnedNotes.length === 0 && plainNotes.length === 0 && searchQuery">
               <mat-icon>search_off</mat-icon>
-              <p>Nessun risultato.</p>
+              <p>{{ 'EMPTY.NO_RESULTS' | translate }}</p>
             </div>
 
           </ng-container>
@@ -142,7 +142,7 @@
             <!-- Sezione "Attivi" -->
             <ng-container *ngIf="activeReminderNotes.length > 0">
               <div class="section-header-collapsible" (click)="isActiveReminderSectionExpanded = !isActiveReminderSectionExpanded">
-                <span>Attivi</span>
+                <span>{{ 'DASHBOARD.ACTIVE' | translate }}</span>
                 <mat-icon class="section-chevron" [class.rotated]="!isActiveReminderSectionExpanded">expand_more</mat-icon>
               </div>
               <ng-container *ngIf="isActiveReminderSectionExpanded">
@@ -155,7 +155,7 @@
             <!-- Sezione "Ricorrenti" -->
             <ng-container *ngIf="recurringReminderNotes.length > 0">
               <div class="section-header-collapsible" (click)="isReminderRecurringSectionExpanded = !isReminderRecurringSectionExpanded">
-                <span>Ricorrenti</span>
+                <span>{{ 'DASHBOARD.RECURRING' | translate }}</span>
                 <mat-icon class="section-chevron" [class.rotated]="!isReminderRecurringSectionExpanded">expand_more</mat-icon>
               </div>
               <ng-container *ngIf="isReminderRecurringSectionExpanded">
@@ -168,7 +168,7 @@
             <!-- Sezione "Evasi" -->
             <ng-container *ngIf="evadedNotes.length > 0">
               <div class="section-header-collapsible" (click)="isEvadedSectionExpanded = !isEvadedSectionExpanded">
-                <span>Evasi</span>
+                <span>{{ 'DASHBOARD.EVADED' | translate }}</span>
                 <mat-icon class="section-chevron" [class.rotated]="!isEvadedSectionExpanded">expand_more</mat-icon>
               </div>
               <ng-container *ngIf="isEvadedSectionExpanded">
@@ -181,15 +181,15 @@
             <div class="empty-state"
                  *ngIf="activeReminderNotes.length === 0 && recurringReminderNotes.length === 0 && evadedNotes.length === 0 && !searchQuery">
               <mat-icon>notifications_none</mat-icon>
-              <p>Nessun promemoria.</p>
+              <p>{{ 'EMPTY.NO_REMINDERS' | translate }}</p>
               <button mat-flat-button color="primary" (click)="openNoteEditor()" *ngIf="!isMobile">
-                <span class="empty-state-plus">+</span> Nuova nota con promemoria
+                {{ 'EMPTY.NEW_REMINDER_BTN' | translate }}
               </button>
             </div>
             <div class="empty-state"
                  *ngIf="activeReminderNotes.length === 0 && recurringReminderNotes.length === 0 && evadedNotes.length === 0 && searchQuery">
               <mat-icon>search_off</mat-icon>
-              <p>Nessun risultato.</p>
+              <p>{{ 'EMPTY.NO_RESULTS' | translate }}</p>
             </div>
 
           </ng-container>
@@ -204,13 +204,13 @@
                   [class.lmt-btn--active]="activeView === 'notes'"
                   (click)="activeView = 'notes'">
             <mat-icon>edit_note</mat-icon>
-            <span>Note</span>
+            <span>{{ 'NAV.NOTES' | translate }}</span>
           </button>
           <button class="lmt-btn" type="button"
                   [class.lmt-btn--active]="activeView === 'reminders'"
                   (click)="activeView = 'reminders'">
             <mat-icon>notifications</mat-icon>
-            <span>Promemoria</span>
+            <span>{{ 'NAV.REMINDERS' | translate }}</span>
           </button>
         </div>
       </div>
@@ -228,7 +228,7 @@
               <mat-icon class="note-card-bell" *ngIf="note.reminderStatus === 'completed'">task_alt</mat-icon>
               <mat-icon class="note-card-bell" *ngIf="note.recurrence && note.recurrence !== 'none'">repeat</mat-icon>
               <mat-icon class="note-card-bell" *ngIf="note.reminderTime && note.reminderStatus !== 'completed' && (!note.recurrence || note.recurrence === 'none')">notifications</mat-icon>
-              <span class="note-item-title">{{ note.title || 'Nuova Nota' }}</span>
+              <span class="note-item-title">{{ note.title || ('NOTE.UNTITLED' | translate) }}</span>
             </div>
 
             <span class="note-item-preview"
@@ -265,7 +265,7 @@
             <button mat-icon-button
                     *ngIf="!(activeView === 'reminders' && note.reminderTime)"
                     (click)="togglePin(note, $event)"
-                    [matTooltip]="note.pinned ? 'Rimuovi pin' : 'Fissa nota'"
+                    [matTooltip]="note.pinned ? ('NOTE.UNPIN' | translate) : ('NOTE.PIN' | translate)"
                     class="pin-btn"
                     [class.pin-active]="note.pinned">
               <mat-icon>push_pin</mat-icon>
@@ -297,7 +297,7 @@
     <div class="sidenav-fab-area" *ngIf="activeNote === undefined && !isMobile">
       <button mat-fab extended (click)="openNoteEditor()" class="new-note-fab">
         <mat-icon>edit</mat-icon>
-        Nuova Nota
+        {{ 'FAB.NEW_NOTE' | translate }}
       </button>
     </div>
   </mat-sidenav-content>
@@ -309,7 +309,7 @@
   <button mat-fab
           (click)="currentMainView === 'calendar' ? openNoteEditorFromCalendar() : openNoteEditor()"
           class="new-note-fab"
-          aria-label="Nuova nota">
+          [attr.aria-label]="'FAB.NEW_NOTE_ARIA' | translate">
     <mat-icon>edit</mat-icon>
   </button>
 </div>
@@ -329,21 +329,21 @@
           (click)="setMobileNav('notes')"
           aria-label="Note">
     <mat-icon>edit_note</mat-icon>
-    <span class="seg-label">Note</span>
+    <span class="seg-label">{{ 'NAV.NOTES' | translate }}</span>
   </button>
   <button class="unified-toolbar-seg" type="button"
           [class.unified-toolbar-seg--active]="mobileNav === 'reminders'"
           (click)="setMobileNav('reminders')"
-          aria-label="Promemoria">
+          [attr.aria-label]="'NAV.REMINDERS' | translate">
     <mat-icon>notifications</mat-icon>
-    <span class="seg-label">Promemoria</span>
+    <span class="seg-label">{{ 'NAV.REMINDERS' | translate }}</span>
   </button>
   <button class="unified-toolbar-seg" type="button"
           [class.unified-toolbar-seg--active]="mobileNav === 'calendar'"
           (click)="setMobileNav('calendar')"
-          aria-label="Calendario">
+          [attr.aria-label]="'NAV.CALENDAR' | translate">
     <mat-icon>calendar_month</mat-icon>
-    <span class="seg-label">Calendario</span>
+    <span class="seg-label">{{ 'NAV.CALENDAR' | translate }}</span>
   </button>
 </div>
 
@@ -351,10 +351,10 @@
 <mat-menu #settingsMenu="matMenu" xPosition="before">
   <button mat-menu-item (click)="openSettings()">
     <mat-icon>settings</mat-icon>
-    <span>Impostazioni</span>
+    <span>{{ 'MENU.SETTINGS' | translate }}</span>
   </button>
   <button mat-menu-item (click)="logout()">
     <mat-icon>logout</mat-icon>
-    <span>Esci</span>
+    <span>{{ 'MENU.LOGOUT' | translate }}</span>
   </button>
 </mat-menu>

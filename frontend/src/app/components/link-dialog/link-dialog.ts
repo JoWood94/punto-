@@ -6,6 +6,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatIconModule } from '@angular/material/icon';
+import { TranslateModule } from '@ngx-translate/core';
 
 export interface LinkDialogData {
   url: string;
@@ -23,7 +24,7 @@ export interface LinkDialogResult {
   imports: [
     CommonModule, FormsModule,
     MatDialogModule, MatButtonModule,
-    MatFormFieldModule, MatInputModule, MatIconModule
+    MatFormFieldModule, MatInputModule, MatIconModule, TranslateModule,
   ],
   templateUrl: './link-dialog.html',
   styleUrls: ['./link-dialog.scss']

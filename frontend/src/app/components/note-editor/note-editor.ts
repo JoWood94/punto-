@@ -28,6 +28,8 @@ import {
 } from '../../services/note';
 import { AuthService } from '../../services/auth';
 import { LinkDialogComponent } from '../link-dialog/link-dialog';
+import { TranslateModule } from '@ngx-translate/core';
+import { TranslationService } from '../../services/translation';
 // TODO: import Storage riabilitare con piano Firebase Storage
 // import { getStorage, ref as storageRef, uploadBytesResumable, getDownloadURL, deleteObject } from 'firebase/storage';
 // import { getApp } from 'firebase/app';
@@ -42,7 +44,7 @@ import { LinkDialogComponent } from '../link-dialog/link-dialog';
     MatTooltipModule, MatAutocompleteModule,
     MatCheckboxModule, MatDatepickerModule, MatNativeDateModule,
     MatSelectModule, MatChipsModule, MatMenuModule, MatDialogModule,
-    DragDropModule
+    DragDropModule, TranslateModule,
   ],
   templateUrl: './note-editor.html',
   styleUrls: ['./note-editor.scss']
@@ -94,6 +96,7 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewInit, Af
   private sanitizer = inject(DomSanitizer);
   private cdr = inject(ChangeDetectorRef);
   private dialog = inject(MatDialog);
+  translationService = inject(TranslationService);
 
   /** Set to true whenever the blocks array changes and text blocks need HTML re-init. */
   private textBlocksNeedInit = false;
@@ -102,7 +105,8 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewInit, Af
   /** Set to true when a new note is created — focuses the title input after DOM init. */
   private pendingFocusTitleInput = false;
 
-  private readonly PLACEHOLDER_TITLE = 'Nuova Nota';
+  private get PLACEHOLDER_TITLE(): string { return this.translationService.instant('NOTE.UNTITLED'); }
+  get dateLocale(): string { return this.translationService.pipeDateLocale; }
   private savedNoteId: string | null = null;
   private isNewNote = false;
   private autoSaveTimer: any;
@@ -690,7 +694,7 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewInit, Af
   getNextRecurrenceLabel(block: any): string {
     if (!block.time || !block.recurrence || block.recurrence === 'none') return '';
     const next = this.getNextRecurrence(block.time, block.recurrence);
-    return new Date(next).toLocaleDateString('it-IT', { day: 'numeric', month: 'short' });
+    return new Date(next).toLocaleDateString(this.translationService.locale, { day: 'numeric', month: 'short' });
   }
 
   // ─── Image Block ────────────────────────────────────────────────────────────

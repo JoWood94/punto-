@@ -95,31 +95,47 @@ async function checkAndSendReminders() {
         tokensCache[uid] = {
           tokens: userData.fcmTokens ?? [],
           notifTitleEnabled: userData.notifTitleEnabled === true,
+          language: userData.language ?? 'it',
         };
       }
 
-      const { tokens, notifTitleEnabled } = tokensCache[uid];
+      const { tokens, notifTitleEnabled, language } = tokensCache[uid];
+
+      const NOTIF_STRINGS = {
+        it: {
+          defaultTitle: 'punto! — Promemoria',
+          bodyWithDate: (d) => `Hai un promemoria per il ${d}`,
+          bodyNoDate: 'Hai un promemoria in scadenza!',
+          timeZone: 'Europe/Rome',
+        },
+        en: {
+          defaultTitle: 'punto! — Reminder',
+          bodyWithDate: (d) => `You have a reminder for ${d}`,
+          bodyNoDate: 'You have an upcoming reminder!',
+          timeZone: 'UTC',
+        },
+      };
+      const strings = NOTIF_STRINGS[language] ?? NOTIF_STRINGS['it'];
 
       if (tokens && tokens.length > 0) {
         const PGP_MARKER = '-----BEGIN PGP MESSAGE-----';
         const isEncrypted = (val) => typeof val === 'string' && val.startsWith(PGP_MARKER);
 
-        // Titolo e contenuto potrebbero essere cifrati E2E → usa testo generico
-        // reminderTime non è cifrato → formatta data/ora per dare contesto
+        const locale = language === 'en' ? 'en-US' : 'it-IT';
         const reminderDate = reminderMs
-          ? new Date(reminderMs).toLocaleString('it-IT', {
+          ? new Date(reminderMs).toLocaleString(locale, {
               day: '2-digit', month: '2-digit', year: 'numeric',
               hour: '2-digit', minute: '2-digit',
-              timeZone: 'Europe/Rome'
+              timeZone: strings.timeZone
             })
           : null;
         const rawTitle = note.title;
         const msgTitle = (notifTitleEnabled && rawTitle && !isEncrypted(rawTitle))
           ? rawTitle
-          : 'punto! — Promemoria';
+          : strings.defaultTitle;
         const bodyText = reminderDate
-          ? `Hai un promemoria per il ${reminderDate}`
-          : 'Hai un promemoria in scadenza!';
+          ? strings.bodyWithDate(reminderDate)
+          : strings.bodyNoDate;
 
         try {
           const response = await messaging.sendEachForMulticast({

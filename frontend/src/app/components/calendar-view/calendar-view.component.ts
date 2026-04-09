@@ -8,6 +8,9 @@ import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { Note } from '../../services/note';
+import { inject } from '@angular/core';
+import { TranslateModule } from '@ngx-translate/core';
+import { TranslationService } from '../../services/translation';
 
 export type CalendarViewType = 'day' | 'week' | 'month';
 
@@ -28,7 +31,7 @@ export interface CalendarMonth {
 @Component({
   selector: 'app-calendar-view',
   standalone: true,
-  imports: [CommonModule, MatButtonModule, MatButtonToggleModule, MatIconModule, MatTooltipModule],
+  imports: [CommonModule, MatButtonModule, MatButtonToggleModule, MatIconModule, MatTooltipModule, TranslateModule],
   templateUrl: './calendar-view.component.html',
   styleUrls: ['./calendar-view.component.scss']
 })
@@ -47,7 +50,19 @@ export class CalendarViewComponent implements OnChanges, AfterViewInit {
   dayNotes: Note[] = [];
   months: CalendarMonth[] = [];
 
-  readonly weekHeaders = ['Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab', 'Dom'];
+  private translationService = inject(TranslationService);
+
+  get weekHeaders(): string[] {
+    const locale = this.translationService.locale;
+    // Jan 1 2024 is a Monday
+    const base = new Date(2024, 0, 1);
+    return Array.from({ length: 7 }, (_, i) => {
+      const d = new Date(base);
+      d.setDate(base.getDate() + i);
+      const name = d.toLocaleDateString(locale, { weekday: 'short' });
+      return name.charAt(0).toUpperCase() + name.slice(1, 3);
+    });
+  }
 
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['notes'] || changes['isMobile']) {
@@ -127,7 +142,7 @@ export class CalendarViewComponent implements OnChanges, AfterViewInit {
       };
     });
 
-    const label = firstDay.toLocaleDateString('it-IT', { month: 'long', year: 'numeric' });
+    const label = firstDay.toLocaleDateString(this.translationService.locale, { month: 'long', year: 'numeric' });
     return { year, month, label, days };
   }
 
@@ -295,11 +310,11 @@ export class CalendarViewComponent implements OnChanges, AfterViewInit {
 
   formatTime(reminderTime: number | null | undefined): string {
     if (!reminderTime) return '';
-    return new Date(reminderTime).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
+    return new Date(reminderTime).toLocaleTimeString(this.translationService.locale, { hour: '2-digit', minute: '2-digit' });
   }
 
   get headerLabel(): string {
-    const locale = 'it-IT';
+    const locale = this.translationService.locale;
     if (this.viewType === 'month') {
       return this.currentDate.toLocaleDateString(locale, { month: 'long', year: 'numeric' });
     }

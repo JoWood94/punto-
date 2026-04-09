@@ -1,0 +1,171 @@
+{
+  "COMMON": {
+    "CANCEL": "Annulla",
+    "CONFIRM": "Conferma",
+    "DELETE": "Elimina",
+    "ENABLE": "Attiva",
+    "SAVE": "Salva",
+    "CLOSE": "Chiudi"
+  },
+  "SEARCH": {
+    "PLACEHOLDER_NOTES": "Cerca note",
+    "PLACEHOLDER_REMINDERS": "Cerca promemoria",
+    "CLEAR": "Cancella ricerca"
+  },
+  "NAV": {
+    "NOTES": "Note",
+    "REMINDERS": "Promemoria",
+    "CALENDAR": "Calendario"
+  },
+  "MENU": {
+    "SETTINGS": "Impostazioni",
+    "LOGOUT": "Esci",
+    "CALENDAR_VIEW": "Vista Calendario"
+  },
+  "FAB": {
+    "NEW_NOTE": "Nuova Nota",
+    "NEW_NOTE_ARIA": "Nuova nota"
+  },
+  "CONNECTIVITY": {
+    "OFFLINE": "Offline",
+    "ERROR": "Errore di connessione"
+  },
+  "DASHBOARD": {
+    "PINNED": "Fissate",
+    "NOTES_SECTION": "Note",
+    "ACTIVE": "Attivi",
+    "RECURRING": "Ricorrenti",
+    "EVADED": "Evasi"
+  },
+  "EMPTY": {
+    "NO_NOTES": "Ancora nessuna nota.",
+    "NEW_NOTE_BTN": "+ Nuova nota",
+    "NO_REMINDERS": "Nessun promemoria.",
+    "NEW_REMINDER_BTN": "+ Nuova nota con promemoria",
+    "NO_RESULTS": "Nessun risultato."
+  },
+  "NOTE": {
+    "UNTITLED": "Nuova Nota",
+    "DELETE_TITLE": "Elimina nota",
+    "DELETE_MSG": "Vuoi eliminare \"{{ title }}\"? L'operazione non è reversibile.",
+    "PIN": "Fissa nota",
+    "UNPIN": "Rimuovi pin",
+    "EVADE": "Evadi"
+  },
+  "LOGIN": {
+    "RECOVER_PASSWORD": "Recupera Password",
+    "CREATE_ACCOUNT": "Crea un Account",
+    "SIGN_IN": "Accedi al tuo Account",
+    "PASSWORD": "Password",
+    "CONFIRM_PASSWORD": "Conferma Password",
+    "REQ_MIN_LEN": "Minimo 8 caratteri",
+    "REQ_UPPER": "Almeno 1 lettera maiuscola",
+    "REQ_NUMBER": "Almeno 1 numero",
+    "REQ_SPECIAL": "Almeno 1 carattere speciale",
+    "FORGOT_PASSWORD": "Password dimenticata?",
+    "SEND_RECOVERY": "Invia Link di Recupero",
+    "SENDING": "Invio...",
+    "REGISTER": "Registrati",
+    "REGISTERING": "Registrazione...",
+    "ACCESS": "Accedi",
+    "LOGGING_IN": "Accesso...",
+    "HAS_ACCOUNT": "Hai già un account? Accedi",
+    "NO_ACCOUNT": "Non hai un account? Registrati",
+    "BACK_TO_LOGIN": "Torna al Login",
+    "HIDE_PASSWORD": "Nascondi password",
+    "SHOW_PASSWORD": "Mostra password"
+  },
+  "EDITOR": {
+    "SELECT_DATE": "Seleziona data",
+    "UNTITLED_PLACEHOLDER": "Nuova Nota",
+    "RECURRENCE": {
+      "ONCE": "Una volta",
+      "DAILY": "Ogni giorno",
+      "WEEKLY": "Ogni settimana",
+      "MONTHLY": "Ogni mese",
+      "YEARLY": "Ogni anno"
+    },
+    "OVERDUE_PREFIX": "Scaduto il",
+    "EVADED_NEXT_PREFIX": "Evaso — prossima",
+    "EVADED": "Evaso",
+    "EVADE_RECURRING": "Evadi ricorrenza scaduta",
+    "ADD_REMINDER": "Aggiungi promemoria",
+    "REMOVE_REMINDER": "Rimuovi promemoria",
+    "ADD_BLOCK": "Aggiungi blocco",
+    "FORMAT": {
+      "BOLD": "Grassetto",
+      "ITALIC": "Corsivo",
+      "UNDERLINE": "Sottolineato",
+      "STRIKETHROUGH": "Barrato",
+      "BULLET_LIST": "Lista puntata",
+      "ORDERED_LIST": "Lista numerata",
+      "REMOVE_FORMAT": "Rimuovi formattazione"
+    }
+  },
+  "CALENDAR": {
+    "DAY": "Giorno",
+    "WEEK": "Settimana",
+    "MONTH": "Mese",
+    "TODAY": "Oggi",
+    "EMPTY": "Nessuna nota con promemoria in questo giorno"
+  },
+  "LINK_DIALOG": {
+    "TITLE": "Collegamento",
+    "URL_LABEL": "URL",
+    "URL_REQUIRED": "URL obbligatorio",
+    "DISPLAY_LABEL": "Testo visualizzato (opzionale)",
+    "DISPLAY_PLACEHOLDER": "es. Apri documento",
+    "DISPLAY_HINT": "Se vuoto, viene mostrato l'URL"
+  },
+  "PASSPHRASE": {
+    "TITLE_SETUP": "Proteggi le tue note",
+    "TITLE_UNLOCK": "Sblocca le tue note",
+    "HINT_SETUP": "Questa passphrase cifra le tue note. Non è recuperabile — conservala in un posto sicuro.",
+    "HINT_UNLOCK": "Inserisci la passphrase per accedere alle tue note cifrate.",
+    "LABEL": "Passphrase",
+    "CONFIRM_LABEL": "Conferma passphrase",
+    "MISMATCH": "Le passphrase non coincidono",
+    "SET": "Imposta",
+    "UNLOCK": "Sblocca"
+  },
+  "UPDATE": {
+    "TITLE": "Aggiornamento disponibile",
+    "MESSAGE": "Una nuova versione di punto! è pronta.",
+    "UPDATE_NOW": "Aggiorna ora",
+    "LATER": "Più tardi",
+    "UPDATE_BTN": "Aggiorna"
+  },
+  "SETTINGS": {
+    "DEFAULT_VIEW": "Vista di default",
+    "ONLY_MOBILE": "solo mobile",
+    "DEFAULT_VIEW_DESC": "Su desktop lista e calendario sono sempre mostrati insieme.",
+    "NOTIF_TITLE": "Titolo nelle notifiche",
+    "SHOW_NOTIF_TITLE": "Mostra titolo nella notifica",
+    "NOTIF_TITLE_DIALOG_TITLE": "Titolo nelle notifiche",
+    "NOTIF_TITLE_DIALOG_MSG": "Attivando questa opzione, il titolo della nota verrà salvato senza cifratura per poter essere incluso nelle notifiche push.",
+    "CALENDAR_SECTION": "Calendario",
+    "SHOW_ALL_NOTES": "Mostra note senza promemoria",
+    "SHOW_ALL_NOTES_DESC": "Quando disattivato, appaiono solo le note con promemoria",
+    "DANGER_ZONE": "Zona pericolosa",
+    "DANGER_ZONE_DESC": "Il reset elimina tutte le note e ti permette di impostare una nuova chiave di cifratura.",
+    "RESET_ENCRYPTION": "Reset chiave di cifratura",
+    "RESET_ENCRYPTION_DIALOG_TITLE": "Reset chiave di cifratura",
+    "RESET_ENCRYPTION_DIALOG_MSG": "Questa operazione eliminerà tutte le tue note e resetterà la chiave di cifratura. Non è possibile recuperare i dati. Sei sicuro di voler continuare?",
+    "DELETE_AND_RESET": "Elimina tutto e resetta",
+    "RESETTING": "Reset in corso…",
+    "NO_CONNECTION": "Nessuna connessione. Connettiti e riprova.",
+    "RESET_ERROR": "Errore durante il reset. Riprova.",
+    "LANGUAGE": "Lingua"
+  },
+  "CRYPTO": {
+    "SETUP_ERROR": "Errore durante il setup della cifratura. Riprova.",
+    "RESET_TITLE": "Resetta secret di crittografia?",
+    "RESET_MSG": "Eliminerai la secret e dovrai reimpostarne una nuova. Le note attuali saranno ancora cifrate con la vecchia secret.",
+    "RESET_CONFIRM": "Resetta"
+  },
+  "NOTIF": {
+    "TITLE": "punto! — Promemoria",
+    "BODY_WITH_DATE": "Hai un promemoria per il {{date}}",
+    "BODY_NO_DATE": "Hai un promemoria in scadenza!"
+  }
+}

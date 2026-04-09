@@ -24,6 +24,8 @@
     "@angular/platform-browser": "^21.2.0",
     "@angular/router": "^21.2.0",
     "@angular/service-worker": "^21.2.0",
+    "@ngx-translate/core": "^17.0.0",
+    "@ngx-translate/http-loader": "^17.0.0",
     "firebase": "^12.11.0",
     "openpgp": "^6.3.0",
     "rxjs": "~7.8.0",

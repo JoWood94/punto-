@@ -10,7 +10,7 @@
             (focus)="onNonTextFieldFocus()"
             (blur)="onNonTextFieldBlur()">
       <mat-icon>event</mat-icon>
-      <span>{{ (reminderBlock.date | date:'EEE d MMM':'':'it') ?? 'Seleziona data' }}</span>
+      <span>{{ (reminderBlock.date | date:'EEE d MMM':'':dateLocale) ?? ('EDITOR.SELECT_DATE' | translate) }}</span>
       <input [matDatepicker]="reminderDatepicker"
              [(ngModel)]="reminderBlock.date"
              (ngModelChange)="onReminderChange()"
@@ -50,11 +50,11 @@
             (focus)="onNonTextFieldFocus()"
             (blur)="onNonTextFieldBlur()"
             class="strip-select strip-recurrence">
-      <option value="none">Una volta</option>
-      <option value="daily">Ogni giorno</option>
-      <option value="weekly">Ogni settimana</option>
-      <option value="monthly">Ogni mese</option>
-      <option value="yearly">Ogni anno</option>
+      <option value="none">{{ 'EDITOR.RECURRENCE.ONCE' | translate }}</option>
+      <option value="daily">{{ 'EDITOR.RECURRENCE.DAILY' | translate }}</option>
+      <option value="weekly">{{ 'EDITOR.RECURRENCE.WEEKLY' | translate }}</option>
+      <option value="monthly">{{ 'EDITOR.RECURRENCE.MONTHLY' | translate }}</option>
+      <option value="yearly">{{ 'EDITOR.RECURRENCE.YEARLY' | translate }}</option>
     </select>
 
   </div><!-- /reminder-strip-row -->
@@ -65,21 +65,21 @@
   <div class="strip-badge strip-badge--overdue"
        *ngIf="isSingleOverdue(reminderBlock)">
     <mat-icon>schedule</mat-icon>
-    <span>Scaduto il {{ reminderBlock.time | date:'d MMM, HH:mm':'':'it' }}</span>
+    <span>{{ 'EDITOR.OVERDUE_PREFIX' | translate }} {{ reminderBlock.time | date:'d MMM, HH:mm':'':dateLocale }}</span>
   </div>
 
   <!-- Scaduto ricorrente -->
   <div class="strip-badge strip-badge--overdue"
        *ngIf="isOverdueRecurring(reminderBlock)">
     <mat-icon>schedule</mat-icon>
-    <span>Scaduto il {{ reminderBlock.time | date:'d MMM':'':'it' }}</span>
+    <span>{{ 'EDITOR.OVERDUE_PREFIX' | translate }} {{ reminderBlock.time | date:'d MMM':'':dateLocale }}</span>
   </div>
 
   <!-- Evaso post-scaduto (no undo) -->
   <div class="strip-badge strip-badge--evaded"
        *ngIf="note?.id && reminderBlock.recurrence !== 'none' && reminderBlock._evaded && reminderBlock._wasOverdue">
     <mat-icon>check_circle</mat-icon>
-    <span>Evaso — prossima {{ reminderBlock.time | date:'d MMM':'':'it' }}</span>
+    <span>{{ 'EDITOR.EVADED_NEXT_PREFIX' | translate }} {{ reminderBlock.time | date:'d MMM':'':dateLocale }}</span>
   </div>
 
   <!-- Evaso ricorrente con undo -->
@@ -88,7 +88,7 @@
           (click)="undoRecurringEvasion(reminderBlock)"
           matTooltip="Tocca per annullare evasione">
     <mat-icon>task_alt</mat-icon>
-    <span>Evaso — prossima {{ reminderBlock.time | date:'d MMM':'':'it' }}</span>
+    <span>{{ 'EDITOR.EVADED_NEXT_PREFIX' | translate }} {{ reminderBlock.time | date:'d MMM':'':dateLocale }}</span>
     <mat-icon class="undo-icon">undo</mat-icon>
   </button>
 
@@ -98,7 +98,7 @@
           (click)="undoReminderCompleted(reminderBlock)"
           matTooltip="Tocca per annullare">
     <mat-icon>task_alt</mat-icon>
-    <span>Evaso</span>
+    <span>{{ 'EDITOR.EVADED' | translate }}</span>
     <mat-icon class="undo-icon">undo</mat-icon>
   </button>
 
@@ -107,7 +107,7 @@
           *ngIf="note?.id && isOverdueRecurring(reminderBlock)"
           (click)="markReminderCompleted(reminderBlock, true)">
     <mat-icon>check_circle</mat-icon>
-    Evadi ricorrenza scaduta
+    {{ 'EDITOR.EVADE_RECURRING' | translate }}
   </button>
 
   <!-- CTA: segna come evaso -->
@@ -367,39 +367,39 @@
   <div class="format-floating-toolbar" *ngIf="activeTextBlockIndex() !== null && !addBlockMenuOpen()">
     <button mat-icon-button type="button" tabindex="-1"
             (mousedown)="$event.preventDefault()" (click)="execCommand('bold')"
-            [class.format-active]="isBold()" matTooltip="Grassetto">
+            [class.format-active]="isBold()" [matTooltip]="'EDITOR.FORMAT.BOLD' | translate">
       <mat-icon>format_bold</mat-icon>
     </button>
     <button mat-icon-button type="button" tabindex="-1"
             (mousedown)="$event.preventDefault()" (click)="execCommand('italic')"
-            [class.format-active]="isItalic()" matTooltip="Corsivo">
+            [class.format-active]="isItalic()" [matTooltip]="'EDITOR.FORMAT.ITALIC' | translate">
       <mat-icon>format_italic</mat-icon>
     </button>
     <button mat-icon-button type="button" tabindex="-1"
             (mousedown)="$event.preventDefault()" (click)="execCommand('underline')"
-            [class.format-active]="isUnderline()" matTooltip="Sottolineato">
+            [class.format-active]="isUnderline()" [matTooltip]="'EDITOR.FORMAT.UNDERLINE' | translate">
       <mat-icon>format_underlined</mat-icon>
     </button>
     <button mat-icon-button type="button" tabindex="-1"
             (mousedown)="$event.preventDefault()" (click)="execCommand('strikeThrough')"
-            [class.format-active]="isStrikethrough()" matTooltip="Barrato">
+            [class.format-active]="isStrikethrough()" [matTooltip]="'EDITOR.FORMAT.STRIKETHROUGH' | translate">
       <mat-icon>format_strikethrough</mat-icon>
     </button>
     <div class="ftb-divider"></div>
     <button mat-icon-button type="button" tabindex="-1"
             (mousedown)="$event.preventDefault()" (click)="execCommand('insertUnorderedList')"
-            [class.format-active]="isList()" matTooltip="Lista puntata">
+            [class.format-active]="isList()" [matTooltip]="'EDITOR.FORMAT.BULLET_LIST' | translate">
       <mat-icon>format_list_bulleted</mat-icon>
     </button>
     <button mat-icon-button type="button" tabindex="-1"
             (mousedown)="$event.preventDefault()" (click)="execCommand('insertOrderedList')"
-            [class.format-active]="isOrderedList()" matTooltip="Lista numerata">
+            [class.format-active]="isOrderedList()" [matTooltip]="'EDITOR.FORMAT.ORDERED_LIST' | translate">
       <mat-icon>format_list_numbered</mat-icon>
     </button>
     <div class="ftb-divider"></div>
     <button mat-icon-button type="button" tabindex="-1"
             (mousedown)="$event.preventDefault()" (click)="execCommand('removeFormat')"
-            matTooltip="Rimuovi formattazione">
+            [matTooltip]="'EDITOR.FORMAT.REMOVE_FORMAT' | translate">
       <mat-icon>format_clear</mat-icon>
     </button>
   </div>
@@ -440,7 +440,7 @@
         (click)="toggleReminder()"
         [class.reminder-mini-fab--active]="!!reminderBlock"
         [class.reminder-mini-fab--hidden]="activeTextBlockIndex() !== null"
-        [attr.aria-label]="reminderBlock ? 'Rimuovi promemoria' : 'Aggiungi promemoria'">
+        [attr.aria-label]="reminderBlock ? ('EDITOR.REMOVE_REMINDER' | translate) : ('EDITOR.ADD_REMINDER' | translate)">
   <mat-icon>{{ reminderBlock ? 'notifications' : 'notifications_none' }}</mat-icon>
 </button>
 

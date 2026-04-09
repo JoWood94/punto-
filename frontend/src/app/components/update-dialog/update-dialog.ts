@@ -2,11 +2,12 @@ import { Component } from '@angular/core';
 import { MatDialogRef, MatDialogModule } from '@angular/material/dialog';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
+import { TranslateModule } from '@ngx-translate/core';
 
 @Component({
   selector: 'app-update-dialog',
   standalone: true,
-  imports: [MatDialogModule, MatButtonModule, MatIconModule],
+  imports: [MatDialogModule, MatButtonModule, MatIconModule, TranslateModule],
   styles: [`
     .update-dialog-icon {
       display: flex;
@@ -27,18 +28,18 @@ import { MatIconModule } from '@angular/material/icon';
       <div class="update-dialog-icon">
         <mat-icon>system_update</mat-icon>
       </div>
-      <span>Aggiornamento disponibile</span>
+      <span>{{ 'UPDATE.TITLE' | translate }}</span>
     </div>
     <mat-dialog-content>
       <p style="margin:0; opacity:0.7; font-size:0.95rem; line-height:1.5">
-        Una nuova versione di <strong>punto!</strong> è pronta.
+        {{ 'UPDATE.MESSAGE' | translate }}
       </p>
     </mat-dialog-content>
     <mat-dialog-actions align="end">
-      <button mat-button (click)="later()">Più tardi</button>
+      <button mat-button (click)="later()">{{ 'UPDATE.LATER' | translate }}</button>
       <button mat-flat-button (click)="update()"
         style="background:#1C1B1F; color:#FFFBFE; border-radius:99px">
-        Aggiorna ora
+        {{ 'UPDATE.UPDATE_NOW' | translate }}
       </button>
     </mat-dialog-actions>
   `

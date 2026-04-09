@@ -1,0 +1,171 @@
+{
+  "COMMON": {
+    "CANCEL": "Cancel",
+    "CONFIRM": "Confirm",
+    "DELETE": "Delete",
+    "ENABLE": "Enable",
+    "SAVE": "Save",
+    "CLOSE": "Close"
+  },
+  "SEARCH": {
+    "PLACEHOLDER_NOTES": "Search notes",
+    "PLACEHOLDER_REMINDERS": "Search reminders",
+    "CLEAR": "Clear search"
+  },
+  "NAV": {
+    "NOTES": "Notes",
+    "REMINDERS": "Reminders",
+    "CALENDAR": "Calendar"
+  },
+  "MENU": {
+    "SETTINGS": "Settings",
+    "LOGOUT": "Log out",
+    "CALENDAR_VIEW": "Calendar view"
+  },
+  "FAB": {
+    "NEW_NOTE": "New Note",
+    "NEW_NOTE_ARIA": "New note"
+  },
+  "CONNECTIVITY": {
+    "OFFLINE": "Offline",
+    "ERROR": "Connection error"
+  },
+  "DASHBOARD": {
+    "PINNED": "Pinned",
+    "NOTES_SECTION": "Notes",
+    "ACTIVE": "Active",
+    "RECURRING": "Recurring",
+    "EVADED": "Completed"
+  },
+  "EMPTY": {
+    "NO_NOTES": "No notes yet.",
+    "NEW_NOTE_BTN": "+ New note",
+    "NO_REMINDERS": "No reminders.",
+    "NEW_REMINDER_BTN": "+ New note with reminder",
+    "NO_RESULTS": "No results."
+  },
+  "NOTE": {
+    "UNTITLED": "New Note",
+    "DELETE_TITLE": "Delete note",
+    "DELETE_MSG": "Delete \"{{ title }}\"? This cannot be undone.",
+    "PIN": "Pin note",
+    "UNPIN": "Unpin",
+    "EVADE": "Complete"
+  },
+  "LOGIN": {
+    "RECOVER_PASSWORD": "Recover Password",
+    "CREATE_ACCOUNT": "Create an Account",
+    "SIGN_IN": "Sign in to your Account",
+    "PASSWORD": "Password",
+    "CONFIRM_PASSWORD": "Confirm Password",
+    "REQ_MIN_LEN": "At least 8 characters",
+    "REQ_UPPER": "At least 1 uppercase letter",
+    "REQ_NUMBER": "At least 1 number",
+    "REQ_SPECIAL": "At least 1 special character",
+    "FORGOT_PASSWORD": "Forgot password?",
+    "SEND_RECOVERY": "Send Recovery Link",
+    "SENDING": "Sending...",
+    "REGISTER": "Sign up",
+    "REGISTERING": "Signing up...",
+    "ACCESS": "Sign in",
+    "LOGGING_IN": "Signing in...",
+    "HAS_ACCOUNT": "Already have an account? Sign in",
+    "NO_ACCOUNT": "Don't have an account? Sign up",
+    "BACK_TO_LOGIN": "Back to Login",
+    "HIDE_PASSWORD": "Hide password",
+    "SHOW_PASSWORD": "Show password"
+  },
+  "EDITOR": {
+    "SELECT_DATE": "Select date",
+    "UNTITLED_PLACEHOLDER": "New Note",
+    "RECURRENCE": {
+      "ONCE": "Once",
+      "DAILY": "Every day",
+      "WEEKLY": "Every week",
+      "MONTHLY": "Every month",
+      "YEARLY": "Every year"
+    },
+    "OVERDUE_PREFIX": "Overdue:",
+    "EVADED_NEXT_PREFIX": "Done — next",
+    "EVADED": "Done",
+    "EVADE_RECURRING": "Complete overdue recurrence",
+    "ADD_REMINDER": "Add reminder",
+    "REMOVE_REMINDER": "Remove reminder",
+    "ADD_BLOCK": "Add block",
+    "FORMAT": {
+      "BOLD": "Bold",
+      "ITALIC": "Italic",
+      "UNDERLINE": "Underline",
+      "STRIKETHROUGH": "Strikethrough",
+      "BULLET_LIST": "Bullet list",
+      "ORDERED_LIST": "Numbered list",
+      "REMOVE_FORMAT": "Remove formatting"
+    }
+  },
+  "CALENDAR": {
+    "DAY": "Day",
+    "WEEK": "Week",
+    "MONTH": "Month",
+    "TODAY": "Today",
+    "EMPTY": "No notes with reminders on this day"
+  },
+  "LINK_DIALOG": {
+    "TITLE": "Link",
+    "URL_LABEL": "URL",
+    "URL_REQUIRED": "URL is required",
+    "DISPLAY_LABEL": "Display text (optional)",
+    "DISPLAY_PLACEHOLDER": "e.g. Open document",
+    "DISPLAY_HINT": "If empty, the URL will be shown"
+  },
+  "PASSPHRASE": {
+    "TITLE_SETUP": "Protect your notes",
+    "TITLE_UNLOCK": "Unlock your notes",
+    "HINT_SETUP": "This passphrase encrypts your notes. It cannot be recovered — keep it somewhere safe.",
+    "HINT_UNLOCK": "Enter your passphrase to access your encrypted notes.",
+    "LABEL": "Passphrase",
+    "CONFIRM_LABEL": "Confirm passphrase",
+    "MISMATCH": "Passphrases don't match",
+    "SET": "Set passphrase",
+    "UNLOCK": "Unlock"
+  },
+  "UPDATE": {
+    "TITLE": "Update available",
+    "MESSAGE": "A new version of punto! is ready.",
+    "UPDATE_NOW": "Update now",
+    "LATER": "Later",
+    "UPDATE_BTN": "Update"
+  },
+  "SETTINGS": {
+    "DEFAULT_VIEW": "Default view",
+    "ONLY_MOBILE": "mobile only",
+    "DEFAULT_VIEW_DESC": "On desktop, list and calendar are always shown together.",
+    "NOTIF_TITLE": "Title in notifications",
+    "SHOW_NOTIF_TITLE": "Show title in notification",
+    "NOTIF_TITLE_DIALOG_TITLE": "Title in notifications",
+    "NOTIF_TITLE_DIALOG_MSG": "Enabling this option will save the note title unencrypted so it can be included in push notifications.",
+    "CALENDAR_SECTION": "Calendar",
+    "SHOW_ALL_NOTES": "Show notes without reminders",
+    "SHOW_ALL_NOTES_DESC": "When off, only notes with reminders are shown",
+    "DANGER_ZONE": "Danger zone",
+    "DANGER_ZONE_DESC": "Reset deletes all notes and lets you set a new encryption key.",
+    "RESET_ENCRYPTION": "Reset encryption key",
+    "RESET_ENCRYPTION_DIALOG_TITLE": "Reset encryption key",
+    "RESET_ENCRYPTION_DIALOG_MSG": "This will delete all your notes and reset the encryption key. Data cannot be recovered. Are you sure?",
+    "DELETE_AND_RESET": "Delete all and reset",
+    "RESETTING": "Resetting…",
+    "NO_CONNECTION": "No connection. Connect and try again.",
+    "RESET_ERROR": "Reset failed. Please try again.",
+    "LANGUAGE": "Language"
+  },
+  "CRYPTO": {
+    "SETUP_ERROR": "Encryption setup failed. Please try again.",
+    "RESET_TITLE": "Reset encryption secret?",
+    "RESET_MSG": "This will delete your secret and you will need to set a new one. Existing notes will still be encrypted with the old secret.",
+    "RESET_CONFIRM": "Reset"
+  },
+  "NOTIF": {
+    "TITLE": "punto! — Reminder",
+    "BODY_WITH_DATE": "You have a reminder for {{date}}",
+    "BODY_NO_DATE": "You have an upcoming reminder!"
+  }
+}

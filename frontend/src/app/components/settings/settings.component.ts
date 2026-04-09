@@ -16,6 +16,8 @@ import {
   getFirestore, collection, query, where, getDocs, deleteDoc, doc, updateDoc, deleteField
 } from 'firebase/firestore';
 import { SwUpdate } from '@angular/service-worker';
+import { TranslateModule } from '@ngx-translate/core';
+import { TranslationService } from '../../services/translation';
 import { NoteService } from '../../services/note';
 import { AuthService } from '../../services/auth';
 import { CryptoService } from '../../services/crypto';
@@ -36,6 +38,7 @@ import { ConfirmDialogComponent } from '../confirm-dialog/confirm-dialog';
     MatDialogModule,
     MatSnackBarModule,
     MatProgressSpinnerModule,
+    TranslateModule,
   ],
   templateUrl: './settings.component.html',
   styleUrl: './settings.component.scss'
@@ -48,12 +51,14 @@ export class SettingsComponent implements OnInit {
   private dialog = inject(MatDialog);
   private snackBar = inject(MatSnackBar);
   private swUpdate = inject(SwUpdate);
+  private translationService = inject(TranslationService);
 
   defaultView: 'list' | 'calendar' | 'reminders' = 'list';
   notifTitleEnabled = false;
   calendarShowAllNotes = true;
   resetInProgress = false;
   updateAvailable = false;
+  language = 'it';
 
   async ngOnInit() {
     if (this.swUpdate.isEnabled) {
@@ -61,6 +66,7 @@ export class SettingsComponent implements OnInit {
         if (event.type === 'VERSION_READY') this.updateAvailable = true;
       });
     }
+    this.language = this.translationService.currentLang;
     this.defaultView = await this.noteService.getUserPreference<'list' | 'calendar' | 'reminders'>('defaultView', 'list');
     this.notifTitleEnabled = await this.noteService.getUserPreference<boolean>('notifTitleEnabled', false);
     this.noteService.setNotifTitleEnabled(this.notifTitleEnabled);
@@ -75,6 +81,11 @@ export class SettingsComponent implements OnInit {
     document.location.reload();
   }
 
+  async onLanguageChange(lang: string) {
+    this.language = lang;
+    await this.translationService.setLanguage(lang);
+  }
+
   async onDefaultViewChange(value: 'list' | 'calendar' | 'reminders') {
     this.defaultView = value;
     await this.noteService.setUserPreference('defaultView', value);
@@ -85,10 +96,10 @@ export class SettingsComponent implements OnInit {
       const confirmed = await firstValueFrom(
         this.dialog.open(ConfirmDialogComponent, {
           data: {
-            title: 'Titolo nelle notifiche',
-            message: 'Attivando questa opzione, il titolo della nota verrà salvato senza cifratura per poter essere incluso nelle notifiche push.',
-            confirmLabel: 'Attiva',
-            cancelLabel: 'Annulla',
+            title: this.translationService.instant('SETTINGS.NOTIF_TITLE_DIALOG_TITLE'),
+            message: this.translationService.instant('SETTINGS.NOTIF_TITLE_DIALOG_MSG'),
+            confirmLabel: this.translationService.instant('COMMON.ENABLE'),
+            cancelLabel: this.translationService.instant('COMMON.CANCEL'),
           }
         }).afterClosed()
       );
@@ -113,10 +124,10 @@ export class SettingsComponent implements OnInit {
     const confirmed = await firstValueFrom(
       this.dialog.open(ConfirmDialogComponent, {
         data: {
-          title: 'Reset chiave di cifratura',
-          message: 'Questa operazione eliminerà tutte le tue note e resetterà la chiave di cifratura. Non è possibile recuperare i dati. Sei sicuro di voler continuare?',
-          confirmLabel: 'Elimina tutto e resetta',
-          cancelLabel: 'Annulla',
+          title: this.translationService.instant('SETTINGS.RESET_ENCRYPTION_DIALOG_TITLE'),
+          message: this.translationService.instant('SETTINGS.RESET_ENCRYPTION_DIALOG_MSG'),
+          confirmLabel: this.translationService.instant('SETTINGS.DELETE_AND_RESET'),
+          cancelLabel: this.translationService.instant('COMMON.CANCEL'),
         }
       }).afterClosed()
     );
@@ -127,7 +138,7 @@ export class SettingsComponent implements OnInit {
 
   private async resetEncryption(): Promise<void> {
     if (!navigator.onLine) {
-      this.snackBar.open('Nessuna connessione. Connettiti e riprova.', 'OK', { duration: 4000 });
+      this.snackBar.open(this.translationService.instant('SETTINGS.NO_CONNECTION'), 'OK', { duration: 4000 });
       return;
     }
 
@@ -159,7 +170,7 @@ export class SettingsComponent implements OnInit {
 
     } catch {
       this.resetInProgress = false;
-      this.snackBar.open('Errore durante il reset. Riprova.', 'OK', { duration: 4000 });
+      this.snackBar.open(this.translationService.instant('SETTINGS.RESET_ERROR'), 'OK', { duration: 4000 });
     }
   }
 }
