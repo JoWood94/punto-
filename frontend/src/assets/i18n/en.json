@@ -85,6 +85,7 @@
       "MONTHLY": "Every month",
       "YEARLY": "Every year"
     },
+    "RECURRENCE_END": "Ends on",
     "OVERDUE_PREFIX": "Overdue:",
     "EVADED_NEXT_PREFIX": "Done — next",
     "EVADED": "Done",

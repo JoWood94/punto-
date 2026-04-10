@@ -184,21 +184,34 @@ async function checkAndSendReminders() {
       
       // Ricorrenza: rischedulare invece di segnare come 'sent'
       const recurrence = note.recurrence ?? 'none';
+      const endDate = typeof note.recurrenceEndDate === 'number' ? note.recurrenceEndDate : null;
       if (recurrence !== 'none' && reminderMs) {
         const nextTime = calculateNextReminder(reminderMs, recurrence);
-        const updatePayload = { reminderStatus: 'pending', reminderTime: nextTime };
+        const expired = endDate && nextTime > endDate;
 
-        // Aggiorna anche il ReminderBlock nell'array blocks (nuovo formato)
-        if (note.blocks && Array.isArray(note.blocks)) {
-          updatePayload.blocks = note.blocks.map(b => {
-            if (b.type === 'reminder') {
-              return { ...b, time: nextTime, status: 'pending' };
-            }
-            return b;
-          });
+        if (!expired) {
+          const updatePayload = { reminderStatus: 'pending', reminderTime: nextTime };
+          if (note.blocks && Array.isArray(note.blocks)) {
+            updatePayload.blocks = note.blocks.map(b => {
+              if (b.type === 'reminder') {
+                return { ...b, time: nextTime, status: 'pending' };
+              }
+              return b;
+            });
+          }
+          updates.push(doc.ref.update(updatePayload));
+          console.log(`Promemoria ricorrente (${recurrence}) rischedulato a ${new Date(nextTime).toISOString()}`);
+        } else {
+          const updatePayload = { reminderStatus: 'sent' };
+          if (note.blocks && Array.isArray(note.blocks)) {
+            updatePayload.blocks = note.blocks.map(b => {
+              if (b.type === 'reminder') return { ...b, status: 'sent' };
+              return b;
+            });
+          }
+          updates.push(doc.ref.update(updatePayload));
+          console.log(`Ricorrenza ${recurrence} terminata (endDate superata), promemoria segnato come sent`);
         }
-        updates.push(doc.ref.update(updatePayload));
-        console.log(`Promemoria ricorrente (${recurrence}) rischedulato a ${new Date(nextTime).toISOString()}`);
       } else {
         const updatePayload = { reminderStatus: 'sent' };
         // Aggiorna anche il ReminderBlock nell'array blocks (nuovo formato)

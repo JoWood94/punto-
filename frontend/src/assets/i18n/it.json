@@ -85,6 +85,7 @@
       "MONTHLY": "Ogni mese",
       "YEARLY": "Ogni anno"
     },
+    "RECURRENCE_END": "Termina il",
     "OVERDUE_PREFIX": "Scaduto il",
     "EVADED_NEXT_PREFIX": "Evaso — prossima",
     "EVADED": "Evaso",

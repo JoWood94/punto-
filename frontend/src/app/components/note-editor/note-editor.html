@@ -1,10 +1,9 @@
 <!-- ── Reminder strip (above title) ── -->
 <div class="reminder-strip" *ngIf="!!reminderBlock">
 
-  <!-- Row 1: form controls compatti -->
+  <!-- Row 1: data + ora -->
   <div class="reminder-strip-row">
 
-    <!-- Date: button visibile che apre il datepicker -->
     <button class="strip-date-btn" type="button"
             (click)="reminderDatepicker.open()"
             (focus)="onNonTextFieldFocus()"
@@ -21,9 +20,6 @@
       </mat-datepicker>
     </button>
 
-    <span class="strip-dot">·</span>
-
-    <!-- Ora e minuti: select nativi compatti -->
     <div class="strip-time">
       <select [(ngModel)]="reminderBlock.hour"
               (change)="onReminderChange()"
@@ -42,9 +38,11 @@
       </select>
     </div>
 
-    <span class="strip-dot">·</span>
+  </div><!-- /reminder-strip-row -->
 
-    <!-- Ricorrenza: select nativo -->
+  <!-- Row 2: ricorrenza + data fine -->
+  <div class="reminder-strip-row reminder-strip-row--recurrence">
+
     <select [(ngModel)]="reminderBlock.recurrence"
             (change)="onReminderChange()"
             (focus)="onNonTextFieldFocus()"
@@ -57,7 +55,30 @@
       <option value="yearly">{{ 'EDITOR.RECURRENCE.YEARLY' | translate }}</option>
     </select>
 
-  </div><!-- /reminder-strip-row -->
+    <div class="strip-end-date"
+         [class.strip-end-date--disabled]="reminderBlock.recurrence === 'none'">
+      <button class="strip-date-btn strip-end-date-btn" type="button"
+              (click)="recurrenceEndDatepicker.open()"
+              (focus)="onNonTextFieldFocus()"
+              (blur)="onNonTextFieldBlur()">
+        <mat-icon>event_busy</mat-icon>
+        <span>{{ reminderBlock._endDate ? (reminderBlock._endDate | date:'d MMM yyyy':'':dateLocale) : ('EDITOR.RECURRENCE_END' | translate) }}</span>
+        <input [matDatepicker]="recurrenceEndDatepicker"
+               [(ngModel)]="reminderBlock._endDate"
+               (ngModelChange)="onRecurrenceEndDateChange($event)"
+               style="position:absolute;opacity:0;pointer-events:none;width:0;height:0;">
+        <mat-datepicker #recurrenceEndDatepicker
+                        (opened)="onNonTextFieldFocus()"
+                        (closed)="onNonTextFieldBlur()">
+        </mat-datepicker>
+      </button>
+      <button *ngIf="reminderBlock._endDate && reminderBlock.recurrence !== 'none'" class="strip-end-date-clear"
+              type="button" (click)="clearRecurrenceEndDate()">
+        <mat-icon>close</mat-icon>
+      </button>
+    </div>
+
+  </div>
 
   <!-- Row 2: badge/CTA condizionali -->
 

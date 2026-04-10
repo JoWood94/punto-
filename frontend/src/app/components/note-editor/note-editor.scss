@@ -943,8 +943,8 @@
   flex-shrink: 0;
   background: var(--punto-bg, #FFFBFE);
   border-bottom: 1px solid var(--mat-sys-outline-variant);
-  // Mobile (<480px): column, padding stretto
-  padding: 8px 12px;
+  // Mobile: column layout, compact padding
+  padding: 8px 16px;
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -972,26 +972,24 @@
 .reminder-strip-row {
   display: flex;
   align-items: center;
-  gap: 6px;
-  width: 100%; // Mobile: piena larghezza, allineata alla CTA sotto
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  gap: 8px;
+  width: 100%;
   min-width: 0;
 
   // Intermedio: full-width → spinge badge/CTA alla riga sotto
   @media (min-width: 480px) and (max-width: 767.98px) {
     flex: 0 0 100%;
-    flex-wrap: nowrap;
   }
 
   // Desktop: auto-width → affiancato a badge/CTA
   @media (min-width: 768px) {
     flex: 0 0 auto;
-    flex-wrap: nowrap;
     width: auto;
   }
 }
 
-// Date button: chip testuale che apre il datepicker
+// Date button: compact chip that opens the datepicker
 .strip-date-btn {
   display: inline-flex;
   align-items: center;
@@ -1008,10 +1006,8 @@
   position: relative;
   font-family: inherit;
   transition: background var(--_t);
-  // Mobile/intermedio: cresce per riempire la riga
-  flex: 1;
-  justify-content: center;
-  @media (min-width: 768px) { flex: 0 0 auto; justify-content: flex-start; }
+  flex: 1 1 0;
+  justify-content: flex-start;
 
   mat-icon {
     font-size: 14px;
@@ -1022,6 +1018,72 @@
 
   &:hover {
     background: color-mix(in srgb, var(--mat-sys-on-surface) 10%, transparent);
+  }
+}
+
+.strip-end-date {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.strip-end-date--disabled {
+  opacity: 0.4;
+  pointer-events: none;
+}
+
+.strip-end-date-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 10px;
+  border-radius: 99px;
+  border: none;
+  background: color-mix(in srgb, var(--mat-sys-on-surface) 6%, transparent);
+  cursor: pointer;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--mat-sys-on-surface);
+  white-space: nowrap;
+  font-family: inherit;
+  transition: background var(--_t);
+  flex: 1;
+  justify-content: flex-start;
+
+  &:hover {
+    background: color-mix(in srgb, var(--mat-sys-on-surface) 10%, transparent);
+  }
+}
+
+// Row 2: recurrence + end date — fills full width
+.reminder-strip-row--recurrence {
+  gap: 8px;
+}
+
+.strip-end-date-clear {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: none;
+  background: color-mix(in srgb, var(--mat-sys-on-surface) 8%, transparent);
+  cursor: pointer;
+  padding: 0;
+  transition: background var(--_t);
+
+  mat-icon {
+    font-size: 14px;
+    width: 14px;
+    height: 14px;
+    color: var(--mat-sys-on-surface-variant);
+  }
+
+  &:hover {
+    background: color-mix(in srgb, var(--mat-sys-on-surface) 14%, transparent);
   }
 }
 
@@ -1056,15 +1118,14 @@
 .strip-recurrence {
   max-width: 140px;
   min-width: 80px;
-  // Mobile/intermedio: cresce per riempire la riga
-  flex: 1;
-  @media (min-width: 768px) { flex: 0 0 auto; }
+  flex: 0 0 auto;
 }
 
 .strip-time {
   display: flex;
   align-items: center;
   gap: 2px;
+  flex: 0 0 auto; // Never clip time controls
 }
 
 .strip-colon {
@@ -1075,12 +1136,7 @@
   flex-shrink: 0;
 }
 
-.strip-dot {
-  font-size: 0.875rem;
-  color: var(--mat-sys-on-surface-variant);
-  opacity: 0.5;
-  flex-shrink: 0;
-}
+// .strip-dot removed — elements now fill full row width
 
 // Badge riga 2 (condizionale)
 .strip-badge {

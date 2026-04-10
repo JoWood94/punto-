@@ -212,6 +212,7 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewInit, Af
           // Ripristina campi runtime da Firestore
           rb._evaded = rb.evaded ?? false;
           rb._wasOverdue = rb.wasOverdue ?? false;
+          rb._endDate = rb.recurrenceEndDate ? new Date(rb.recurrenceEndDate) : null;
           this.checkStalledEvasion(rb);
         }
       });
@@ -232,7 +233,7 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewInit, Af
         const reminderHour = roundedMin >= 60 ? d.getHours() + 1 : d.getHours();
         const reminderMin = roundedMin >= 60 ? roundedMin - 60 : roundedMin;
         const reminderBlock: any = {
-          type: 'reminder', time: null, recurrence: 'none', status: null,
+          type: 'reminder', time: null, recurrence: 'none', recurrenceEndDate: null, status: null,
           date: d,
           hour: reminderHour.toString().padStart(2, '0'),
           minute: reminderMin.toString().padStart(2, '0')
@@ -287,7 +288,7 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewInit, Af
       case 'reminder': {
         const defaultDate = this.computeDefaultReminderDate();
         newBlock = {
-          type: 'reminder', time: defaultDate.getTime(), recurrence: 'none', status: null,
+          type: 'reminder', time: defaultDate.getTime(), recurrence: 'none', recurrenceEndDate: null, status: null,
           date: defaultDate,
           hour: defaultDate.getHours().toString().padStart(2, '0'),
           minute: defaultDate.getMinutes().toString().padStart(2, '0')
@@ -585,6 +586,21 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewInit, Af
     this.triggerAutoSave();
   }
 
+  onRecurrenceEndDateChange(date: Date | null) {
+    const rb = this.reminderBlock;
+    if (!rb) return;
+    rb.recurrenceEndDate = date ? date.getTime() : null;
+    this.onReminderChange();
+  }
+
+  clearRecurrenceEndDate() {
+    const rb = this.reminderBlock;
+    if (!rb) return;
+    rb._endDate = null;
+    rb.recurrenceEndDate = null;
+    this.onReminderChange();
+  }
+
   markReminderCompleted(block: any, wasOverdue = false): void {
     const recurrence = block.recurrence ?? 'none';
     if (recurrence === 'none') {
@@ -603,8 +619,15 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewInit, Af
       block._prevTime = currentTime;
       block._evaded = true;
       block._wasOverdue = wasOverdue;
-      block.time = this.getNextRecurrence(currentTime, block.recurrence);
-      // Aggiorna i campi UI usati da buildPayload per serializzare il tempo
+      const nextTime = this.getNextRecurrence(currentTime, block.recurrence);
+      if (block.recurrenceEndDate && nextTime > block.recurrenceEndDate) {
+        block.status = 'completed';
+        block.time = currentTime;
+        (this.note as any).lastCompletedAt = Date.now();
+        this.triggerAutoSave();
+        return;
+      }
+      block.time = nextTime;
       const nextDate = new Date(block.time);
       block.date = nextDate;
       block.hour = nextDate.getHours().toString().padStart(2, '0');
@@ -768,10 +791,12 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewInit, Af
           d.setSeconds(0); d.setMilliseconds(0);
           // Preserva lo status esistente (es. 'sent', 'completed'): solo onReminderChange lo resetta a 'pending'
           const status: 'pending' | 'sent' | 'completed' | null = rb.status ?? 'pending';
-          return { type: 'reminder' as const, time: d.getTime(), recurrence: rb.recurrence ?? 'none', status,
+          return { type: 'reminder' as const, time: d.getTime(), recurrence: rb.recurrence ?? 'none',
+            recurrenceEndDate: rb.recurrenceEndDate ?? null, status,
             evaded: rb._evaded ?? false, wasOverdue: rb._wasOverdue ?? false };
         }
-        return { type: 'reminder' as const, time: null, recurrence: rb.recurrence ?? 'none', status: null,
+        return { type: 'reminder' as const, time: null, recurrence: rb.recurrence ?? 'none',
+          recurrenceEndDate: rb.recurrenceEndDate ?? null, status: null,
           evaded: false, wasOverdue: false };
       }
       if (block.type === 'location') {
@@ -795,6 +820,7 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewInit, Af
       lastCompletedAt: (this.note as any).lastCompletedAt ?? null,
       recurrence: reminder?.recurrence ?? 'none',
       reminderRepeat: repeatValue,
+      recurrenceEndDate: reminder?.recurrenceEndDate ?? null,
     };
     delete payload.address; delete payload.lat; delete payload.lon; delete payload.checklist;
     Object.keys(payload).forEach(k => { if (payload[k] === undefined) payload[k] = null; });

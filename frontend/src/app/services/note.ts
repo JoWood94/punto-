@@ -33,6 +33,7 @@ export interface ReminderBlock {
   type: 'reminder';
   time: number | null;
   recurrence: 'none' | 'daily' | 'weekly' | 'monthly' | 'yearly';
+  recurrenceEndDate?: number | null;
   status: 'pending' | 'sent' | 'completed' | null;
 }
 
@@ -70,6 +71,7 @@ export interface Note {
   reminderStatus?: 'pending' | 'sent' | 'completed' | null;
   lastCompletedAt?: number;
   recurrence?: 'none' | 'daily' | 'weekly' | 'monthly' | 'yearly';
+  recurrenceEndDate?: number | null;
 }
 
 // ─── Utilities ────────────────────────────────────────────────────────────────
