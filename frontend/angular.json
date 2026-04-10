@@ -35,7 +35,8 @@
                 "glob": "**/*",
                 "input": "src/assets",
                 "output": "/assets"
-              }
+              },
+              "src/version.json"
             ],
             "styles": [
               "src/styles.scss"

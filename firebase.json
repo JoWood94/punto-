@@ -6,6 +6,20 @@
       "**/.*",
       "**/node_modules/**"
     ],
+    "headers": [
+      {
+        "source": "/",
+        "headers": [
+          { "key": "Clear-Site-Data", "value": "\"cache\", \"storage\"" }
+        ]
+      },
+      {
+        "source": "/index.html",
+        "headers": [
+          { "key": "Clear-Site-Data", "value": "\"cache\", \"storage\"" }
+        ]
+      }
+    ],
     "rewrites": [
       {
         "source": "**",

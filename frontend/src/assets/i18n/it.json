@@ -20,7 +20,8 @@
   "MENU": {
     "SETTINGS": "Impostazioni",
     "LOGOUT": "Esci",
-    "CALENDAR_VIEW": "Vista Calendario"
+    "CALENDAR_VIEW": "Vista Calendario",
+    "UPDATE": "Aggiorna app"
   },
   "FAB": {
     "NEW_NOTE": "Nuova Nota",

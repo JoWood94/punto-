@@ -780,6 +780,22 @@
   margin-left: 4px;
 }
 
+.settings-icon-wrapper {
+  position: relative;
+  display: inline-flex;
+}
+
+.update-badge {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #D32F2F;
+  pointer-events: none;
+}
+
 // (iOS anti-zoom per search-input gestito inline nel .search-pill)
 
 // ─── Mobile tap target: pin e delete ────────────────────────

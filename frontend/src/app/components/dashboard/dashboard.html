@@ -39,7 +39,10 @@
   <!-- Menu impostazioni — nascosto nell'editor su mobile, sempre visibile su desktop -->
   <button mat-icon-button [disableRipple]="true" [matMenuTriggerFor]="settingsMenu" aria-label="Menu"
           *ngIf="!isMobile || activeNote === undefined" [disabled]="!settingsMenuEnabled" class="settings-menu-btn">
-    <mat-icon>more_vert</mat-icon>
+    <div class="settings-icon-wrapper">
+      <mat-icon>more_vert</mat-icon>
+      <span class="update-badge" *ngIf="updatePending"></span>
+    </div>
   </button>
 
 </mat-toolbar>
@@ -349,6 +352,10 @@
 
 <!-- Menu impostazioni globale -->
 <mat-menu #settingsMenu="matMenu" xPosition="before">
+  <button mat-menu-item *ngIf="updatePending" (click)="reloadApp()">
+    <mat-icon>system_update</mat-icon>
+    <span>{{ 'MENU.UPDATE' | translate }}</span>
+  </button>
   <button mat-menu-item (click)="openSettings()">
     <mat-icon>settings</mat-icon>
     <span>{{ 'MENU.SETTINGS' | translate }}</span>

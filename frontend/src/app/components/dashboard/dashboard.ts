@@ -31,6 +31,7 @@ import { Location } from '@angular/common';
 import { PushNotificationService } from '../../services/push-notification';
 import { BreakpointObserver, Breakpoints } from '@angular/cdk/layout';
 import { SwUpdate } from '@angular/service-worker';
+import { environment } from '../../../environments/environment';
 
 @Component({
   selector: 'app-dashboard',
@@ -113,7 +114,9 @@ export class DashboardComponent implements OnInit, OnDestroy {
   private deepLinkTimeout?: ReturnType<typeof setTimeout>;
   settingsMenuEnabled = true;
   isReady = false;
+  updatePending = false;
   private deepLinkNoteId: string | null = null;
+  private updateDialogShown = false;
   private swMessageListener?: (event: MessageEvent) => void;
   private readonly onOnline = () => { this.isOffline = false; this.hasFirestoreError = false; };
   private readonly onOffline = () => { this.isOffline = true; };
@@ -132,8 +135,12 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
     if (this.swUpdate.isEnabled) {
       this.swUpdate.versionUpdates.subscribe(event => {
-        if (event.type === 'VERSION_READY') {
-          this.dialog.open(UpdateDialogComponent);
+        if (event.type === 'VERSION_READY' && !this.updateDialogShown) {
+          this.updateDialogShown = true;
+          const ref = this.dialog.open(UpdateDialogComponent);
+          ref.afterClosed().subscribe(() => {
+            this.updatePending = true;
+          });
         }
       });
     }
@@ -221,6 +228,9 @@ export class DashboardComponent implements OnInit, OnDestroy {
     // Tutti gli init async completati — mostra il contenuto
     this.isReady = true;
 
+    // Version handshake — controlla se il client è aggiornato
+    this.checkAppVersion();
+
     if (window.visualViewport) {
       const vv = window.visualViewport;
       // --lvh: layout viewport height (window.innerHeight), costante anche con tastiera aperta.
@@ -306,6 +316,24 @@ export class DashboardComponent implements OnInit, OnDestroy {
   private armDeepLinkTimeout() {
     clearTimeout(this.deepLinkTimeout);
     this.deepLinkTimeout = setTimeout(() => { this.deepLinkNoteId = null; }, 10000);
+  }
+
+  private async checkAppVersion() {
+    try {
+      const base = document.baseURI.endsWith('/') ? document.baseURI : document.baseURI + '/';
+      const res = await fetch(base + 'version.json?_=' + Date.now());
+      if (!res.ok) return;
+      const data = await res.json();
+      if (data.version && data.version !== environment.appVersion && !this.updateDialogShown) {
+        this.updateDialogShown = true;
+        const ref = this.dialog.open(UpdateDialogComponent);
+        ref.afterClosed().subscribe(() => {
+          this.updatePending = true;
+        });
+      }
+    } catch {
+      // Offline o errore di rete: ignora silenziosamente
+    }
   }
 
   ngOnDestroy() {
@@ -727,6 +755,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
   }
 
   openSettings() { this.router.navigate(['/settings']); }
+  reloadApp() { document.location.reload(); }
   logout() { this.authService.logout().then(() => this.router.navigate(['/login'])); }
   openNoteEditor() {
     if (this.activeView === 'reminders' || this.mobileNav === 'reminders') {

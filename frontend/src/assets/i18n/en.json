@@ -20,7 +20,8 @@
   "MENU": {
     "SETTINGS": "Settings",
     "LOGOUT": "Log out",
-    "CALENDAR_VIEW": "Calendar view"
+    "CALENDAR_VIEW": "Calendar view",
+    "UPDATE": "Update app"
   },
   "FAB": {
     "NEW_NOTE": "New Note",
