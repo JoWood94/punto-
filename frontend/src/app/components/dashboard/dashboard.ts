@@ -228,6 +228,9 @@ export class DashboardComponent implements OnInit, OnDestroy {
     // Tutti gli init async completati — mostra il contenuto
     this.isReady = true;
 
+    // Salva la versione client nel documento utente Firestore (solo se cambiata)
+    this.writeClientVersion();
+
     // Version handshake — controlla se il client è aggiornato
     this.checkAppVersion();
 
@@ -316,6 +319,17 @@ export class DashboardComponent implements OnInit, OnDestroy {
   private armDeepLinkTimeout() {
     clearTimeout(this.deepLinkTimeout);
     this.deepLinkTimeout = setTimeout(() => { this.deepLinkNoteId = null; }, 10000);
+  }
+
+  private async writeClientVersion() {
+    try {
+      const current = await this.noteService.getUserPreference<string>('clientVersion', '');
+      if (current !== environment.appVersion) {
+        await this.noteService.setUserPreference('clientVersion', environment.appVersion);
+      }
+    } catch {
+      // Offline o errore: ignora silenziosamente
+    }
   }
 
   private async checkAppVersion() {
