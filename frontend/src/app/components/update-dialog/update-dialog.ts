@@ -3,6 +3,7 @@ import { MatDialogRef, MatDialogModule } from '@angular/material/dialog';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { TranslateModule } from '@ngx-translate/core';
+import { SwUpdate } from '@angular/service-worker';
 
 @Component({
   selector: 'app-update-dialog',
@@ -45,10 +46,17 @@ import { TranslateModule } from '@ngx-translate/core';
   `
 })
 export class UpdateDialogComponent {
-  constructor(private dialogRef: MatDialogRef<UpdateDialogComponent>) {}
+  constructor(
+    private dialogRef: MatDialogRef<UpdateDialogComponent>,
+    private swUpdate: SwUpdate
+  ) {}
 
-  update() {
+  async update() {
     this.dialogRef.close();
+    // Force the SW to activate the new version before reloading
+    if (this.swUpdate.isEnabled) {
+      await this.swUpdate.activateUpdate().catch(() => {});
+    }
     document.location.reload();
   }
 
