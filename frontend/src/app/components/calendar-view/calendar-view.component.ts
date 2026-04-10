@@ -240,8 +240,14 @@ export class CalendarViewComponent implements OnChanges, AfterViewInit {
     const origin = new Date(note.reminderTime);
     // La data richiesta deve essere successiva all'origin (o uguale)
     if (date < origin && !this.isSameDay(date, origin)) return false;
-    // Rispetta la data di fine ripetizione
-    if (note.recurrenceEndDate && date.getTime() > note.recurrenceEndDate) return false;
+    // Rispetta la data di fine ripetizione (confronto a livello di giorno:
+    // la data di fine è mezzanotte, ma date può avere ore > 0 nelle viste settimana/giorno)
+    if (note.recurrenceEndDate) {
+      const endDay = new Date(note.recurrenceEndDate);
+      const dateDay = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+      const endDayMidnight = new Date(endDay.getFullYear(), endDay.getMonth(), endDay.getDate());
+      if (dateDay.getTime() > endDayMidnight.getTime()) return false;
+    }
     switch (repeat) {
       case 'daily':
         return true;
