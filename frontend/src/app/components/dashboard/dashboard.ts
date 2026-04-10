@@ -77,10 +77,14 @@ export class DashboardComponent implements OnInit, OnDestroy {
   themeColors = ['#6200ee', '#1e88e5', '#43a047', '#e53935', '#ffb300'];
 
   activeNote?: Note | null = undefined;
+  editorLeaving = false;   // trigger animazione uscita editor mobile
   isMobile = false;
   currentMainView: 'list' | 'calendar' = 'calendar';
   activeView: 'notes' | 'reminders' = 'notes';
   private viewAutoSelected = false;
+
+  // ─── Calendario: ricorda l'ultima vista usata nella sessione ──
+  lastCalendarView: 'day' | 'week' | 'month' = 'month';
 
   // ─── Mobile unified nav toolbar ──────────────────────────────
   mobileNav: 'notes' | 'reminders' | 'calendar' = 'notes';
@@ -100,6 +104,8 @@ export class DashboardComponent implements OnInit, OnDestroy {
   searchQuery = '';
   newNoteCalendarDate: Date | undefined = undefined;
   notesLoaded = false;
+  pendingSelectNoteId: string | null = null;
+  calendarCurrentDate: Date = new Date();
 
   // TODO: tags disabilitati temporaneamente
   // allTags: string[] = [];
@@ -280,6 +286,16 @@ export class DashboardComponent implements OnInit, OnDestroy {
         // this.updateAllTags(); // TODO: tags disabilitati temporaneamente
         this.applyFilter();
         this.autoSelectView();
+        if (this.pendingSelectNoteId) {
+          const newNote = notes.find(n => n.id === this.pendingSelectNoteId);
+          if (newNote) {
+            // Only select if we're still in new-note mode (editor open but no note assigned yet)
+            if (this.activeNote === null) {
+              this.activeNote = newNote;
+            }
+            this.pendingSelectNoteId = null; // always clear once found
+          }
+        }
         // Apre la nota richiesta dal deep link alla prima emissione utile.
         // Non azzerare se non trovata: encryption potrebbe ancora inizializzarsi
         // e le note arrivare in emissioni successive. Il timeout (10s) fa da safety net.
@@ -781,9 +797,13 @@ export class DashboardComponent implements OnInit, OnDestroy {
   }
 
   private computeDefaultReminderDate(): Date {
-    const base = new Date(Date.now() + 5 * 60 * 1000);
-    const roundedMinutes = Math.ceil(base.getMinutes() / 5) * 5;
-    const d = new Date(base);
+    // Use calendarCurrentDate for the day (respects day-view navigation),
+    // with current time + 5 min for the hour/minute
+    const calDate = new Date(this.calendarCurrentDate);
+    const now = new Date(Date.now() + 5 * 60 * 1000);
+    const roundedMinutes = Math.ceil(now.getMinutes() / 5) * 5;
+    const d = new Date(calDate);
+    d.setHours(now.getHours());
     if (roundedMinutes >= 60) {
       d.setHours(d.getHours() + 1);
       d.setMinutes(roundedMinutes - 60, 0, 0);
@@ -820,14 +840,54 @@ export class DashboardComponent implements OnInit, OnDestroy {
   }
 
   private deactivateNote() {
-    this.activeNote = undefined;
-    this.newNoteCalendarDate = undefined;
-    // Previene che eventi touch residui triggherino il menu impostazioni al ritorno dal editor
-    this.settingsMenuEnabled = false;
-    clearTimeout(this.settingsMenuTimer);
-    this.settingsMenuTimer = setTimeout(() => { this.settingsMenuEnabled = true; }, 150);
+    // Prevent a pending note selection from re-opening the editor after it's been closed
+    this.pendingSelectNoteId = null;
+    if (this.isMobile) {
+      // Su mobile: anima l'uscita, poi rimuove
+      this.editorLeaving = true;
+      setTimeout(() => {
+        this.activeNote = undefined;
+        this.newNoteCalendarDate = undefined;
+        this.editorLeaving = false;
+        this.settingsMenuEnabled = false;
+        clearTimeout(this.settingsMenuTimer);
+        this.settingsMenuTimer = setTimeout(() => { this.settingsMenuEnabled = true; }, 150);
+      }, 220);
+    } else {
+      this.activeNote = undefined;
+      this.newNoteCalendarDate = undefined;
+      this.settingsMenuEnabled = false;
+      clearTimeout(this.settingsMenuTimer);
+      this.settingsMenuTimer = setTimeout(() => { this.settingsMenuEnabled = true; }, 150);
+    }
   }
   onCalendarNoteSelected(note: Note) { this.activeNote = note; }
+
+  onNoteCreated(noteId: string) {
+    if (this.activeNote !== null) return; // editor already closed/reassigned, don't interfere
+    // If the note already landed in allNotes (subscription fired before promise resolved), select it immediately
+    const existing = this.allNotes.find(n => n.id === noteId);
+    if (existing) {
+      this.activeNote = existing;
+    } else {
+      // Fallback: wait for the next subscription emission
+      this.pendingSelectNoteId = noteId;
+    }
+  }
+
+  onNoteLiveUpdate(update: {id: string, title: string}) {
+    const idx = this.allNotes.findIndex(n => n.id === update.id);
+    if (idx >= 0) {
+      this.allNotes = [
+        ...this.allNotes.slice(0, idx),
+        { ...this.allNotes[idx], title: update.title },
+        ...this.allNotes.slice(idx + 1)
+      ];
+      this.applyFilter();
+    }
+  }
+
+  onCalendarCurrentDateChange(date: Date) { this.calendarCurrentDate = date; }
 
   async setDefaultView(view: 'list' | 'calendar') {
     this.currentMainView = view;
@@ -847,14 +907,23 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   private touchStartX = 0;
   private touchStartY = 0;
+  private touchActive = false;
 
   onTouchStart(e: TouchEvent) {
+    // Non catturare swipe che partono dalla toolbar del calendario
+    const target = e.target as HTMLElement;
+    if (target.closest('.calendar-header') || target.closest('.calendar-toolbar')) {
+      this.touchActive = false;
+      return;
+    }
+    this.touchActive = true;
     this.touchStartX = e.touches[0].clientX;
     this.touchStartY = e.touches[0].clientY;
   }
 
   onTouchEnd(e: TouchEvent) {
-    if (!this.isMobile) return;
+    if (!this.isMobile || !this.touchActive) return;
+    this.touchActive = false;
     const deltaX = e.changedTouches[0].clientX - this.touchStartX;
     const deltaY = e.changedTouches[0].clientY - this.touchStartY;
     // Gesto verticale → scroll, non swipe

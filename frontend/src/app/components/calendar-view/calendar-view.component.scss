@@ -16,22 +16,16 @@
 // ─── Header ──────────────────────────────────────────────────
 .calendar-header {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
+  flex-direction: column;
   padding: 10px 16px;
   border-bottom: 1px solid rgba(0, 0, 0, 0.08);
-  flex-wrap: wrap;
   gap: 8px;
   flex-shrink: 0;
-
-  // Desktop: header-row-top è trasparente — i figli partecipano al flex del parent
-  .header-row-top {
-    display: contents;
-  }
 
   .nav-controls {
     display: flex;
     align-items: center;
+    justify-content: center;
     gap: 4px;
 
     .header-label {
@@ -43,97 +37,111 @@
       color: rgba(0, 0, 0, 0.8);
     }
   }
+}
 
-  .today-btn {
-    height: 36px;
-    line-height: 36px;
-    font-size: 13px;
-    border-radius: 99px !important;
+// ─── Dark toolbar (segmented control + today pill) ──────────
+.calendar-toolbar {
+  display: flex;
+  align-items: center;
+  background: #1C1B1F;
+  border-radius: 99px;
+  padding: 4px;
+  gap: 4px;
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.calendar-toolbar-segments {
+  position: relative;
+  display: flex;
+  flex: 1;
+  min-width: 0;
+}
+
+.calendar-toolbar-indicator {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: calc(100% / 3);
+  height: 100%;
+  background: #FFFBFE;
+  border-radius: 99px;
+  pointer-events: none;
+  z-index: 0;
+  transition:
+    transform 300ms cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  &--dragging {
+    transition: none;
+  }
+}
+
+.calendar-toolbar-seg {
+  position: relative;
+  z-index: 1;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  color: rgba(255, 251, 254, 0.6);
+  font-size: 0.875rem;
+  font-weight: 500;
+  padding: 8px 0;
+  cursor: pointer;
+  font-family: inherit;
+  transition: color 0.2s;
+  border-radius: 99px;
+  height: 36px;
+  box-sizing: border-box;
+
+  &--active {
+    color: #1C1B1F;
+    font-weight: 600;
+  }
+}
+
+.calendar-today-pill {
+  position: relative;
+  z-index: 1;
+  background: transparent;
+  border: 1px solid rgba(255, 251, 254, 0.3);
+  color: #FFFBFE;
+  border-radius: 99px;
+  padding: 6px 16px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  font-family: inherit;
+  white-space: nowrap;
+  flex-shrink: 0;
+  height: 36px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  transition: background 0.25s ease, color 0.25s ease, border-color 0.25s ease;
+
+  &--active {
+    background: #FFFBFE;
+    color: #1C1B1F;
+    border-color: transparent;
   }
 
-  .view-toggle {
-    height: 36px;
-    border-radius: 99px !important;
-    overflow: hidden;
-    border: 1px solid var(--mat-sys-outline-variant) !important;
+  &:hover {
+    background: rgba(255, 251, 254, 0.08);
+  }
 
-    ::ng-deep {
-      .mat-button-toggle {
-        font-size: 13px;
-        border: none !important;
-        background: transparent;
-        border-radius: 99px !important;
-
-        .mat-button-toggle-button {
-          border-radius: 99px !important;
-          height: 36px;
-          display: flex;
-          align-items: center;
-        }
-
-        .mat-button-toggle-label-content {
-          display: flex;
-          align-items: center;
-          gap: 4px;
-          line-height: 1;
-          padding: 0 12px;
-
-          .mat-pseudo-checkbox {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            flex-shrink: 0;
-          }
-        }
-
-        & + .mat-button-toggle {
-          border-left: none !important;
-        }
-
-        &.mat-button-toggle-checked {
-          background: var(--punto-primary-container);
-
-          .mat-button-toggle-label-content {
-            color: var(--punto-on-primary-container);
-            font-weight: 600;
-          }
-        }
-      }
-    }
+  &--active:hover {
+    background: rgba(255, 251, 254, 0.85);
   }
 }
 
 // ─── Calendar header mobile (class binding) ──────────────────
 .calendar-header--mobile {
-  flex-direction: column;
-  align-items: stretch;
   padding: 6px 10px;
   gap: 4px;
-  flex-wrap: nowrap;
-
-  .header-row-top {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-
-    .view-toggle {
-      flex: 1;
-      min-width: 0;
-
-      ::ng-deep {
-        .mat-button-toggle-group { width: 100%; }
-        .mat-button-toggle { flex: 1; }
-      }
-    }
-
-    .today-btn {
-      flex-shrink: 0;
-      height: 36px;
-      line-height: 36px;
-      font-size: 13px;
-      border-radius: 99px !important;
-    }
-  }
 
   .nav-controls {
     display: flex;
@@ -151,13 +159,55 @@
   }
 }
 
-// ─── Month view ──────────────────────────────────────────────
-.month-view {
+// ─── Month view scrollabile (desktop + mobile) ───────────────
+.months-scroll-container {
   flex: 1;
-  overflow: auto;
-  display: flex;
-  flex-direction: column;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: 32px;
 }
+
+.month-section-header {
+  padding: 16px 8px 4px;
+  font-size: 14px;
+  font-weight: 600;
+  color: rgba(0, 0, 0, 0.5);
+  text-transform: capitalize;
+  position: sticky;
+  top: 0;
+  background: var(--mat-sys-background, #FFFBFE);
+  z-index: 1;
+}
+
+.month-section .week-headers { flex-shrink: 0; }
+
+.month-section .month-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+}
+
+.month-section .month-grid .day-cell {
+  min-height: 80px;
+  padding: 4px;
+  border-right: 1px solid rgba(0,0,0,0.06);
+  border-bottom: 1px solid rgba(0,0,0,0.06);
+  cursor: pointer;
+  &.today .day-number {
+    background: #1C1B1F;
+    color: #FFFBFE;
+    border-radius: 50%;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+  }
+  &.other-month { opacity: 0.35; }
+}
+
+// Legacy desktop-only static month view (non più usato)
+.month-view { display: none; }
 
 .week-headers {
   display: grid;
@@ -261,16 +311,9 @@
         flex: 1;
       }
 
-      // Reminder: sfondo primario (scuro) → testo bianco
-      &.note-chip-reminder {
-        color: white;
-        font-weight: 500;
-      }
-
-      // Non-reminder: sfondo secondary-container (chiaro) → testo scuro
-      &:not(.note-chip-reminder) {
-        color: var(--mat-sys-on-secondary-container, #21005d);
-      }
+      // Tutti i chip usano sfondo scuro → testo sempre bianco
+      color: white;
+      font-weight: 500;
     }
 
     .more-notes {
@@ -298,7 +341,7 @@
     &:last-child { border-right: none; }
 
     &.today {
-      background: rgba(25, 118, 210, 0.04);
+      background: color-mix(in srgb, var(--mat-sys-on-surface) 4%, transparent);
     }
 
     .week-day-header {
@@ -316,9 +359,8 @@
         font-size: 10px;
         font-weight: 600;
         color: rgba(0, 0, 0, 0.45);
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
         text-transform: capitalize;
+        letter-spacing: 0.5px;
       }
 
       .week-day-number {
@@ -341,6 +383,7 @@
       }
     }
 
+    // ── Note chips (mobile + desktop) ──
     .week-day-notes {
       padding: 4px;
       display: flex;
@@ -349,21 +392,28 @@
 
       .note-chip {
         display: flex;
-        align-items: center;
-        gap: 2px;
+        flex-direction: column;
         font-size: 10px;
-        padding: 2px 5px;
-        border-radius: 99px;
+        padding: 3px 5px;
+        border-radius: 3px;   // coerente con month view
         overflow: hidden;
         cursor: pointer;
-        line-height: 16px;
+        color: white;
+        font-weight: 500;
 
         &:hover { filter: brightness(0.88); }
 
-        .chip-bell {
-          font-size: 10px !important;
-          width: 10px;
-          height: 10px;
+        .chip-row {
+          display: flex;
+          align-items: center;
+          gap: 2px;
+          line-height: 14px;
+        }
+
+        .chip-bell, .chip-repeat {
+          font-size: 9px !important;
+          width: 9px;
+          height: 9px;
           flex-shrink: 0;
           color: inherit;
         }
@@ -375,8 +425,12 @@
           flex: 1;
         }
 
-        &.note-chip-reminder { color: white; font-weight: 500; }
-        &:not(.note-chip-reminder) { color: var(--mat-sys-on-secondary-container, #21005d); }
+        .chip-time {
+          font-size: 9px;
+          opacity: 0.8;
+          line-height: 13px;
+          white-space: nowrap;
+        }
       }
     }
   }
@@ -411,9 +465,9 @@
       }
 
       &:not(.day-note-reminder) {
-        .day-note-time, .day-note-title { color: var(--mat-sys-on-secondary-container, #21005d); }
-        .day-note-preview { color: var(--mat-sys-on-secondary-container, #21005d); opacity: 0.7; }
-        .day-bell { color: var(--mat-sys-on-secondary-container, #21005d); }
+        .day-note-time, .day-note-title { color: white; }
+        .day-note-preview { color: white; opacity: 0.75; }
+        .day-bell { color: white; }
       }
 
       .day-note-time {
@@ -503,33 +557,21 @@
     flex-shrink: 0;
   }
 
-  // Mobile month view: container scrollabile con mesi impilati
+  // Mobile: padding extra per FAB
   .months-scroll-container {
-    flex: 1;
-    overflow-y: scroll;
-    -webkit-overflow-scrolling: touch;
     padding-bottom: 88px;
   }
 
   .month-section-header {
     padding: 12px 8px 4px;
     font-size: 13px;
-    font-weight: 600;
-    color: rgba(0, 0, 0, 0.6);
-    text-transform: capitalize;
-    position: sticky;
     top: 0;
     background: var(--mat-sys-background, #fafafa);
     z-index: 1;
   }
 
-  .month-section .week-headers {
-    flex-shrink: 0;
-  }
-
   .month-section .month-grid {
-    display: grid;
-    grid-template-columns: repeat(7, 1fr);
+    // celle più compatte su mobile
     grid-auto-rows: 64px;
   }
 
@@ -547,22 +589,25 @@
     .more-notes { font-size: 9px; }
   }
 
-  // Desktop month-view non appare su mobile (riutilizzato solo su desktop)
-  .month-view {
-    display: none;
-  }
 
   // Week view
-  .week-grid .week-day-col .week-day-header {
-    padding: 8px 2px 4px;
-
-    .week-day-name   { font-size: 8px; }
-    .week-day-number { font-size: 15px; width: 26px; height: 26px; }
+  .week-view {
+    padding-bottom: 88px;
   }
 
-  .week-grid .week-day-col .week-day-notes .note-chip {
-    font-size: 9px;
-    padding: 1px 3px;
+  .week-grid .week-day-col {
+    cursor: pointer;
+
+    &:active {
+      background: rgba(0, 0, 0, 0.04);
+    }
+
+    .week-day-header {
+      padding: 8px 2px 4px;
+
+      .week-day-name   { font-size: 8px; letter-spacing: 0; }
+      .week-day-number { font-size: 15px; width: 26px; height: 26px; }
+    }
   }
 
   // Day view

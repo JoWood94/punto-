@@ -25,7 +25,9 @@
   },
   "FAB": {
     "NEW_NOTE": "Nuova Nota",
-    "NEW_NOTE_ARIA": "Nuova nota"
+    "NEW_NOTE_ARIA": "Nuova nota",
+    "NEW_REMINDER": "Nuovo Promemoria",
+    "NEW_REMINDER_ARIA": "Nuovo promemoria"
   },
   "CONNECTIVITY": {
     "OFFLINE": "Offline",

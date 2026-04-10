@@ -25,7 +25,9 @@
   },
   "FAB": {
     "NEW_NOTE": "New Note",
-    "NEW_NOTE_ARIA": "New note"
+    "NEW_NOTE_ARIA": "New note",
+    "NEW_REMINDER": "New Reminder",
+    "NEW_REMINDER_ARIA": "New reminder"
   },
   "CONNECTIVITY": {
     "OFFLINE": "Offline",

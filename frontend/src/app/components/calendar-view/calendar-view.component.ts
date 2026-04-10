@@ -1,10 +1,9 @@
 import {
   Component, Input, Output, EventEmitter,
-  OnChanges, SimpleChanges, AfterViewInit, ViewChild, ElementRef
+  OnChanges, OnInit, SimpleChanges, AfterViewInit, ViewChild, ElementRef
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatButtonModule } from '@angular/material/button';
-import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { Note } from '../../services/note';
@@ -31,26 +30,48 @@ export interface CalendarMonth {
 @Component({
   selector: 'app-calendar-view',
   standalone: true,
-  imports: [CommonModule, MatButtonModule, MatButtonToggleModule, MatIconModule, MatTooltipModule, TranslateModule],
+  imports: [CommonModule, MatButtonModule, MatIconModule, MatTooltipModule, TranslateModule],
   templateUrl: './calendar-view.component.html',
   styleUrls: ['./calendar-view.component.scss']
 })
-export class CalendarViewComponent implements OnChanges, AfterViewInit {
+export class CalendarViewComponent implements OnChanges, OnInit, AfterViewInit {
   @Input() notes: Note[] = [];
   @Input() isMobile = false;
+  @Input() initialViewType: CalendarViewType = 'month';
   @Output() noteSelected = new EventEmitter<Note>();
+  @Output() viewTypeChange = new EventEmitter<CalendarViewType>();
+  @Output() currentDateChange = new EventEmitter<Date>();
 
   @ViewChild('monthsContainer') monthsContainerRef?: ElementRef<HTMLElement>;
+  @ViewChild('toolbarSegments') toolbarSegmentsRef?: ElementRef<HTMLElement>;
 
   viewType: CalendarViewType = 'month';
   currentDate = new Date();
+
+  // ── Toolbar drag indicator ──
+  private readonly VIEW_SEGMENTS: CalendarViewType[] = ['day', 'week', 'month'];
+  private toolbarSegWidth = 0;   // usato SOLO durante il drag live
+  toolbarDragging = false;
+  toolbarIndicatorTransform = this.cssTransform(this.VIEW_SEGMENTS.indexOf(this.viewType));
+  private toolbarDragStartX = 0;
+  private toolbarDragStartIndex = 0;
+
+  /** Posizione a riposo: translateX(N * 100%) — 100% = larghezza indicatore = 1/3 container */
+  private cssTransform(index: number): string {
+    return `translateX(${index * 100}%)`;
+  }
+
+  /** Posizione durante drag: px precisi misurati dal DOM */
+  private pxTransform(offset: number): string {
+    return `translateX(${offset}px)`;
+  }
 
   calendarDays: CalendarDay[] = [];
   weekDays: CalendarDay[] = [];
   dayNotes: Note[] = [];
   months: CalendarMonth[] = [];
 
-  private translationService = inject(TranslationService);
+  translationService = inject(TranslationService);
 
   get weekHeaders(): string[] {
     const locale = this.translationService.locale;
@@ -70,12 +91,25 @@ export class CalendarViewComponent implements OnChanges, AfterViewInit {
     }
   }
 
+  ngOnInit(): void {
+    this.viewType = this.initialViewType;
+    this.toolbarIndicatorTransform = this.cssTransform(this.VIEW_SEGMENTS.indexOf(this.viewType));
+    this.refresh();
+  }
+
   ngAfterViewInit(): void {
-    setTimeout(() => this.scrollToCurrentMonth(), 50);
+    setTimeout(() => {
+      this.scrollToCurrentMonth();
+      // Misura segWidth solo per uso drag — la posizione visiva usa già %
+      const el = this.toolbarSegmentsRef?.nativeElement;
+      if (el && el.clientWidth > 0) {
+        this.toolbarSegWidth = el.clientWidth / this.VIEW_SEGMENTS.length;
+      }
+    }, 50);
   }
 
   private refresh(): void {
-    if (this.isMobile && this.viewType === 'month') {
+    if (this.viewType === 'month') {
       this.buildScrollableMonths(this.currentDate);
     } else {
       this.buildView();
@@ -84,9 +118,14 @@ export class CalendarViewComponent implements OnChanges, AfterViewInit {
 
   setView(view: CalendarViewType): void {
     this.viewType = view;
-    if (this.isMobile && view === 'month') {
+    this.viewTypeChange.emit(view);
+    this.currentDateChange.emit(new Date(this.currentDate));
+    const index = this.VIEW_SEGMENTS.indexOf(view);
+    this.toolbarIndicatorTransform = this.cssTransform(index);
+    if (view === 'month') {
+      this.isProgrammaticScroll = true;
       this.buildScrollableMonths(this.currentDate);
-      setTimeout(() => this.scrollToCurrentMonth(), 50);
+      requestAnimationFrame(() => requestAnimationFrame(() => this.scrollToCurrentMonth()));
     } else {
       this.buildView();
     }
@@ -155,14 +194,24 @@ export class CalendarViewComponent implements OnChanges, AfterViewInit {
     this.months = result;
   }
 
+  private isProgrammaticScroll = false;
+
   private scrollToCurrentMonth(): void {
-    if (!this.isMobile || this.viewType !== 'month') return;
+    if (this.viewType !== 'month') return;
     const container = this.monthsContainerRef?.nativeElement;
     if (!container) return;
     const year = this.currentDate.getFullYear();
     const month = this.currentDate.getMonth();
     const el = container.querySelector(`[data-month="${year}-${month}"]`) as HTMLElement | null;
-    if (el) el.scrollIntoView({ behavior: 'instant' as ScrollBehavior });
+    if (el) {
+      // getBoundingClientRect → posizione reale relativa al viewport,
+      // indipendente dall'offsetParent — evita il "taglia i primi giorni"
+      const elRect = el.getBoundingClientRect();
+      const containerRect = container.getBoundingClientRect();
+      container.scrollTop = container.scrollTop + (elRect.top - containerRect.top);
+    }
+    // Rilascia il lock dopo che tutti gli eventi scroll si sono esauriti
+    setTimeout(() => { this.isProgrammaticScroll = false; }, 400);
   }
 
   onMonthsScroll(event: Event): void {
@@ -186,6 +235,33 @@ export class CalendarViewComponent implements OnChanges, AfterViewInit {
       const last = this.months[this.months.length - 1];
       const d = new Date(last.year, last.month + 1, 1);
       this.months = [...this.months, this.buildMonth(d.getFullYear(), d.getMonth())];
+    }
+
+    // Aggiorna currentDate solo se lo scroll è manuale (non programmatico)
+    if (this.isProgrammaticScroll) return;
+    // Usa il punto al 25% dall'alto del container come riferimento —
+    // quando Today scrolla il mese in CIMA, il centro (50%) cadrebbe nel mese successivo
+    // causando todayIsVisible = false. Il 25% seleziona correttamente il mese in testa.
+    const cRect = container.getBoundingClientRect();
+    const refY = cRect.top + container.clientHeight * 0.25;
+    let found: HTMLElement | null = null;
+    container.querySelectorAll<HTMLElement>('[data-month]').forEach(el => {
+      const r = el.getBoundingClientRect();
+      if (r.top <= refY && r.bottom > refY) { found = el; }
+    });
+    // Fallback: nessun mese contiene refY → prendi il più in alto ancora visibile
+    if (!found) {
+      let minTop = Infinity;
+      container.querySelectorAll<HTMLElement>('[data-month]').forEach(el => {
+        const r = el.getBoundingClientRect();
+        if (r.bottom > cRect.top && r.top < minTop) { minTop = r.top; found = el; }
+      });
+    }
+    if (found) {
+      const [y, m] = (found as HTMLElement).getAttribute('data-month')!.split('-').map(Number);
+      if (this.currentDate.getFullYear() !== y || this.currentDate.getMonth() !== m) {
+        this.currentDate = new Date(y, m, 1);
+      }
     }
   }
 
@@ -214,6 +290,10 @@ export class CalendarViewComponent implements OnChanges, AfterViewInit {
 
   hasReminder(note: Note): boolean {
     return !!note.reminderTime;
+  }
+
+  dayHasReminder(day: CalendarDay): boolean {
+    return day.notes.some(n => !!n.reminderTime);
   }
 
   hasReminderRepeat(note: Note): boolean {
@@ -287,9 +367,11 @@ export class CalendarViewComponent implements OnChanges, AfterViewInit {
     else if (this.viewType === 'week') d.setDate(d.getDate() + direction * 7);
     else d.setDate(d.getDate() + direction);
     this.currentDate = d;
-    if (this.isMobile && this.viewType === 'month') {
+    this.currentDateChange.emit(new Date(this.currentDate));
+    if (this.viewType === 'month') {
+      this.isProgrammaticScroll = true;
       this.buildScrollableMonths(this.currentDate);
-      setTimeout(() => this.scrollToCurrentMonth(), 50);
+      requestAnimationFrame(() => requestAnimationFrame(() => this.scrollToCurrentMonth()));
     } else {
       this.buildView();
     }
@@ -297,9 +379,16 @@ export class CalendarViewComponent implements OnChanges, AfterViewInit {
 
   goToToday(): void {
     this.currentDate = new Date();
-    if (this.isMobile && this.viewType === 'month') {
+    this.currentDateChange.emit(new Date(this.currentDate));
+    this.toolbarIndicatorTransform = this.cssTransform(this.VIEW_SEGMENTS.indexOf(this.viewType));
+    if (this.viewType === 'month') {
+      // Lock immediato: blocca TUTTI gli scroll events intermedi
+      // (il rebuild di months cambia scrollHeight → browser può emettere scroll events)
+      this.isProgrammaticScroll = true;
       this.buildScrollableMonths(this.currentDate);
-      setTimeout(() => this.scrollToCurrentMonth(), 50);
+      // Double rAF: 1° frame → Angular processa il nuovo array months
+      //             2° frame → browser ha fatto layout del nuovo DOM
+      requestAnimationFrame(() => requestAnimationFrame(() => this.scrollToCurrentMonth()));
     } else {
       this.buildView();
     }
@@ -307,8 +396,8 @@ export class CalendarViewComponent implements OnChanges, AfterViewInit {
 
   selectDay(day: CalendarDay): void {
     this.currentDate = new Date(day.date);
-    this.viewType = 'day';
-    this.buildDayView();
+    this.currentDateChange.emit(new Date(this.currentDate));
+    this.setView('day');
   }
 
   selectNote(note: Note, event: Event): void {
@@ -316,9 +405,88 @@ export class CalendarViewComponent implements OnChanges, AfterViewInit {
     this.noteSelected.emit(note);
   }
 
+  // ── Toolbar drag handlers (mirrors unified-toolbar in dashboard) ──
+  private measureToolbarSegWidth(e: TouchEvent): void {
+    const seg = (e.target as HTMLElement).closest('.calendar-toolbar-segments');
+    if (seg) {
+      this.toolbarSegWidth = seg.clientWidth / this.VIEW_SEGMENTS.length;
+    }
+  }
+
+  onToolbarTouchStart(e: TouchEvent): void {
+    // Attiva drag solo se il touch parte dentro i segmenti, non su "Oggi" o altri pulsanti
+    if (!(e.target as HTMLElement).closest('.calendar-toolbar-segments')) return;
+    this.measureToolbarSegWidth(e);
+    this.toolbarDragging = true;
+    this.toolbarDragStartX = e.touches[0].clientX;
+    this.toolbarDragStartIndex = this.VIEW_SEGMENTS.indexOf(this.viewType);
+  }
+
+  onToolbarTouchMove(e: TouchEvent): void {
+    if (!this.toolbarDragging) return;
+    e.preventDefault();
+    const dx = e.touches[0].clientX - this.toolbarDragStartX;
+    if (this.toolbarSegWidth > 0) {
+      const rawOffset = this.toolbarDragStartIndex * this.toolbarSegWidth + dx;
+      const maxOffset = (this.VIEW_SEGMENTS.length - 1) * this.toolbarSegWidth;
+      const clamped = Math.max(0, Math.min(maxOffset, rawOffset));
+      this.toolbarIndicatorTransform = this.pxTransform(clamped);
+      const liveIndex = Math.max(0, Math.min(
+        this.VIEW_SEGMENTS.length - 1,
+        Math.round(rawOffset / this.toolbarSegWidth)
+      ));
+      this.viewType = this.VIEW_SEGMENTS[liveIndex];
+    }
+  }
+
+  onToolbarTouchEnd(e: TouchEvent): void {
+    if (!this.toolbarDragging) return;
+    this.toolbarDragging = false;
+    const endX = e.changedTouches[0]?.clientX ?? this.toolbarDragStartX;
+    const dx = endX - this.toolbarDragStartX;
+    // Tap senza spostamento reale → lascia il (click) gestire, ripristina indicatore
+    if (Math.abs(dx) < 8) {
+      // Tap: ripristina posizione CSS e lascia il (click) gestire
+      this.toolbarIndicatorTransform = this.cssTransform(this.VIEW_SEGMENTS.indexOf(this.viewType));
+      return;
+    }
+    // Drag reale: snap all'indice più vicino
+    if (this.toolbarSegWidth > 0) {
+      const rawOffset = this.toolbarDragStartIndex * this.toolbarSegWidth + dx;
+      const snapIndex = Math.max(0, Math.min(
+        this.VIEW_SEGMENTS.length - 1,
+        Math.round(rawOffset / this.toolbarSegWidth)
+      ));
+      this.setView(this.VIEW_SEGMENTS[snapIndex]);
+    } else {
+      // Fallback senza misurazione: snap basato su direzione
+      const dir = dx > 0 ? -1 : 1;
+      const newIndex = Math.max(0, Math.min(
+        this.VIEW_SEGMENTS.length - 1,
+        this.toolbarDragStartIndex + dir
+      ));
+      this.setView(this.VIEW_SEGMENTS[newIndex]);
+    }
+  }
+
   formatTime(reminderTime: number | null | undefined): string {
     if (!reminderTime) return '';
     return new Date(reminderTime).toLocaleTimeString(this.translationService.locale, { hour: '2-digit', minute: '2-digit' });
+  }
+
+  get todayIsVisible(): boolean {
+    const today = new Date();
+    switch (this.viewType) {
+      case 'day':
+        return this.isSameDay(this.currentDate, today);
+      case 'week':
+        return this.weekDays?.some(d => this.isSameDay(d.date, today)) ?? false;
+      case 'month':
+        return this.currentDate.getMonth() === today.getMonth()
+            && this.currentDate.getFullYear() === today.getFullYear();
+      default:
+        return false;
+    }
   }
 
   get headerLabel(): string {

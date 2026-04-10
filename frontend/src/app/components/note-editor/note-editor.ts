@@ -53,6 +53,8 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewInit, Af
   @Input() selectedNote: Note | null = null;
   @Input() initialReminderDate?: Date;
   @Output() closeEditor = new EventEmitter<void>();
+  @Output() noteCreated = new EventEmitter<string>();
+  @Output() noteLiveUpdate = new EventEmitter<{id: string, title: string}>();
 
   /** Collects only #textBlockEl refs (one per text block, in ngFor order). */
   @ViewChildren('textBlockEl') textBlockEls!: QueryList<ElementRef<HTMLElement>>;
@@ -181,6 +183,19 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewInit, Af
 
   private initNote() {
     if (this.selectedNote) {
+      // Se stiamo già editando questa stessa nota, non re-inizializzare (preserva le modifiche non ancora salvate)
+      if (this.selectedNote.id && this.selectedNote.id === this.savedNoteId) return;
+      // Se stavamo creando una nuova nota pristine, eliminala prima di aprire quella selezionata
+      if (this.isNewNote && this.isPristine()) {
+        const prevId = this.savedNoteId;
+        const prevPromise = this.createNotePromise;
+        if (prevId) {
+          (async () => {
+            if (prevPromise) await prevPromise.catch(() => {});
+            this.noteService.deleteNote(prevId).catch(() => {});
+          })();
+        }
+      }
       this.savedNoteId = this.selectedNote.id || null;
       this.isNewNote = false;
       this.userHasModifiedContent = false;
@@ -224,6 +239,8 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewInit, Af
     } else {
       // Guard: ngOnInit + ngOnChanges chiamano entrambi initNote() al mount — evita doppia creazione
       if (this.isNewNote) return;
+      // Guard extra: se abbiamo già un savedNoteId non creare un'altra nota
+      if (this.savedNoteId) return;
 
       this.userHasModifiedContent = false;
       if (this.initialReminderDate) {
@@ -250,6 +267,7 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewInit, Af
         .then(result => {
           this.savedNoteId = result.id;
           (this.note as any).id = result.id;
+          this.noteCreated.emit(result.id);
         })
         .catch(err => console.error('[AutoSave] createNote error:', err));
     }
@@ -487,6 +505,15 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewInit, Af
       this.scrollEditorToBottom();
       this.triggerAutoSave();
     }
+  }
+
+  onChecklistEnter(event: Event, block: ChecklistBlock, input: HTMLInputElement) {
+    event.preventDefault(); // evita newline / submit su mobile
+    const text = input.value;
+    this.addChecklistItem(block, text);
+    input.value = '';
+    // Su iOS il focus sincrono dopo clear non funziona — setTimeout necessario
+    setTimeout(() => input.focus(), 30);
   }
 
   removeChecklistItem(block: ChecklistBlock, index: number) {
@@ -830,11 +857,18 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewInit, Af
   private isPristine(): boolean {
     if (this.userHasModifiedContent) return false;
     const title = (this.note.title || '').trim();
-    return !title || title === this.PLACEHOLDER_TITLE;
+    if (title && title !== this.PLACEHOLDER_TITLE) return false;
+    // Se c'è un reminder block con tempo configurato, la nota non è pristine
+    const hasConfiguredReminder = this.note.blocks.some(b => b.type === 'reminder' && (b as any).time);
+    if (hasConfiguredReminder) return false;
+    return true;
   }
 
   triggerAutoSave() {
     this.userHasModifiedContent = true;
+    if (this.savedNoteId) {
+      this.noteLiveUpdate.emit({ id: this.savedNoteId, title: this.note.title || '' });
+    }
     clearTimeout(this.autoSaveTimer);
     this.autoSaveTimer = setTimeout(() => this.performAutoSave(), 800);
   }

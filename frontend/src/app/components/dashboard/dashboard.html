@@ -128,9 +128,6 @@
             <div class="empty-state" *ngIf="pinnedNotes.length === 0 && plainNotes.length === 0 && !searchQuery">
               <mat-icon>edit_note</mat-icon>
               <p>{{ 'EMPTY.NO_NOTES' | translate }}</p>
-              <button mat-flat-button color="primary" (click)="openNoteEditor()" *ngIf="!isMobile">
-                {{ 'EMPTY.NEW_NOTE_BTN' | translate }}
-              </button>
             </div>
             <div class="empty-state" *ngIf="pinnedNotes.length === 0 && plainNotes.length === 0 && searchQuery">
               <mat-icon>search_off</mat-icon>
@@ -185,9 +182,6 @@
                  *ngIf="activeReminderNotes.length === 0 && recurringReminderNotes.length === 0 && evadedNotes.length === 0 && !searchQuery">
               <mat-icon>notifications_none</mat-icon>
               <p>{{ 'EMPTY.NO_REMINDERS' | translate }}</p>
-              <button mat-flat-button color="primary" (click)="openNoteEditor()" *ngIf="!isMobile">
-                {{ 'EMPTY.NEW_REMINDER_BTN' | translate }}
-              </button>
             </div>
             <div class="empty-state"
                  *ngIf="activeReminderNotes.length === 0 && recurringReminderNotes.length === 0 && evadedNotes.length === 0 && searchQuery">
@@ -285,22 +279,34 @@
 
   <mat-sidenav-content class="dashboard-content" *ngIf="!isMobile || activeNote !== undefined || (isReady && currentMainView === 'calendar')">
 
-    <div class="editor-wrapper editor-enter" *ngIf="activeNote !== undefined">
+    <div class="editor-wrapper editor-enter" *ngIf="activeNote !== undefined"
+         [class.editor-leaving]="editorLeaving">
       <app-note-editor #noteEditor [selectedNote]="activeNote" [initialReminderDate]="newNoteCalendarDate"
-                       (closeEditor)="closeEditor()">
+                       (closeEditor)="closeEditor()"
+                       (noteCreated)="onNoteCreated($event)"
+                       (noteLiveUpdate)="onNoteLiveUpdate($event)">
       </app-note-editor>
     </div>
 
     <div class="calendar-wrapper" *ngIf="isReady && (currentMainView === 'calendar' || (!isMobile && currentMainView === 'list')) && activeNote === undefined">
-      <app-calendar-view [notes]="calendarNotes" [isMobile]="isMobile" (noteSelected)="onCalendarNoteSelected($event)">
+      <app-calendar-view [notes]="calendarNotes" [isMobile]="isMobile"
+        [initialViewType]="lastCalendarView"
+        (viewTypeChange)="lastCalendarView = $event"
+        (noteSelected)="onCalendarNoteSelected($event)"
+        (currentDateChange)="onCalendarCurrentDateChange($event)">
       </app-calendar-view>
     </div>
 
     <!-- FAB desktop: fixed bottom-right -->
     <div class="sidenav-fab-area" *ngIf="activeNote === undefined && !isMobile">
-      <button mat-fab extended (click)="openNoteEditor()" class="new-note-fab">
-        <mat-icon>edit</mat-icon>
-        {{ 'FAB.NEW_NOTE' | translate }}
+      <button mat-fab extended (click)="openNoteEditor()" class="new-note-fab"
+              [attr.aria-label]="(activeView === 'notes' ? 'FAB.NEW_NOTE_ARIA' : 'FAB.NEW_REMINDER_ARIA') | translate">
+        <span class="fab-icon-slot">
+          <mat-icon class="fab-ic" [class.fab-ic--on]="activeView === 'notes'">edit</mat-icon>
+          <mat-icon class="fab-ic" [class.fab-ic--on]="activeView !== 'notes'">notification_add</mat-icon>
+        </span>
+        <span class="fab-lb" [class.fab-lb--on]="activeView === 'notes'">{{ 'FAB.NEW_NOTE' | translate }}</span>
+        <span class="fab-lb" [class.fab-lb--on]="activeView !== 'notes'">{{ 'FAB.NEW_REMINDER' | translate }}</span>
       </button>
     </div>
   </mat-sidenav-content>
@@ -310,10 +316,13 @@
 <!-- FAB mobile: icon-only round, position:fixed fuori dal sidenav-container -->
 <div class="mobile-fab-overlay" *ngIf="isMobile && activeNote === undefined">
   <button mat-fab
-          (click)="currentMainView === 'calendar' ? openNoteEditorFromCalendar() : openNoteEditor()"
+          (click)="currentMainView === 'calendar' ? openNoteEditorFromCalendar(calendarCurrentDate) : openNoteEditor()"
           class="new-note-fab"
-          [attr.aria-label]="'FAB.NEW_NOTE_ARIA' | translate">
-    <mat-icon>edit</mat-icon>
+          [attr.aria-label]="(mobileNav === 'notes' ? 'FAB.NEW_NOTE_ARIA' : 'FAB.NEW_REMINDER_ARIA') | translate">
+    <span class="fab-icon-slot">
+      <mat-icon class="fab-ic" [class.fab-ic--on]="mobileNav === 'notes'">edit</mat-icon>
+      <mat-icon class="fab-ic" [class.fab-ic--on]="mobileNav !== 'notes'">notification_add</mat-icon>
+    </span>
   </button>
 </div>
 

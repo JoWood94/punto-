@@ -3,15 +3,35 @@
   <!-- ── Header ── -->
   <div class="calendar-header" [class.calendar-header--mobile]="isMobile">
 
-    <!-- Riga 1: toggle + oggi -->
-    <div class="header-row-top">
-      <mat-button-toggle-group [value]="viewType" (change)="setView($event.value)"
-          class="view-toggle" aria-label="Vista calendario">
-        <mat-button-toggle value="day">{{ 'CALENDAR.DAY' | translate }}</mat-button-toggle>
-        <mat-button-toggle value="week">{{ 'CALENDAR.WEEK' | translate }}</mat-button-toggle>
-        <mat-button-toggle value="month">{{ 'CALENDAR.MONTH' | translate }}</mat-button-toggle>
-      </mat-button-toggle-group>
-      <button mat-stroked-button class="today-btn" (click)="goToToday()">{{ 'CALENDAR.TODAY' | translate }}</button>
+    <!-- Riga 1: toolbar scura con segmenti + oggi -->
+    <div class="calendar-toolbar"
+         (touchstart)="onToolbarTouchStart($event)"
+         (touchmove)="onToolbarTouchMove($event)"
+         (touchend)="onToolbarTouchEnd($event)">
+      <div class="calendar-toolbar-segments" #toolbarSegments>
+        <div class="calendar-toolbar-indicator"
+             [style.transform]="toolbarIndicatorTransform"
+             [class.calendar-toolbar-indicator--dragging]="toolbarDragging">
+        </div>
+        <button class="calendar-toolbar-seg" type="button"
+                [class.calendar-toolbar-seg--active]="viewType === 'day'"
+                (click)="setView('day')">
+          {{ 'CALENDAR.DAY' | translate }}
+        </button>
+        <button class="calendar-toolbar-seg" type="button"
+                [class.calendar-toolbar-seg--active]="viewType === 'week'"
+                (click)="setView('week')">
+          {{ 'CALENDAR.WEEK' | translate }}
+        </button>
+        <button class="calendar-toolbar-seg" type="button"
+                [class.calendar-toolbar-seg--active]="viewType === 'month'"
+                (click)="setView('month')">
+          {{ 'CALENDAR.MONTH' | translate }}
+        </button>
+      </div>
+      <button class="calendar-today-pill"
+              [class.calendar-today-pill--active]="todayIsVisible"
+              (click)="goToToday()">{{ 'CALENDAR.TODAY' | translate }}</button>
     </div>
 
     <!-- Riga 2: nav prev/next — sempre visibile -->
@@ -27,38 +47,8 @@
 
   </div>
 
-  <!-- ── Month view (desktop) ── -->
-  <div class="month-view" *ngIf="viewType === 'month' && !isMobile">
-    <div class="week-headers">
-      <div class="week-header" *ngFor="let h of weekHeaders">{{ h }}</div>
-    </div>
-    <div class="month-grid">
-      <div class="day-cell"
-           *ngFor="let day of calendarDays"
-           [class.other-month]="!day.isCurrentMonth"
-           [class.today]="day.isToday"
-           [class.has-notes]="day.notes.length > 0"
-           (click)="day.notes.length > 0 ? selectDay(day) : null">
-        <span class="day-number">{{ day.date.getDate() }}</span>
-        <div class="day-notes">
-          <div class="note-chip"
-               *ngFor="let note of day.notes.slice(0, 3)"
-               [class.note-chip-reminder]="hasReminder(note)"
-               [style.background-color]="(note.color && note.color !== 'default' ? note.color : null) || (hasReminder(note) ? 'var(--punto-primary, #4A6CF7)' : 'var(--mat-sys-secondary-container, #e8def8)')"
-               (click)="selectNote(note, $event)"
-               [matTooltip]="(note.title || 'Nota senza titolo') + (hasReminder(note) ? ' 🔔' : '')">
-            <mat-icon class="chip-bell" *ngIf="hasReminder(note)">notifications</mat-icon>
-            <mat-icon class="chip-repeat" *ngIf="hasReminderRepeat(note)">repeat</mat-icon>
-            <span class="chip-title">{{ (note.title || 'Senza titolo') | slice:0:14 }}{{ (note.title || '').length > 14 ? '…' : '' }}</span>
-          </div>
-          <div class="more-notes" *ngIf="day.notes.length > 3">+{{ day.notes.length - 3 }} altre</div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- ── Month view (mobile) — mesi scrollabili verticalmente ── -->
-  <div class="months-scroll-container" *ngIf="viewType === 'month' && isMobile"
+  <!-- ── Month view — mesi scrollabili verticalmente (desktop + mobile) ── -->
+  <div class="months-scroll-container" *ngIf="viewType === 'month'"
        #monthsContainer (scroll)="onMonthsScroll($event)">
     <div class="month-section" *ngFor="let m of months"
          [attr.data-month]="m.year + '-' + m.month">
@@ -78,7 +68,7 @@
             <div class="note-chip"
                  *ngFor="let note of day.notes.slice(0, 1)"
                  [class.note-chip-reminder]="hasReminder(note)"
-                 [style.background-color]="(note.color && note.color !== 'default' ? note.color : null) || (hasReminder(note) ? 'var(--punto-primary, #4A6CF7)' : 'var(--mat-sys-secondary-container, #e8def8)')"
+                 [style.background-color]="(note.color && note.color !== 'default' ? note.color : null) || 'var(--punto-primary, #1C1B1F)'"
                  (click)="selectNote(note, $event)">
               <mat-icon class="chip-bell" *ngIf="hasReminder(note)">notifications</mat-icon>
               <span class="chip-title">{{ (note.title || 'Senza titolo') | slice:0:12 }}{{ (note.title || '').length > 12 ? '…' : '' }}</span>
@@ -95,22 +85,29 @@
     <div class="week-grid">
       <div class="week-day-col"
            *ngFor="let day of weekDays"
-           [class.today]="day.isToday">
-        <div class="week-day-header" (click)="selectDay(day)">
-          <span class="week-day-name">{{ day.date.toLocaleDateString('it-IT', {weekday:'short'}) }}</span>
+           [class.today]="day.isToday"
+           (click)="isMobile ? selectDay(day) : null">
+        <div class="week-day-header" (click)="!isMobile ? selectDay(day) : null">
+          <span class="week-day-name">{{ day.date.toLocaleDateString(translationService.locale, {weekday:'short'}) }}</span>
           <span class="week-day-number" [class.today-circle]="day.isToday">{{ day.date.getDate() }}</span>
         </div>
-        <div class="week-day-notes">
+
+        <!-- Mobile + Desktop: note chips (stesso template della month view) -->
+        <div class="week-day-notes" *ngIf="day.notes.length > 0">
           <div class="note-chip"
-               *ngFor="let note of day.notes"
+               *ngFor="let note of day.notes.slice(0, isMobile ? 2 : day.notes.length)"
                [class.note-chip-reminder]="hasReminder(note)"
-               [style.background-color]="(note.color && note.color !== 'default' ? note.color : null) || (hasReminder(note) ? 'var(--punto-primary, #4A6CF7)' : 'var(--mat-sys-secondary-container, #e8def8)')"
+               [style.background-color]="(note.color && note.color !== 'default' ? note.color : null) || 'var(--punto-primary, #1C1B1F)'"
                (click)="selectNote(note, $event)"
-               [matTooltip]="(note.title || 'Nota senza titolo') + (hasReminder(note) ? ' 🔔' : '')">
-            <mat-icon class="chip-bell" *ngIf="hasReminder(note)">notifications</mat-icon>
-            <mat-icon class="chip-repeat" *ngIf="hasReminderRepeat(note)">repeat</mat-icon>
-            <span class="chip-title">{{ (note.title || 'Senza titolo') | slice:0:14 }}{{ (note.title || '').length > 14 ? '…' : '' }}</span>
+               [matTooltip]="!isMobile ? ((note.title || 'Nota senza titolo') + (hasReminder(note) ? ' 🔔' : '')) : ''">
+            <div class="chip-row">
+              <mat-icon class="chip-bell" *ngIf="hasReminder(note)">notifications</mat-icon>
+              <mat-icon class="chip-repeat" *ngIf="!hasReminder(note) && hasReminderRepeat(note)">repeat</mat-icon>
+              <span class="chip-title">{{ (note.title || 'Senza titolo') | slice:0:10 }}{{ (note.title || 'Senza titolo').length > 10 ? '…' : '' }}</span>
+            </div>
+            <div class="chip-time" *ngIf="hasReminder(note) && formatTime(note.reminderTime)">{{ formatTime(note.reminderTime) }}</div>
           </div>
+          <div class="more-notes" *ngIf="isMobile && day.notes.length > 2">+{{ day.notes.length - 2 }}</div>
         </div>
       </div>
     </div>
@@ -122,7 +119,7 @@
       <div class="day-note-item"
            *ngFor="let note of dayNotes"
            [class.day-note-reminder]="hasReminder(note)"
-           [style.background-color]="(note.color && note.color !== 'default' ? note.color : null) || (hasReminder(note) ? 'var(--punto-primary, #4A6CF7)' : 'var(--mat-sys-secondary-container, #e8def8)')"
+           [style.background-color]="(note.color && note.color !== 'default' ? note.color : null) || 'var(--punto-primary, #1C1B1F)'"
            (click)="selectNote(note, $event)">
         <div class="day-note-time">
           <mat-icon class="day-bell" *ngIf="hasReminder(note)">notifications</mat-icon>

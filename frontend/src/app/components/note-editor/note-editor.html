@@ -143,7 +143,7 @@
 
 <div class="editor-header">
   <input #titleInput class="title-input-raw" [(ngModel)]="note.title" placeholder="Titolo"
-       (ngModelChange)="onTitleChange()" (blur)="onTitleChange()" />
+       (ngModelChange)="onTitleChange()" />
 </div>
 
 <div class="editor-content" #editorContent (click)="onEditorContentClick($event)">
@@ -195,19 +195,21 @@
           </div>
           <div class="checklist-items">
             <div class="checklist-item" *ngFor="let item of $any(block).items; let j = index">
-              <mat-checkbox [(ngModel)]="item.done" (ngModelChange)="onChecklistItemChange()" ></mat-checkbox>
-              <input class="checklist-input" [class.item-done]="item.done"
-                     [(ngModel)]="item.text" (ngModelChange)="onChecklistItemChange()" placeholder="Voce..." />
-              <button mat-icon-button class="remove-item-btn" (click)="removeChecklistItem($any(block), j)" type="button">
-                <mat-icon>close</mat-icon>
-              </button>
+              <mat-checkbox [(ngModel)]="item.done" (ngModelChange)="onChecklistItemChange()"></mat-checkbox>
+              <div class="checklist-input-wrap">
+                <input class="checklist-input" [class.item-done]="item.done"
+                       [(ngModel)]="item.text" (ngModelChange)="onChecklistItemChange()" placeholder="Voce..." />
+                <button mat-icon-button class="remove-item-btn" (click)="removeChecklistItem($any(block), j)" type="button">
+                  <mat-icon>close</mat-icon>
+                </button>
+              </div>
             </div>
           </div>
           <div class="checklist-add-row">
             <input class="checklist-add-input" #newItemInput placeholder="Aggiungi voce..."
-                   (keyup.enter)="addChecklistItem($any(block), newItemInput.value); newItemInput.value = ''">
+                   (keydown.enter)="onChecklistEnter($event, $any(block), newItemInput)">
             <button mat-icon-button type="button" class="checklist-add-btn"
-                    (click)="addChecklistItem($any(block), newItemInput.value); newItemInput.value = ''">
+                    (click)="onChecklistEnter($event, $any(block), newItemInput)">
               <mat-icon>add_circle</mat-icon>
             </button>
           </div>

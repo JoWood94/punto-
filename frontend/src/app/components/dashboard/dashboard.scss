@@ -17,12 +17,17 @@
   ::ng-deep .mat-drawer-content {
     transition: margin-left var(--_t) !important;
   }
+
+  ::ng-deep .mat-drawer {
+    border-radius: 0 !important;
+  }
 }
 
 .notes-sidenav {
   width: 320px;
   background: var(--punto-bg);
   border-right: 1px solid var(--mat-sys-outline-variant);
+  border-radius: 0 !important;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -692,31 +697,59 @@
   }
 }
 
-// Animazione ingresso editor
-@keyframes slideInFade {
+// ── Animazioni mobile: editor e calendario ────────────────────
+// NON usiamo translateY — sembra navigazione browser.
+// Scale + opacity: il contenuto "si espande" nella sua posizione.
+
+@keyframes editorReveal {
   from {
     opacity: 0;
-    transform: translateY(12px);
+    transform: scale(0.96);
+    transform-origin: top center;
   }
   to {
     opacity: 1;
-    transform: translateY(0);
+    transform: scale(1);
+  }
+}
+
+@keyframes editorDismiss {
+  from {
+    opacity: 1;
+    transform: scale(1);
+    transform-origin: top center;
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+}
+
+@keyframes calendarReveal {
+  from {
+    opacity: 0;
+    transform: scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
   }
 }
 
 @keyframes fadeInUp {
-  from {
-    opacity: 0;
-    transform: translateY(8px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0);   }
+}
+
+@media (max-width: 599.98px) {
+  .editor-enter {
+    animation: editorReveal 300ms 160ms cubic-bezier(0, 0, 0.2, 1) both;
   }
 }
 
-.editor-enter {
-  animation: slideInFade var(--_t) both;
+.editor-leaving {
+  animation: editorDismiss 200ms cubic-bezier(0.4, 0, 1, 0.8) both;
+  pointer-events: none;
 }
 
 
@@ -725,10 +758,15 @@
 }
 
 .calendar-wrapper {
-  flex: 1;           // riempie lo spazio disponibile in dashboard-content
-  overflow: hidden;  // non scrolla — è month-view che scrolla internamente
+  flex: 1;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
+
+  // Animazione solo su mobile (dove il componente viene creato/distrutto via *ngIf)
+  @media (max-width: 599.98px) {
+    animation: calendarReveal 320ms cubic-bezier(0, 0, 0.2, 1) both;
+  }
 }
 
 // FAB desktop e mobile: posizione condivisa, z-index differente
@@ -754,6 +792,14 @@
   mat-icon { color: var(--punto-on-primary) !important; }
   transition: box-shadow var(--_t), transform var(--_t);
 
+  // Forza il contenuto MDC in riga: icona + label affiancati
+  ::ng-deep .mdc-button__label {
+    display: grid;
+    grid-auto-flow: column;
+    align-items: center;
+    gap: 8px;
+  }
+
   &:hover {
     box-shadow: var(--mat-sys-level3, 0 6px 12px rgba(0,0,0,.2)) !important;
     transform: translateY(-2px);
@@ -774,6 +820,59 @@
   mat-icon { color: var(--punto-on-primary) !important; }
 }
 
+
+// ── FAB animated icon + label swap ───────────────────────────
+// Grid overlap: entrambe le icone/label occupano la stessa cella → niente position:absolute
+// che conflitterebbe con il layout interno di mat-fab.
+.fab-icon-slot {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+}
+
+.fab-ic {
+  grid-area: 1 / 1;
+  opacity: 0;
+  // Stato idle: rimpicciolita + lieve rotazione — pronta a "entrare"
+  transform: scale(0.62) rotate(8deg);
+  // EXIT: accelerazione rapida fuori scena (ease-in strong, 110ms)
+  transition:
+    opacity  110ms cubic-bezier(0.55, 0, 1, 0.45),
+    transform 110ms cubic-bezier(0.55, 0, 1, 0.45);
+  color: var(--punto-on-primary) !important;
+
+  &--on {
+    opacity: 1;
+    transform: scale(1) rotate(0deg);
+    // ENTER: decelerazione naturale + delay 90ms → "respiro" tra exit ed enter
+    // cubic-bezier(0,0,0.2,1) ≈ ease-out-expo → icona si ferma con precisione
+    transition:
+      opacity  180ms 90ms cubic-bezier(0, 0, 0.2, 1),
+      transform 180ms 90ms cubic-bezier(0, 0, 0.2, 1);
+  }
+}
+
+// Le due label vivono direttamente nel button (niente wrapper slot):
+// grid-area 1/1 le sovrappone, ::ng-deep forza il flex row del contenuto MDC.
+.fab-lb {
+  grid-area: 1 / 1;
+  opacity: 0;
+  transform: translateY(5px);
+  transition:
+    opacity  100ms cubic-bezier(0.55, 0, 1, 0.45),
+    transform 100ms cubic-bezier(0.55, 0, 1, 0.45);
+  white-space: nowrap;
+
+  &--on {
+    opacity: 1;
+    transform: translateY(0);
+    transition:
+      opacity  160ms 110ms cubic-bezier(0, 0, 0.2, 1),
+      transform 160ms 110ms cubic-bezier(0, 0, 0.2, 1);
+  }
+}
 
 // Spaziatura tra bottone calendario e more_vert nell'header
 .settings-menu-btn {

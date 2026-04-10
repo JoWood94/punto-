@@ -106,13 +106,11 @@ async function checkAndSendReminders() {
           defaultTitle: 'punto! — Promemoria',
           bodyWithDate: (d) => `Hai un promemoria per il ${d}`,
           bodyNoDate: 'Hai un promemoria in scadenza!',
-          timeZone: 'Europe/Rome',
         },
         en: {
           defaultTitle: 'punto! — Reminder',
           bodyWithDate: (d) => `You have a reminder for ${d}`,
           bodyNoDate: 'You have an upcoming reminder!',
-          timeZone: 'UTC',
         },
       };
       const strings = NOTIF_STRINGS[language] ?? NOTIF_STRINGS['it'];
@@ -121,12 +119,12 @@ async function checkAndSendReminders() {
         const PGP_MARKER = '-----BEGIN PGP MESSAGE-----';
         const isEncrypted = (val) => typeof val === 'string' && val.startsWith(PGP_MARKER);
 
-        const locale = language === 'en' ? 'en-US' : 'it-IT';
+        // Sempre it-IT locale e Europe/Rome: la lingua cambia solo il testo, non il formato data/ora
         const reminderDate = reminderMs
-          ? new Date(reminderMs).toLocaleString(locale, {
+          ? new Date(reminderMs).toLocaleString('it-IT', {
               day: '2-digit', month: '2-digit', year: 'numeric',
               hour: '2-digit', minute: '2-digit',
-              timeZone: strings.timeZone
+              timeZone: 'Europe/Rome'
             })
           : null;
         const rawTitle = note.title;
