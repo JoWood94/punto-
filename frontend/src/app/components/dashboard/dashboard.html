@@ -127,8 +127,11 @@
 
             <!-- Sezione "Condivise con me" -->
             <ng-container *ngIf="sharedWithMeNotes.length > 0">
-              <div class="section-header-collapsible" (click)="isSharedWithMeSectionExpanded = !isSharedWithMeSectionExpanded">
-                <span>{{ 'SHARING.SHARED_WITH_ME_SECTION' | translate }}</span>
+              <div class="section-header-collapsible section-header-shared" (click)="isSharedWithMeSectionExpanded = !isSharedWithMeSectionExpanded">
+                <span class="section-header-shared-label">
+                  <mat-icon class="section-shared-icon">group_add</mat-icon>
+                  {{ 'SHARING.SHARED_WITH_ME_SECTION' | translate }}
+                </span>
                 <mat-icon class="section-chevron" [class.rotated]="!isSharedWithMeSectionExpanded">expand_more</mat-icon>
               </div>
               <ng-container *ngIf="isSharedWithMeSectionExpanded">
@@ -238,8 +241,12 @@
               <mat-icon class="note-card-bell" *ngIf="note.reminderStatus === 'completed'">task_alt</mat-icon>
               <mat-icon class="note-card-bell" *ngIf="note.recurrence && note.recurrence !== 'none'">repeat</mat-icon>
               <mat-icon class="note-card-bell" *ngIf="note.reminderTime && note.reminderStatus !== 'completed' && (!note.recurrence || note.recurrence === 'none')">notifications</mat-icon>
-              <mat-icon class="note-card-bell note-card-shared" *ngIf="note.isShared || note.myRole === 'guest'"
-                        [matTooltip]="(note.myRole === 'guest' ? 'SHARING.SHARED_WITH_YOU' : 'SHARING.SHARED') | translate">group</mat-icon>
+              <mat-icon class="note-card-bell note-card-shared--owned"
+                        *ngIf="note.isShared && note.myRole !== 'guest'"
+                        [attr.aria-label]="'SHARING.SHARED' | translate">group</mat-icon>
+              <mat-icon class="note-card-bell note-card-shared--guest"
+                        *ngIf="note.myRole === 'guest'"
+                        [attr.aria-label]="'SHARING.SHARED_WITH_YOU' | translate">group_add</mat-icon>
               <span class="note-item-title">{{ note.title || ('NOTE.UNTITLED' | translate) }}</span>
             </div>
 

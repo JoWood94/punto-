@@ -204,7 +204,12 @@
     "SHARED_WITH_ME_SECTION": "Condivise con me",
     "ENCRYPT_WARN_TITLE": "Rimuovere la cifratura?",
     "ENCRYPT_WARN_MSG": "Per condividere questa nota, la cifratura verrà rimossa. La nota sarà salvata in chiaro. Continuare?",
-    "ENCRYPT_WARN_CONFIRM": "Rimuovi e condividi"
+    "ENCRYPT_WARN_CONFIRM": "Rimuovi e condividi",
+    "OWNER": "Proprietario",
+    "PARTICIPANTS": "Partecipanti",
+    "LEAVE_NOTE": "Esci dalla nota",
+    "LEAVING": "Uscita...",
+    "GUEST_TITLE": "Nota condivisa"
   },
   "USERNAME": {
     "LABEL": "Username",

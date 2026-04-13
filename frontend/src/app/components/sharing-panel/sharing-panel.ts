@@ -32,14 +32,20 @@ export class SharingPanelComponent implements OnInit {
   private noteService = inject(NoteService);
   translationService = inject(TranslationService);
   private dialogRef = inject(MatDialogRef<SharingPanelComponent>);
-  data: { noteId: string } = inject(MAT_DIALOG_DATA);
+  data: { noteId: string; myRole?: 'owner' | 'guest'; ownerUid?: string } = inject(MAT_DIALOG_DATA);
 
   loading = signal(true);
   generatingLink = signal(false);
   copyDone = signal(false);
+  leaving = signal(false);
   inviteUrl: string | null = null;
   collaborators: CollaboratorUI[] = [];
   revoking = signal(false);
+  ownerUsername: string | null = null;
+
+  get isGuest(): boolean {
+    return this.data.myRole === 'guest';
+  }
 
   private get appBaseUrl(): string {
     const base = document.baseURI;
@@ -47,11 +53,23 @@ export class SharingPanelComponent implements OnInit {
   }
 
   async ngOnInit() {
-    await Promise.all([
-      this.loadCollaborators(),
-      this.loadActiveInvite(),
-    ]);
+    if (this.isGuest) {
+      await Promise.all([
+        this.loadCollaborators(),
+        this.loadOwnerUsername(),
+      ]);
+    } else {
+      await Promise.all([
+        this.loadCollaborators(),
+        this.loadActiveInvite(),
+      ]);
+    }
     this.loading.set(false);
+  }
+
+  private async loadOwnerUsername() {
+    if (!this.data.ownerUid) return;
+    this.ownerUsername = await this.noteService.getUsernameByUid(this.data.ownerUid);
   }
 
   private async loadActiveInvite() {
@@ -113,6 +131,16 @@ export class SharingPanelComponent implements OnInit {
       this.dialogRef.close({ revoked: true });
     } finally {
       this.revoking.set(false);
+    }
+  }
+
+  async leaveNote() {
+    this.leaving.set(true);
+    try {
+      await this.noteService.leaveSharedNote(this.data.noteId);
+      this.dialogRef.close({ left: true });
+    } finally {
+      this.leaving.set(false);
     }
   }
 }

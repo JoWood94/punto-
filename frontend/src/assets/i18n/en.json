@@ -204,7 +204,12 @@
     "SHARED_WITH_ME_SECTION": "Shared with me",
     "ENCRYPT_WARN_TITLE": "Remove encryption?",
     "ENCRYPT_WARN_MSG": "To share this note, encryption will be removed. The note will be stored as plain text. Continue?",
-    "ENCRYPT_WARN_CONFIRM": "Remove and share"
+    "ENCRYPT_WARN_CONFIRM": "Remove and share",
+    "OWNER": "Owner",
+    "PARTICIPANTS": "Participants",
+    "LEAVE_NOTE": "Leave note",
+    "LEAVING": "Leaving...",
+    "GUEST_TITLE": "Shared note"
   },
   "USERNAME": {
     "LABEL": "Username",

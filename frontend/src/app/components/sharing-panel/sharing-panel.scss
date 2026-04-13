@@ -132,3 +132,43 @@
   display: inline-block;
   vertical-align: middle;
 }
+
+// ─── Guest view ──────────────────────────────────────────────
+.guest-owner-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: var(--mat-sys-surface-container-low);
+}
+
+.guest-owner-icon {
+  font-size: 28px !important;
+  width: 28px !important;
+  height: 28px !important;
+  color: var(--mat-sys-on-surface-variant);
+  opacity: 0.6;
+  flex-shrink: 0;
+}
+
+.guest-owner-username {
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--mat-sys-on-surface);
+}
+
+.collab-item--guest {
+  align-items: center;
+  padding: 10px 12px;
+  gap: 10px;
+}
+
+.guest-collab-icon {
+  font-size: 18px !important;
+  width: 18px !important;
+  height: 18px !important;
+  color: var(--mat-sys-on-surface-variant);
+  opacity: 0.5;
+  flex-shrink: 0;
+}

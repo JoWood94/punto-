@@ -204,6 +204,44 @@
   color: var(--mat-sys-on-secondary-container, #21005d);
 }
 
+// ─── Sezione "Condivise con me" — header differenziato ──────────
+.section-header-shared {
+  opacity: 0.75; // leggermente dimmed rispetto alle sezioni owned
+}
+
+.section-header-shared-label {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.section-shared-icon {
+  font-size: 14px !important;
+  width: 14px !important;
+  height: 14px !important;
+  opacity: 0.7;
+}
+
+// ─── Sharing badge icons ──────────────────────────────────────
+// Stessa dimensione del bell, opacità leggermente diversa per distinguere i due stati
+.note-card-shared--owned,
+.note-card-shared--guest {
+  font-size: 14px !important;
+  width: 14px !important;
+  height: 14px !important;
+  flex-shrink: 0;
+}
+
+// Su card scura (default primary): entrambi bianchi, --guest leggermente dimmed
+.note-card .note-card-shared--owned { color: white; opacity: 0.9; }
+.note-card .note-card-shared--guest { color: white; opacity: 0.65; }
+
+// Su card selezionata (primary-container)
+.note-card.active-note .note-card-shared--owned,
+.note-card.active-note .note-card-shared--guest {
+  color: var(--punto-on-primary-container);
+}
+
 .note-preview-text {
   font-size: 0.85rem;
   color: var(--mat-sys-on-surface-variant);

@@ -138,9 +138,9 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewInit, Af
     return this.note.blocks.find(b => b.type === 'reminder') ?? null;
   }
 
-  /** True se l'utente è owner (o nota non condivisa): mostra bottone Condividi. */
+  /** True se la nota è salvata — il pannello sharing è disponibile sia per owner che per guest. */
   get canShare(): boolean {
-    return !!this.savedNoteId && this.note.myRole !== 'guest';
+    return !!this.savedNoteId;
   }
 
   /** True se l'utente è guest su questa nota. */
@@ -163,25 +163,31 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewInit, Af
   async openSharePanel() {
     if (!this.savedNoteId) return;
 
-    // Avvisa SOLO se: encryption attiva E collaboratorUids vuoto E contenuto effettivamente cifrato
-    const hasCollaborators = !!((this.note as any).collaboratorUids?.length);
-    const isEncrypted = !hasCollaborators
-      && this.cryptoService.isEnabled
-      && await this.noteService.isNoteEncrypted(this.savedNoteId);
-    if (isEncrypted) {
-      const confirmed = await this.dialog.open(ConfirmDialogComponent, {
-        data: {
-          title: this.translationService.instant('SHARING.ENCRYPT_WARN_TITLE'),
-          message: this.translationService.instant('SHARING.ENCRYPT_WARN_MSG'),
-          confirmLabel: this.translationService.instant('SHARING.ENCRYPT_WARN_CONFIRM'),
-        }
-      }).afterClosed().toPromise();
-      if (!confirmed) return;
-      await this.noteService.updateNote(this.savedNoteId, this.buildPayload(), { skipEncryption: true });
+    // Owner only: avvisa se encryption attiva e contenuto cifrato
+    if (!this.isGuest) {
+      const hasCollaborators = !!((this.note as any).collaboratorUids?.length);
+      const isEncrypted = !hasCollaborators
+        && this.cryptoService.isEnabled
+        && await this.noteService.isNoteEncrypted(this.savedNoteId);
+      if (isEncrypted) {
+        const confirmed = await this.dialog.open(ConfirmDialogComponent, {
+          data: {
+            title: this.translationService.instant('SHARING.ENCRYPT_WARN_TITLE'),
+            message: this.translationService.instant('SHARING.ENCRYPT_WARN_MSG'),
+            confirmLabel: this.translationService.instant('SHARING.ENCRYPT_WARN_CONFIRM'),
+          }
+        }).afterClosed().toPromise();
+        if (!confirmed) return;
+        await this.noteService.updateNote(this.savedNoteId, this.buildPayload(), { skipEncryption: true });
+      }
     }
 
     this.dialog.open(SharingPanelComponent, {
-      data: { noteId: this.savedNoteId },
+      data: {
+        noteId: this.savedNoteId,
+        myRole: this.note.myRole,
+        ownerUid: this.note.uid,
+      },
       width: '480px',
       maxWidth: '95vw',
     });
