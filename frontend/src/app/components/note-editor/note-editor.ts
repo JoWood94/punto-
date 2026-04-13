@@ -254,7 +254,21 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewInit, Af
   private initNote() {
     if (this.selectedNote) {
       // Se stiamo già editando questa stessa nota, non re-inizializzare (preserva le modifiche non ancora salvate)
-      if (this.selectedNote.id && this.selectedNote.id === this.savedNoteId) return;
+      if (this.selectedNote.id && this.selectedNote.id === this.savedNoteId) {
+        // Ma controlla se lo stato di sharing è cambiato (es. collaboratore appena aggiunto)
+        // e avvia il live sync se non è ancora attivo
+        const nowShared = !!(this.selectedNote.isShared || this.selectedNote.myRole === 'guest');
+        if (nowShared && !this.liveNoteUnsub) {
+          this.note = {
+            ...this.note,
+            isShared: this.selectedNote.isShared,
+            myRole: this.selectedNote.myRole,
+            myPermissions: this.selectedNote.myPermissions,
+          };
+          this.startLiveSync();
+        }
+        return;
+      }
       // Se stavamo creando una nuova nota pristine, eliminala prima di aprire quella selezionata
       if (this.isNewNote && this.isPristine()) {
         const prevId = this.savedNoteId;

@@ -278,8 +278,10 @@ export class NoteService {
       if (hasContentFields && !perms['editContent']) {
         throw new Error('Permission denied: editContent not granted');
       }
+      // Se il guest non può modificare i reminder, rimuoviamo i campi dal payload
+      // invece di bloccare tutto il salvataggio (buildPayload li include sempre anche se null)
       if (hasReminderFields && !perms['editReminders']) {
-        throw new Error('Permission denied: editReminders not granted');
+        reminderFields.forEach(k => delete (data as any)[k]);
       }
     }
 
