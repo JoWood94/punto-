@@ -122,13 +122,18 @@
 .collab-username {
   font-weight: 500;
   font-size: 14px;
-  min-width: 80px;
+  min-width: 0;
+  max-width: 120px;
   padding-top: 10px;
-  flex: 0 0 auto;
+  flex: 0 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .collab-toggles {
   flex: 1;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -144,6 +149,11 @@
 .collab-toggle-label {
   font-size: 13px;
   color: var(--mat-sys-on-surface-variant);
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .collab-remove-btn {

@@ -278,8 +278,10 @@ export class NoteService {
       if (hasContentFields && !perms['editContent']) {
         throw new Error('Permission denied: editContent not granted');
       }
+      // Se il guest non può modificare i reminder, rimuoviamo i campi dal payload
+      // invece di bloccare tutto il salvataggio (buildPayload li include sempre anche se null)
       if (hasReminderFields && !perms['editReminders']) {
-        throw new Error('Permission denied: editReminders not granted');
+        reminderFields.forEach(k => delete (data as any)[k]);
       }
     }
 
@@ -612,12 +614,14 @@ export class NoteService {
   /** Cerca un invito attivo (non scaduto) per una nota. Ritorna il token se esiste, null altrimenti. */
   async getActiveInvite(noteId: string): Promise<string | null> {
     try {
+      // Filtro expiresAt client-side per evitare l'indice composito (noteId + expiresAt)
       const snap = await getDocs(query(
         collection(this.db, 'invites'),
-        where('noteId', '==', noteId),
-        where('expiresAt', '>', Date.now())
+        where('noteId', '==', noteId)
       ));
-      return snap.empty ? null : snap.docs[0].id;
+      const now = Date.now();
+      const active = snap.docs.find(d => (d.data()['expiresAt'] as number) > now);
+      return active ? active.id : null;
     } catch {
       return null;
     }

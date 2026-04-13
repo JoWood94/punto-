@@ -1,12 +1,14 @@
 .login-container {
   display: flex;
   justify-content: center;
-  align-items: center;
-  height: 100vh;
+  align-items: flex-start;
+  min-height: 100vh;
   width: 100vw;
   box-sizing: border-box;
   background: var(--punto-bg);
-  padding: 24px;
+  padding: 48px 24px env(safe-area-inset-bottom, 24px);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .login-inner {

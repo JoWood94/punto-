@@ -180,7 +180,8 @@
     "ACCEPTED": "Note added to your shared notes.",
     "OWN_INVITE_ERROR": "You cannot accept your own invite link.",
     "EXPIRED_ERROR": "This invite link has expired.",
-    "INVALID_ERROR": "Invalid or unavailable invite link."
+    "INVALID_ERROR": "Invalid or unavailable invite link.",
+    "ACCEPT_ERROR": "Failed to accept the invite. Please try again."
   },
   "SHARING": {
     "TITLE": "Share note",
