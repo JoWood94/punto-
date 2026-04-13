@@ -161,6 +161,22 @@
     <input #titleInput class="title-input-raw" [(ngModel)]="note.title" placeholder="Titolo"
          [disabled]="!guestCanEdit"
          (ngModelChange)="onTitleChange()" />
+
+    <!-- Presenza in tempo reale: avatar degli altri utenti sulla nota -->
+    <div class="presence-avatars" *ngIf="presenceUsers().length > 0">
+      <ng-container *ngFor="let user of presenceUsers().slice(0, 3)">
+        <div class="presence-avatar"
+             [class.presence-avatar--editing]="user.isEditing"
+             [matTooltip]="user.displayName + (user.isEditing ? ' · sta modificando' : ' · sta leggendo')">
+          {{ user.displayName.charAt(0).toUpperCase() }}
+        </div>
+      </ng-container>
+      <div class="presence-avatar presence-avatar--overflow"
+           *ngIf="presenceUsers().length > 3"
+           [matTooltip]="(presenceUsers().length - 3) + ' altri presenti'">
+        +{{ presenceUsers().length - 3 }}
+      </div>
+    </div>
   </div>
 </div>
 

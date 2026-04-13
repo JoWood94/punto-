@@ -206,6 +206,56 @@
   }
 }
 
+// ─── Presenza in tempo reale ─────────────────────────────────────────────────
+@keyframes presence-enter {
+  from { opacity: 0; transform: scale(0.6); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+@keyframes presence-pulse {
+  0%   { box-shadow: 0 0 0 0 rgba(245, 124, 0, 0.55); }
+  60%  { box-shadow: 0 0 0 5px rgba(245, 124, 0, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(245, 124, 0, 0); }
+}
+
+.presence-avatars {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.presence-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: #4CAF50;      // verde = sta leggendo
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: default;
+  transition: background 300ms var(--_e), transform 200ms var(--_e), box-shadow 300ms var(--_e);
+  border: 2px solid var(--punto-bg, #FFFBFE);
+  letter-spacing: 0;
+  animation: presence-enter 240ms var(--_e) both;
+
+  &--editing {
+    background: #F57C00;    // arancione = sta modificando
+    animation: presence-enter 240ms var(--_e) both,
+               presence-pulse 1.6s ease-out 240ms infinite;
+  }
+
+  &--overflow {
+    background: color-mix(in srgb, var(--mat-sys-on-surface) 20%, transparent);
+    color: var(--mat-sys-on-surface);
+    font-size: 10px;
+    font-weight: 500;
+  }
+}
+
 .editor-content {
   flex: 1;
   min-height: 0;

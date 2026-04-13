@@ -67,6 +67,13 @@ export interface Collaborator {
   permissions: CollaboratorPermissions;
 }
 
+export interface PresenceEntry {
+  uid: string;
+  displayName: string;  // username o primo carattere dell'uid
+  lastSeen: number;     // Date.now() ms
+  isEditing: boolean;
+}
+
 // ─── Note Interface ───────────────────────────────────────────────────────────
 
 export interface Note {
@@ -631,6 +638,52 @@ export class NoteService {
     } catch {
       return null;
     }
+  }
+
+  // ─── Presence (Fase 5) ───────────────────────────────────────────────────────
+
+  /** Scrive/aggiorna la propria presenza nella subcollection notes/{noteId}/presence/{uid}. */
+  async writePresence(noteId: string, uid: string, displayName: string, isEditing: boolean): Promise<void> {
+    try {
+      await setDoc(
+        doc(this.db, `notes/${noteId}/presence/${uid}`),
+        { uid, displayName, lastSeen: Date.now(), isEditing },
+        { merge: true }
+      );
+    } catch { /* silenzioso — presenza non critica */ }
+  }
+
+  /** Rimuove la propria presenza alla chiusura della nota. */
+  async deletePresence(noteId: string, uid: string): Promise<void> {
+    try {
+      await deleteDoc(doc(this.db, `notes/${noteId}/presence/${uid}`));
+    } catch { /* silenzioso */ }
+  }
+
+  /**
+   * Listener real-time sulla subcollection presenza. Filtra self + doc stantii (lastSeen > 30s).
+   * Cleanup on-read: elimina doc con lastSeen > 60s senza await.
+   */
+  watchPresence(noteId: string, selfUid: string, callback: (users: PresenceEntry[]) => void): () => void {
+    const presenceRef = collection(this.db, `notes/${noteId}/presence`);
+    return onSnapshot(presenceRef, (snap) => {
+      const now = Date.now();
+      const active: PresenceEntry[] = [];
+      snap.docs.forEach(d => {
+        const data = d.data() as PresenceEntry;
+        if (data.uid === selfUid) return; // escludi se stesso
+        // Cleanup on-read: stale > 60s
+        if (now - data.lastSeen > 60_000) {
+          deleteDoc(d.ref);  // fire-and-forget
+          return;
+        }
+        // Mostra solo presenze aggiornate negli ultimi 30s
+        if (now - data.lastSeen <= 30_000) {
+          active.push(data);
+        }
+      });
+      callback(active);
+    }, () => callback([]));
   }
 
   /** Cifra in batch le note esistenti dopo il setup E2E (migrazione). */

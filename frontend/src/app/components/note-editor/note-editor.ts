@@ -24,7 +24,7 @@ import { firstValueFrom } from 'rxjs';
 
 import {
   NoteService, Note, NoteBlock, TextBlock, ChecklistBlock,
-  LocationBlock, ReminderBlock, ImageBlock, LinkBlock, migrateToBlocks
+  LocationBlock, ReminderBlock, ImageBlock, LinkBlock, migrateToBlocks, PresenceEntry
 } from '../../services/note';
 import { AuthService } from '../../services/auth';
 import { LinkDialogComponent } from '../link-dialog/link-dialog';
@@ -121,6 +121,14 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewInit, Af
   private livePermsUnsub: (() => void) | null = null;
   private lastSavedAt = 0;
   private userHasModifiedContent = false;
+
+  // ─── Presence ─────────────────────────────────────────────────────────────
+  readonly presenceUsers = signal<PresenceEntry[]>([]);
+  private presenceUnsub: (() => void) | null = null;
+  private presenceHeartbeat: any = null;
+  private editingTimeout: any = null;
+  private presenceEditing = false;
+  private selfDisplayName: string | null = null;
 
   get hasReminderBlock(): boolean {
     return this.note.blocks.some(b => b.type === 'reminder');
@@ -503,6 +511,7 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewInit, Af
 
   onTextInput(blockIndex: number, event: Event) {
     (this.note.blocks[blockIndex] as TextBlock).html = (event.target as HTMLElement).innerHTML;
+    this.notifyEditing();
     this.triggerAutoSave();
   }
 
@@ -960,6 +969,7 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewInit, Af
   }
 
   onTitleChange() {
+    this.notifyEditing();
     this.triggerAutoSave();
   }
 
@@ -976,6 +986,7 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewInit, Af
     if (!(this.note.isShared || this.note.myRole === 'guest')) return;
     this.stopLiveSync();
     this.startPermissionsSync();
+    this.startPresence(this.savedNoteId);
     this.liveNoteUnsub = this.noteService.watchNote(this.savedNoteId, (data) => {
       if (this.autoSaveTimer !== null) return; // utente sta modificando
       const remoteAt = data['updatedAt'] as number | undefined;
@@ -987,7 +998,82 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewInit, Af
   private stopLiveSync() {
     if (this.liveNoteUnsub) { this.liveNoteUnsub(); this.liveNoteUnsub = null; }
     if (this.livePermsUnsub) { this.livePermsUnsub(); this.livePermsUnsub = null; }
+    this.stopPresence();
   }
+
+  // ─── Presence ─────────────────────────────────────────────────────────────
+
+  private async startPresence(noteId: string) {
+    const uid = this.authService.getCurrentUserId();
+    if (!uid) return;
+
+    // Risolvi displayName (username o primo char dell'uid)
+    if (!this.selfDisplayName) {
+      const username = await this.noteService.getUsername().catch(() => null);
+      this.selfDisplayName = username ?? uid.charAt(0).toUpperCase();
+    }
+
+    // Scrivi presenza iniziale
+    await this.noteService.writePresence(noteId, uid, this.selfDisplayName, false);
+
+    // Snapshot listener presenze altrui
+    this.presenceUnsub = this.noteService.watchPresence(noteId, uid, (users) => {
+      this.presenceUsers.set(users);
+      this.cdr.markForCheck();
+    });
+
+    // Heartbeat ogni 15s per mantenere lastSeen fresco
+    this.presenceHeartbeat = setInterval(() => {
+      if (this.savedNoteId) {
+        this.noteService.writePresence(this.savedNoteId, uid, this.selfDisplayName!, this.presenceEditing);
+      }
+    }, 15_000);
+
+    // Rimuovi presenza se l'utente chiude la tab/finestra
+    window.addEventListener('beforeunload', this.onBeforeUnload);
+  }
+
+  private stopPresence() {
+    if (this.presenceUnsub) { this.presenceUnsub(); this.presenceUnsub = null; }
+    clearInterval(this.presenceHeartbeat);
+    this.presenceHeartbeat = null;
+    clearTimeout(this.editingTimeout);
+    this.editingTimeout = null;
+    this.presenceEditing = false;
+    this.presenceUsers.set([]);
+    window.removeEventListener('beforeunload', this.onBeforeUnload);
+    // Elimina presenza da Firestore (fire-and-forget)
+    const uid = this.authService.getCurrentUserId();
+    if (uid && this.savedNoteId) {
+      this.noteService.deletePresence(this.savedNoteId, uid);
+    }
+  }
+
+  /** Segnala che l'utente sta modificando: aggiorna isEditing:true, resetta dopo 3s di inattività. */
+  notifyEditing() {
+    if (!this.savedNoteId) return;
+    const uid = this.authService.getCurrentUserId();
+    if (!uid || !this.selfDisplayName) return;
+    if (!this.presenceEditing) {
+      this.presenceEditing = true;
+      this.noteService.writePresence(this.savedNoteId, uid, this.selfDisplayName, true);
+    }
+    clearTimeout(this.editingTimeout);
+    this.editingTimeout = setTimeout(() => {
+      this.presenceEditing = false;
+      if (this.savedNoteId) {
+        this.noteService.writePresence(this.savedNoteId, uid, this.selfDisplayName!, false);
+      }
+    }, 3_000);
+  }
+
+  private readonly onBeforeUnload = () => {
+    const uid = this.authService.getCurrentUserId();
+    if (uid && this.savedNoteId) {
+      // Sincrono best-effort (navigator.sendBeacon non disponibile per Firestore)
+      this.noteService.deletePresence(this.savedNoteId, uid);
+    }
+  };
 
   private startPermissionsSync() {
     if (!this.savedNoteId || this.note.myRole !== 'guest') return;
