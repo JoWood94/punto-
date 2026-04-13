@@ -59,6 +59,7 @@ export class LoginComponent {
   }
 
   async onSubmit() {
+    if (this.isLoading) return;
     if (!this.email || !this.password) return;
     this.errorMessage = '';
     this.successMessage = '';

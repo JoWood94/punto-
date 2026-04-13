@@ -23,15 +23,16 @@ export class AuthService {
   async register(email: string, pass: string, username?: string) {
     const cred = await createUserWithEmailAndPassword(this.auth, email, pass);
     if (username) {
-      try {
-        const db = getFirestore(getApp());
-        const lower = username.toLowerCase();
-        const uid = cred.user.uid;
-        const batch = writeBatch(db);
-        batch.set(doc(db, `usernames/${lower}`), { uid, createdAt: Date.now() });
-        batch.set(doc(db, `users/${uid}`), { username, usernameLower: lower }, { merge: true });
-        await batch.commit();
-      } catch { /* silenzioso — username sarà richiesto al login */ }
+      // Fire-and-forget: non blocchiamo la registrazione su commit Firestore.
+      // Se IndexedDB è conteso (multi-tab persistence) il commit potrebbe
+      // impiegare secondi, tenendo isLoading=true indefinitamente.
+      const db = getFirestore(getApp());
+      const lower = username.toLowerCase();
+      const uid = cred.user.uid;
+      const batch = writeBatch(db);
+      batch.set(doc(db, `usernames/${lower}`), { uid, createdAt: Date.now() });
+      batch.set(doc(db, `users/${uid}`), { username, usernameLower: lower }, { merge: true });
+      batch.commit().catch(() => { /* silenzioso — username sarà richiesto al login */ });
     }
     return cred;
   }
