@@ -480,7 +480,13 @@ export class NoteService {
       permissions,
     };
     batch.set(collabRef, collabData);
-    batch.update(doc(this.db, `notes/${noteId}`), { collaboratorUids: arrayUnion(guestUid) });
+    // updatedAt garantisce che il documento cambi in modo visibile per tutti i listener
+    // onSnapshot attivi (incluso quello dell'owner), indipendentemente dal comportamento
+    // di arrayUnion con offline persistence.
+    batch.update(doc(this.db, `notes/${noteId}`), {
+      collaboratorUids: arrayUnion(guestUid),
+      updatedAt: Date.now(),
+    });
     await batch.commit();
   }
 
@@ -488,7 +494,10 @@ export class NoteService {
   async removeCollaborator(noteId: string, guestUid: string): Promise<void> {
     const batch = writeBatch(this.db);
     batch.delete(doc(this.db, `notes/${noteId}/collaborators/${guestUid}`));
-    batch.update(doc(this.db, `notes/${noteId}`), { collaboratorUids: arrayRemove(guestUid) });
+    batch.update(doc(this.db, `notes/${noteId}`), {
+      collaboratorUids: arrayRemove(guestUid),
+      updatedAt: Date.now(),
+    });
     await batch.commit();
   }
 
