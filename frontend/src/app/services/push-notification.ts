@@ -22,14 +22,18 @@ export class PushNotificationService {
     try {
       const permission = await Notification.requestPermission();
       if (permission === 'granted') {
-        // Determine the correct service worker path based on base href
+        // Ensure the service worker is registered (idempotent — Angular provideServiceWorker
+        // handles this, but we call it explicitly to guarantee the correct path on both
+        // production /punto-/ and staging / base hrefs).
         const baseHref = document.querySelector('base')?.getAttribute('href') || '/';
         const swUrl = `${baseHref}combined-sw.js`;
-        
-        // Register the service worker at the correct path
-        const registration = await navigator.serviceWorker.register(swUrl);
-        console.log('[Push] Service worker registered at:', swUrl);
-        
+        await navigator.serviceWorker.register(swUrl);
+
+        // Wait for an active SW before requesting the push token.
+        // Calling getToken() while the SW is still in installing/waiting state triggers
+        // AbortError: Registration failed - push service error from the browser Push API.
+        const registration = await navigator.serviceWorker.ready;
+
         let token: string | null = null;
 
         // Tentativo 1: token cached (caso normale)
@@ -76,9 +80,15 @@ export class PushNotificationService {
         return null;
       }
     } catch (err: any) {
-      console.error('Error getting push token:', err);
       if (err.name === 'AbortError') {
-        console.warn('Push registration failed. Suggerimento: Se usi Brave, disabilita gli "Shields" o controlla le impostazioni di Privacy per consentire il servizio di push di Google.');
+        // AbortError from the browser Push API: SW not yet active or push service temporarily
+        // unavailable. Non-critical: existing Firestore token (if any) remains valid.
+        console.warn('[Push] Registration failed — push service error. Retry at next session.', err.message);
+        if (err.message?.toLowerCase().includes('push service error')) {
+          console.warn('[Push] Suggerimento: Se usi Brave, disabilita gli "Shields" o controlla le impostazioni di Privacy per consentire il servizio di push di Google.');
+        }
+      } else {
+        console.error('[Push] Error getting push token:', err);
       }
       return null;
     }
