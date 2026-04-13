@@ -376,6 +376,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
     try {
       ({ noteId, createdBy } = await this.noteService.readInvite(token));
     } catch (e: any) {
+      console.error('[handleInvite] FASE 1 readInvite error:', e?.code ?? e?.message ?? e);
       const msg = e?.message?.includes('expired')
         ? this.translationService.instant('INVITE.EXPIRED_ERROR')
         : this.translationService.instant('INVITE.INVALID_ERROR');
@@ -412,6 +413,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
       await this.noteService.acceptInvite(token);
       this.snackBar.open(this.translationService.instant('INVITE.ACCEPTED'), 'OK', { duration: 3000 });
     } catch (e: any) {
+      console.error('[handleInvite] FASE 2 acceptInvite error:', e?.code ?? e?.message ?? e);
       const msg = e?.message?.includes('expired')
         ? this.translationService.instant('INVITE.EXPIRED_ERROR')
         : this.translationService.instant('INVITE.ACCEPT_ERROR');
