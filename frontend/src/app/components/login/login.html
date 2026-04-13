@@ -5,7 +5,7 @@
       <p class="subtitle mat-body-medium">{{ isRecoveringPassword ? ('LOGIN.RECOVER_PASSWORD' | translate) : (isRegistering ? ('LOGIN.CREATE_ACCOUNT' | translate) : ('LOGIN.SIGN_IN' | translate)) }}</p>
     </div>
 
-    <form autocomplete="on" (ngSubmit)="isRecoveringPassword ? recoverPassword() : onSubmit()">
+    <form autocomplete="on">
       <mat-form-field appearance="outline" class="full-width">
         <mat-label>Email</mat-label>
         <input matInput type="email" name="email" [(ngModel)]="email" required autocomplete="username">
@@ -61,7 +61,8 @@
       </ng-container>
 
       <div class="actions">
-        <button mat-flat-button type="submit" class="submit-btn"
+        <button mat-flat-button type="button" class="submit-btn"
+                (click)="isRecoveringPassword ? recoverPassword() : onSubmit()"
                 [disabled]="isLoading || (isRecoveringPassword ? !email : (!email || !password || (isRegistering && (password !== confirmPassword || !passwordAllMet || !usernameValid))))">
           <mat-spinner *ngIf="isLoading" diameter="20" color="primary" style="display:inline-block;margin-right:8px;vertical-align:middle;"></mat-spinner>
           <span *ngIf="!isLoading">{{ isRecoveringPassword ? ('LOGIN.SEND_RECOVERY' | translate) : (isRegistering ? ('LOGIN.REGISTER' | translate) : ('LOGIN.ACCESS' | translate)) }}</span>
