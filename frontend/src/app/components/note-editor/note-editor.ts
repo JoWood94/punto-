@@ -926,6 +926,9 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewInit, Af
       recurrenceEndDate: reminder?.recurrenceEndDate ?? null,
     };
     delete payload.address; delete payload.lat; delete payload.lon; delete payload.checklist;
+    // Strip read-only ownership/sharing metadata — mai scrivibili dal client direttamente
+    delete payload.uid; delete payload.id; delete payload.myRole;
+    delete payload.myPermissions; delete payload.isShared; delete payload.collaboratorUids;
     Object.keys(payload).forEach(k => { if (payload[k] === undefined) payload[k] = null; });
     return payload;
   }

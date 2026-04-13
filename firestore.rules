@@ -1,0 +1,68 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── Notes ──────────────────────────────────────────────────────────────────
+    match /notes/{noteId} {
+      // Owner + guest possono leggere
+      allow read: if request.auth != null && (
+        resource.data.uid == request.auth.uid ||
+        request.auth.uid in resource.data.collaboratorUids
+      );
+
+      // Solo l'owner può creare
+      allow create: if request.auth != null &&
+        request.resource.data.uid == request.auth.uid;
+
+      // Owner: aggiornamento libero
+      // Guest: può aggiornare se in collaboratorUids, ma NON può cambiare uid né collaboratorUids
+      allow update: if request.auth != null && (
+        resource.data.uid == request.auth.uid ||
+        (
+          request.auth.uid in resource.data.collaboratorUids &&
+          request.resource.data.uid == resource.data.uid &&
+          request.resource.data.collaboratorUids == resource.data.collaboratorUids
+        )
+      );
+
+      // Solo l'owner può eliminare
+      allow delete: if request.auth != null &&
+        resource.data.uid == request.auth.uid;
+
+      // ── Collaborators subcollection ─────────────────────────────────────────
+      match /collaborators/{collabId} {
+        // Owner e tutti i guest possono leggere (serve a updateNote() per check permessi)
+        allow read: if request.auth != null && (
+          get(/databases/$(database)/documents/notes/$(noteId)).data.uid == request.auth.uid ||
+          request.auth.uid in get(/databases/$(database)/documents/notes/$(noteId)).data.collaboratorUids
+        );
+        // Solo l'owner può scrivere (addCollaborator / removeCollaborator / updatePermissions)
+        allow write: if request.auth != null &&
+          get(/databases/$(database)/documents/notes/$(noteId)).data.uid == request.auth.uid;
+      }
+    }
+
+    // ── Users ──────────────────────────────────────────────────────────────────
+    match /users/{userId} {
+      // Ogni utente legge/scrive solo il proprio documento (FCM tokens, preferenze)
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // ── Usernames (lookup uid→username) ────────────────────────────────────────
+    match /usernames/{username} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && request.resource.data.uid == request.auth.uid;
+    }
+
+    // ── Invites ────────────────────────────────────────────────────────────────
+    match /invites/{inviteId} {
+      // Chiunque autenticato può leggere (per acceptInvite e getActiveInvite)
+      allow read: if request.auth != null;
+      // Owner crea/cancella il proprio invite
+      allow create: if request.auth != null &&
+        request.resource.data.createdBy == request.auth.uid;
+      allow delete: if request.auth != null &&
+        resource.data.createdBy == request.auth.uid;
+    }
+  }
+}
