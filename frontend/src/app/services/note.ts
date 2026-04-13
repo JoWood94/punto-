@@ -170,7 +170,8 @@ export class NoteService {
     console.log('[NoteService] createNote for uid:', uid);
     const notesRef = collection(this.db, 'notes');
     const skipFields: (keyof Note)[] = this.notifTitleEnabled ? ['title'] : [];
-    const payload = this.cryptoService.isEnabled
+    const hasCollaborators = (noteData.collaboratorUids?.length ?? 0) > 0;
+    const payload = this.cryptoService.isEnabled && !hasCollaborators
       ? await this.cryptoService.encryptNote({ ...noteData, uid, createdAt: Date.now() }, skipFields)
       : { ...noteData, uid, createdAt: Date.now() };
     const result = await addDoc(notesRef, payload);

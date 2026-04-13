@@ -410,12 +410,22 @@ export class DashboardComponent implements OnInit, OnDestroy {
       const res = await fetch(base + 'version.json?_=' + Date.now());
       if (!res.ok) return;
       const data = await res.json();
-      if (data.version && data.version !== environment.appVersion && !this.updateDialogShown) {
-        this.updateDialogShown = true;
-        const ref = this.dialog.open(UpdateDialogComponent);
-        ref.afterClosed().subscribe(() => {
-          this.updatePending = true;
-        });
+      if (data.version && data.version !== environment.appVersion) {
+        if (this.swUpdate.isEnabled) {
+          // Il SW gestisce il download e notifica via VERSION_READY quando pronto.
+          // Aprire il dialog qui causerebbe un loop: activateUpdate() sarebbe un no-op
+          // perché il SW non ha ancora scaricato la nuova versione.
+          this.swUpdate.checkForUpdate();
+          return;
+        }
+        // Fallback: SW non disponibile (incognito, dev) → dialog diretto
+        if (!this.updateDialogShown) {
+          this.updateDialogShown = true;
+          const ref = this.dialog.open(UpdateDialogComponent);
+          ref.afterClosed().subscribe(() => {
+            this.updatePending = true;
+          });
+        }
       }
     } catch {
       // Offline o errore di rete: ignora silenziosamente
