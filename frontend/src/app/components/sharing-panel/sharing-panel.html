@@ -76,7 +76,16 @@
               <mat-icon>{{ copyDone() ? 'check' : 'content_copy' }}</mat-icon>
             </button>
           </div>
-          <p class="sharing-hint">{{ 'SHARING.LINK_EXPIRY' | translate }}</p>
+          <div class="sharing-link-footer">
+            <p class="sharing-hint sharing-hint--inline">{{ 'SHARING.LINK_EXPIRY' | translate }}</p>
+            <button mat-button class="sharing-regenerate-btn"
+                    (click)="generateLink()"
+                    [disabled]="generatingLink()">
+              <mat-spinner *ngIf="generatingLink()" diameter="14" class="btn-spinner"></mat-spinner>
+              <mat-icon *ngIf="!generatingLink()">refresh</mat-icon>
+              {{ generatingLink() ? ('SHARING.REGENERATING' | translate) : ('SHARING.REGENERATE_LINK' | translate) }}
+            </button>
+          </div>
         </ng-template>
       </section>
 

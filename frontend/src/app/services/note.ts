@@ -543,6 +543,8 @@ export class NoteService {
     if (uid === invite.createdBy) throw new Error('Cannot accept your own invite');
 
     await this.addCollaborator(invite.noteId, uid);
+    // Cleanup asincrono: rimuove tutti gli inviti scaduti per questa nota
+    this.cleanupExpiredInvites(invite.noteId).catch(() => {});
     return invite.noteId;
   }
 
@@ -572,6 +574,29 @@ export class NoteService {
       );
     } catch {
       return false;
+    }
+  }
+
+  /** Cancella un singolo invite da Firestore. */
+  async deleteInvite(token: string): Promise<void> {
+    await deleteDoc(doc(this.db, `invites/${token}`));
+  }
+
+  /** Cancella tutti gli inviti scaduti (expiresAt <= now) per una nota. Fire-and-forget safe. */
+  async cleanupExpiredInvites(noteId: string): Promise<void> {
+    try {
+      const snap = await getDocs(query(
+        collection(this.db, 'invites'),
+        where('noteId', '==', noteId)
+      ));
+      const now = Date.now();
+      const expired = snap.docs.filter(d => (d.data()['expiresAt'] as number) <= now);
+      if (expired.length === 0) return;
+      const batch = writeBatch(this.db);
+      expired.forEach(d => batch.delete(d.ref));
+      await batch.commit();
+    } catch {
+      // Non blocca il flusso principale
     }
   }
 

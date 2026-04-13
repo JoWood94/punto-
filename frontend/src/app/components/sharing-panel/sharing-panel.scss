@@ -67,6 +67,36 @@
   line-height: 1.4;
 }
 
+.sharing-link-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.sharing-hint--inline {
+  margin: 0;
+  flex: 1;
+  min-width: 0;
+}
+
+.sharing-regenerate-btn {
+  flex-shrink: 0;
+  font-size: 12px;
+  height: 28px;
+  line-height: 28px;
+  padding: 0 8px;
+  color: var(--mat-sys-on-surface-variant);
+  gap: 4px;
+
+  mat-icon {
+    font-size: 14px;
+    width: 14px;
+    height: 14px;
+  }
+}
+
 .sharing-empty {
   font-size: 14px;
   color: var(--mat-sys-on-surface-variant);

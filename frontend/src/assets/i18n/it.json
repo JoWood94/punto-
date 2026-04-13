@@ -190,6 +190,8 @@
     "GENERATING": "Generazione...",
     "LINK_HINT": "Chiunque abbia questo link può unirsi come collaboratore (scade in 7 giorni).",
     "LINK_EXPIRY": "Il link scade tra 7 giorni.",
+    "REGENERATE_LINK": "Rigenera",
+    "REGENERATING": "Rigenerazione...",
     "COPY": "Copia link",
     "COPIED": "Copiato!",
     "COLLABORATORS": "Collaboratori",

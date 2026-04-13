@@ -39,6 +39,7 @@ export class SharingPanelComponent implements OnInit {
   copyDone = signal(false);
   leaving = signal(false);
   inviteUrl: string | null = null;
+  inviteToken: string | null = null;   // token Firestore (id documento) dell'invite attivo
   collaborators: CollaboratorUI[] = [];
   revoking = signal(false);
   ownerUsername: string | null = null;
@@ -59,6 +60,8 @@ export class SharingPanelComponent implements OnInit {
         this.loadOwnerUsername(),
       ]);
     } else {
+      // Cleanup asincrono degli inviti scaduti — fire-and-forget, non blocca il caricamento
+      this.noteService.cleanupExpiredInvites(this.data.noteId).catch(() => {});
       await Promise.all([
         this.loadCollaborators(),
         this.loadActiveInvite(),
@@ -75,6 +78,7 @@ export class SharingPanelComponent implements OnInit {
   private async loadActiveInvite() {
     const token = await this.noteService.getActiveInvite(this.data.noteId);
     if (token) {
+      this.inviteToken = token;
       this.inviteUrl = `${this.appBaseUrl}#/dashboard?invite=${token}`;
     }
   }
@@ -93,7 +97,14 @@ export class SharingPanelComponent implements OnInit {
   async generateLink() {
     this.generatingLink.set(true);
     try {
+      // Se esiste già un invite attivo, cancellalo prima (rigenera)
+      if (this.inviteToken) {
+        await this.noteService.deleteInvite(this.inviteToken);
+        this.inviteToken = null;
+        this.inviteUrl = null;
+      }
       const token = await this.noteService.createInvite(this.data.noteId);
+      this.inviteToken = token;
       this.inviteUrl = `${this.appBaseUrl}#/dashboard?invite=${token}`;
     } finally {
       this.generatingLink.set(false);
