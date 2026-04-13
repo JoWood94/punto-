@@ -65,7 +65,12 @@ export class LoginComponent {
     this.isLoading = true;
     try {
       if (this.isRegistering) {
-        if (this.password !== this.confirmPassword || !this.passwordAllMet || !this.usernameValid) return;
+        if (this.password !== this.confirmPassword || !this.passwordAllMet || !this.usernameValid) {
+          if (this.password !== this.confirmPassword) {
+            this.errorMessage = 'Le password non corrispondono.';
+          }
+          return;
+        }
         await this.authService.register(this.email, this.password, this.pendingUsername);
         await this.authService.sendVerificationEmail();
         await this.authService.logout();

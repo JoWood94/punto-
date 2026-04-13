@@ -62,7 +62,7 @@
 
       <div class="actions">
         <button mat-flat-button type="submit" class="submit-btn"
-                [disabled]="isLoading || (isRecoveringPassword ? !email : (!email || !password || (isRegistering && (!passwordAllMet || !usernameValid))))">
+                [disabled]="isLoading || (isRecoveringPassword ? !email : (!email || !password || (isRegistering && (password !== confirmPassword || !passwordAllMet || !usernameValid))))">
           <mat-spinner *ngIf="isLoading" diameter="20" color="primary" style="display:inline-block;margin-right:8px;vertical-align:middle;"></mat-spinner>
           <span *ngIf="!isLoading">{{ isRecoveringPassword ? ('LOGIN.SEND_RECOVERY' | translate) : (isRegistering ? ('LOGIN.REGISTER' | translate) : ('LOGIN.ACCESS' | translate)) }}</span>
           <span *ngIf="isLoading">{{ isRecoveringPassword ? ('LOGIN.SENDING' | translate) : (isRegistering ? ('LOGIN.REGISTERING' | translate) : ('LOGIN.LOGGING_IN' | translate)) }}</span>
