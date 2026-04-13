@@ -127,6 +127,8 @@ export class DashboardComponent implements OnInit, OnDestroy {
   private processedInviteToken: string | null = null;
   private updateDialogShown = false;
   private swMessageListener?: (event: MessageEvent) => void;
+  private swControllerChangeListener?: () => void;
+  private versionCheckInterval?: ReturnType<typeof setInterval>;
   private readonly onOnline = () => { this.isOffline = false; this.hasFirestoreError = false; };
   private readonly onOffline = () => { this.isOffline = true; };
 
@@ -153,6 +155,18 @@ export class DashboardComponent implements OnInit, OnDestroy {
         }
       });
     }
+
+    // combined-sw.js usa skipWaiting()+clients.claim() → VERSION_READY non viene emesso.
+    // Quando un nuovo SW prende il controllo, il browser spara 'controllerchange' sul
+    // ServiceWorkerContainer. In quel momento la pagina ha ancora il vecchio bundle in
+    // memoria ma il nuovo SW servirà la nuova version.json → mismatch rilevato.
+    if ('serviceWorker' in navigator) {
+      this.swControllerChangeListener = () => this.checkAppVersion();
+      navigator.serviceWorker.addEventListener('controllerchange', this.swControllerChangeListener);
+    }
+    // Safety net: polling ogni 10 min per rilevare nuove versioni in sessioni molto lunghe
+    // o nei casi in cui controllerchange sia già avvenuto prima della registrazione del listener.
+    this.versionCheckInterval = setInterval(() => this.checkAppVersion(), 10 * 60 * 1000);
 
     // Inizializza lingua (legge pref Firestore, fallback a navigator.language)
     await this.translationService.init();
@@ -438,6 +452,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.authSub?.unsubscribe();
     this.routeSub?.unsubscribe();
     clearInterval(this.sessionCheckInterval);
+    clearInterval(this.versionCheckInterval);
     clearTimeout(this.settingsMenuTimer);
     clearTimeout(this.deepLinkTimeout);
     this.userDocUnsub?.();
@@ -446,6 +461,9 @@ export class DashboardComponent implements OnInit, OnDestroy {
     window.removeEventListener('offline', this.onOffline);
     if (this.swMessageListener) {
       navigator.serviceWorker?.removeEventListener('message', this.swMessageListener);
+    }
+    if (this.swControllerChangeListener) {
+      navigator.serviceWorker?.removeEventListener('controllerchange', this.swControllerChangeListener);
     }
   }
 
