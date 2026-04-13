@@ -101,6 +101,37 @@ async function checkAndSendReminders() {
 
       const { tokens, notifTitleEnabled, language } = tokensCache[uid];
 
+      // Fetch collaborator tokens (guests with editReminders:true)
+      const collabUidTokenPairs = [];
+      try {
+        const collaboratorsSnap = await db.collection('notes').doc(doc.id)
+          .collection('collaborators')
+          .where('permissions.editReminders', '==', true)
+          .get();
+        for (const collabDoc of collaboratorsSnap.docs) {
+          const collabUid = collabDoc.id;
+          if (!tokensCache[collabUid]) {
+            const userDoc = await db.collection('users').doc(collabUid).get();
+            const userData = userDoc.exists ? userDoc.data() : {};
+            tokensCache[collabUid] = {
+              tokens: userData.fcmTokens ?? [],
+              notifTitleEnabled: userData.notifTitleEnabled === true,
+              language: userData.language ?? 'it',
+            };
+          }
+          for (const t of tokensCache[collabUid].tokens) {
+            collabUidTokenPairs.push({ uid: collabUid, token: t });
+          }
+        }
+      } catch (e) {
+        console.error(`Errore fetch collaboratori per nota ${doc.id}:`, e.message);
+      }
+
+      // Combined token list: owner + collaborators (with uid tracking for cleanup)
+      const ownerUidTokenPairs = tokens.map(t => ({ uid, token: t }));
+      const allUidTokenPairs = [...ownerUidTokenPairs, ...collabUidTokenPairs];
+      const allTokens = allUidTokenPairs.map(p => p.token);
+
       const NOTIF_STRINGS = {
         it: {
           defaultTitle: 'punto! — Promemoria',
@@ -115,7 +146,7 @@ async function checkAndSendReminders() {
       };
       const strings = NOTIF_STRINGS[language] ?? NOTIF_STRINGS['it'];
 
-      if (tokens && tokens.length > 0) {
+      if (allTokens.length > 0) {
         const PGP_MARKER = '-----BEGIN PGP MESSAGE-----';
         const isEncrypted = (val) => typeof val === 'string' && val.startsWith(PGP_MARKER);
 
@@ -137,7 +168,7 @@ async function checkAndSendReminders() {
 
         try {
           const response = await messaging.sendEachForMulticast({
-            tokens: tokens,
+            tokens: allTokens,
             webpush: {
               notification: {
                 title: msgTitle,
@@ -157,20 +188,23 @@ async function checkAndSendReminders() {
             }
           });
           
-          const failedTokens = [];
+          // Group failed tokens by uid for per-user cleanup
+          const failedByUid = {};
           response.responses.forEach((resp, idx) => {
             if (!resp.success) {
               const error = resp.error;
               if (error.code === 'messaging/invalid-registration-token' ||
                   error.code === 'messaging/registration-token-not-registered') {
-                failedTokens.push(tokens[idx]);
+                const failedUid = allUidTokenPairs[idx].uid;
+                if (!failedByUid[failedUid]) failedByUid[failedUid] = [];
+                failedByUid[failedUid].push(allUidTokenPairs[idx].token);
               }
             }
           });
 
-          if (failedTokens.length > 0) {
-             await db.collection('users').doc(uid).update({
-              fcmTokens: admin.firestore.FieldValue.arrayRemove(...failedTokens)
+          for (const [failUid, failTokens] of Object.entries(failedByUid)) {
+            await db.collection('users').doc(failUid).update({
+              fcmTokens: admin.firestore.FieldValue.arrayRemove(...failTokens)
             });
           }
           
