@@ -8,6 +8,20 @@
         "**/.*",
         "**/node_modules/**"
       ],
+      "headers": [
+        {
+          "source": "/ngsw.json",
+          "headers": [{ "key": "Cache-Control", "value": "no-store" }]
+        },
+        {
+          "source": "/ngsw-worker.js",
+          "headers": [{ "key": "Cache-Control", "value": "no-store" }]
+        },
+        {
+          "source": "/version.json",
+          "headers": [{ "key": "Cache-Control", "value": "no-store" }]
+        }
+      ],
       "rewrites": [
         {
           "source": "**",
@@ -22,6 +36,20 @@
         "firebase.json",
         "**/.*",
         "**/node_modules/**"
+      ],
+      "headers": [
+        {
+          "source": "/ngsw.json",
+          "headers": [{ "key": "Cache-Control", "value": "no-store" }]
+        },
+        {
+          "source": "/ngsw-worker.js",
+          "headers": [{ "key": "Cache-Control", "value": "no-store" }]
+        },
+        {
+          "source": "/version.json",
+          "headers": [{ "key": "Cache-Control", "value": "no-store" }]
+        }
       ],
       "rewrites": [
         {

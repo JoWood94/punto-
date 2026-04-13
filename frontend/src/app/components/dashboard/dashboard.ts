@@ -411,20 +411,21 @@ export class DashboardComponent implements OnInit, OnDestroy {
       if (!res.ok) return;
       const data = await res.json();
       if (data.version && data.version !== environment.appVersion) {
+        // Mismatch rilevata: il server ha una versione più recente del bundle in memoria.
+        //
+        // NOTE: combined-sw.js usa skipWaiting()+clients.claim() — il nuovo SW può aver
+        // preso il controllo della pagina SENZA emettere VERSION_READY. In quel caso
+        // checkForUpdate() restituisce false (il nuovo SW non vede versioni successive a sé).
+        // Per questo apriamo il dialog direttamente sulla base del mismatch, senza dipendere
+        // dal segnale del SW. checkForUpdate() è chiamato comunque (fire-and-forget) per
+        // garantire che il bundle aggiornato sia pronto per il ricaricamento.
         if (this.swUpdate.isEnabled) {
-          // Il SW gestisce il download e notifica via VERSION_READY quando pronto.
-          // Aprire il dialog qui causerebbe un loop: activateUpdate() sarebbe un no-op
-          // perché il SW non ha ancora scaricato la nuova versione.
-          this.swUpdate.checkForUpdate();
-          return;
+          this.swUpdate.checkForUpdate().catch(() => {});
         }
-        // Fallback: SW non disponibile (incognito, dev) → dialog diretto
         if (!this.updateDialogShown) {
           this.updateDialogShown = true;
           const ref = this.dialog.open(UpdateDialogComponent);
-          ref.afterClosed().subscribe(() => {
-            this.updatePending = true;
-          });
+          ref.afterClosed().subscribe(() => { this.updatePending = true; });
         }
       }
     } catch {
