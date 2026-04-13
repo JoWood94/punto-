@@ -44,8 +44,10 @@ service cloud.firestore {
 
     // ── Users ──────────────────────────────────────────────────────────────────
     match /users/{userId} {
-      // Ogni utente legge/scrive solo il proprio documento (FCM tokens, preferenze)
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+      // Qualsiasi utente autenticato può leggere (serve per getUsernameByUid nei collaboratori)
+      allow read: if request.auth != null;
+      // Solo il proprietario può scrivere (FCM tokens, preferenze, username)
+      allow write: if request.auth != null && request.auth.uid == userId;
     }
 
     // ── Usernames (lookup uid→username) ────────────────────────────────────────
