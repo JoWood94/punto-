@@ -370,39 +370,51 @@ export class DashboardComponent implements OnInit, OnDestroy {
     // Rimuovi il param dall'URL subito (evita re-processing al reload)
     this.router.navigate([], { queryParams: {}, replaceUrl: true });
 
+    // Fase 1: valida il token (errori qui = invite non valido/scaduto)
+    let noteId: string;
+    let createdBy: string;
     try {
-      const { noteId, createdBy } = await this.noteService.readInvite(token);
-
-      const uid = this.authService.getCurrentUserId();
-      if (!uid) return;
-
-      if (uid === createdBy) {
-        this.snackBar.open(this.translationService.instant('INVITE.OWN_INVITE_ERROR'), 'OK', { duration: 4000 });
-        return;
-      }
-
-      const [ownerUsername, noteTitle] = await Promise.all([
-        this.noteService.getUsernameByUid(createdBy),
-        this.noteService.readNoteTitle(noteId),
-      ]);
-
-      const accepted = await firstValueFrom(this.dialog.open(InviteAcceptDialogComponent, {
-        data: {
-          ownerUsername: ownerUsername ?? createdBy,
-          noteTitle: noteTitle ?? this.translationService.instant('NOTE.UNTITLED'),
-        },
-        width: '420px',
-        maxWidth: '95vw',
-      }).afterClosed());
-
-      if (accepted) {
-        await this.noteService.acceptInvite(token);
-        this.snackBar.open(this.translationService.instant('INVITE.ACCEPTED'), 'OK', { duration: 3000 });
-      }
+      ({ noteId, createdBy } = await this.noteService.readInvite(token));
     } catch (e: any) {
       const msg = e?.message?.includes('expired')
         ? this.translationService.instant('INVITE.EXPIRED_ERROR')
         : this.translationService.instant('INVITE.INVALID_ERROR');
+      this.snackBar.open(msg, 'OK', { duration: 4000 });
+      return;
+    }
+
+    const uid = this.authService.getCurrentUserId();
+    if (!uid) return;
+
+    if (uid === createdBy) {
+      this.snackBar.open(this.translationService.instant('INVITE.OWN_INVITE_ERROR'), 'OK', { duration: 4000 });
+      return;
+    }
+
+    const [ownerUsername, noteTitle] = await Promise.all([
+      this.noteService.getUsernameByUid(createdBy),
+      this.noteService.readNoteTitle(noteId),
+    ]);
+
+    const accepted = await firstValueFrom(this.dialog.open(InviteAcceptDialogComponent, {
+      data: {
+        ownerUsername: ownerUsername ?? createdBy,
+        noteTitle: noteTitle ?? this.translationService.instant('NOTE.UNTITLED'),
+      },
+      width: '420px',
+      maxWidth: '95vw',
+    }).afterClosed());
+
+    if (!accepted) return;
+
+    // Fase 2: accetta l'invito (errori qui = problema tecnico, non invite non valido)
+    try {
+      await this.noteService.acceptInvite(token);
+      this.snackBar.open(this.translationService.instant('INVITE.ACCEPTED'), 'OK', { duration: 3000 });
+    } catch (e: any) {
+      const msg = e?.message?.includes('expired')
+        ? this.translationService.instant('INVITE.EXPIRED_ERROR')
+        : this.translationService.instant('INVITE.ACCEPT_ERROR');
       this.snackBar.open(msg, 'OK', { duration: 4000 });
     }
   }

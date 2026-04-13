@@ -180,7 +180,8 @@
     "ACCEPTED": "Nota aggiunta alle tue note condivise.",
     "OWN_INVITE_ERROR": "Non puoi accettare il tuo stesso link di invito.",
     "EXPIRED_ERROR": "Questo link di invito è scaduto.",
-    "INVALID_ERROR": "Link di invito non valido o non disponibile."
+    "INVALID_ERROR": "Link di invito non valido o non disponibile.",
+    "ACCEPT_ERROR": "Errore durante l'accettazione dell'invito. Riprova."
   },
   "SHARING": {
     "TITLE": "Condividi nota",
