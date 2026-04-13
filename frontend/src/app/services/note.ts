@@ -524,7 +524,10 @@ export class NoteService {
     if (!inviteSnap.exists()) throw new Error('Invite not found');
 
     const invite = inviteSnap.data() as { noteId: string; expiresAt: number; createdBy: string };
-    if (Date.now() > invite.expiresAt) throw new Error('Invite expired');
+    if (Date.now() > invite.expiresAt) {
+      deleteDoc(inviteSnap.ref); // cleanup on-read, fire-and-forget
+      throw new Error('Invite expired');
+    }
 
     const uid = this.authService.getCurrentUserId();
     if (!uid) throw new Error('Not authenticated');
@@ -539,7 +542,10 @@ export class NoteService {
     const inviteSnap = await getDoc(doc(this.db, `invites/${token}`));
     if (!inviteSnap.exists()) throw new Error('invite/not-found');
     const invite = inviteSnap.data() as { noteId: string; expiresAt: number; createdBy: string };
-    if (Date.now() > invite.expiresAt) throw new Error('invite/expired');
+    if (Date.now() > invite.expiresAt) {
+      deleteDoc(inviteSnap.ref); // cleanup on-read, fire-and-forget
+      throw new Error('invite/expired');
+    }
     return { noteId: invite.noteId, createdBy: invite.createdBy };
   }
 

@@ -9,6 +9,14 @@
   border-radius: 0;
   overflow: hidden;
   position: relative;
+
+  // Su desktop il componente è un pannello dentro .editor-wrapper (flex:1).
+  // height:100dvh eccede il container → position:absolute sul reminder-mini-fab
+  // finisce fuori dal clip. Su mobile --vh serve per gestire la tastiera iOS.
+  @media (min-width: 768px) {
+    height: 100%;
+    max-height: 100%;
+  }
 }
 
 .editor-header {
@@ -44,18 +52,11 @@
   }
 }
 
-.share-btn {
-  flex-shrink: 0;
-  opacity: 0.7;
-
-  &:hover {
-    opacity: 1;
-  }
-}
-
-// ─── Mini-FAB promemoria: fixed bottom-left, speculare al FAB + ──
+// ─── Mini-FAB promemoria: absolute bottom-left entro :host (position:relative).
+// NON usare position:fixed: su desktop mat-sidenav-content applica CSS transforms
+// che rompono il fixed positioning e causano clipping da overflow:hidden.
 .reminder-mini-fab {
-  position: fixed;
+  position: absolute;
   bottom: calc(28px + min(env(safe-area-inset-bottom, 0px), 44px));
   left: 28px;
   z-index: 300;
@@ -100,6 +101,71 @@
   }
 
   // Promemoria ATTIVO: colori invertiti
+  &--active {
+    background: #FFFBFE;
+    color: #1C1B1F;
+    border: 1px solid var(--mat-sys-outline-variant);
+    box-shadow:
+      0 1px 3px rgba(0, 0, 0, 0.12),
+      0 2px 8px rgba(0, 0, 0, 0.08);
+
+    mat-icon { color: #1C1B1F; }
+
+    &:hover {
+      box-shadow:
+        0 2px 6px rgba(0, 0, 0, 0.15),
+        0 4px 14px rgba(0, 0, 0, 0.1);
+    }
+  }
+}
+
+// ─── Mini-FAB condivisione: affiancato al reminder-mini-fab (gap 12px) ──
+.share-mini-fab {
+  position: absolute;
+  bottom: calc(28px + min(env(safe-area-inset-bottom, 0px), 44px));
+  left: calc(28px + 56px + 12px); // reminder-fab width + gap
+  z-index: 300;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  border: none;
+  background: #1C1B1F;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow:
+    0 2px 4px rgba(0, 0, 0, 0.3),
+    0 4px 12px rgba(0, 0, 0, 0.15);
+  transition:
+    background 200ms var(--_e),
+    color 200ms var(--_e),
+    border-color 200ms var(--_e),
+    box-shadow 200ms var(--_e),
+    transform 200ms var(--_e);
+
+  mat-icon {
+    font-size: 24px;
+    width: 24px;
+    height: 24px;
+  }
+
+  &:hover {
+    box-shadow:
+      0 4px 8px rgba(0, 0, 0, 0.35),
+      0 8px 20px rgba(0, 0, 0, 0.2);
+    transform: translateY(-1px);
+  }
+
+  // Nascosto quando la format toolbar è visibile
+  &--hidden {
+    opacity: 0;
+    pointer-events: none;
+    transform: scale(0.8) translateY(4px);
+  }
+
+  // Nota già condivisa: colori invertiti (come reminder attivo)
   &--active {
     background: #FFFBFE;
     color: #1C1B1F;

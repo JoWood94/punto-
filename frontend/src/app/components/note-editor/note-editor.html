@@ -161,14 +161,6 @@
     <input #titleInput class="title-input-raw" [(ngModel)]="note.title" placeholder="Titolo"
          [disabled]="!guestCanEdit"
          (ngModelChange)="onTitleChange()" />
-    <!-- Bottone Condividi — solo owner con nota salvata -->
-    <button mat-icon-button class="share-btn"
-            *ngIf="canShare"
-            (click)="openSharePanel()"
-            [matTooltip]="'SHARING.SHARE_BTN' | translate"
-            type="button">
-      <mat-icon>share</mat-icon>
-    </button>
   </div>
 </div>
 
@@ -495,7 +487,7 @@
 
 </div>
 
-<!-- Mini-FAB promemoria: fisso bottom-left, opposto al FAB + -->
+<!-- Mini-FAB promemoria: absolute bottom-left -->
 <button class="reminder-mini-fab"
         type="button"
         [disabled]="!guestCanEditReminders"
@@ -504,5 +496,16 @@
         [class.reminder-mini-fab--hidden]="activeTextBlockIndex() !== null"
         [attr.aria-label]="reminderBlock ? ('EDITOR.REMOVE_REMINDER' | translate) : ('EDITOR.ADD_REMINDER' | translate)">
   <mat-icon>{{ reminderBlock ? 'notifications' : 'notifications_none' }}</mat-icon>
+</button>
+
+<!-- Mini-FAB condivisione: absolute bottom-left, affiancato al reminder-mini-fab -->
+<button class="share-mini-fab"
+        type="button"
+        *ngIf="canShare"
+        (click)="openSharePanel()"
+        [class.share-mini-fab--active]="note.isShared"
+        [class.share-mini-fab--hidden]="activeTextBlockIndex() !== null"
+        [attr.aria-label]="'SHARING.SHARE_BTN' | translate">
+  <mat-icon>ios_share</mat-icon>
 </button>
 
