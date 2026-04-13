@@ -73,8 +73,10 @@ export class LoginComponent {
           return;
         }
         await this.authService.register(this.email, this.password, this.pendingUsername);
-        await this.authService.sendVerificationEmail();
-        await this.authService.logout();
+        // Fire-and-forget: non blocchiamo il flusso su sendVerificationEmail
+        // (può hangare su reti lente/flaky senza timeout → isLoading bloccato)
+        this.authService.sendVerificationEmail().catch(() => {});
+        try { await this.authService.logout(); } catch {}
         this.isRegistering = false;
         this.successMessage = 'Account creato! Controlla la tua email per verificare l\'account, poi accedi.';
         return;
