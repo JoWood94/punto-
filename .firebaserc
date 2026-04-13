@@ -1,5 +1,13 @@
 {
   "projects": {
     "default": "punto-84646"
+  },
+  "targets": {
+    "punto-84646": {
+      "hosting": {
+        "production": ["punto-84646"],
+        "staging": ["punto-staging"]
+      }
+    }
   }
 }

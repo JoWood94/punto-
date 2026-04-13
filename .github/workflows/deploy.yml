@@ -50,6 +50,7 @@ jobs:
           firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_PUNTO_84646 }}
           projectId: punto-84646
           channelId: live
+          target: production
 
       - name: Build Angular App for GitHub Pages (base-href /punto-/)
         working-directory: ./frontend

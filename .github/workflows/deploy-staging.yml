@@ -1,0 +1,44 @@
+name: Deploy Angular App to Firebase Staging
+
+on:
+  push:
+    branches:
+      - 'develop'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  build_and_deploy_staging:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install Dependencies
+        working-directory: ./frontend
+        run: npm ci
+
+      - name: Build Angular App for Staging (base-href /)
+        working-directory: ./frontend
+        run: npm run build -- --configuration production --base-href / --output-path dist/firebase
+
+      - name: Deploy to Firebase Staging
+        uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          repoToken: ${{ secrets.GITHUB_TOKEN }}
+          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_PUNTO_84646 }}
+          projectId: punto-84646
+          channelId: live
+          target: staging
