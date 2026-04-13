@@ -3,9 +3,7 @@
 <mat-dialog-content class="dialog-content">
   <p class="dialog-desc">{{ 'USERNAME.DIALOG_DESC' | translate }}</p>
 
-  <app-username-input
-    (stateChange)="onUsernameStateChange($event)">
-  </app-username-input>
+  <app-username-input [formControl]="usernameControl"></app-username-input>
 
   <p class="error-msg" *ngIf="errorMessage">{{ errorMessage }}</p>
 </mat-dialog-content>
@@ -14,7 +12,7 @@
   <button
     mat-flat-button
     color="primary"
-    [disabled]="!usernameValid || saving"
+    [disabled]="!usernameControl.valid || usernameControl.pending || saving"
     (click)="save()">
     <mat-spinner *ngIf="saving" diameter="16" style="display:inline-block;margin-right:8px;vertical-align:middle;"></mat-spinner>
     <span>{{ saving ? ('USERNAME.SAVING' | translate) : ('USERNAME.CONTINUE' | translate) }}</span>

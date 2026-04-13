@@ -1,8 +1,9 @@
 import { Component, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
+import { FormsModule, ReactiveFormsModule, FormControl, Validators, AbstractControl, ValidationErrors } from '@angular/forms';
 import { Router, ActivatedRoute } from '@angular/router';
 import { AuthService } from '../../services/auth';
+import { NoteService } from '../../services/note';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatButtonModule } from '@angular/material/button';
@@ -14,7 +15,7 @@ import { UsernameInputComponent } from '../username-input/username-input';
 @Component({
   selector: 'app-login',
   standalone: true,
-  imports: [CommonModule, FormsModule, MatFormFieldModule, MatInputModule, MatButtonModule, MatIconModule, MatProgressSpinnerModule, TranslateModule, UsernameInputComponent],
+  imports: [CommonModule, FormsModule, ReactiveFormsModule, MatFormFieldModule, MatInputModule, MatButtonModule, MatIconModule, MatProgressSpinnerModule, TranslateModule, UsernameInputComponent],
   templateUrl: './login.html',
   styleUrls: ['./login.scss']
 })
@@ -30,18 +31,37 @@ export class LoginComponent {
   successMessage = '';
   isLoading = false;
 
-  // Username (solo registrazione)
-  pendingUsername = '';
-  usernameValid = false;
-
-  onUsernameStateChange(event: { value: string; valid: boolean }) {
-    this.pendingUsername = event.value;
-    this.usernameValid = event.valid;
-  }
-
   private authService = inject(AuthService);
+  private noteService = inject(NoteService);
   private router = inject(Router);
   private route = inject(ActivatedRoute);
+
+  // Username FormControl con async validator (debounce 1.5s + checkUsernameAvailability)
+  private _usernameTimer: ReturnType<typeof setTimeout> | null = null;
+
+  private usernameAsyncValidator = (control: AbstractControl): Promise<ValidationErrors | null> => {
+    return new Promise(resolve => {
+      if (this._usernameTimer) clearTimeout(this._usernameTimer);
+      this._usernameTimer = setTimeout(async () => {
+        const v = control.value as string;
+        if (!v || !NoteService.validateUsernameFormat(v)) {
+          resolve({ invalid: true });
+          return;
+        }
+        try {
+          const available = await this.noteService.checkUsernameAvailability(v);
+          resolve(available ? null : { taken: true });
+        } catch {
+          resolve(null); // fail open — non blocchiamo la registrazione su errori di rete
+        }
+      }, 1500);
+    });
+  };
+
+  usernameControl = new FormControl('', [
+    Validators.required,
+    Validators.pattern(/^[a-zA-Z0-9][a-zA-Z0-9_]{1,18}[a-zA-Z0-9]$/)
+  ], [this.usernameAsyncValidator]);
 
   get passwordReq() {
     const p = this.password;
@@ -58,6 +78,10 @@ export class LoginComponent {
     return r.minLen && r.upper && r.number && r.special;
   }
 
+  get usernameReady(): boolean {
+    return this.usernameControl.valid;
+  }
+
   async onSubmit() {
     if (this.isLoading) return;
     if (!this.email || !this.password) return;
@@ -66,18 +90,20 @@ export class LoginComponent {
     this.isLoading = true;
     try {
       if (this.isRegistering) {
-        if (this.password !== this.confirmPassword || !this.passwordAllMet || !this.usernameValid) {
+        if (this.password !== this.confirmPassword || !this.passwordAllMet || !this.usernameReady) {
           if (this.password !== this.confirmPassword) {
             this.errorMessage = 'Le password non corrispondono.';
           }
           return;
         }
-        await this.authService.register(this.email, this.password, this.pendingUsername);
+        const username = this.usernameControl.value ?? '';
+        await this.authService.register(this.email, this.password, username);
         // Fire-and-forget: non blocchiamo il flusso su sendVerificationEmail
         // (può hangare su reti lente/flaky senza timeout → isLoading bloccato)
         this.authService.sendVerificationEmail().catch(() => {});
         try { await this.authService.logout(); } catch {}
         this.isRegistering = false;
+        this.usernameControl.reset('');
         this.successMessage = 'Account creato! Controlla la tua email per verificare l\'account, poi accedi.';
         return;
       } else {

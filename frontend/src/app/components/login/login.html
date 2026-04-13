@@ -53,9 +53,7 @@
         </p>
 
         <div *ngIf="isRegistering" style="margin-bottom: 28px;">
-          <app-username-input
-            (stateChange)="onUsernameStateChange($event)">
-          </app-username-input>
+          <app-username-input [formControl]="usernameControl"></app-username-input>
         </div>
 
         <div class="forgot-password" *ngIf="!isRegistering">
@@ -66,7 +64,7 @@
       <div class="actions">
         <button mat-flat-button type="button" class="submit-btn"
                 (click)="isRecoveringPassword ? recoverPassword() : onSubmit()"
-                [disabled]="isLoading || (isRecoveringPassword ? !email : (!email || !password || (isRegistering && (password !== confirmPassword || !passwordAllMet || !usernameValid))))">
+                [disabled]="isLoading || (isRecoveringPassword ? !email : (!email || !password || (isRegistering && (password !== confirmPassword || !passwordAllMet || !usernameReady || usernameControl.pending))))">
           <mat-spinner *ngIf="isLoading" diameter="20" color="primary" style="display:inline-block;margin-right:8px;vertical-align:middle;"></mat-spinner>
           <span *ngIf="!isLoading">{{ isRecoveringPassword ? ('LOGIN.SEND_RECOVERY' | translate) : (isRegistering ? ('LOGIN.REGISTER' | translate) : ('LOGIN.ACCESS' | translate)) }}</span>
           <span *ngIf="isLoading">{{ isRecoveringPassword ? ('LOGIN.SENDING' | translate) : (isRegistering ? ('LOGIN.REGISTERING' | translate) : ('LOGIN.LOGGING_IN' | translate)) }}</span>
