@@ -118,6 +118,12 @@
   }
 }
 
+.field-error {
+  color: var(--mat-sys-error, #b00020);
+  font-size: 0.8rem;
+  margin: -8px 0 8px;
+}
+
 .error-message {
   color: var(--mat-sys-error, #b00020);
   font-size: 0.85rem;

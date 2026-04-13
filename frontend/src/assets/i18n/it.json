@@ -76,7 +76,8 @@
     "NO_ACCOUNT": "Non hai un account? Registrati",
     "BACK_TO_LOGIN": "Torna al Login",
     "HIDE_PASSWORD": "Nascondi password",
-    "SHOW_PASSWORD": "Mostra password"
+    "SHOW_PASSWORD": "Mostra password",
+    "PASSWORD_MISMATCH": "Le password non coincidono"
   },
   "EDITOR": {
     "SELECT_DATE": "Seleziona data",

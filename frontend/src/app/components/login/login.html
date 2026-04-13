@@ -48,6 +48,9 @@
             <mat-icon>{{ showConfirmPassword ? 'visibility_off' : 'visibility' }}</mat-icon>
           </button>
         </mat-form-field>
+        <p class="field-error" *ngIf="isRegistering && confirmPassword.length > 0 && password !== confirmPassword">
+          {{ 'LOGIN.PASSWORD_MISMATCH' | translate }}
+        </p>
 
         <div *ngIf="isRegistering" style="margin-bottom: 28px;">
           <app-username-input
