@@ -744,6 +744,12 @@ export class DashboardComponent implements OnInit, OnDestroy {
         }
         return;
       }
+      // Guardia difensiva: chiavi null in Firestore (stato inconsistente da clearEncryptionKeys senza encryptionSetup:false)
+      // → tratta come non configurato per evitare broken unlock loop con openpgp.readPrivateKey(null)
+      if (!userDoc['publicKey'] || !userDoc['encryptedPrivateKey']) {
+        await this.showSetupDialog(uid);
+        return;
+      }
       // Nuovo device: sblocca con passphrase (NON setup)
       await this.showUnlockDialog(uid, userDoc['publicKey'], userDoc['encryptedPrivateKey'], userDoc['sessionVersion'] ?? 1);
     } else {

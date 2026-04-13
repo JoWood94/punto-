@@ -397,6 +397,7 @@ export class NoteService {
       publicKey: null,
       encryptedPrivateKey: null,
       encryptionEnabled: false,
+      encryptionSetup: false,   // fondamentale: senza questo initEncryption vede encryptionSetup:true con chiavi null → broken unlock loop
       sessionVersion
     }, { merge: true });
   }
