@@ -1,0 +1,24 @@
+.dialog-title {
+  font-size: 1.1rem;
+  font-weight: 600;
+  padding-bottom: 4px;
+}
+
+.dialog-content {
+  padding-top: 4px;
+  min-width: 280px;
+  max-width: 400px;
+}
+
+.dialog-desc {
+  font-size: 0.875rem;
+  color: rgba(0, 0, 0, 0.6);
+  margin: 0 0 16px;
+  line-height: 1.4;
+}
+
+.error-msg {
+  font-size: 0.8rem;
+  color: #c62828;
+  margin-top: 8px;
+}

@@ -1,0 +1,23 @@
+<mat-form-field appearance="outline" class="username-field">
+  <mat-label>{{ 'USERNAME.LABEL' | translate }}</mat-label>
+  <input
+    matInput
+    type="text"
+    [value]="value"
+    (input)="onInput($event)"
+    autocomplete="username"
+    spellcheck="false"
+    autocorrect="off"
+    autocapitalize="off"
+    maxlength="20"
+    [placeholder]="'USERNAME.PLACEHOLDER' | translate"
+  />
+  <span matSuffix class="username-suffix">
+    <mat-spinner *ngIf="state === 'checking'" diameter="16"></mat-spinner>
+    <mat-icon *ngIf="state === 'available'" class="state-icon state-icon--ok">check_circle</mat-icon>
+    <mat-icon *ngIf="state === 'taken' || state === 'invalid'" class="state-icon state-icon--err">cancel</mat-icon>
+  </span>
+  <mat-hint [class.hint--ok]="state === 'available'" [class.hint--err]="state === 'taken' || state === 'invalid'">
+    {{ hintText }}
+  </mat-hint>
+</mat-form-field>

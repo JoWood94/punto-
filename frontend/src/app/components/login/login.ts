@@ -1,7 +1,7 @@
 import { Component, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { Router } from '@angular/router';
+import { Router, ActivatedRoute } from '@angular/router';
 import { AuthService } from '../../services/auth';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
@@ -9,10 +9,12 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { TranslateModule } from '@ngx-translate/core';
+import { UsernameInputComponent } from '../username-input/username-input';
+
 @Component({
   selector: 'app-login',
   standalone: true,
-  imports: [CommonModule, FormsModule, MatFormFieldModule, MatInputModule, MatButtonModule, MatIconModule, MatProgressSpinnerModule, TranslateModule],
+  imports: [CommonModule, FormsModule, MatFormFieldModule, MatInputModule, MatButtonModule, MatIconModule, MatProgressSpinnerModule, TranslateModule, UsernameInputComponent],
   templateUrl: './login.html',
   styleUrls: ['./login.scss']
 })
@@ -28,8 +30,18 @@ export class LoginComponent {
   successMessage = '';
   isLoading = false;
 
+  // Username (solo registrazione)
+  pendingUsername = '';
+  usernameValid = false;
+
+  onUsernameStateChange(event: { value: string; valid: boolean }) {
+    this.pendingUsername = event.value;
+    this.usernameValid = event.valid;
+  }
+
   private authService = inject(AuthService);
   private router = inject(Router);
+  private route = inject(ActivatedRoute);
 
   get passwordReq() {
     const p = this.password;
@@ -53,8 +65,8 @@ export class LoginComponent {
     this.isLoading = true;
     try {
       if (this.isRegistering) {
-        if (this.password !== this.confirmPassword || !this.passwordAllMet) return;
-        await this.authService.register(this.email, this.password);
+        if (this.password !== this.confirmPassword || !this.passwordAllMet || !this.usernameValid) return;
+        await this.authService.register(this.email, this.password, this.pendingUsername);
         await this.authService.sendVerificationEmail();
         await this.authService.logout();
         this.isRegistering = false;
@@ -68,7 +80,7 @@ export class LoginComponent {
           return;
         }
       }
-      this.router.navigate(['/dashboard'], { replaceUrl: true });
+      this.navigateAfterAuth();
     } catch (error: any) {
       this.errorMessage = this.getErrorMessage(error.code);
     } finally {
@@ -97,9 +109,18 @@ export class LoginComponent {
     this.successMessage = '';
     try {
       await this.authService.loginWithApple();
-      this.router.navigate(['/dashboard'], { replaceUrl: true });
+      this.navigateAfterAuth();
     } catch (error: any) {
       this.errorMessage = this.getErrorMessage(error.code);
+    }
+  }
+
+  private navigateAfterAuth() {
+    const returnUrl = this.route.snapshot.queryParamMap.get('returnUrl');
+    if (returnUrl) {
+      this.router.navigateByUrl(returnUrl, { replaceUrl: true });
+    } else {
+      this.router.navigate(['/dashboard'], { replaceUrl: true });
     }
   }
 

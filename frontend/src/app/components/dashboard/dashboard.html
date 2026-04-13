@@ -125,11 +125,24 @@
               </ng-container>
             </ng-container>
 
-            <div class="empty-state" *ngIf="pinnedNotes.length === 0 && plainNotes.length === 0 && !searchQuery">
+            <!-- Sezione "Condivise con me" -->
+            <ng-container *ngIf="sharedWithMeNotes.length > 0">
+              <div class="section-header-collapsible" (click)="isSharedWithMeSectionExpanded = !isSharedWithMeSectionExpanded">
+                <span>{{ 'SHARING.SHARED_WITH_ME_SECTION' | translate }}</span>
+                <mat-icon class="section-chevron" [class.rotated]="!isSharedWithMeSectionExpanded">expand_more</mat-icon>
+              </div>
+              <ng-container *ngIf="isSharedWithMeSectionExpanded">
+                <ng-container *ngFor="let note of sharedWithMeNotes">
+                  <ng-container *ngTemplateOutlet="noteCard; context: { note: note }"></ng-container>
+                </ng-container>
+              </ng-container>
+            </ng-container>
+
+            <div class="empty-state" *ngIf="pinnedNotes.length === 0 && plainNotes.length === 0 && sharedWithMeNotes.length === 0 && !searchQuery">
               <mat-icon>edit_note</mat-icon>
               <p>{{ 'EMPTY.NO_NOTES' | translate }}</p>
             </div>
-            <div class="empty-state" *ngIf="pinnedNotes.length === 0 && plainNotes.length === 0 && searchQuery">
+            <div class="empty-state" *ngIf="pinnedNotes.length === 0 && plainNotes.length === 0 && sharedWithMeNotes.length === 0 && searchQuery">
               <mat-icon>search_off</mat-icon>
               <p>{{ 'EMPTY.NO_RESULTS' | translate }}</p>
             </div>
@@ -225,6 +238,8 @@
               <mat-icon class="note-card-bell" *ngIf="note.reminderStatus === 'completed'">task_alt</mat-icon>
               <mat-icon class="note-card-bell" *ngIf="note.recurrence && note.recurrence !== 'none'">repeat</mat-icon>
               <mat-icon class="note-card-bell" *ngIf="note.reminderTime && note.reminderStatus !== 'completed' && (!note.recurrence || note.recurrence === 'none')">notifications</mat-icon>
+              <mat-icon class="note-card-bell note-card-shared" *ngIf="note.isShared || note.myRole === 'guest'"
+                        [matTooltip]="(note.myRole === 'guest' ? 'SHARING.SHARED_WITH_YOU' : 'SHARING.SHARED') | translate">group</mat-icon>
               <span class="note-item-title">{{ note.title || ('NOTE.UNTITLED' | translate) }}</span>
             </div>
 

@@ -1,6 +1,8 @@
 import { Injectable, inject } from '@angular/core';
 import { Auth, authState, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, User, OAuthProvider, signInWithPopup, sendPasswordResetEmail, sendEmailVerification } from '@angular/fire/auth';
 import { Observable } from 'rxjs';
+import { getApp } from 'firebase/app';
+import { getFirestore, doc, writeBatch } from 'firebase/firestore';
 import { CryptoService } from './crypto';
 
 @Injectable({
@@ -18,8 +20,20 @@ export class AuthService {
     return signInWithEmailAndPassword(this.auth, email, pass);
   }
 
-  register(email: string, pass: string) {
-    return createUserWithEmailAndPassword(this.auth, email, pass);
+  async register(email: string, pass: string, username?: string) {
+    const cred = await createUserWithEmailAndPassword(this.auth, email, pass);
+    if (username) {
+      try {
+        const db = getFirestore(getApp());
+        const lower = username.toLowerCase();
+        const uid = cred.user.uid;
+        const batch = writeBatch(db);
+        batch.set(doc(db, `usernames/${lower}`), { uid, createdAt: Date.now() });
+        batch.set(doc(db, `users/${uid}`), { username, usernameLower: lower }, { merge: true });
+        await batch.commit();
+      } catch { /* silenzioso — username sarà richiesto al login */ }
+    }
+    return cred;
   }
 
   resetPassword(email: string) {

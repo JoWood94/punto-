@@ -13,12 +13,44 @@
 
 .editor-header {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
+  flex-direction: column;
+  align-items: stretch;
   // safe-area-inset-top gestito dall'app-header nel dashboard (che usa position:fixed
   // partendo da y=0). Non serve ripeterne il valore qui.
   padding: 16px 24px 16px;
+  gap: 4px;
+}
+
+.editor-header-row {
+  display: flex;
+  align-items: center;
   gap: 8px;
+}
+
+.shared-with-you-badge {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--mat-sys-on-surface-variant);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+
+  mat-icon {
+    font-size: 14px;
+    width: 14px;
+    height: 14px;
+  }
+}
+
+.share-btn {
+  flex-shrink: 0;
+  opacity: 0.7;
+
+  &:hover {
+    opacity: 1;
+  }
 }
 
 // ─── Mini-FAB promemoria: fixed bottom-left, speculare al FAB + ──
@@ -1235,6 +1267,67 @@
     background: color-mix(in srgb, var(--mat-sys-on-surface) 6%, transparent);
     border-color: var(--mat-sys-outline);
   }
+}
+
+// ─── Guest disabled state (permissions) ─────────────────────
+// Copertura uniforme: opacity 0.38 (M3 standard), no pointer-events, no cursor
+.title-input-raw:disabled {
+  opacity: 0.38;
+  cursor: not-allowed;
+}
+
+.rich-text-editor:not([contenteditable]) {
+  opacity: 0.38;
+  cursor: default;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.checklist-input:disabled,
+.checklist-add-input:disabled {
+  opacity: 0.38;
+  cursor: not-allowed;
+}
+
+.strip-date-btn:disabled,
+.strip-end-date-btn:disabled,
+.strip-end-date-clear:disabled,
+.strip-cta:disabled,
+.strip-badge--clickable:disabled {
+  opacity: 0.38;
+  cursor: not-allowed;
+  pointer-events: none;
+
+  &:hover {
+    background: inherit;
+    border-color: inherit;
+    opacity: 0.38;
+  }
+}
+
+.strip-select:disabled {
+  opacity: 0.38;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.reminder-mini-fab:disabled {
+  opacity: 0.38;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.add-block-fab[disabled] {
+  opacity: 0.38;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.link-anchor--disabled {
+  opacity: 0.38;
+  cursor: default;
+  pointer-events: none;
+  text-decoration: none;
 }
 
 // ─── Empty note onboarding ───────────────────────────────────

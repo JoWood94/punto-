@@ -1,0 +1,22 @@
+<h2 mat-dialog-title class="dialog-title">{{ 'USERNAME.DIALOG_TITLE' | translate }}</h2>
+
+<mat-dialog-content class="dialog-content">
+  <p class="dialog-desc">{{ 'USERNAME.DIALOG_DESC' | translate }}</p>
+
+  <app-username-input
+    (stateChange)="onUsernameStateChange($event)">
+  </app-username-input>
+
+  <p class="error-msg" *ngIf="errorMessage">{{ errorMessage }}</p>
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <button
+    mat-flat-button
+    color="primary"
+    [disabled]="!usernameValid || saving"
+    (click)="save()">
+    <mat-spinner *ngIf="saving" diameter="16" style="display:inline-block;margin-right:8px;vertical-align:middle;"></mat-spinner>
+    <span>{{ saving ? ('USERNAME.SAVING' | translate) : ('USERNAME.CONTINUE' | translate) }}</span>
+  </button>
+</mat-dialog-actions>

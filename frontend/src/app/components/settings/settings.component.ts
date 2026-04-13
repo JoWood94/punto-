@@ -12,6 +12,7 @@ import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { firstValueFrom } from 'rxjs';
+import { UsernameInputComponent } from '../username-input/username-input';
 import {
   getFirestore, collection, query, where, getDocs, deleteDoc, doc, updateDoc, deleteField
 } from 'firebase/firestore';
@@ -39,6 +40,7 @@ import { ConfirmDialogComponent } from '../confirm-dialog/confirm-dialog';
     MatSnackBarModule,
     MatProgressSpinnerModule,
     TranslateModule,
+    UsernameInputComponent,
   ],
   templateUrl: './settings.component.html',
   styleUrl: './settings.component.scss'
@@ -58,6 +60,15 @@ export class SettingsComponent implements OnInit {
   calendarShowAllNotes = true;
   resetInProgress = false;
   updateAvailable = false;
+
+  settingsLoaded = false;
+
+  // Username
+  currentUsername: string | null = null;
+  editingUsername = false;
+  pendingUsername = '';
+  usernameValid = false;
+  savingUsername = false;
   language = 'it';
 
   async ngOnInit() {
@@ -71,6 +82,8 @@ export class SettingsComponent implements OnInit {
     this.notifTitleEnabled = await this.noteService.getUserPreference<boolean>('notifTitleEnabled', false);
     this.noteService.setNotifTitleEnabled(this.notifTitleEnabled);
     this.calendarShowAllNotes = await this.noteService.getUserPreference<boolean>('calendarShowAllNotes', true);
+    this.currentUsername = await this.noteService.getUsername();
+    this.settingsLoaded = true;
   }
 
   goBack() {
@@ -116,6 +129,26 @@ export class SettingsComponent implements OnInit {
   async onCalendarShowAllNotesToggle(enabled: boolean) {
     this.calendarShowAllNotes = enabled;
     await this.noteService.setUserPreference('calendarShowAllNotes', enabled);
+  }
+
+  onUsernameStateChange(event: { value: string; valid: boolean }) {
+    this.pendingUsername = event.value;
+    this.usernameValid = event.valid;
+  }
+
+  async saveUsername() {
+    if (!this.usernameValid || this.savingUsername) return;
+    this.savingUsername = true;
+    try {
+      await this.noteService.setUsername(this.pendingUsername);
+      this.currentUsername = this.pendingUsername;
+      this.editingUsername = false;
+      this.snackBar.open(this.translationService.instant('USERNAME.SAVE_SUCCESS'), 'OK', { duration: 3000 });
+    } catch {
+      this.snackBar.open(this.translationService.instant('USERNAME.SAVE_ERROR'), 'OK', { duration: 4000 });
+    } finally {
+      this.savingUsername = false;
+    }
   }
 
   async confirmResetEncryption() {

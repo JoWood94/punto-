@@ -5,7 +5,8 @@
   <div class="reminder-strip-row">
 
     <button class="strip-date-btn" type="button"
-            (click)="reminderDatepicker.open()"
+            [disabled]="!guestCanEditReminders"
+            (click)="guestCanEditReminders && reminderDatepicker.open()"
             (focus)="onNonTextFieldFocus()"
             (blur)="onNonTextFieldBlur()">
       <mat-icon>event</mat-icon>
@@ -22,6 +23,7 @@
 
     <div class="strip-time">
       <select [(ngModel)]="reminderBlock.hour"
+              [disabled]="!guestCanEditReminders"
               (change)="onReminderChange()"
               (focus)="onNonTextFieldFocus()"
               (blur)="onNonTextFieldBlur()"
@@ -30,6 +32,7 @@
       </select>
       <span class="strip-colon">:</span>
       <select [(ngModel)]="reminderBlock.minute"
+              [disabled]="!guestCanEditReminders"
               (change)="onReminderChange()"
               (focus)="onNonTextFieldFocus()"
               (blur)="onNonTextFieldBlur()"
@@ -44,6 +47,7 @@
   <div class="reminder-strip-row reminder-strip-row--recurrence">
 
     <select [(ngModel)]="reminderBlock.recurrence"
+            [disabled]="!guestCanEditReminders"
             (change)="onReminderChange()"
             (focus)="onNonTextFieldFocus()"
             (blur)="onNonTextFieldBlur()"
@@ -58,7 +62,8 @@
     <div class="strip-end-date"
          [class.strip-end-date--disabled]="reminderBlock.recurrence === 'none'">
       <button class="strip-date-btn strip-end-date-btn" type="button"
-              (click)="recurrenceEndDatepicker.open()"
+              [disabled]="!guestCanEditReminders"
+              (click)="guestCanEditReminders && recurrenceEndDatepicker.open()"
               (focus)="onNonTextFieldFocus()"
               (blur)="onNonTextFieldBlur()">
         <mat-icon>event_busy</mat-icon>
@@ -73,7 +78,7 @@
         </mat-datepicker>
       </button>
       <button *ngIf="reminderBlock._endDate && reminderBlock.recurrence !== 'none'" class="strip-end-date-clear"
-              type="button" (click)="clearRecurrenceEndDate()">
+              type="button" [disabled]="!guestCanEditReminders" (click)="clearRecurrenceEndDate()">
         <mat-icon>close</mat-icon>
       </button>
     </div>
@@ -106,6 +111,7 @@
   <!-- Evaso ricorrente con undo -->
   <button class="strip-badge strip-badge--evaded strip-badge--clickable" type="button"
           *ngIf="note?.id && reminderBlock.recurrence !== 'none' && reminderBlock._evaded && !reminderBlock._wasOverdue"
+          [disabled]="!guestCanEditReminders"
           (click)="undoRecurringEvasion(reminderBlock)"
           matTooltip="Tocca per annullare evasione">
     <mat-icon>task_alt</mat-icon>
@@ -116,6 +122,7 @@
   <!-- Completato singolo con undo -->
   <button class="strip-badge strip-badge--evaded strip-badge--clickable" type="button"
           *ngIf="reminderBlock.status === 'completed'"
+          [disabled]="!guestCanEditReminders"
           (click)="undoReminderCompleted(reminderBlock)"
           matTooltip="Tocca per annullare">
     <mat-icon>task_alt</mat-icon>
@@ -126,6 +133,7 @@
   <!-- CTA: evadi ricorrenza scaduta -->
   <button class="strip-cta" type="button"
           *ngIf="note?.id && isOverdueRecurring(reminderBlock)"
+          [disabled]="!guestCanEditReminders"
           (click)="markReminderCompleted(reminderBlock, true)">
     <mat-icon>check_circle</mat-icon>
     {{ 'EDITOR.EVADE_RECURRING' | translate }}
@@ -134,6 +142,7 @@
   <!-- CTA: segna come evaso -->
   <button class="strip-cta" type="button"
           *ngIf="isReminderActionable(reminderBlock)"
+          [disabled]="!guestCanEditReminders"
           (click)="markReminderCompleted(reminderBlock)">
     <mat-icon>check_circle</mat-icon>
     {{ getReminderActionLabel(reminderBlock) }}
@@ -142,8 +151,25 @@
 </div><!-- /reminder-strip -->
 
 <div class="editor-header">
-  <input #titleInput class="title-input-raw" [(ngModel)]="note.title" placeholder="Titolo"
-       (ngModelChange)="onTitleChange()" />
+  <!-- Badge "Shared with you" — guest -->
+  <div class="shared-with-you-badge" *ngIf="isGuest">
+    <mat-icon>group</mat-icon>
+    <span>{{ 'SHARING.SHARED_WITH_YOU' | translate }}</span>
+  </div>
+
+  <div class="editor-header-row">
+    <input #titleInput class="title-input-raw" [(ngModel)]="note.title" placeholder="Titolo"
+         [disabled]="!guestCanEdit"
+         (ngModelChange)="onTitleChange()" />
+    <!-- Bottone Condividi — solo owner con nota salvata -->
+    <button mat-icon-button class="share-btn"
+            *ngIf="canShare"
+            (click)="openSharePanel()"
+            [matTooltip]="'SHARING.SHARE_BTN' | translate"
+            type="button">
+      <mat-icon>share</mat-icon>
+    </button>
+  </div>
 </div>
 
 <div class="editor-content" #editorContent (click)="onEditorContentClick($event)">
@@ -174,7 +200,7 @@
           <div
             #textBlockEl
             class="rich-text-editor"
-            contenteditable="true"
+            [attr.contenteditable]="guestCanEdit ? 'true' : null"
             [attr.data-placeholder]="'Scrivi qui...'"
             (input)="onTextInput(i, $event)"
             (focus)="onTextFocus(i)"
@@ -195,11 +221,12 @@
           </div>
           <div class="checklist-items">
             <div class="checklist-item" *ngFor="let item of $any(block).items; let j = index">
-              <mat-checkbox [(ngModel)]="item.done" (ngModelChange)="onChecklistItemChange()"></mat-checkbox>
+              <mat-checkbox [(ngModel)]="item.done" [disabled]="!guestCanEdit" (ngModelChange)="onChecklistItemChange()"></mat-checkbox>
               <div class="checklist-input-wrap">
                 <input class="checklist-input" [class.item-done]="item.done"
+                       [disabled]="!guestCanEdit"
                        [(ngModel)]="item.text" (ngModelChange)="onChecklistItemChange()" placeholder="Voce..." />
-                <button mat-icon-button class="remove-item-btn" (click)="removeChecklistItem($any(block), j)" type="button">
+                <button mat-icon-button class="remove-item-btn" [disabled]="!guestCanEdit" (click)="removeChecklistItem($any(block), j)" type="button">
                   <mat-icon>close</mat-icon>
                 </button>
               </div>
@@ -207,8 +234,10 @@
           </div>
           <div class="checklist-add-row">
             <input class="checklist-add-input" #newItemInput placeholder="Aggiungi voce..."
+                   [disabled]="!guestCanEdit"
                    (keydown.enter)="onChecklistEnter($event, $any(block), newItemInput)">
             <button mat-icon-button type="button" class="checklist-add-btn"
+                    [disabled]="!guestCanEdit"
                     (click)="onChecklistEnter($event, $any(block), newItemInput)">
               <mat-icon>add_circle</mat-icon>
             </button>
@@ -230,6 +259,7 @@
             <mat-icon matPrefix>search</mat-icon>
             <mat-label>Cerca indirizzo</mat-label>
             <input matInput type="text"
+                   [disabled]="!guestCanEdit"
                    [matAutocomplete]="autoAddress"
                    [(ngModel)]="$any(block).searchQuery"
                    (input)="onAddressInput($any(block), $event)">
@@ -245,10 +275,10 @@
           <div *ngIf="$any(block).address && !$any(block).editing" class="selected-address-view">
             <div class="address-label-row">
               <span class="address-text">{{ $any(block).address }}</span>
-              <button mat-icon-button (click)="openMaps($any(block))" matTooltip="Apri mappa">
+              <button mat-icon-button [disabled]="!guestCanEdit" (click)="openMaps($any(block))" matTooltip="Apri mappa">
                 <mat-icon>open_in_new</mat-icon>
               </button>
-              <button mat-icon-button (click)="$any(block).editing = true" matTooltip="Modifica">
+              <button mat-icon-button [disabled]="!guestCanEdit" (click)="$any(block).editing = true" matTooltip="Modifica">
                 <mat-icon>edit</mat-icon>
               </button>
             </div>
@@ -308,6 +338,7 @@
             <mat-icon >link</mat-icon>
             <span class="block-label">Collegamento</span>
             <button mat-icon-button class="edit-link-btn"
+                    [disabled]="!guestCanEdit"
                     (click)="editLinkBlock(i)"
                     matTooltip="Modifica collegamento"
                     type="button">
@@ -317,7 +348,8 @@
 
           <!-- Link visualizzato come label cliccabile -->
           <a *ngIf="$any(block).url"
-             [href]="$any(block).url"
+             [attr.href]="guestCanEdit ? $any(block).url : null"
+             [class.link-anchor--disabled]="!guestCanEdit"
              target="_blank"
              rel="noopener noreferrer"
              class="link-anchor">
@@ -337,6 +369,7 @@
       <!-- Remove block button -->
       <button mat-icon-button class="remove-block-btn"
               *ngIf="canRemoveBlock(i)"
+              [disabled]="!guestCanEdit"
               (click)="removeBlock(i)"
               matTooltip="Rimuovi blocco"
               type="button">
@@ -430,18 +463,22 @@
   <!-- M3 Expressive horizontal toolbar: appare a sinistra del FAB -->
   <div class="add-block-toolbar" [class.add-block-toolbar-open]="addBlockMenuOpen()">
     <button mat-icon-button type="button" tabindex="-1"
+            [disabled]="!guestCanEdit"
             (click)="addBlockAfterActive('text'); closeAddBlockMenu()" aria-label="Testo">
       <mat-icon>text_fields</mat-icon>
     </button>
     <button mat-icon-button type="button" tabindex="-1"
+            [disabled]="!guestCanEdit"
             (click)="addBlockAfterActive('checklist'); closeAddBlockMenu()" aria-label="Checklist">
       <mat-icon>check_box</mat-icon>
     </button>
     <button mat-icon-button type="button" tabindex="-1"
+            [disabled]="!guestCanEdit"
             (click)="addBlockAfterActive('location'); closeAddBlockMenu()" aria-label="Luogo">
       <mat-icon>place</mat-icon>
     </button>
     <button mat-icon-button type="button" tabindex="-1"
+            [disabled]="!guestCanEdit"
             (click)="closeAddBlockMenu(); addLinkBlock()" aria-label="Collegamento">
       <mat-icon>link</mat-icon>
     </button>
@@ -449,6 +486,7 @@
 
   <!-- FAB + (stessa distanza dal bordo di "Nuova Nota") -->
   <button mat-mini-fab class="add-block-fab"
+          [disabled]="!guestCanEdit"
           (click)="toggleAddBlockMenu()" type="button"
           [class.add-block-fab-open]="addBlockMenuOpen()"
           aria-label="Aggiungi blocco">
@@ -460,6 +498,7 @@
 <!-- Mini-FAB promemoria: fisso bottom-left, opposto al FAB + -->
 <button class="reminder-mini-fab"
         type="button"
+        [disabled]="!guestCanEditReminders"
         (click)="toggleReminder()"
         [class.reminder-mini-fab--active]="!!reminderBlock"
         [class.reminder-mini-fab--hidden]="activeTextBlockIndex() !== null"

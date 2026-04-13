@@ -24,6 +24,8 @@ import { CalendarViewComponent } from '../calendar-view/calendar-view.component'
 import { ConfirmDialogComponent } from '../confirm-dialog/confirm-dialog';
 import { PassphraseDialogComponent } from '../passphrase-dialog/passphrase-dialog';
 import { UpdateDialogComponent } from '../update-dialog/update-dialog';
+import { UsernameDialogComponent } from '../username-dialog/username-dialog';
+import { InviteAcceptDialogComponent } from '../invite-accept-dialog/invite-accept-dialog';
 import { TranslateModule } from '@ngx-translate/core';
 import { TranslationService } from '../../services/translation';
 import { Observable, Subscription, firstValueFrom, skip } from 'rxjs';
@@ -122,6 +124,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
   isReady = false;
   updatePending = false;
   private deepLinkNoteId: string | null = null;
+  private processedInviteToken: string | null = null;
   private updateDialogShown = false;
   private swMessageListener?: (event: MessageEvent) => void;
   private readonly onOnline = () => { this.isOffline = false; this.hasFirestoreError = false; };
@@ -165,13 +168,20 @@ export class DashboardComponent implements OnInit, OnDestroy {
     // (es. app già aperta, SW chiama clients.openWindow con nuovo URL)
     this.routeSub = this.route.queryParams.subscribe(params => {
       const noteId = params['openNote'];
-      if (!noteId || noteId === this.deepLinkNoteId) return;
-      const note = this.allNotes.find(n => n.id === noteId);
-      if (note) {
-        this.selectNote(note);
-      } else {
-        this.deepLinkNoteId = noteId;
-        this.armDeepLinkTimeout();
+      if (noteId && noteId !== this.deepLinkNoteId) {
+        const note = this.allNotes.find(n => n.id === noteId);
+        if (note) {
+          this.selectNote(note);
+        } else {
+          this.deepLinkNoteId = noteId;
+          this.armDeepLinkTimeout();
+        }
+      }
+
+      const inviteToken = params['invite'];
+      if (inviteToken && inviteToken !== this.processedInviteToken) {
+        this.processedInviteToken = inviteToken;
+        this.handleInvite(inviteToken);
       }
     });
 
@@ -194,6 +204,9 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
     // Inizializza cifratura E2E
     await this.initEncryption();
+
+    // Richiede username agli utenti esistenti che non ne hanno ancora uno
+    this.checkAndPromptUsername();
 
     // Redirect immediato se sessione scade/revocata
     this.authSub = this.authService.user$.pipe(skip(1)).subscribe(user => {
@@ -222,6 +235,8 @@ export class DashboardComponent implements OnInit, OnDestroy {
         this.setMobileNav('notes');
         localStorage.setItem('punto_defaultView', 'list');
       }
+      // Preferenza caricata da Firestore — blocca autoSelectView() dal sovrascrivere la scelta utente
+      this.viewAutoSelected = true;
     }
 
     // Carica preferenza titolo notifiche
@@ -337,6 +352,47 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.deepLinkTimeout = setTimeout(() => { this.deepLinkNoteId = null; }, 10000);
   }
 
+  private async handleInvite(token: string) {
+    // Rimuovi il param dall'URL subito (evita re-processing al reload)
+    this.router.navigate([], { queryParams: {}, replaceUrl: true });
+
+    try {
+      const { noteId, createdBy } = await this.noteService.readInvite(token);
+
+      const uid = this.authService.getCurrentUserId();
+      if (!uid) return;
+
+      if (uid === createdBy) {
+        this.snackBar.open(this.translationService.instant('INVITE.OWN_INVITE_ERROR'), 'OK', { duration: 4000 });
+        return;
+      }
+
+      const [ownerUsername, noteTitle] = await Promise.all([
+        this.noteService.getUsernameByUid(createdBy),
+        this.noteService.readNoteTitle(noteId),
+      ]);
+
+      const accepted = await firstValueFrom(this.dialog.open(InviteAcceptDialogComponent, {
+        data: {
+          ownerUsername: ownerUsername ?? createdBy,
+          noteTitle: noteTitle ?? this.translationService.instant('NOTE.UNTITLED'),
+        },
+        width: '420px',
+        maxWidth: '95vw',
+      }).afterClosed());
+
+      if (accepted) {
+        await this.noteService.acceptInvite(token);
+        this.snackBar.open(this.translationService.instant('INVITE.ACCEPTED'), 'OK', { duration: 3000 });
+      }
+    } catch (e: any) {
+      const msg = e?.message?.includes('expired')
+        ? this.translationService.instant('INVITE.EXPIRED_ERROR')
+        : this.translationService.instant('INVITE.INVALID_ERROR');
+      this.snackBar.open(msg, 'OK', { duration: 4000 });
+    }
+  }
+
   private async writeClientVersion() {
     try {
       const current = await this.noteService.getUserPreference<string>('clientVersion', '');
@@ -395,6 +451,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
   isActiveReminderSectionExpanded = true;
   isReminderRecurringSectionExpanded = true;
   isEvadedSectionExpanded = true;
+  isSharedWithMeSectionExpanded = true;
 
   private isRecurring(n: Note): boolean { return !!(n.recurrence && n.recurrence !== 'none'); }
 
@@ -414,23 +471,28 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   // ─── Vista NOTE: solo note senza reminder e senza ricorrenza ─
   get pinnedNotes(): Note[] {
-    return this.filteredNotes.filter(n => n.pinned && !n.reminderTime && !this.isRecurring(n));
+    return this.filteredNotes.filter(n => n.pinned && !n.reminderTime && !this.isRecurring(n) && n.myRole !== 'guest');
   }
   get plainNotes(): Note[] {
-    return this.filteredNotes.filter(n => !n.pinned && !n.reminderTime && !this.isRecurring(n));
+    return this.filteredNotes.filter(n => !n.pinned && !n.reminderTime && !this.isRecurring(n) && n.myRole !== 'guest');
   }
 
   // ─── Vista PROMEMORIA ─────────────────────────────────────────
   get activeReminderNotes(): Note[] {
     return this.filteredNotes.filter(n =>
-      !!n.reminderTime && n.reminderStatus !== 'completed' && !this.isRecurring(n)
+      !!n.reminderTime && n.reminderStatus !== 'completed' && !this.isRecurring(n) && n.myRole !== 'guest'
     );
   }
   get recurringReminderNotes(): Note[] {
-    return this.filteredNotes.filter(n => this.isRecurring(n));
+    return this.filteredNotes.filter(n => this.isRecurring(n) && n.myRole !== 'guest');
   }
   get evadedNotes(): Note[] {
-    return this.filteredNotes.filter(n => n.reminderStatus === 'completed');
+    return this.filteredNotes.filter(n => n.reminderStatus === 'completed' && n.myRole !== 'guest');
+  }
+
+  // ─── Condivise con me ─────────────────────────────────────────
+  get sharedWithMeNotes(): Note[] {
+    return this.filteredNotes.filter(n => n.myRole === 'guest');
   }
 
   private autoSelectView() {
@@ -591,6 +653,17 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   // ─── Navigation ─────────────────────────────────────────────────────────────
 
+  // ─── Username Setup ──────────────────────────────────────────────────────────
+
+  private async checkAndPromptUsername(): Promise<void> {
+    try {
+      const userDoc = await this.noteService.getUserDoc();
+      if (userDoc && !userDoc['username']) {
+        this.dialog.open(UsernameDialogComponent, { disableClose: true, maxWidth: '440px' });
+      }
+    } catch { /* offline — riproverà alla prossima sessione */ }
+  }
+
   // ─── E2E Encryption Setup ───────────────────────────────────────────────────
 
   private async initEncryption(): Promise<void> {
@@ -737,7 +810,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
         if (confirmed) {
           await this.noteService.clearEncryptionKeys();
           this.cryptoService.clearSession();
-          this.router.navigate(['/dashboard'], { replaceUrl: true });
+          await this.showSetupDialog(uid);
           return;
         }
         continue; // Dialogo di reset annullato, riapri lo sblocco

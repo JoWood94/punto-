@@ -1,0 +1,14 @@
+<h2 mat-dialog-title>{{ 'INVITE.DIALOG_TITLE' | translate }}</h2>
+
+<mat-dialog-content>
+  <p>{{ 'INVITE.DIALOG_MSG' | translate: { owner: data.ownerUsername, title: data.noteTitle } }}</p>
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <button mat-button (click)="dialogRef.close(false)">
+    {{ 'INVITE.DECLINE' | translate }}
+  </button>
+  <button mat-flat-button color="primary" (click)="dialogRef.close(true)">
+    {{ 'INVITE.ACCEPT' | translate }}
+  </button>
+</mat-dialog-actions>

@@ -5,7 +5,44 @@
   <span class="settings-title">{{ 'MENU.SETTINGS' | translate }}</span>
 </mat-toolbar>
 
-<div class="settings-content">
+<div class="settings-content" [style.visibility]="settingsLoaded ? 'visible' : 'hidden'">
+
+  <!-- Sezione Username -->
+  <section class="settings-section">
+    <div class="section-header">
+      <span class="section-label">{{ 'USERNAME.SETTINGS_LABEL' | translate }}</span>
+    </div>
+
+    <ng-container *ngIf="!editingUsername">
+      <div class="toggle-row username-display-row">
+        <div class="toggle-label-group">
+          <span class="toggle-label">{{ currentUsername ? ('@' + currentUsername) : ('USERNAME.NOT_SET' | translate) }}</span>
+          <span class="toggle-sublabel" *ngIf="!currentUsername">{{ 'USERNAME.NOT_SET_DESC' | translate }}</span>
+        </div>
+        <button mat-stroked-button [disabled]="!settingsLoaded" (click)="editingUsername = true; pendingUsername = ''; usernameValid = false">
+          {{ currentUsername ? ('USERNAME.EDIT' | translate) : ('USERNAME.SET' | translate) }}
+        </button>
+      </div>
+    </ng-container>
+
+    <ng-container *ngIf="editingUsername">
+      <app-username-input
+        [initialValue]="currentUsername || ''"
+        (stateChange)="onUsernameStateChange($event)">
+      </app-username-input>
+      <div class="username-actions">
+        <button mat-button (click)="editingUsername = false">{{ 'COMMON.CANCEL' | translate }}</button>
+        <button mat-flat-button color="primary"
+          [disabled]="!usernameValid || savingUsername"
+          (click)="saveUsername()">
+          <mat-spinner *ngIf="savingUsername" diameter="16" style="display:inline-block;margin-right:8px;vertical-align:middle;"></mat-spinner>
+          {{ savingUsername ? ('USERNAME.SAVING' | translate) : ('USERNAME.SAVE' | translate) }}
+        </button>
+      </div>
+    </ng-container>
+  </section>
+
+  <mat-divider></mat-divider>
 
   <!-- Sezione 1: Vista di default -->
   <section class="settings-section">
@@ -15,7 +52,7 @@
     </div>
     <p class="section-description">{{ 'SETTINGS.DEFAULT_VIEW_DESC' | translate }}</p>
 
-    <mat-radio-group class="view-options" [value]="defaultView" (change)="onDefaultViewChange($event.value)">
+    <mat-radio-group class="view-options" [value]="defaultView" [disabled]="!settingsLoaded" (change)="onDefaultViewChange($event.value)">
       <label class="view-option" [class.view-option--active]="defaultView === 'list'">
         <mat-radio-button value="list" [disableRipple]="true">
           <div class="view-option-content">
@@ -55,6 +92,7 @@
       <span class="toggle-label">{{ 'SETTINGS.SHOW_NOTIF_TITLE' | translate }}</span>
       <mat-slide-toggle
         [checked]="notifTitleEnabled"
+        [disabled]="!settingsLoaded"
         (change)="onNotifTitleToggle($event.checked)"
         [disableRipple]="true"
         color="primary">
@@ -77,6 +115,7 @@
       </div>
       <mat-slide-toggle
         [checked]="calendarShowAllNotes"
+        [disabled]="!settingsLoaded"
         (change)="onCalendarShowAllNotesToggle($event.checked)"
         [disableRipple]="true"
         color="primary">
@@ -92,7 +131,7 @@
       <span class="section-label">{{ 'SETTINGS.LANGUAGE' | translate }}</span>
     </div>
 
-    <mat-radio-group class="view-options" [value]="language" (change)="onLanguageChange($event.value)">
+    <mat-radio-group class="view-options" [value]="language" [disabled]="!settingsLoaded" (change)="onLanguageChange($event.value)">
       <label class="view-option" [class.view-option--active]="language === 'it'">
         <mat-radio-button value="it" [disableRipple]="true">
           <div class="view-option-content">
@@ -141,7 +180,7 @@
     <p class="section-description">{{ 'SETTINGS.DANGER_ZONE_DESC' | translate }}</p>
     <button mat-stroked-button color="warn"
             (click)="confirmResetEncryption()"
-            [disabled]="resetInProgress"
+            [disabled]="resetInProgress || !settingsLoaded"
             class="reset-btn">
       <mat-spinner *ngIf="resetInProgress" diameter="16"></mat-spinner>
       <mat-icon *ngIf="!resetInProgress">lock_reset</mat-icon>

@@ -1,0 +1,105 @@
+<h2 mat-dialog-title>{{ 'SHARING.TITLE' | translate }}</h2>
+
+<mat-dialog-content class="sharing-dialog-content">
+
+  <div *ngIf="loading(); else panelContent" class="sharing-loading">
+    <mat-spinner diameter="32"></mat-spinner>
+  </div>
+
+  <ng-template #panelContent>
+
+    <!-- ── Invite link section ── -->
+    <section class="sharing-section">
+      <div class="sharing-section-label">
+        <mat-icon>link</mat-icon>
+        <span>{{ 'SHARING.INVITE_LINK' | translate }}</span>
+      </div>
+
+      <ng-container *ngIf="!inviteUrl; else linkGenerated">
+        <button mat-stroked-button class="sharing-generate-btn"
+                (click)="generateLink()"
+                [disabled]="generatingLink()">
+          <mat-spinner *ngIf="generatingLink()" diameter="16" class="btn-spinner"></mat-spinner>
+          <mat-icon *ngIf="!generatingLink()">add_link</mat-icon>
+          {{ generatingLink() ? ('SHARING.GENERATING' | translate) : ('SHARING.GENERATE_LINK' | translate) }}
+        </button>
+        <p class="sharing-hint">{{ 'SHARING.LINK_HINT' | translate }}</p>
+      </ng-container>
+
+      <ng-template #linkGenerated>
+        <div class="sharing-link-row">
+          <span class="sharing-link-url">{{ inviteUrl }}</span>
+          <button mat-icon-button
+                  (click)="copyLink()"
+                  [matTooltip]="(copyDone() ? 'SHARING.COPIED' : 'SHARING.COPY') | translate">
+            <mat-icon>{{ copyDone() ? 'check' : 'content_copy' }}</mat-icon>
+          </button>
+        </div>
+        <p class="sharing-hint">{{ 'SHARING.LINK_EXPIRY' | translate }}</p>
+      </ng-template>
+    </section>
+
+    <mat-divider class="sharing-divider"></mat-divider>
+
+    <!-- ── Collaborators list ── -->
+    <section class="sharing-section">
+      <div class="sharing-section-label">
+        <mat-icon>group</mat-icon>
+        <span>{{ 'SHARING.COLLABORATORS' | translate }}</span>
+      </div>
+
+      <p class="sharing-empty" *ngIf="collaborators.length === 0">
+        {{ 'SHARING.NO_COLLABORATORS' | translate }}
+      </p>
+
+      <div class="collab-list">
+        <div *ngFor="let c of collaborators" class="collab-item">
+          <span class="collab-username">@{{ c.username }}</span>
+          <div class="collab-toggles">
+            <div class="collab-toggle-row">
+              <span class="collab-toggle-label">{{ 'SHARING.EDIT_CONTENT' | translate }}</span>
+              <mat-slide-toggle
+                [checked]="c.permissions.editContent"
+                (change)="togglePermission(c, 'editContent')"
+                [disabled]="c.removing">
+              </mat-slide-toggle>
+            </div>
+            <div class="collab-toggle-row">
+              <span class="collab-toggle-label">{{ 'SHARING.EDIT_REMINDERS' | translate }}</span>
+              <mat-slide-toggle
+                [checked]="c.permissions.editReminders"
+                (change)="togglePermission(c, 'editReminders')"
+                [disabled]="c.removing">
+              </mat-slide-toggle>
+            </div>
+          </div>
+          <button mat-icon-button color="warn"
+                  class="collab-remove-btn"
+                  (click)="removeCollaborator(c)"
+                  [disabled]="c.removing"
+                  [matTooltip]="'SHARING.REMOVE' | translate">
+            <mat-spinner *ngIf="c.removing" diameter="20"></mat-spinner>
+            <mat-icon *ngIf="!c.removing">person_remove</mat-icon>
+          </button>
+        </div>
+      </div>
+
+      <button *ngIf="collaborators.length > 0"
+              mat-stroked-button
+              color="warn"
+              class="revoke-all-btn"
+              (click)="revokeAll()"
+              [disabled]="revoking()">
+        <mat-spinner *ngIf="revoking()" diameter="16" class="btn-spinner"></mat-spinner>
+        <mat-icon *ngIf="!revoking()">group_remove</mat-icon>
+        {{ revoking() ? ('SHARING.REVOKING' | translate) : ('SHARING.REVOKE_ALL' | translate) }}
+      </button>
+    </section>
+
+  </ng-template>
+
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <button mat-button mat-dialog-close>{{ 'COMMON.CLOSE' | translate }}</button>
+</mat-dialog-actions>

@@ -28,8 +28,11 @@ import {
 } from '../../services/note';
 import { AuthService } from '../../services/auth';
 import { LinkDialogComponent } from '../link-dialog/link-dialog';
+import { SharingPanelComponent } from '../sharing-panel/sharing-panel';
+import { ConfirmDialogComponent } from '../confirm-dialog/confirm-dialog';
 import { TranslateModule } from '@ngx-translate/core';
 import { TranslationService } from '../../services/translation';
+import { CryptoService } from '../../services/crypto';
 // TODO: import Storage riabilitare con piano Firebase Storage
 // import { getStorage, ref as storageRef, uploadBytesResumable, getDownloadURL, deleteObject } from 'firebase/storage';
 // import { getApp } from 'firebase/app';
@@ -95,6 +98,7 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewInit, Af
 
   private noteService = inject(NoteService);
   private authService = inject(AuthService);
+  private cryptoService = inject(CryptoService);
   private sanitizer = inject(DomSanitizer);
   private cdr = inject(ChangeDetectorRef);
   private dialog = inject(MatDialog);
@@ -111,8 +115,11 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewInit, Af
   get dateLocale(): string { return this.translationService.pipeDateLocale; }
   private savedNoteId: string | null = null;
   private isNewNote = false;
-  private autoSaveTimer: any;
+  private autoSaveTimer: any = null;
   private createNotePromise: Promise<void> | null = null;
+  private liveNoteUnsub: (() => void) | null = null;
+  private livePermsUnsub: (() => void) | null = null;
+  private lastSavedAt = 0;
   private userHasModifiedContent = false;
 
   get hasReminderBlock(): boolean {
@@ -121,6 +128,55 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewInit, Af
 
   get reminderBlock(): any | null {
     return this.note.blocks.find(b => b.type === 'reminder') ?? null;
+  }
+
+  /** True se l'utente è owner (o nota non condivisa): mostra bottone Condividi. */
+  get canShare(): boolean {
+    return !!this.savedNoteId && this.note.myRole !== 'guest';
+  }
+
+  /** True se l'utente è guest su questa nota. */
+  get isGuest(): boolean {
+    return this.note.myRole === 'guest';
+  }
+
+  /** True se il guest può modificare il contenuto (editContent). */
+  get guestCanEdit(): boolean {
+    return !this.isGuest || !!(this.note.myPermissions?.editContent);
+  }
+
+  /** True se il guest può modificare i reminder (editReminders). */
+  get guestCanEditReminders(): boolean {
+    return !this.isGuest || !!(this.note.myPermissions?.editReminders);
+  }
+
+  // ─── Sharing ────────────────────────────────────────────────────────────────
+
+  async openSharePanel() {
+    if (!this.savedNoteId) return;
+
+    // Avvisa SOLO se: encryption attiva E collaboratorUids vuoto E contenuto effettivamente cifrato
+    const hasCollaborators = !!((this.note as any).collaboratorUids?.length);
+    const isEncrypted = !hasCollaborators
+      && this.cryptoService.isEnabled
+      && await this.noteService.isNoteEncrypted(this.savedNoteId);
+    if (isEncrypted) {
+      const confirmed = await this.dialog.open(ConfirmDialogComponent, {
+        data: {
+          title: this.translationService.instant('SHARING.ENCRYPT_WARN_TITLE'),
+          message: this.translationService.instant('SHARING.ENCRYPT_WARN_MSG'),
+          confirmLabel: this.translationService.instant('SHARING.ENCRYPT_WARN_CONFIRM'),
+        }
+      }).afterClosed().toPromise();
+      if (!confirmed) return;
+      await this.noteService.updateNote(this.savedNoteId, this.buildPayload(), { skipEncryption: true });
+    }
+
+    this.dialog.open(SharingPanelComponent, {
+      data: { noteId: this.savedNoteId },
+      width: '480px',
+      maxWidth: '95vw',
+    });
   }
 
   // ─── Lifecycle ─────────────────────────────────────────────────────────────
@@ -236,6 +292,9 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewInit, Af
         blocks,
         tags: this.selectedNote.tags ? [...this.selectedNote.tags] : []
       };
+      this.lastSavedAt = this.selectedNote.updatedAt ?? 0;
+      this.stopLiveSync();
+      this.startLiveSync();
     } else {
       // Guard: ngOnInit + ngOnChanges chiamano entrambi initNote() al mount — evita doppia creazione
       if (this.isNewNote) return;
@@ -522,6 +581,7 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewInit, Af
   }
 
   onChecklistItemChange() {
+    if (!this.guestCanEdit) return;
     this.triggerAutoSave();
   }
 
@@ -565,6 +625,7 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewInit, Af
   }
 
   openMaps(block: LocationBlock) {
+    if (!this.guestCanEdit) return;
     if (block.lat && block.lon) {
       window.open(
         `https://www.openstreetmap.org/?mlat=${block.lat}&mlon=${block.lon}#map=16/${block.lat}/${block.lon}`,
@@ -874,9 +935,11 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewInit, Af
   }
 
   private async performAutoSave() {
+    this.autoSaveTimer = null;
     if (!this.savedNoteId) return;
     try {
       await this.noteService.updateNote(this.savedNoteId, this.buildPayload());
+      this.lastSavedAt = Date.now();
     } catch (err) {
       console.error('[AutoSave] updateNote error:', err);
     }
@@ -906,7 +969,75 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewInit, Af
     this.triggerAutoSave();
   }
 
+  // ─── Live sync ──────────────────────────────────────────────────────────────
+
+  private startLiveSync() {
+    if (!this.savedNoteId) return;
+    if (!(this.note.isShared || this.note.myRole === 'guest')) return;
+    this.stopLiveSync();
+    this.startPermissionsSync();
+    this.liveNoteUnsub = this.noteService.watchNote(this.savedNoteId, (data) => {
+      if (this.autoSaveTimer !== null) return; // utente sta modificando
+      const remoteAt = data['updatedAt'] as number | undefined;
+      if (!remoteAt || remoteAt <= this.lastSavedAt) return;
+      this.applyRemoteUpdate(data);
+    });
+  }
+
+  private stopLiveSync() {
+    if (this.liveNoteUnsub) { this.liveNoteUnsub(); this.liveNoteUnsub = null; }
+    if (this.livePermsUnsub) { this.livePermsUnsub(); this.livePermsUnsub = null; }
+  }
+
+  private startPermissionsSync() {
+    if (!this.savedNoteId || this.note.myRole !== 'guest') return;
+    const uid = this.authService.getCurrentUserId();
+    if (!uid) return;
+    if (this.livePermsUnsub) { this.livePermsUnsub(); this.livePermsUnsub = null; }
+    this.livePermsUnsub = this.noteService.watchCollaboratorPermissions(
+      this.savedNoteId, uid, (perms) => {
+        (this.note as any).myPermissions = perms ?? undefined;
+        this.cdr.markForCheck();
+      }
+    );
+  }
+
+  private applyRemoteUpdate(data: any) {
+    const blocks = migrateToBlocks(data);
+    blocks.forEach(block => {
+      if (block.type === 'location') {
+        const lb = block as any;
+        lb.searchQuery = lb.searchQuery || '';
+        lb.addressOptions = [];
+        lb.editing = !lb.address;
+        if (lb.lat && lb.lon) lb.mapUrl = this.generateMapUrl(lb.lat, lb.lon);
+      }
+      if (block.type === 'reminder') {
+        const rb = block as any;
+        if (rb.time) {
+          const d = new Date(rb.time);
+          rb.date = d;
+          rb.hour = d.getHours().toString().padStart(2, '0');
+          rb.minute = (Math.round(d.getMinutes() / 5) * 5 % 60).toString().padStart(2, '0');
+        }
+        rb._evaded = rb.evaded ?? false;
+        rb._wasOverdue = rb.wasOverdue ?? false;
+        rb._endDate = rb.recurrenceEndDate ? new Date(rb.recurrenceEndDate) : null;
+        this.checkStalledEvasion(rb);
+      }
+    });
+    this.note = {
+      ...this.note,
+      title: data['title'] ?? this.note.title,
+      blocks,
+    };
+    this.lastSavedAt = data['updatedAt'];
+    this.textBlocksNeedInit = true;
+    this.cdr.markForCheck();
+  }
+
   ngOnDestroy() {
+    this.stopLiveSync();
     // Forza sincronizzazione valore input titolo prima di salvare (fix: swipe-back senza blur)
     if (this.titleInputRef?.nativeElement) {
       this.note.title = this.titleInputRef.nativeElement.value;

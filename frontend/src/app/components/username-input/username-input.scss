@@ -1,0 +1,36 @@
+.username-field {
+  width: 100%;
+}
+
+.username-suffix {
+  display: flex;
+  align-items: center;
+  height: 100%;
+  margin-right: 4px;
+}
+
+.state-icon {
+  font-size: 20px;
+  width: 20px;
+  height: 20px;
+
+  &--ok { color: #2e7d32; }
+  &--err { color: #c62828; }
+}
+
+::ng-deep .username-field {
+  .mat-mdc-form-field-hint-wrapper,
+  .mat-mdc-form-field-subscript-wrapper {
+    white-space: normal;
+    overflow: visible;
+  }
+
+  mat-hint {
+    white-space: normal;
+    line-height: 1.4;
+    display: block;
+  }
+
+  .hint--ok { color: #2e7d32 !important; }
+  .hint--err { color: #c62828 !important; }
+}

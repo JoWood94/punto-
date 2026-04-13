@@ -1,0 +1,134 @@
+.sharing-dialog-content {
+  padding: 0 24px 16px;
+  min-width: 300px;
+  max-width: 480px;
+}
+
+.sharing-loading {
+  display: flex;
+  justify-content: center;
+  padding: 32px 0;
+}
+
+.sharing-section {
+  padding: 16px 0 8px;
+}
+
+.sharing-section-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--mat-sys-on-surface-variant);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 12px;
+
+  mat-icon {
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
+  }
+}
+
+.sharing-divider {
+  margin: 0 -24px;
+}
+
+.sharing-generate-btn {
+  width: 100%;
+  justify-content: flex-start;
+  gap: 8px;
+}
+
+.sharing-hint {
+  font-size: 12px;
+  color: var(--mat-sys-on-surface-variant);
+  margin: 8px 0 0;
+  line-height: 1.4;
+}
+
+.sharing-link-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--mat-sys-surface-container);
+  border-radius: 8px;
+  padding: 8px 4px 8px 12px;
+}
+
+.sharing-link-url {
+  flex: 1;
+  font-size: 12px;
+  word-break: break-all;
+  color: var(--mat-sys-on-surface);
+  font-family: monospace;
+  line-height: 1.4;
+}
+
+.sharing-empty {
+  font-size: 14px;
+  color: var(--mat-sys-on-surface-variant);
+  margin: 0;
+}
+
+.collab-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.collab-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px;
+  border-radius: 8px;
+  background: var(--mat-sys-surface-container-low);
+}
+
+.collab-username {
+  font-weight: 500;
+  font-size: 14px;
+  min-width: 80px;
+  padding-top: 10px;
+  flex: 0 0 auto;
+}
+
+.collab-toggles {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.collab-toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.collab-toggle-label {
+  font-size: 13px;
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.collab-remove-btn {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.revoke-all-btn {
+  width: 100%;
+  margin-top: 4px;
+  justify-content: flex-start;
+  gap: 8px;
+}
+
+.btn-spinner {
+  display: inline-block;
+  vertical-align: middle;
+}
