@@ -577,14 +577,17 @@
 
   .month-section .month-grid .day-cell {
     height: 64px;
+    min-height: 0;       // reset base min-height: 80px — altrimenti vince su height/max-height
     max-height: 64px;
     overflow: hidden;
     box-sizing: border-box;
     padding: 2px;
+    cursor: pointer;
     border-right: 1px solid rgba(0, 0, 0, 0.06);
     border-bottom: 1px solid rgba(0, 0, 0, 0.06);
 
     .day-number { font-size: 10px; width: 20px; height: 20px; line-height: 20px; }
+    &.today .day-number { width: 20px; height: 20px; }
     .day-notes .note-chip:nth-child(n+2) { display: none; }
     .more-notes { font-size: 9px; }
   }

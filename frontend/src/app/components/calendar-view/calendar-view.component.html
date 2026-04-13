@@ -62,7 +62,7 @@
              [class.other-month]="!day.isCurrentMonth"
              [class.today]="day.isToday"
              [class.has-notes]="day.notes.length > 0"
-             (click)="day.notes.length > 0 ? selectDay(day) : null">
+             (click)="selectDay(day)">
           <span class="day-number">{{ day.date.getDate() }}</span>
           <div class="day-notes">
             <div class="note-chip"
