@@ -30,6 +30,13 @@ jobs:
         working-directory: ./frontend
         run: npm ci
 
+      - name: Inject build version (git short SHA)
+        working-directory: ./frontend
+        run: |
+          VERSION=$(git rev-parse --short HEAD)
+          echo "{\"version\":\"$VERSION\"}" > src/version.json
+          sed -i "s/appVersion: '[^']*'/appVersion: '$VERSION'/" src/environments/environment.ts
+
       - name: Build Angular App for Staging (base-href /)
         working-directory: ./frontend
         run: npm run build -- --configuration production --base-href / --output-path dist/firebase
