@@ -59,9 +59,11 @@ service cloud.firestore {
       allow write: if request.auth != null && request.auth.uid == userId;
     }
 
-    // ── Usernames (lookup uid→username) ────────────────────────────────────────
+    // ── Usernames (lookup uid→username e check disponibilità) ──────────────────
     match /usernames/{username} {
-      allow read: if request.auth != null;
+      // Lettura pubblica: checkUsernameAvailability viene chiamata dal form di
+      // registrazione PRIMA che l'utente sia autenticato
+      allow read;
       allow write: if request.auth != null && request.resource.data.uid == request.auth.uid;
     }
 
