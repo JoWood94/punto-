@@ -1,4 +1,4 @@
-import { Component, inject, OnInit, signal } from '@angular/core';
+import { Component, inject, OnInit, OnDestroy, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatDialogModule, MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { MatButtonModule } from '@angular/material/button';
@@ -29,7 +29,7 @@ interface CollaboratorUI extends Collaborator {
   templateUrl: './sharing-panel.html',
   styleUrls: ['./sharing-panel.scss'],
 })
-export class SharingPanelComponent implements OnInit {
+export class SharingPanelComponent implements OnInit, OnDestroy {
   private noteService = inject(NoteService);
   private authService = inject(AuthService);
   translationService = inject(TranslationService);
@@ -45,6 +45,7 @@ export class SharingPanelComponent implements OnInit {
   collaborators: CollaboratorUI[] = [];
   revoking = signal(false);
   ownerUsername: string | null = null;
+  private collabUnsub: (() => void) | null = null;
 
   get isGuest(): boolean {
     return this.data.myRole === 'guest';
@@ -65,15 +66,30 @@ export class SharingPanelComponent implements OnInit {
         this.loadCollaborators(),
         this.loadOwnerUsername(),
       ]);
+      this.loading.set(false);
     } else {
       // Cleanup asincrono degli inviti scaduti — fire-and-forget, non blocca il caricamento
       this.noteService.cleanupExpiredInvites(this.data.noteId).catch(() => {});
-      await Promise.all([
-        this.loadCollaborators(),
-        this.loadActiveInvite(),
-      ]);
+      await this.loadActiveInvite();
+      // Live watcher: aggiorna la lista collaboratori in tempo reale
+      this.collabUnsub = this.noteService.watchCollaborators(this.data.noteId, async (rawCollabs) => {
+        this.collaborators = await Promise.all(
+          rawCollabs.map(async c => {
+            const existing = this.collaborators.find(e => e.uid === c.uid);
+            return {
+              ...c,
+              username: existing?.username ?? (await this.noteService.getUsernameByUid(c.uid)) ?? c.uid,
+              removing: existing?.removing ?? false,
+            };
+          })
+        );
+        this.loading.set(false);
+      });
     }
-    this.loading.set(false);
+  }
+
+  ngOnDestroy() {
+    this.collabUnsub?.();
   }
 
   private async loadOwnerUsername() {

@@ -202,12 +202,53 @@
     transform: translateY(-1px);
   }
 
-  // Nascosto quando la format toolbar è visibile
-  &--hidden {
+  // Nascosto quando la format toolbar è visibile (sovrascrive anche :disabled)
+  &--hidden,
+  &--hidden:disabled {
     opacity: 0;
     pointer-events: none;
     transform: scale(0.8) translateY(4px);
   }
+
+  // Chip presenza: username in alto a destra sul bottone
+  .presence-chip {
+    position: absolute;
+    top: -5px;
+    right: -5px;
+    background: #1C1B1F;
+    color: #FFFBFE;
+    border-radius: 999px;
+    font-size: 10px;
+    font-weight: 600;
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    padding: 2px 8px;
+    white-space: nowrap;
+    pointer-events: none;
+    line-height: 1.5;
+    z-index: 1;
+    // Mobile: sempre visibile quando presenti
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0) scale(1);
+    transition: opacity 150ms ease, visibility 150ms ease, transform 150ms ease;
+
+    // Desktop: nascosto finché non hover (tooltip)
+    @media (min-width: 768px) {
+      opacity: 0;
+      visibility: hidden;
+      transform: translateY(-3px) scale(0.9);
+    }
+  }
+
+  &:hover .presence-chip {
+    @media (min-width: 768px) {
+      opacity: 1;
+      visibility: visible;
+      transform: translateY(0) scale(1);
+    }
+  }
+
+  overflow: visible;
 
   // Anello pulse: un collaboratore sta modificando attivamente
   &::before {
@@ -1508,7 +1549,7 @@
   pointer-events: none;
 }
 
-.reminder-mini-fab:disabled {
+.reminder-mini-fab:disabled:not(.reminder-mini-fab--hidden) {
   opacity: 0.38;
   cursor: not-allowed;
   pointer-events: none;
