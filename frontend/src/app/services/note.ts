@@ -529,6 +529,14 @@ export class NoteService {
     return snap.docs.map(d => d.data() as Collaborator);
   }
 
+  /** Listener real-time sulla subcollection collaboratori. */
+  watchCollaborators(noteId: string, callback: (collabs: Collaborator[]) => void): () => void {
+    const ref = collection(this.db, `notes/${noteId}/collaborators`);
+    return onSnapshot(ref, snap => {
+      callback(snap.docs.map(d => d.data() as Collaborator));
+    }, () => {});
+  }
+
   /** Genera un token invito sicuro (20 char alfanumerici) e lo scrive in invites/{token}. Scade dopo 7 giorni. */
   async createInvite(noteId: string): Promise<string> {
     const uid = this.authService.getCurrentUserId();

@@ -18,6 +18,7 @@ service cloud.firestore {
 
       // Owner: aggiornamento libero
       // Guest esistente: può aggiornare contenuto ma non uid/collaboratorUids
+      // Guest può rimuovere SOLO se stesso da collaboratorUids (lascia la nota)
       // Nuovo guest via invite: può aggiungere SOLO se stesso a collaboratorUids
       allow update: if request.auth != null && (
         resource.data.uid == request.auth.uid ||
@@ -26,6 +27,13 @@ service cloud.firestore {
           request.auth.uid in resource.data.collaboratorUids &&
           request.resource.data.uid == resource.data.uid &&
           request.resource.data.collaboratorUids == resource.data.collaboratorUids
+        ) ||
+        (
+          'collaboratorUids' in resource.data &&
+          request.auth.uid in resource.data.collaboratorUids &&
+          request.resource.data.uid == resource.data.uid &&
+          !(request.auth.uid in request.resource.data.collaboratorUids) &&
+          request.resource.data.collaboratorUids.size() == resource.data.collaboratorUids.size() - 1
         ) ||
         (
           !('collaboratorUids' in resource.data && request.auth.uid in resource.data.collaboratorUids) &&

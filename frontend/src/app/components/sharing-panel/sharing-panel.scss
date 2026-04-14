@@ -112,7 +112,7 @@
 
 .collab-item {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 12px;
   padding: 12px;
   border-radius: 8px;
@@ -123,8 +123,6 @@
   font-weight: 500;
   font-size: 14px;
   min-width: 0;
-  max-width: 120px;
-  padding-top: 10px;
   flex: 0 1 auto;
   overflow: hidden;
   text-overflow: ellipsis;
