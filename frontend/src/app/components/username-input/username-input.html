@@ -5,6 +5,7 @@
     type="text"
     [value]="value"
     (input)="onInput($event)"
+    (blur)="onBlur()"
     autocomplete="username"
     spellcheck="false"
     autocorrect="off"
@@ -13,11 +14,11 @@
     [placeholder]="'USERNAME.PLACEHOLDER' | translate"
   />
   <span matSuffix class="username-suffix">
-    <mat-spinner *ngIf="state === 'checking'" diameter="16"></mat-spinner>
-    <mat-icon *ngIf="state === 'available'" class="state-icon state-icon--ok">check_circle</mat-icon>
-    <mat-icon *ngIf="state === 'taken' || state === 'invalid'" class="state-icon state-icon--err">cancel</mat-icon>
+    <mat-spinner *ngIf="isPending" diameter="16"></mat-spinner>
+    <mat-icon *ngIf="isAvailable" class="state-icon state-icon--ok">check_circle</mat-icon>
+    <mat-icon *ngIf="isTaken || isInvalid" class="state-icon state-icon--err">cancel</mat-icon>
   </span>
-  <mat-hint [class.hint--ok]="state === 'available'" [class.hint--err]="state === 'taken' || state === 'invalid'">
+  <mat-hint [class.hint--ok]="isAvailable" [class.hint--err]="isTaken || isInvalid">
     {{ hintText }}
   </mat-hint>
 </mat-form-field>

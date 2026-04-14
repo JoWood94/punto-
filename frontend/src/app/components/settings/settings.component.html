@@ -19,21 +19,18 @@
           <span class="toggle-label">{{ currentUsername ? ('@' + currentUsername) : ('USERNAME.NOT_SET' | translate) }}</span>
           <span class="toggle-sublabel" *ngIf="!currentUsername">{{ 'USERNAME.NOT_SET_DESC' | translate }}</span>
         </div>
-        <button mat-stroked-button [disabled]="!settingsLoaded" (click)="editingUsername = true; pendingUsername = ''; usernameValid = false">
+        <button mat-stroked-button [disabled]="!settingsLoaded" (click)="startEditUsername()">
           {{ currentUsername ? ('USERNAME.EDIT' | translate) : ('USERNAME.SET' | translate) }}
         </button>
       </div>
     </ng-container>
 
     <ng-container *ngIf="editingUsername">
-      <app-username-input
-        [initialValue]="currentUsername || ''"
-        (stateChange)="onUsernameStateChange($event)">
-      </app-username-input>
+      <app-username-input [formControl]="usernameControl"></app-username-input>
       <div class="username-actions">
         <button mat-button (click)="editingUsername = false">{{ 'COMMON.CANCEL' | translate }}</button>
         <button mat-flat-button color="primary"
-          [disabled]="!usernameValid || savingUsername"
+          [disabled]="!usernameControl.valid || usernameControl.pending || savingUsername"
           (click)="saveUsername()">
           <mat-spinner *ngIf="savingUsername" diameter="16" style="display:inline-block;margin-right:8px;vertical-align:middle;"></mat-spinner>
           {{ savingUsername ? ('USERNAME.SAVING' | translate) : ('USERNAME.SAVE' | translate) }}

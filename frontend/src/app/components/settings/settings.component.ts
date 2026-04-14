@@ -1,6 +1,6 @@
 import { Component, inject, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
+import { FormsModule, ReactiveFormsModule, FormControl, Validators, AbstractControl, ValidationErrors } from '@angular/forms';
 import { Router } from '@angular/router';
 import { MatToolbarModule } from '@angular/material/toolbar';
 import { MatIconModule } from '@angular/material/icon';
@@ -30,6 +30,7 @@ import { ConfirmDialogComponent } from '../confirm-dialog/confirm-dialog';
   imports: [
     CommonModule,
     FormsModule,
+    ReactiveFormsModule,
     MatToolbarModule,
     MatIconModule,
     MatButtonModule,
@@ -66,10 +67,34 @@ export class SettingsComponent implements OnInit {
   // Username
   currentUsername: string | null = null;
   editingUsername = false;
-  pendingUsername = '';
-  usernameValid = false;
   savingUsername = false;
   language = 'it';
+
+  private _usernameTimer: ReturnType<typeof setTimeout> | null = null;
+
+  private usernameAsyncValidator = (control: AbstractControl): Promise<ValidationErrors | null> => {
+    return new Promise(resolve => {
+      if (this._usernameTimer) clearTimeout(this._usernameTimer);
+      this._usernameTimer = setTimeout(async () => {
+        const v = control.value as string;
+        if (!v || !NoteService.validateUsernameFormat(v)) {
+          resolve({ invalid: true });
+          return;
+        }
+        try {
+          const available = await this.noteService.checkUsernameAvailability(v);
+          resolve(available ? null : { taken: true });
+        } catch {
+          resolve(null);
+        }
+      }, 1500);
+    });
+  };
+
+  usernameControl = new FormControl('', [
+    Validators.required,
+    Validators.pattern(/^[a-zA-Z0-9][a-zA-Z0-9_]{1,18}[a-zA-Z0-9]$/)
+  ], [this.usernameAsyncValidator]);
 
   async ngOnInit() {
     if (this.swUpdate.isEnabled) {
@@ -131,17 +156,18 @@ export class SettingsComponent implements OnInit {
     await this.noteService.setUserPreference('calendarShowAllNotes', enabled);
   }
 
-  onUsernameStateChange(event: { value: string; valid: boolean }) {
-    this.pendingUsername = event.value;
-    this.usernameValid = event.valid;
+  startEditUsername() {
+    this.usernameControl.setValue(this.currentUsername || '');
+    this.editingUsername = true;
   }
 
   async saveUsername() {
-    if (!this.usernameValid || this.savingUsername) return;
+    if (!this.usernameControl.valid || this.savingUsername) return;
     this.savingUsername = true;
+    const username = this.usernameControl.value ?? '';
     try {
-      await this.noteService.setUsername(this.pendingUsername);
-      this.currentUsername = this.pendingUsername;
+      await this.noteService.setUsername(username);
+      this.currentUsername = username;
       this.editingUsername = false;
       this.snackBar.open(this.translationService.instant('USERNAME.SAVE_SUCCESS'), 'OK', { duration: 3000 });
     } catch {
