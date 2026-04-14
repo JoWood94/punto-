@@ -22,26 +22,19 @@ export class AuthService {
 
   async register(email: string, pass: string, username?: string) {
     const cred = await createUserWithEmailAndPassword(this.auth, email, pass);
-    console.log('[register] username ricevuto:', username, '| uid:', cred.user.uid);
     if (username) {
-      // getIdToken() garantisce che il token sia propagato all'auth state di Firestore
-      // prima del commit (senza questo, batch.commit() può fallire silenziosamente
-      // perché Firestore non ha ancora il token del nuovo utente).
-      // Fire-and-forget comunque: evita hang da IndexedDB lock contention (multi-tab persistence).
-      cred.user.getIdToken().then((token) => {
-        console.log('[register] getIdToken() ok, token (primi 20):', token.slice(0, 20));
+      try {
+        await cred.user.getIdToken();
         const db = getFirestore(getApp());
         const lower = username.toLowerCase();
         const uid = cred.user.uid;
         const batch = writeBatch(db);
         batch.set(doc(db, `usernames/${lower}`), { uid, createdAt: Date.now() });
         batch.set(doc(db, `users/${uid}`), { username, usernameLower: lower }, { merge: true });
-        return batch.commit();
-      }).then(() => {
-        console.log('[register] batch.commit() OK — username scritto su Firestore');
-      }).catch((err) => {
-        console.error('[register] ERRORE batch.commit():', err?.code ?? err?.message ?? err);
-      });
+        await batch.commit();
+      } catch {
+        // username sarà richiesto al prossimo login
+      }
     }
     return cred;
   }
