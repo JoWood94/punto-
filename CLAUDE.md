@@ -91,3 +91,14 @@ The emotional goal is quiet confidence — an app that feels well-made without s
 3. **Mobile-first, always** — this is a touch app first; desktop is secondary; interactions must feel native
 4. **Typography earns its keep** — Roboto is a gap; a more distinctive typeface would immediately elevate the brand beyond "default Angular app"
 5. **M3 as structure, identity as skin** — use M3 for spacing, motion, and component logic; override aggressively for visual personality
+
+## Agent team — punto
+This project uses a Claude Code agent team. Teammates are defined in `.claude/agents/`:
+- `feDev` — Frontend Angular 21, UX mobile, Material 3 (sonnet)
+- `webArchitect` — Firebase + GitHub architect, PWA, security (opus)
+- `devOps` — CI/CD GitHub Actions, deploy paralleli (haiku)
+- `qaClient` — UI/UX tester, browser screenshot, read-only (sonnet)
+
+Lead (main session): teamLead — spawn prompt in `team-prompt.md`.
+Launch: `bash start-team.sh`.
+Enable flag: `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` (set in `.claude/settings.json`).

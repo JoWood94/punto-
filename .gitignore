@@ -36,3 +36,6 @@ frontend/test-results/
 # ── Agents runtime artifacts ─────────────────────────────────
 agents/inbox/*.seen
 agents/inbox/*.response.md
+
+# Local Claude Code state (not team config)
+.claude/settings.local.json
