@@ -213,7 +213,9 @@
     "PARTICIPANTS": "Partecipanti",
     "LEAVE_NOTE": "Esci dalla nota",
     "LEAVING": "Uscita...",
-    "GUEST_TITLE": "Nota condivisa"
+    "GUEST_TITLE": "Nota condivisa",
+    "REMOTE_UPDATE": "Nota aggiornata da un collaboratore",
+    "REMOVED_FROM_NOTE": "Sei stato rimosso da questa nota"
   },
   "USERNAME": {
     "LABEL": "Username",

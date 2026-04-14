@@ -18,13 +18,8 @@ export class AuthService {
     return signInWithEmailAndPassword(this.auth, email, pass);
   }
 
-  async register(email: string, pass: string, username?: string) {
-    const cred = await createUserWithEmailAndPassword(this.auth, email, pass);
-    if (username) {
-      // Salva in localStorage: verrà scritto su Firestore al primo login (dashboard stable)
-      localStorage.setItem('pendingUsername', username);
-    }
-    return cred;
+  async register(email: string, pass: string) {
+    return createUserWithEmailAndPassword(this.auth, email, pass);
   }
 
   resetPassword(email: string) {

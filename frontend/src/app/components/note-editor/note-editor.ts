@@ -1,7 +1,7 @@
 import {
   Component, Input, Output, EventEmitter, inject, OnInit, OnChanges, OnDestroy,
   SimpleChanges, ViewChildren, ViewChild, QueryList, ElementRef, ChangeDetectorRef,
-  AfterViewInit, AfterViewChecked, signal
+  AfterViewInit, AfterViewChecked, signal, NgZone
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -33,6 +33,7 @@ import { ConfirmDialogComponent } from '../confirm-dialog/confirm-dialog';
 import { TranslateModule } from '@ngx-translate/core';
 import { TranslationService } from '../../services/translation';
 import { CryptoService } from '../../services/crypto';
+import { ToastService } from '../../services/toast';
 // TODO: import Storage riabilitare con piano Firebase Storage
 // import { getStorage, ref as storageRef, uploadBytesResumable, getDownloadURL, deleteObject } from 'firebase/storage';
 // import { getApp } from 'firebase/app';
@@ -101,8 +102,10 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewInit, Af
   private cryptoService = inject(CryptoService);
   private sanitizer = inject(DomSanitizer);
   private cdr = inject(ChangeDetectorRef);
+  private ngZone = inject(NgZone);
   private dialog = inject(MatDialog);
   translationService = inject(TranslationService);
+  private toast = inject(ToastService);
 
   /** Set to true whenever the blocks array changes and text blocks need HTML re-init. */
   private textBlocksNeedInit = false;
@@ -124,6 +127,8 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewInit, Af
 
   // ─── Presence ─────────────────────────────────────────────────────────────
   readonly presenceUsers = signal<PresenceEntry[]>([]);
+  readonly syncState = signal<'idle' | 'syncing' | 'synced'>('idle');
+  private syncStateTimer: any = null;
   private presenceUnsub: (() => void) | null = null;
   private presenceHeartbeat: any = null;
   private editingTimeout: any = null;
@@ -132,6 +137,14 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewInit, Af
 
   get hasReminderBlock(): boolean {
     return this.note.blocks.some(b => b.type === 'reminder');
+  }
+
+  get anyCollaboratorEditing(): boolean {
+    return this.presenceUsers().some(u => u.isEditing);
+  }
+
+  get hasViewingCollaborators(): boolean {
+    return this.presenceUsers().length > 0 && !this.anyCollaboratorEditing;
   }
 
   get reminderBlock(): any | null {
@@ -1011,6 +1024,19 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewInit, Af
     this.startPermissionsSync();
     this.startPresence(this.savedNoteId);
     this.liveNoteUnsub = this.noteService.watchNote(this.savedNoteId, (data) => {
+      // Guest kick: se siamo stati rimossi dai collaboratori, chiudi l'editor
+      if (this.note.myRole === 'guest') {
+        const uid = this.authService.getCurrentUserId();
+        const collabs: string[] = data['collaboratorUids'] ?? [];
+        if (uid && !collabs.includes(uid)) {
+          this.stopLiveSync();
+          this.ngZone.run(() => {
+            this.toast.show(this.translationService.instant('SHARING.REMOVED_FROM_NOTE'));
+            this.closeEditor.emit();
+          });
+          return;
+        }
+      }
       if (this.autoSaveTimer !== null) return; // utente sta modificando
       const remoteAt = data['updatedAt'] as number | undefined;
       if (!remoteAt || remoteAt <= this.lastSavedAt) return;
@@ -1021,6 +1047,8 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewInit, Af
   private stopLiveSync() {
     if (this.liveNoteUnsub) { this.liveNoteUnsub(); this.liveNoteUnsub = null; }
     if (this.livePermsUnsub) { this.livePermsUnsub(); this.livePermsUnsub = null; }
+    clearTimeout(this.syncStateTimer);
+    this.syncState.set('idle');
     this.stopPresence();
   }
 
@@ -1142,6 +1170,13 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewInit, Af
     };
     this.lastSavedAt = data['updatedAt'];
     this.textBlocksNeedInit = true;
+    // Indicatore sync: cloud (600ms) → spunta (1.5s) → nascosto
+    clearTimeout(this.syncStateTimer);
+    this.syncState.set('syncing');
+    this.syncStateTimer = setTimeout(() => {
+      this.syncState.set('synced');
+      this.syncStateTimer = setTimeout(() => this.syncState.set('idle'), 1500);
+    }, 600);
     this.cdr.markForCheck();
   }
 

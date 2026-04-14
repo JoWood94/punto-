@@ -10,6 +10,7 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { TranslateModule } from '@ngx-translate/core';
 import { NoteService, Collaborator, CollaboratorPermissions } from '../../services/note';
 import { TranslationService } from '../../services/translation';
+import { AuthService } from '../../services/auth';
 
 interface CollaboratorUI extends Collaborator {
   username: string;
@@ -30,6 +31,7 @@ interface CollaboratorUI extends Collaborator {
 })
 export class SharingPanelComponent implements OnInit {
   private noteService = inject(NoteService);
+  private authService = inject(AuthService);
   translationService = inject(TranslationService);
   private dialogRef = inject(MatDialogRef<SharingPanelComponent>);
   data: { noteId: string; myRole?: 'owner' | 'guest'; ownerUid?: string } = inject(MAT_DIALOG_DATA);
@@ -46,6 +48,10 @@ export class SharingPanelComponent implements OnInit {
 
   get isGuest(): boolean {
     return this.data.myRole === 'guest';
+  }
+
+  get currentUserId(): string | null {
+    return this.authService.getCurrentUserId();
   }
 
   private get appBaseUrl(): string {

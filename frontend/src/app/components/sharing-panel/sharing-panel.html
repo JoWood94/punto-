@@ -19,7 +19,7 @@
         </div>
         <div class="guest-owner-row">
           <mat-icon class="guest-owner-icon">account_circle</mat-icon>
-          <span class="guest-owner-username">@{{ ownerUsername ?? data.ownerUid }}</span>
+          <span class="guest-owner-username">@{{ ownerUsername ?? data.ownerUid }}<span *ngIf="currentUserId === data.ownerUid" class="you-label"> (tu)</span></span>
         </div>
       </section>
 
@@ -39,7 +39,7 @@
         <div class="collab-list">
           <div *ngFor="let c of collaborators" class="collab-item collab-item--guest">
             <mat-icon class="guest-collab-icon">person</mat-icon>
-            <span class="collab-username">@{{ c.username }}</span>
+            <span class="collab-username">@{{ c.username }}<span *ngIf="currentUserId === c.uid" class="you-label"> (tu)</span></span>
           </div>
         </div>
       </section>
@@ -104,7 +104,7 @@
 
         <div class="collab-list">
           <div *ngFor="let c of collaborators" class="collab-item">
-            <span class="collab-username">@{{ c.username }}</span>
+            <span class="collab-username">@{{ c.username }}<span *ngIf="currentUserId === c.uid" class="you-label"> (tu)</span></span>
             <div class="collab-toggles">
               <div class="collab-toggle-row">
                 <span class="collab-toggle-label">{{ 'SHARING.EDIT_CONTENT' | translate }}</span>

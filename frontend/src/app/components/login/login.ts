@@ -97,8 +97,14 @@ export class LoginComponent {
           return;
         }
         const username = this.usernameControl.value ?? '';
-        console.log('[onSubmit] register() — username:', username, '| usernameValid:', this.usernameReady);
-        await this.authService.register(this.email, this.password, username);
+        await this.authService.register(this.email, this.password);
+        // Utente autenticato: salva username su Firestore prima del logout
+        try {
+          await this.noteService.setUsername(username);
+        } catch {
+          // Fallback: conserva in localStorage, verrà scritto al primo login
+          localStorage.setItem('pendingUsername', username);
+        }
         // Fire-and-forget: non blocchiamo il flusso su sendVerificationEmail
         // (può hangare su reti lente/flaky senza timeout → isLoading bloccato)
         this.authService.sendVerificationEmail().catch(() => {});

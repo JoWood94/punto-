@@ -9,8 +9,8 @@ import { MatRadioModule } from '@angular/material/radio';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { MatDividerModule } from '@angular/material/divider';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
-import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { ToastService } from '../../services/toast';
 import { firstValueFrom } from 'rxjs';
 import { UsernameInputComponent } from '../username-input/username-input';
 import {
@@ -38,7 +38,6 @@ import { ConfirmDialogComponent } from '../confirm-dialog/confirm-dialog';
     MatSlideToggleModule,
     MatDividerModule,
     MatDialogModule,
-    MatSnackBarModule,
     MatProgressSpinnerModule,
     TranslateModule,
     UsernameInputComponent,
@@ -52,7 +51,7 @@ export class SettingsComponent implements OnInit {
   private authService = inject(AuthService);
   private cryptoService = inject(CryptoService);
   private dialog = inject(MatDialog);
-  private snackBar = inject(MatSnackBar);
+  private toast = inject(ToastService);
   private swUpdate = inject(SwUpdate);
   private translationService = inject(TranslationService);
 
@@ -169,9 +168,9 @@ export class SettingsComponent implements OnInit {
       await this.noteService.setUsername(username);
       this.currentUsername = username;
       this.editingUsername = false;
-      this.snackBar.open(this.translationService.instant('USERNAME.SAVE_SUCCESS'), 'OK', { duration: 3000 });
+      this.toast.show(this.translationService.instant('USERNAME.SAVE_SUCCESS'), 3000);
     } catch {
-      this.snackBar.open(this.translationService.instant('USERNAME.SAVE_ERROR'), 'OK', { duration: 4000 });
+      this.toast.show(this.translationService.instant('USERNAME.SAVE_ERROR'));
     } finally {
       this.savingUsername = false;
     }
@@ -197,7 +196,7 @@ export class SettingsComponent implements OnInit {
 
   private async resetEncryption(): Promise<void> {
     if (!navigator.onLine) {
-      this.snackBar.open(this.translationService.instant('SETTINGS.NO_CONNECTION'), 'OK', { duration: 4000 });
+      this.toast.show(this.translationService.instant('SETTINGS.NO_CONNECTION'));
       return;
     }
 
@@ -229,7 +228,7 @@ export class SettingsComponent implements OnInit {
 
     } catch {
       this.resetInProgress = false;
-      this.snackBar.open(this.translationService.instant('SETTINGS.RESET_ERROR'), 'OK', { duration: 4000 });
+      this.toast.show(this.translationService.instant('SETTINGS.RESET_ERROR'));
     }
   }
 }
