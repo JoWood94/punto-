@@ -2,7 +2,7 @@ import { Injectable, inject } from '@angular/core';
 import { Auth, authState, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, User, OAuthProvider, signInWithPopup, sendPasswordResetEmail, sendEmailVerification } from '@angular/fire/auth';
 import { Observable } from 'rxjs';
 import { getApp } from 'firebase/app';
-import { getFirestore, doc, writeBatch } from 'firebase/firestore';
+import { getFirestore, doc, writeBatch, setDoc, waitForPendingWrites } from 'firebase/firestore';
 import { CryptoService } from './crypto';
 
 @Injectable({
@@ -28,12 +28,18 @@ export class AuthService {
         const db = getFirestore(getApp());
         const lower = username.toLowerCase();
         const uid = cred.user.uid;
-        const batch = writeBatch(db);
-        batch.set(doc(db, `usernames/${lower}`), { uid, createdAt: Date.now() });
-        batch.set(doc(db, `users/${uid}`), { username, usernameLower: lower }, { merge: true });
-        await batch.commit();
-      } catch {
-        // username sarà richiesto al prossimo login
+
+        // Scrittura critica users/{uid}: awaited + waitForPendingWrites garantisce
+        // che il server confermi prima del logout (altrimenti offline persistence
+        // mette in coda e il logout invalida il token prima della sync)
+        await setDoc(doc(db, `users/${uid}`), { username, usernameLower: lower }, { merge: true });
+        await waitForPendingWrites(db);
+
+        // Indice usernames: secondario, non blocca
+        setDoc(doc(db, `usernames/${lower}`), { uid, createdAt: Date.now() })
+          .catch((e) => console.warn('[register] usernames index write failed:', e));
+      } catch(e) {
+        console.error('[register] username write failed:', e);
       }
     }
     return cred;
