@@ -97,6 +97,7 @@ export class LoginComponent {
           return;
         }
         const username = this.usernameControl.value ?? '';
+        console.log('[onSubmit] register() — username:', username, '| usernameValid:', this.usernameReady);
         await this.authService.register(this.email, this.password, username);
         // Fire-and-forget: non blocchiamo il flusso su sendVerificationEmail
         // (può hangare su reti lente/flaky senza timeout → isLoading bloccato)
