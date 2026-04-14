@@ -195,7 +195,7 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewInit, Af
       }
     }
 
-    this.dialog.open(SharingPanelComponent, {
+    const ref = this.dialog.open(SharingPanelComponent, {
       data: {
         noteId: this.savedNoteId,
         myRole: this.note.myRole,
@@ -203,6 +203,12 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewInit, Af
       },
       width: '480px',
       maxWidth: '95vw',
+    });
+    ref.afterClosed().subscribe((result) => {
+      if (result?.left) {
+        this.stopLiveSync();
+        this.closeEditor.emit();
+      }
     });
   }
 
@@ -253,10 +259,12 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewInit, Af
 
   private initTextBlockElements() {
     const els = this.textBlockEls.toArray();
+    const focusedTextIdx = this.activeTextBlockIndex();
     let textIdx = 0;
     this.note.blocks.forEach(block => {
       if (block.type === 'text') {
-        if (els[textIdx]) {
+        // Skip the focused block: setting innerHTML would drop cursor/selection
+        if (els[textIdx] && textIdx !== focusedTextIdx) {
           els[textIdx].nativeElement.innerHTML = (block as TextBlock).html || '';
         }
         textIdx++;

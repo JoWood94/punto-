@@ -51,6 +51,7 @@ jobs:
         run: npm run build -- --configuration production --base-href / --output-path dist/firebase
 
       - name: Deploy Firestore rules
+        continue-on-error: true
         run: |
           echo '${{ secrets.FIREBASE_SERVICE_ACCOUNT_PUNTO_84646 }}' > /tmp/sa.json
           GOOGLE_APPLICATION_CREDENTIALS=/tmp/sa.json npx firebase-tools@latest deploy --only firestore:rules --project punto-84646 --non-interactive
