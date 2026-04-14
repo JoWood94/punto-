@@ -743,7 +743,6 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewInit, Af
     const recurrence = block.recurrence ?? 'none';
     if (recurrence === 'none') {
       block.status = 'completed';
-      (this.note as any).lastCompletedAt = Date.now();
       this.triggerAutoSave();
     } else {
       // Usa i campi UI (date/hour/minute) come base, non block.time che potrebbe essere stale
@@ -761,7 +760,6 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewInit, Af
       if (block.recurrenceEndDate && nextTime > block.recurrenceEndDate) {
         block.status = 'completed';
         block.time = currentTime;
-        (this.note as any).lastCompletedAt = Date.now();
         this.triggerAutoSave();
         return;
       }
@@ -952,10 +950,8 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewInit, Af
       ...this.note,
       blocks,
       tags: this.note.tags ?? [],
-      content: textHtml,
       reminderTime: reminder?.time ?? null,
       reminderStatus: reminder?.status ?? null,
-      lastCompletedAt: (this.note as any).lastCompletedAt ?? null,
       recurrence: reminder?.recurrence ?? 'none',
       reminderRepeat: repeatValue,
       recurrenceEndDate: reminder?.recurrenceEndDate ?? null,
@@ -1019,7 +1015,6 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewInit, Af
 
   undoReminderCompleted(block: any): void {
     block.status = 'pending';
-    (this.note as any).lastCompletedAt = null;
     this.triggerAutoSave();
   }
 

@@ -6,7 +6,7 @@ import { CommonModule } from '@angular/common';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
-import { Note } from '../../services/note';
+import { Note, getNotePreview } from '../../services/note';
 import { inject } from '@angular/core';
 import { TranslateModule } from '@ngx-translate/core';
 import { TranslationService } from '../../services/translation';
@@ -299,6 +299,8 @@ export class CalendarViewComponent implements OnChanges, OnInit, AfterViewInit {
   hasReminderRepeat(note: Note): boolean {
     return !!note.reminderRepeat;
   }
+
+  getNotePreview(note: Note): string { return getNotePreview(note); }
 
   private getNoteDate(note: Note): Date | null {
     if (note.reminderTime) return new Date(note.reminderTime);

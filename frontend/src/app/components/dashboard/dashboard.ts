@@ -675,8 +675,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
     if (!note.id) return;
     try {
       await this.noteService.updateNote(note.id, {
-        reminderStatus: 'completed',
-        lastCompletedAt: Date.now()
+        reminderStatus: 'completed'
       });
     } catch (e: any) {
       console.error('Errore evadi:', e.message);

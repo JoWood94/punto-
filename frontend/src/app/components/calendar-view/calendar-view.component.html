@@ -128,7 +128,7 @@
         </div>
         <div class="day-note-content">
           <div class="day-note-title">{{ note.title || 'Senza titolo' }}</div>
-          <div class="day-note-preview" [innerHTML]="note.content"></div>
+          <div class="day-note-preview">{{ getNotePreview(note) }}</div>
         </div>
       </div>
     </div>

@@ -88,9 +88,11 @@ export interface Note {
   updatedAt?: number;
   reminderRepeat?: 'daily' | 'weekly' | 'monthly' | 'yearly';
   // Legacy flat fields — kept for server backward compatibility
+  /** @deprecated RF-01b write-off. Field preserved for migrateToBlocks and getNotePreview legacy fallback. Never write on new documents. */
   content?: string;
   reminderTime?: number | null;
   reminderStatus?: 'pending' | 'sent' | 'completed' | null;
+  /** @deprecated RF-01b write-off. No active consumers in frontend, server or rules. */
   lastCompletedAt?: number;
   recurrence?: 'none' | 'daily' | 'weekly' | 'monthly' | 'yearly';
   recurrenceEndDate?: number | null;
