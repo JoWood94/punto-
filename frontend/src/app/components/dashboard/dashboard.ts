@@ -700,11 +700,18 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   private async checkAndPromptUsername(): Promise<void> {
     try {
+      // Recupera username pending da registrazione
+      const pending = localStorage.getItem('pendingUsername');
+      if (pending) {
+        localStorage.removeItem('pendingUsername');
+        await this.noteService.saveUsername(pending);
+        return; // username salvata, nessun dialog necessario
+      }
       const userDoc = await this.noteService.getUserDoc();
       if (userDoc && !userDoc['username']) {
         this.dialog.open(UsernameDialogComponent, { disableClose: true, maxWidth: '440px' });
       }
-    } catch { /* offline — riproverà alla prossima sessione */ }
+    } catch { /* offline */ }
   }
 
   // ─── E2E Encryption Setup ───────────────────────────────────────────────────

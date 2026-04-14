@@ -345,6 +345,16 @@ export class NoteService {
     }
   }
 
+  async saveUsername(username: string): Promise<void> {
+    const uid = this.authService.getCurrentUserId();
+    if (!uid) return;
+    const lower = username.toLowerCase();
+    const batch = writeBatch(this.db);
+    batch.set(doc(this.db, `usernames/${lower}`), { uid, createdAt: Date.now() });
+    batch.set(doc(this.db, `users/${uid}`), { username, usernameLower: lower }, { merge: true });
+    await batch.commit();
+  }
+
   /** Real-time listener su users/{uid}. Ritorna la funzione di unsubscribe. */
   watchUserDoc(uid: string, callback: (data: any | null) => void): () => void {
     const userRef = doc(this.db, `users/${uid}`);

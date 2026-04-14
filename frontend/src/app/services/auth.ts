@@ -1,8 +1,6 @@
 import { Injectable, inject } from '@angular/core';
 import { Auth, authState, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, User, OAuthProvider, signInWithPopup, sendPasswordResetEmail, sendEmailVerification } from '@angular/fire/auth';
 import { Observable } from 'rxjs';
-import { getApp } from 'firebase/app';
-import { getFirestore, doc, writeBatch, setDoc, waitForPendingWrites } from 'firebase/firestore';
 import { CryptoService } from './crypto';
 
 @Injectable({
@@ -23,24 +21,8 @@ export class AuthService {
   async register(email: string, pass: string, username?: string) {
     const cred = await createUserWithEmailAndPassword(this.auth, email, pass);
     if (username) {
-      try {
-        await cred.user.getIdToken();
-        const db = getFirestore(getApp());
-        const lower = username.toLowerCase();
-        const uid = cred.user.uid;
-
-        // Scrittura critica users/{uid}: awaited + waitForPendingWrites garantisce
-        // che il server confermi prima del logout (altrimenti offline persistence
-        // mette in coda e il logout invalida il token prima della sync)
-        await setDoc(doc(db, `users/${uid}`), { username, usernameLower: lower }, { merge: true });
-        await waitForPendingWrites(db);
-
-        // Indice usernames: secondario, non blocca
-        setDoc(doc(db, `usernames/${lower}`), { uid, createdAt: Date.now() })
-          .catch((e) => console.warn('[register] usernames index write failed:', e));
-      } catch(e) {
-        console.error('[register] username write failed:', e);
-      }
+      // Salva in localStorage: verrà scritto su Firestore al primo login (dashboard stable)
+      localStorage.setItem('pendingUsername', username);
     }
     return cred;
   }
