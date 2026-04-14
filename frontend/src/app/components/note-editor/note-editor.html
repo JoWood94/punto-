@@ -517,7 +517,7 @@
         [class.share-mini-fab--collab-editing]="anyCollaboratorEditing"
         [class.share-mini-fab--collab-viewing]="hasViewingCollaborators"
         [attr.aria-label]="'SHARING.SHARE_BTN' | translate">
-  <mat-icon>{{ (note.isShared || note.myRole === 'guest') ? 'group' : 'ios_share' }}</mat-icon>
+  <mat-icon>{{ (anyCollaboratorEditing || hasViewingCollaborators) ? 'group' : 'ios_share' }}</mat-icon>
   <span class="presence-chip" *ngIf="presenceUsers().length > 0">
     @{{ presenceUsers()[0].displayName }}{{ presenceUsers().length > 1 ? ' +' + (presenceUsers().length - 1) : '' }}
   </span>
