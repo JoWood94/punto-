@@ -5,9 +5,11 @@ service cloud.firestore {
     // ── Notes ──────────────────────────────────────────────────────────────────
     match /notes/{noteId} {
       // Owner + guest possono leggere
+      // Null-safe: collaboratorUids potrebbe non esistere su note vecchie
       allow read: if request.auth != null && (
         resource.data.uid == request.auth.uid ||
-        request.auth.uid in resource.data.collaboratorUids
+        ('collaboratorUids' in resource.data &&
+         request.auth.uid in resource.data.collaboratorUids)
       );
 
       // Solo l'owner può creare
@@ -20,12 +22,13 @@ service cloud.firestore {
       allow update: if request.auth != null && (
         resource.data.uid == request.auth.uid ||
         (
+          'collaboratorUids' in resource.data &&
           request.auth.uid in resource.data.collaboratorUids &&
           request.resource.data.uid == resource.data.uid &&
           request.resource.data.collaboratorUids == resource.data.collaboratorUids
         ) ||
         (
-          !(request.auth.uid in resource.data.collaboratorUids) &&
+          !('collaboratorUids' in resource.data && request.auth.uid in resource.data.collaboratorUids) &&
           request.auth.uid in request.resource.data.collaboratorUids &&
           request.resource.data.uid == resource.data.uid
         )
@@ -35,12 +38,31 @@ service cloud.firestore {
       allow delete: if request.auth != null &&
         resource.data.uid == request.auth.uid;
 
+      // ── Presence subcollection ──────────────────────────────────────────────
+      // Traccia chi sta guardando/modificando una nota condivisa in tempo reale
+      match /presence/{userId} {
+        // Owner e collaboratori possono leggere le presenze
+        allow read: if request.auth != null && (
+          get(/databases/$(database)/documents/notes/$(noteId)).data.uid == request.auth.uid ||
+          ('collaboratorUids' in get(/databases/$(database)/documents/notes/$(noteId)).data &&
+           request.auth.uid in get(/databases/$(database)/documents/notes/$(noteId)).data.collaboratorUids)
+        );
+        // Ognuno può scrivere/cancellare solo la propria presenza
+        allow write: if request.auth != null && userId == request.auth.uid && (
+          get(/databases/$(database)/documents/notes/$(noteId)).data.uid == request.auth.uid ||
+          ('collaboratorUids' in get(/databases/$(database)/documents/notes/$(noteId)).data &&
+           request.auth.uid in get(/databases/$(database)/documents/notes/$(noteId)).data.collaboratorUids)
+        );
+      }
+
       // ── Collaborators subcollection ─────────────────────────────────────────
       match /collaborators/{collabId} {
         // Owner e tutti i guest possono leggere (serve a updateNote() per check permessi)
+        // Null-safe: collaboratorUids potrebbe non esistere su note vecchie
         allow read: if request.auth != null && (
           get(/databases/$(database)/documents/notes/$(noteId)).data.uid == request.auth.uid ||
-          request.auth.uid in get(/databases/$(database)/documents/notes/$(noteId)).data.collaboratorUids
+          ('collaboratorUids' in get(/databases/$(database)/documents/notes/$(noteId)).data &&
+           request.auth.uid in get(/databases/$(database)/documents/notes/$(noteId)).data.collaboratorUids)
         );
         // Owner: scrittura completa
         // Guest: può creare il proprio subdoc (per invite acceptance via addCollaborator)

@@ -171,9 +171,10 @@ export class NoteService {
     const notesRef = collection(this.db, 'notes');
     const skipFields: (keyof Note)[] = this.notifTitleEnabled ? ['title'] : [];
     const hasCollaborators = (noteData.collaboratorUids?.length ?? 0) > 0;
+    const base = { collaboratorUids: [] as string[], ...noteData, uid, createdAt: Date.now() };
     const payload = this.cryptoService.isEnabled && !hasCollaborators
-      ? await this.cryptoService.encryptNote({ ...noteData, uid, createdAt: Date.now() }, skipFields)
-      : { ...noteData, uid, createdAt: Date.now() };
+      ? await this.cryptoService.encryptNote(base, skipFields)
+      : base;
     const result = await addDoc(notesRef, payload);
     console.log('[NoteService] Note saved with ID:', result.id);
     return result;
@@ -343,6 +344,16 @@ export class NoteService {
     } catch {
       return null;  // Server non raggiungibile: evita cache stale (BF-10)
     }
+  }
+
+  async saveUsername(username: string): Promise<void> {
+    const uid = this.authService.getCurrentUserId();
+    if (!uid) return;
+    const lower = username.toLowerCase();
+    const batch = writeBatch(this.db);
+    batch.set(doc(this.db, `usernames/${lower}`), { uid, createdAt: Date.now() });
+    batch.set(doc(this.db, `users/${uid}`), { username, usernameLower: lower }, { merge: true });
+    await batch.commit();
   }
 
   /** Real-time listener su users/{uid}. Ritorna la funzione di unsubscribe. */

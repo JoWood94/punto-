@@ -161,22 +161,15 @@
     <input #titleInput class="title-input-raw" [(ngModel)]="note.title" placeholder="Titolo"
          [disabled]="!guestCanEdit"
          (ngModelChange)="onTitleChange()" />
+  </div>
 
-    <!-- Presenza in tempo reale: avatar degli altri utenti sulla nota -->
-    <div class="presence-avatars" *ngIf="presenceUsers().length > 0">
-      <ng-container *ngFor="let user of presenceUsers().slice(0, 3)">
-        <div class="presence-avatar"
-             [class.presence-avatar--editing]="user.isEditing"
-             [matTooltip]="user.displayName + (user.isEditing ? ' · sta modificando' : ' · sta leggendo')">
-          {{ user.displayName.charAt(0).toUpperCase() }}
-        </div>
-      </ng-container>
-      <div class="presence-avatar presence-avatar--overflow"
-           *ngIf="presenceUsers().length > 3"
-           [matTooltip]="(presenceUsers().length - 3) + ' altri presenti'">
-        +{{ presenceUsers().length - 3 }}
-      </div>
-    </div>
+  <!-- Indicatore sync floating — spunta→nuvola durante aggiornamento remoto -->
+  <div class="sync-indicator"
+       [class.sync-indicator--visible]="syncState() !== 'idle'"
+       [class.sync-indicator--syncing]="syncState() === 'syncing'"
+       [attr.aria-label]="syncState() === 'syncing' ? 'Sincronizzazione in corso' : 'Nota aggiornata'">
+    <mat-icon *ngIf="syncState() === 'syncing'">sync</mat-icon>
+    <mat-icon *ngIf="syncState() === 'synced'">done</mat-icon>
   </div>
 </div>
 
@@ -521,7 +514,9 @@
         (click)="openSharePanel()"
         [class.share-mini-fab--active]="note.isShared"
         [class.share-mini-fab--hidden]="activeTextBlockIndex() !== null"
+        [class.share-mini-fab--collab-editing]="anyCollaboratorEditing"
+        [class.share-mini-fab--collab-viewing]="hasViewingCollaborators"
         [attr.aria-label]="'SHARING.SHARE_BTN' | translate">
-  <mat-icon>ios_share</mat-icon>
+  <mat-icon>{{ (anyCollaboratorEditing || hasViewingCollaborators) ? 'group' : 'ios_share' }}</mat-icon>
 </button>
 

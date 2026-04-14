@@ -16,8 +16,8 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatInputModule } from '@angular/material/input';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatDialogModule, MatDialog } from '@angular/material/dialog';
-import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { ToastService } from '../../services/toast';
 import { MatChipsModule } from '@angular/material/chips';
 import { NoteEditorComponent } from '../note-editor/note-editor';
 import { CalendarViewComponent } from '../calendar-view/calendar-view.component';
@@ -52,7 +52,6 @@ import { environment } from '../../../environments/environment';
     MatInputModule,
     MatFormFieldModule,
     MatDialogModule,
-    MatSnackBarModule,
     MatProgressSpinnerModule,
     MatChipsModule,
     NoteEditorComponent,
@@ -68,7 +67,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
   private location: Location = inject(Location);
   private breakpointObserver = inject(BreakpointObserver);
   private dialog = inject(MatDialog);
-  private snackBar = inject(MatSnackBar);
+  private toast = inject(ToastService);
   translationService = inject(TranslationService);
   private cryptoService: CryptoService = inject(CryptoService);
 @ViewChild('sidenav') sidenav!: MatSidenav;
@@ -380,7 +379,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
       const msg = e?.message?.includes('expired')
         ? this.translationService.instant('INVITE.EXPIRED_ERROR')
         : this.translationService.instant('INVITE.INVALID_ERROR');
-      this.snackBar.open(msg, 'OK', { duration: 4000 });
+      this.toast.show(msg);
       return;
     }
 
@@ -388,7 +387,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
     if (!uid) return;
 
     if (uid === createdBy) {
-      this.snackBar.open(this.translationService.instant('INVITE.OWN_INVITE_ERROR'), 'OK', { duration: 4000 });
+      this.toast.show(this.translationService.instant('INVITE.OWN_INVITE_ERROR'));
       return;
     }
 
@@ -411,13 +410,13 @@ export class DashboardComponent implements OnInit, OnDestroy {
     // Fase 2: accetta l'invito (errori qui = problema tecnico, non invite non valido)
     try {
       await this.noteService.acceptInvite(token);
-      this.snackBar.open(this.translationService.instant('INVITE.ACCEPTED'), 'OK', { duration: 3000 });
+      this.toast.show(this.translationService.instant('INVITE.ACCEPTED'), 3000);
     } catch (e: any) {
       console.error('[handleInvite] FASE 2 acceptInvite error:', e?.code ?? e?.message ?? e);
       const msg = e?.message?.includes('expired')
         ? this.translationService.instant('INVITE.EXPIRED_ERROR')
         : this.translationService.instant('INVITE.ACCEPT_ERROR');
-      this.snackBar.open(msg, 'OK', { duration: 4000 });
+      this.toast.show(msg);
     }
   }
 
@@ -700,11 +699,18 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   private async checkAndPromptUsername(): Promise<void> {
     try {
+      // Recupera username pending da registrazione
+      const pending = localStorage.getItem('pendingUsername');
+      if (pending) {
+        await this.noteService.setUsername(pending); // lancia errore se uid null → catch lo gestisce
+        localStorage.removeItem('pendingUsername');  // rimosso solo dopo salvataggio riuscito
+        return; // username salvata, nessun dialog necessario
+      }
       const userDoc = await this.noteService.getUserDoc();
       if (userDoc && !userDoc['username']) {
         this.dialog.open(UsernameDialogComponent, { disableClose: true, maxWidth: '440px' });
       }
-    } catch { /* offline — riproverà alla prossima sessione */ }
+    } catch { /* offline */ }
   }
 
   // ─── E2E Encryption Setup ───────────────────────────────────────────────────
@@ -828,7 +834,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
       console.log('[E2E Setup] Setup completato.');
     } catch (e) {
       console.error('[E2E Setup] ERRORE:', e);
-      this.snackBar.open(this.translationService.instant('CRYPTO.SETUP_ERROR'), 'OK', { duration: 5000 });
+      this.toast.show(this.translationService.instant('CRYPTO.SETUP_ERROR'), 5000);
     }
   }
 
