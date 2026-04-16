@@ -524,21 +524,23 @@ export class DashboardComponent implements OnInit, OnDestroy {
   }
 
   // ─── Vista PROMEMORIA ─────────────────────────────────────────
+  // Note condivise con reminder appaiono qui insieme alle proprie (BF-JJ)
   get activeReminderNotes(): Note[] {
     return this.filteredNotes.filter(n =>
-      hasReminder(n) && getReminderStatus(n) !== 'completed' && !isRecurringNote(n) && n.myRole !== 'guest'
+      hasReminder(n) && getReminderStatus(n) !== 'completed' && !isRecurringNote(n)
     );
   }
   get recurringReminderNotes(): Note[] {
-    return this.filteredNotes.filter(n => isRecurringNote(n) && n.myRole !== 'guest');
+    return this.filteredNotes.filter(n => isRecurringNote(n));
   }
   get evadedNotes(): Note[] {
-    return this.filteredNotes.filter(n => getReminderStatus(n) === 'completed' && n.myRole !== 'guest');
+    return this.filteredNotes.filter(n => getReminderStatus(n) === 'completed');
   }
 
-  // ─── Condivise con me ─────────────────────────────────────────
+  // ─── Condivise con me (solo senza reminder) ───────────────────
+  // Le condivise con reminder vivono in vista Promemoria insieme alle proprie.
   get sharedWithMeNotes(): Note[] {
-    return this.filteredNotes.filter(n => n.myRole === 'guest');
+    return this.filteredNotes.filter(n => n.myRole === 'guest' && !hasReminder(n));
   }
 
   private autoSelectView() {
