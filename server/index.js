@@ -70,7 +70,28 @@ async function checkAndSendReminders() {
       return;
     }
 
-    const tokensCache = {}; 
+    // Prefetch snoozes attivi via collectionGroup (1 query totale, index-backed).
+    // Mappa noteId → Set<uid> snoozati al momento del run.
+    const snoozeMap = new Map();
+    try {
+      const snoozeSnap = await db.collectionGroup('reminderSnoozes')
+        .where('snoozedUntil', '>', now)
+        .get();
+      for (const s of snoozeSnap.docs) {
+        const noteId = s.ref.parent.parent.id;
+        if (!snoozeMap.has(noteId)) snoozeMap.set(noteId, new Set());
+        snoozeMap.get(noteId).add(s.id);
+      }
+      if (snoozeSnap.size > 0) {
+        console.log(`Snoozes attivi: ${snoozeSnap.size} su ${snoozeMap.size} note.`);
+      }
+    } catch (e) {
+      // Se l'index non è ancora deployato, la query fallisce: degradazione graceful,
+      // nessuno skippato → comportamento pre-FE-01.
+      console.warn('[snooze] collectionGroup query failed, proceeding without snooze filter:', e.message);
+    }
+
+    const tokensCache = {};
     const updates = [];
     let sentCount = 0;
 
@@ -88,6 +109,7 @@ async function checkAndSendReminders() {
       }
 
       const uid = note.uid;
+      const snoozedUids = snoozeMap.get(doc.id) ?? new Set();
 
       if (!tokensCache[uid]) {
         const userDoc = await db.collection('users').doc(uid).get();
@@ -101,7 +123,7 @@ async function checkAndSendReminders() {
 
       const { tokens, notifTitleEnabled, language } = tokensCache[uid];
 
-      // Fetch collaborator tokens (guests with editReminders:true)
+      // Fetch collaborator tokens (guests with editReminders:true); skip chi è snoozato
       const collabUidTokenPairs = [];
       try {
         const collaboratorsSnap = await db.collection('notes').doc(doc.id)
@@ -110,6 +132,9 @@ async function checkAndSendReminders() {
           .get();
         for (const collabDoc of collaboratorsSnap.docs) {
           const collabUid = collabDoc.id;
+          if (snoozedUids.has(collabUid)) {
+            continue;
+          }
           if (!tokensCache[collabUid]) {
             const userDoc = await db.collection('users').doc(collabUid).get();
             const userData = userDoc.exists ? userDoc.data() : {};
@@ -127,10 +152,16 @@ async function checkAndSendReminders() {
         console.error(`Errore fetch collaboratori per nota ${doc.id}:`, e.message);
       }
 
-      // Combined token list: owner + collaborators (with uid tracking for cleanup)
-      const ownerUidTokenPairs = tokens.map(t => ({ uid, token: t }));
+      // Owner tokens: skip se owner snoozato
+      const ownerUidTokenPairs = snoozedUids.has(uid)
+        ? []
+        : tokens.map(t => ({ uid, token: t }));
       const allUidTokenPairs = [...ownerUidTokenPairs, ...collabUidTokenPairs];
       const allTokens = allUidTokenPairs.map(p => p.token);
+
+      if (snoozedUids.size > 0) {
+        console.log(`Nota ${doc.id}: snoozed uids=${[...snoozedUids].join(',')}, recipients=${allTokens.length}`);
+      }
 
       const NOTIF_STRINGS = {
         it: {
@@ -254,6 +285,17 @@ async function checkAndSendReminders() {
           });
         }
         updates.push(doc.ref.update(updatePayload));
+      }
+
+      // Cleanup snoozes processati: lo scope è l'istanza di reminder appena emessa/rischedulata.
+      // Subcol svuotata → prossima istanza ricorrente parte pulita.
+      if (snoozedUids.size > 0) {
+        const batch = db.batch();
+        for (const snoozedUid of snoozedUids) {
+          batch.delete(db.collection('notes').doc(doc.id)
+            .collection('reminderSnoozes').doc(snoozedUid));
+        }
+        updates.push(batch.commit());
       }
     }
 
