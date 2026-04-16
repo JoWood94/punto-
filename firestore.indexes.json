@@ -1,12 +1,12 @@
 {
-  "indexes": [
+  "indexes": [],
+  "fieldOverrides": [
     {
       "collectionGroup": "reminderSnoozes",
-      "queryScope": "COLLECTION_GROUP",
-      "fields": [
-        { "fieldPath": "snoozedUntil", "order": "ASCENDING" }
+      "fieldPath": "snoozedUntil",
+      "indexes": [
+        { "order": "ASCENDING", "queryScope": "COLLECTION_GROUP" }
       ]
     }
-  ],
-  "fieldOverrides": []
+  ]
 }
