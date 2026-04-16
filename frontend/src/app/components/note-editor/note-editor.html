@@ -168,8 +168,7 @@
        [class.sync-indicator--visible]="syncState() !== 'idle'"
        [class.sync-indicator--syncing]="syncState() === 'syncing'"
        [attr.aria-label]="syncState() === 'syncing' ? 'Sincronizzazione in corso' : 'Nota aggiornata'">
-    <mat-icon *ngIf="syncState() === 'syncing'">sync</mat-icon>
-    <mat-icon *ngIf="syncState() === 'synced'">done</mat-icon>
+    <mat-icon>{{ syncState() === 'syncing' ? 'sync' : 'done' }}</mat-icon>
   </div>
 </div>
 
@@ -516,6 +515,7 @@
         [class.share-mini-fab--hidden]="activeTextBlockIndex() !== null"
         [class.share-mini-fab--collab-editing]="anyCollaboratorEditing"
         [class.share-mini-fab--collab-viewing]="hasViewingCollaborators"
+        [class.share-mini-fab--collab-active]="hasRecentCollabActivity"
         [attr.aria-label]="'SHARING.SHARE_BTN' | translate">
   <mat-icon>{{ (note.isShared || note.myRole === 'guest') ? 'group' : 'ios_share' }}</mat-icon>
   <span class="presence-chip" *ngIf="presenceUsers().length > 0">

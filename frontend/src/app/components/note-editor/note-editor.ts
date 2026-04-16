@@ -147,6 +147,12 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewInit, Af
     return this.presenceUsers().length > 0 && !this.anyCollaboratorEditing;
   }
 
+  /** True se un collaboratore ha effettuato una qualsiasi mutazione negli ultimi 5s. */
+  get hasRecentCollabActivity(): boolean {
+    const threshold = Date.now() - 5_000;
+    return this.presenceUsers().some(u => (u.lastActivityAt ?? 0) > threshold);
+  }
+
   get reminderBlock(): any | null {
     return this.note.blocks.find(b => b.type === 'reminder') ?? null;
   }
@@ -471,6 +477,7 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewInit, Af
     } else {
       this.addReminder();
     }
+    this.signalActivity();
   }
 
   addBlockAfterActive(type: NoteBlock['type']) {
@@ -632,6 +639,7 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewInit, Af
 
   onChecklistItemChange() {
     if (!this.guestCanEdit) return;
+    this.signalActivity();
     this.triggerAutoSave();
   }
 
@@ -721,6 +729,7 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewInit, Af
         (b as any)._prevTime = null;
       }
     });
+    this.signalActivity();
     this.triggerAutoSave();
   }
 
@@ -1101,6 +1110,14 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewInit, Af
     if (uid && this.savedNoteId) {
       this.noteService.deletePresence(this.savedNoteId, uid);
     }
+  }
+
+  /** Segnala un'attività non-typing (checklist toggle, cambio colore, reminder) per far pulsare il FAB sui collaboratori. */
+  signalActivity() {
+    if (!this.savedNoteId) return;
+    const uid = this.authService.getCurrentUserId();
+    if (!uid || !this.selfDisplayName) return;
+    this.noteService.writePresence(this.savedNoteId, uid, this.selfDisplayName, this.presenceEditing, Date.now());
   }
 
   /** Segnala che l'utente sta modificando: aggiorna isEditing:true, resetta dopo 3s di inattività. */

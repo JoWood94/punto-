@@ -69,9 +69,10 @@ export interface Collaborator {
 
 export interface PresenceEntry {
   uid: string;
-  displayName: string;  // username o primo carattere dell'uid
-  lastSeen: number;     // Date.now() ms
+  displayName: string;   // username o primo carattere dell'uid
+  lastSeen: number;      // Date.now() ms
   isEditing: boolean;
+  lastActivityAt?: number; // Date.now() ms — aggiornato su qualsiasi mutazione (checklist, colore, reminder…)
 }
 
 // ─── Note Interface ───────────────────────────────────────────────────────────
@@ -704,11 +705,13 @@ export class NoteService {
   // ─── Presence (Fase 5) ───────────────────────────────────────────────────────
 
   /** Scrive/aggiorna la propria presenza nella subcollection notes/{noteId}/presence/{uid}. */
-  async writePresence(noteId: string, uid: string, displayName: string, isEditing: boolean): Promise<void> {
+  async writePresence(noteId: string, uid: string, displayName: string, isEditing: boolean, lastActivityAt?: number): Promise<void> {
     try {
+      const payload: Record<string, unknown> = { uid, displayName, lastSeen: Date.now(), isEditing };
+      if (lastActivityAt !== undefined) payload['lastActivityAt'] = lastActivityAt;
       await setDoc(
         doc(this.db, `notes/${noteId}/presence/${uid}`),
-        { uid, displayName, lastSeen: Date.now(), isEditing },
+        payload,
         { merge: true }
       );
     } catch { /* silenzioso — presenza non critica */ }
