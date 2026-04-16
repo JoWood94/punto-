@@ -1,8 +1,13 @@
-# val.town — notifyCompletion
+# val.town — infrastruttura notifiche punto!
 
-Proxy serverless per push notification real-time quando un collaboratore evade un promemoria condiviso. Complementa (non sostituisce) il cron GitHub Actions che resta come fallback.
+Due val su val.town (stesso Project "notifyCompletion" o Project separati):
 
-## Deploy
+1. **`main.ts`** (HTTP trigger) — push **real-time** quando un utente evade un promemoria condiviso. Chiamato dal client fire-and-forget.
+2. **`scheduledReminders.ts`** (Cron trigger, ogni 1 min) — sostituisce il cron GitHub Actions: controlla i promemoria scaduti, invia FCM, gestisce ricorrenze, ripulisce i flag di completion residui.
+
+Il GHA cron (`.github/workflows/notify_cron.yml`) resta acceso come backup durante la fase di validazione. Quando i val sono stabili, può essere spento.
+
+## Deploy — val HTTP (`notifyCompletion`)
 
 1. **Login** su https://www.val.town con GitHub.
 2. **Nuovo HTTP val** → nome suggerito: `notifyCompletion`.
@@ -41,3 +46,36 @@ Dopo deploy + env wire:
 ## Rollback
 
 Cancella il val o rimuovi `notifyUrl` dagli environments → il client smette di chiamare → solo il cron GHA gestirà le evasioni (delay 5min).
+
+---
+
+## Deploy — val Scheduled (`scheduledReminders`)
+
+Ricrea il lavoro del cron GHA sul lato val.town con granularità 1 minuto (contro i 5 del GHA).
+
+1. Nel Project `notifyCompletion` (dove sta già `main.ts`): in sidebar click **"+"** → **New file** → nomalo `scheduled.ts` (o come preferisci).
+2. Incolla il contenuto di `scheduledReminders.ts` di questo repo.
+3. **Add trigger** (menu Code sul file) → **Cron** → espressione: `* * * * *` (ogni minuto).
+4. Le env vars `FIREBASE_PROJECT_ID` e `FIREBASE_SERVICE_ACCOUNT` sono **già settate a livello Project** (condivise con `main.ts`) — nessuna azione extra richiesta.
+5. Salva. Dalla tab **Runs** vedi le esecuzioni: ogni minuto deve loggare "scheduledReminders run" e "done in Xms".
+
+## Verifica scheduled
+
+Dopo deploy:
+
+1. Nella web UI val.town, tab **Runs** → devi vedere un'esecuzione al minuto.
+2. Crea un reminder a `t+2 min` su staging → dovrebbe arrivare push entro 60-90s (vs 5min del cron GHA).
+3. Reminder ricorrente → dopo invio, controlla Firestore: `reminderTime` aggiornato al prossimo occorrenza, `reminderStatus` resta `pending`, `blocks[reminder].time` aggiornato.
+4. Se il val logga errori, controllare: credenziali env, indici Firestore (query `reminderStatus` + collectionGroup `reminderSnoozes` devono avere index).
+
+## Coesistenza val + GHA cron (transizione)
+
+Durante la fase di validazione val.town e GHA sono entrambi attivi. Conflitto teorico: se scattano nello stesso istante su uno stesso reminder, il secondo a scrivere trova `reminderStatus='sent'` e non rifà nulla (idempotente). Possibile doppia push in caso di race → raro, tollerato.
+
+Dopo 1-2 settimane di val stabile:
+- Disabilita il workflow `notify_cron.yml` (commenta lo `schedule` o cambia il trigger a `workflow_dispatch`).
+- Rimuovi `server/index.js` dal repo dopo aver verificato che non serve più.
+
+## Rollback scheduled
+
+Disabilita il trigger Cron del val (toggle su val.town) o rimuovi l'espressione → il GHA cron continua a gestire i reminder in autonomia (delay 5min).
