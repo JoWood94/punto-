@@ -7,8 +7,8 @@ Proxy serverless per push notification real-time quando un collaboratore evade u
 1. **Login** su https://www.val.town con GitHub.
 2. **Nuovo HTTP val** → nome suggerito: `notifyCompletion`.
 3. Incolla il contenuto di `notifyCompletion.ts` (paste-and-save, il val tollera import `npm:`).
-4. **Env vars** (icona chiave inglese sul val):
-   - `FIREBASE_PROJECT_ID` = `punto-staging` (per ora solo staging)
+4. **Env vars** (Project Settings → Environment variables):
+   - `FIREBASE_PROJECT_ID` = `punto-84646` (staging e prod condividono lo stesso Firebase project)
    - `FIREBASE_SERVICE_ACCOUNT` = JSON completo della service account (stesso `FIREBASE_SERVICE_ACCOUNT` usato da GHA; copialo da GitHub Secrets)
 5. **Copia URL** pubblico del val (formato `https://<user>-notifycompletion.web.val.run`).
 6. Incollalo nell'env Angular:
