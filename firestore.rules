@@ -63,6 +63,35 @@ service cloud.firestore {
         );
       }
 
+      // ── Reminder snoozes subcollection ─────────────────────────────────────
+      // Ogni utente (owner o collaborator) può snoozare un reminder solo per sé.
+      // Doc id = uid snoozato. Scope = istanza corrente del reminder (cancellato dal cron).
+      match /reminderSnoozes/{uid} {
+        // Owner legge tutti (per UI admin futura); ogni utente vede il proprio
+        allow read: if request.auth != null && (
+          get(/databases/$(database)/documents/notes/$(noteId)).data.uid == request.auth.uid ||
+          uid == request.auth.uid
+        );
+        // Scrittura: solo sul proprio subdoc, solo se owner o collaborator della nota.
+        // Clamp snoozedUntil: deve essere futuro, max +7 giorni (previene snooze "eterni").
+        allow create, update: if request.auth != null &&
+          uid == request.auth.uid &&
+          (
+            get(/databases/$(database)/documents/notes/$(noteId)).data.uid == request.auth.uid ||
+            ('collaboratorUids' in get(/databases/$(database)/documents/notes/$(noteId)).data &&
+             request.auth.uid in get(/databases/$(database)/documents/notes/$(noteId)).data.collaboratorUids)
+          ) &&
+          request.resource.data.snoozedUntil is int &&
+          request.resource.data.snoozedUntil > request.time.toMillis() &&
+          request.resource.data.snoozedUntil <= request.time.toMillis() + 604800000 &&
+          request.resource.data.snoozedBy == request.auth.uid;
+        // Delete: il proprio snooze o l'owner della nota
+        allow delete: if request.auth != null && (
+          uid == request.auth.uid ||
+          get(/databases/$(database)/documents/notes/$(noteId)).data.uid == request.auth.uid
+        );
+      }
+
       // ── Collaborators subcollection ─────────────────────────────────────────
       match /collaborators/{collabId} {
         // Owner e tutti i guest possono leggere (serve a updateNote() per check permessi)
