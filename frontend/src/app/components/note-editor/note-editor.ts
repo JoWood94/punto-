@@ -234,7 +234,12 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewInit, Af
           }
         }).afterClosed().toPromise();
         if (!confirmed) return;
-        await this.noteService.updateNote(this.savedNoteId, this.buildPayload(), { skipEncryption: true });
+        this.pendingOwnWrite = true;
+        try {
+          await this.noteService.updateNote(this.savedNoteId, this.buildPayload(), { skipEncryption: true });
+        } finally {
+          this.pendingOwnWrite = false;
+        }
       }
     }
 
@@ -1040,6 +1045,10 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewInit, Af
   private async performAutoSave() {
     this.autoSaveTimer = null;
     if (!this.savedNoteId) return;
+    // Anti-overwrite guard: se c'è un update remoto più recente del nostro stato,
+    // non sovrascrivere — l'owner dovrà ri-digitare gli ultimi 800ms di modifiche
+    // ma il lavoro del guest/collaboratore resta intatto (strategia conservativa MVP).
+    if (await this.checkRemoteOverwrite()) return;
     this.pendingOwnWrite = true;
     try {
       await this.noteService.updateNote(this.savedNoteId, this.buildPayload());
@@ -1049,6 +1058,23 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewInit, Af
     } finally {
       this.pendingOwnWrite = false;
     }
+  }
+
+  private async checkRemoteOverwrite(): Promise<boolean> {
+    if (!this.savedNoteId) return false;
+    // Ottimizzazione: skip il fresh read per note non condivise
+    if (!this.note.isShared && this.note.myRole !== 'guest') return false;
+    try {
+      const remoteAt = await this.noteService.getNoteUpdatedAt(this.savedNoteId);
+      if (remoteAt && remoteAt > this.lastSavedAt) {
+        console.warn('[anti-overwrite] bailing — remoteAt:', remoteAt, 'lastSavedAt:', this.lastSavedAt);
+        this.toast.show(this.translationService.instant('EDITOR.REMOTE_UPDATE_BAIL'), 5000);
+        return true;
+      }
+    } catch {
+      // Errore di rete: procedi con il save (meglio salvare che perdere le modifiche)
+    }
+    return false;
   }
 
   async handleClose() {
@@ -1079,10 +1105,10 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewInit, Af
 
   private startLiveSync() {
     if (!this.savedNoteId) return;
-    if (!(this.note.isShared || this.note.myRole === 'guest')) return;
     this.stopLiveSync();
-    this.startPermissionsSync();
-    this.startPresence(this.savedNoteId);
+
+    // watchNote sempre attivo — necessario per ricevere update dal guest anche su note
+    // che non erano ancora shared al momento dell'apertura (BF-GG fix).
     this.liveNoteUnsub = this.noteService.watchNote(this.savedNoteId, (data) => {
       // Guest kick: se siamo stati rimossi dai collaboratori, chiudi l'editor
       if (this.note.myRole === 'guest') {
@@ -1102,6 +1128,12 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewInit, Af
       if (!remoteAt || remoteAt <= this.lastSavedAt) return;
       this.applyRemoteUpdate(data);
     });
+
+    // Presence e permessi: solo per note condivise (ha senso solo in presenza di collaboratori)
+    if (this.note.isShared || this.note.myRole === 'guest') {
+      this.startPermissionsSync();
+      this.startPresence(this.savedNoteId);
+    }
   }
 
   private stopLiveSync() {

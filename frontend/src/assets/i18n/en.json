@@ -108,6 +108,7 @@
     "SNOOZE_CANCEL": "Cancel snooze",
     "SNOOZE_CANCEL_CONFIRM": "Tap again to cancel",
     "COMPLETED_REMINDER_TOAST": "completed the reminder",
+    "REMOTE_UPDATE_BAIL": "Remote changes received — reopen the note to sync",
     "FORMAT": {
       "BOLD": "Bold",
       "ITALIC": "Italic",

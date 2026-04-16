@@ -386,6 +386,13 @@ export class NoteService {
     }, () => {});
   }
 
+  /** Legge updatedAt dal server per il check anti-overwrite. */
+  async getNoteUpdatedAt(noteId: string): Promise<number | null> {
+    const noteRef = doc(this.db, `notes/${noteId}`);
+    const snap = await getDocFromServer(noteRef);
+    return snap.exists() ? (snap.data()?.['updatedAt'] ?? null) : null;
+  }
+
   async saveEncryptionKeys(publicKey: string, encryptedPrivateKey: string): Promise<number> {
     const uid = this.authService.getCurrentUserId();
     if (!uid) throw new Error('saveEncryptionKeys: utente non autenticato');

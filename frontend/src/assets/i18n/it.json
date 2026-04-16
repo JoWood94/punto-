@@ -108,6 +108,7 @@
     "SNOOZE_CANCEL": "Annulla snooze",
     "SNOOZE_CANCEL_CONFIRM": "Tocca ancora per annullare",
     "COMPLETED_REMINDER_TOAST": "ha completato il promemoria",
+    "REMOTE_UPDATE_BAIL": "Modifiche remote ricevute — riapri la nota per sincronizzare",
     "FORMAT": {
       "BOLD": "Grassetto",
       "ITALIC": "Corsivo",
