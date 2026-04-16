@@ -13,6 +13,10 @@
       ],
       "headers": [
         {
+          "source": "/index.html",
+          "headers": [{ "key": "Cache-Control", "value": "no-cache" }]
+        },
+        {
           "source": "/ngsw.json",
           "headers": [{ "key": "Cache-Control", "value": "no-store" }]
         },
@@ -41,6 +45,10 @@
         "**/node_modules/**"
       ],
       "headers": [
+        {
+          "source": "/index.html",
+          "headers": [{ "key": "Cache-Control", "value": "no-cache" }]
+        },
         {
           "source": "/ngsw.json",
           "headers": [{ "key": "Cache-Control", "value": "no-store" }]
