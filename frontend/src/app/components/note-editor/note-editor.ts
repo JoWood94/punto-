@@ -1045,10 +1045,6 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewInit, Af
   private async performAutoSave() {
     this.autoSaveTimer = null;
     if (!this.savedNoteId) return;
-    // Anti-overwrite guard: se c'è un update remoto più recente del nostro stato,
-    // non sovrascrivere — l'owner dovrà ri-digitare gli ultimi 800ms di modifiche
-    // ma il lavoro del guest/collaboratore resta intatto (strategia conservativa MVP).
-    if (await this.checkRemoteOverwrite()) return;
     this.pendingOwnWrite = true;
     try {
       await this.noteService.updateNote(this.savedNoteId, this.buildPayload());
@@ -1060,23 +1056,6 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewInit, Af
     }
   }
 
-  private async checkRemoteOverwrite(): Promise<boolean> {
-    if (!this.savedNoteId) return false;
-    // Ottimizzazione: skip il fresh read per note non condivise
-    if (!this.note.isShared && this.note.myRole !== 'guest') return false;
-    try {
-      const remoteAt = await this.noteService.getNoteUpdatedAt(this.savedNoteId);
-      if (remoteAt && remoteAt > this.lastSavedAt) {
-        console.warn('[anti-overwrite] bailing — remoteAt:', remoteAt, 'lastSavedAt:', this.lastSavedAt);
-        this.toast.show(this.translationService.instant('EDITOR.REMOTE_UPDATE_BAIL'), 5000);
-        return true;
-      }
-    } catch {
-      // Errore di rete: procedi con il save (meglio salvare che perdere le modifiche)
-    }
-    return false;
-  }
-
   async handleClose() {
     clearTimeout(this.autoSaveTimer);
     // Attendi che la createNote sia completata (evita note orfane se l'utente chiude troppo in fretta)
@@ -1084,8 +1063,19 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewInit, Af
     if (this.isNewNote && this.savedNoteId && this.isPristine()) {
       // Nuova nota senza contenuto reale → cancella
       try { await this.noteService.deleteNote(this.savedNoteId); } catch { /* ignora */ }
-    } else if (this.savedNoteId) {
-      // Salva eventuali modifiche pendenti
+    } else if (this.savedNoteId && this.userHasModifiedContent) {
+      // L2: salva solo se l'owner ha effettivamente modificato qualcosa —
+      // evita di sovrascrivere con stato stale se la nota era condivisa runtime (BF-GG).
+      // L3: fresh read prima del save — se il remote è più aggiornato del nostro stato,
+      // non sovrascrivere (un solo read per sessione, non per keystroke).
+      try {
+        const remoteAt = await this.noteService.getNoteUpdatedAt(this.savedNoteId);
+        if (remoteAt && remoteAt > this.lastSavedAt) {
+          console.warn('[anti-overwrite] handleClose bail — remoteAt:', remoteAt, 'lastSavedAt:', this.lastSavedAt);
+          this.closeEditor.emit(this.note?.blocks?.some(b => b.type === 'reminder') ?? false);
+          return;
+        }
+      } catch { /* errore di rete: procedi con il save */ }
       await this.performAutoSave();
     }
     this.closeEditor.emit(this.note?.blocks?.some(b => b.type === 'reminder') ?? false);
