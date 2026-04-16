@@ -35,6 +35,8 @@ export interface ReminderBlock {
   recurrence: 'none' | 'daily' | 'weekly' | 'monthly' | 'yearly';
   recurrenceEndDate?: number | null;
   status: 'pending' | 'sent' | 'completed' | null;
+  completedAt?: number;   // FE-01: timestamp completamento (opzionale B)
+  completedBy?: string;   // FE-01: uid di chi ha completato
 }
 
 export interface ImageBlock {
@@ -748,6 +750,31 @@ export class NoteService {
       });
       callback(active);
     }, () => callback([]));
+  }
+
+  // ─── Snooze per-user (FE-01 fase 6.4) ───────────────────────────────────────
+
+  /** Scrive o cancella lo snooze per-user. null = cancella.
+   *  Path: notes/{noteId}/reminderSnoozes/{uid} (coerente con rules + cron collectionGroup). */
+  async writeReminderSnooze(noteId: string, uid: string, snoozedUntil: number | null): Promise<void> {
+    const ref = doc(this.db, `notes/${noteId}/reminderSnoozes/${uid}`);
+    if (snoozedUntil === null) {
+      await deleteDoc(ref).catch(() => {});
+    } else {
+      await setDoc(ref, { snoozedUntil }, { merge: false });
+    }
+  }
+
+  /** Listener real-time sullo snooze dell'utente corrente. */
+  watchReminderSnooze(noteId: string, uid: string, callback: (snoozedUntil: number | null) => void): () => void {
+    const ref = doc(this.db, `notes/${noteId}/reminderSnoozes/${uid}`);
+    return onSnapshot(ref, snap => {
+      if (snap.exists()) {
+        callback((snap.data()?.['snoozedUntil'] as number) ?? null);
+      } else {
+        callback(null);
+      }
+    }, () => callback(null));
   }
 
   /** Cifra in batch le note esistenti dopo il setup E2E (migrazione). */

@@ -34,6 +34,7 @@ import { TranslateModule } from '@ngx-translate/core';
 import { TranslationService } from '../../services/translation';
 import { CryptoService } from '../../services/crypto';
 import { ToastService } from '../../services/toast';
+import { SnoozeSheetComponent } from '../snooze-sheet/snooze-sheet';
 // TODO: import Storage riabilitare con piano Firebase Storage
 // import { getStorage, ref as storageRef, uploadBytesResumable, getDownloadURL, deleteObject } from 'firebase/storage';
 // import { getApp } from 'firebase/app';
@@ -49,6 +50,7 @@ import { ToastService } from '../../services/toast';
     MatCheckboxModule, MatDatepickerModule, MatNativeDateModule,
     MatSelectModule, MatChipsModule, MatMenuModule, MatDialogModule,
     DragDropModule, TranslateModule,
+    SnoozeSheetComponent,
   ],
   templateUrl: './note-editor.html',
   styleUrls: ['./note-editor.scss']
@@ -138,6 +140,15 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewInit, Af
   private presenceEditing = false;
   private selfDisplayName: string | null = null;
 
+  // ─── Snooze per-user (FE-01) ──────────────────────────────────────────────
+  readonly snoozedUntil = signal<number | null>(null);
+  readonly showSnoozeSheet = signal(false);
+  snoozeConfirmPending = false; // true dopo primo tap su "Annulla snooze" (confirm-on-second-tap)
+  private snoozeUnsub: (() => void) | null = null;
+  private prevCompletedBy: string | null = null;
+  /** Cache uid→username per evitare fetch ripetuti nel completion toast. */
+  private readonly usernameCache = new Map<string, string>();
+
   get hasReminderBlock(): boolean {
     return this.note.blocks.some(b => b.type === 'reminder');
   }
@@ -154,6 +165,29 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewInit, Af
   get hasRecentCollabActivity(): boolean {
     const threshold = Date.now() - 5_000;
     return this.presenceUsers().some(u => (u.lastActivityAt ?? 0) > threshold);
+  }
+
+  /** True se l'utente corrente ha snoozato il reminder e il tempo non è ancora scaduto. */
+  get isSnoozed(): boolean {
+    const until = this.snoozedUntil();
+    return !!until && until > Date.now();
+  }
+
+  /** Etichetta formattata dello snooze attivo (es. "fino alle 10:00", "fino a domani"). */
+  get snoozeLabel(): string {
+    const until = this.snoozedUntil();
+    if (!until) return '';
+    const now = new Date();
+    const target = new Date(until);
+    const isToday = target.toDateString() === now.toDateString();
+    const tomorrow = new Date(now);
+    tomorrow.setDate(now.getDate() + 1);
+    const isTomorrow = target.toDateString() === tomorrow.toDateString();
+    const hhmm = target.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
+    if (isToday) return `${this.translationService.instant('EDITOR.SNOOZE_UNTIL')} ${hhmm}`;
+    if (isTomorrow) return `${this.translationService.instant('EDITOR.SNOOZE_UNTIL_TOMORROW')} ${hhmm}`;
+    const dateStr = target.toLocaleDateString('it-IT', { day: 'numeric', month: 'short' });
+    return `${this.translationService.instant('EDITOR.SNOOZE_UNTIL_DATE')} ${dateStr} ${hhmm}`;
   }
 
   get reminderBlock(): any | null {
@@ -353,6 +387,7 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewInit, Af
       this.lastSavedAt = this.selectedNote.updatedAt ?? 0;
       this.stopLiveSync();
       this.startLiveSync();
+      this.startSnoozeWatcher();
     } else {
       // Guard: ngOnInit + ngOnChanges chiamano entrambi initNote() al mount — evita doppia creazione
       if (this.isNewNote) return;
@@ -385,6 +420,7 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewInit, Af
           this.savedNoteId = result.id;
           (this.note as any).id = result.id;
           this.noteCreated.emit(result.id);
+          this.startSnoozeWatcher();
         })
         .catch(err => console.error('[AutoSave] createNote error:', err));
     }
@@ -1132,6 +1168,41 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewInit, Af
     this.noteService.writePresence(this.savedNoteId, uid, this.selfDisplayName, this.presenceEditing, Date.now());
   }
 
+  // ─── Snooze (FE-01) ─────────────────────────────────────────────────────────
+
+  async snoozeReminder(timestamp: number) {
+    const uid = this.authService.getCurrentUserId();
+    if (!uid || !this.savedNoteId) return;
+    this.showSnoozeSheet.set(false);
+    this.snoozedUntil.set(timestamp);
+    this.snoozeConfirmPending = false;
+    await this.noteService.writeReminderSnooze(this.savedNoteId, uid, timestamp).catch(() => {});
+  }
+
+  async cancelSnooze() {
+    if (!this.snoozeConfirmPending) {
+      // Primo tap: mostra messaggio di conferma
+      this.snoozeConfirmPending = true;
+      setTimeout(() => { this.snoozeConfirmPending = false; }, 3000);
+      return;
+    }
+    // Secondo tap: esegui
+    this.snoozeConfirmPending = false;
+    const uid = this.authService.getCurrentUserId();
+    if (!uid || !this.savedNoteId) return;
+    this.snoozedUntil.set(null);
+    await this.noteService.writeReminderSnooze(this.savedNoteId, uid, null).catch(() => {});
+  }
+
+  private startSnoozeWatcher() {
+    const uid = this.authService.getCurrentUserId();
+    if (!uid || !this.savedNoteId) return;
+    this.snoozeUnsub?.();
+    this.snoozeUnsub = this.noteService.watchReminderSnooze(this.savedNoteId, uid, (snoozedUntil) => {
+      this.snoozedUntil.set(snoozedUntil);
+    });
+  }
+
   /** Segnala che l'utente sta modificando: aggiorna isEditing:true, resetta dopo 3s di inattività. */
   notifyEditing() {
     if (!this.savedNoteId) return;
@@ -1195,6 +1266,33 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewInit, Af
         this.checkStalledEvasion(rb);
       }
     });
+    // Completion toast (FE-01 fase 6.5): se un collaboratore ha completato il reminder
+    const uid = this.authService.getCurrentUserId();
+    const newRb = blocks.find(b => b.type === 'reminder') as any;
+    const newCB: string | null = newRb?.completedBy ?? null;
+    if (newCB && newCB !== uid && newCB !== this.prevCompletedBy) {
+      const presenceName = this.presenceUsers().find(u => u.uid === newCB)?.displayName ?? null;
+      const resolveAndToast = async () => {
+        let displayName: string;
+        if (presenceName) {
+          displayName = presenceName;
+        } else if (this.usernameCache.has(newCB)) {
+          displayName = this.usernameCache.get(newCB)!;
+        } else {
+          const fetched = await this.noteService.getUsernameByUid(newCB);
+          displayName = fetched ?? newCB.slice(0, 8);
+          if (fetched) this.usernameCache.set(newCB, fetched);
+        }
+        this.toast.show(
+          `${displayName} ${this.translationService.instant('EDITOR.COMPLETED_REMINDER_TOAST')}`,
+          4500,
+          'info'
+        );
+      };
+      resolveAndToast();
+    }
+    this.prevCompletedBy = newCB;
+
     this.note = {
       ...this.note,
       title: data['title'] ?? this.note.title,
@@ -1213,6 +1311,7 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewInit, Af
   }
 
   ngOnDestroy() {
+    this.snoozeUnsub?.();
     this.stopLiveSync();
     // Forza sincronizzazione valore input titolo prima di salvare (fix: swipe-back senza blur)
     if (this.titleInputRef?.nativeElement) {

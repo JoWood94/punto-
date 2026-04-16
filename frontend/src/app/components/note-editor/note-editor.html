@@ -130,6 +130,22 @@
     <mat-icon class="undo-icon">undo</mat-icon>
   </button>
 
+  <!-- Snooze indicator -->
+  <button class="strip-badge strip-badge--snoozed strip-badge--clickable" type="button"
+          *ngIf="isSnoozed"
+          (click)="cancelSnooze()">
+    <mat-icon>snooze</mat-icon>
+    <span>{{ snoozeConfirmPending ? ('EDITOR.SNOOZE_CANCEL_CONFIRM' | translate) : snoozeLabel }}</span>
+  </button>
+
+  <!-- CTA: snooze -->
+  <button class="strip-cta strip-cta--snooze" type="button"
+          *ngIf="isReminderActionable(reminderBlock) && !isSnoozed"
+          (click)="showSnoozeSheet.set(true)">
+    <mat-icon>snooze</mat-icon>
+    {{ 'EDITOR.SNOOZE_LABEL' | translate }}
+  </button>
+
   <!-- CTA: evadi ricorrenza scaduta -->
   <button class="strip-cta" type="button"
           *ngIf="note?.id && isOverdueRecurring(reminderBlock)"
@@ -522,4 +538,13 @@
     @{{ presenceUsers()[0].displayName }}{{ presenceUsers().length > 1 ? ' +' + (presenceUsers().length - 1) : '' }}
   </span>
 </button>
+
+<!-- Snooze sheet (FE-01): si apre dal reminder-strip. Su mobile è un bottom-sheet, su desktop un popover. -->
+<div class="snooze-sheet-anchor" *ngIf="!!reminderBlock">
+  <app-snooze-sheet
+    [visible]="showSnoozeSheet()"
+    (presetSelected)="snoozeReminder($event)"
+    (dismissed)="showSnoozeSheet.set(false)">
+  </app-snooze-sheet>
+</div>
 

@@ -11,8 +11,10 @@ import { ToastService } from '../../services/toast';
       <div
         class="toast-pill"
         [class.toast-pill--leaving]="t.leaving"
+        [class.toast-pill--info]="t.type === 'info'"
         *ngFor="let t of toastService.toasts(); trackBy: trackById"
         (click)="toastService.startDismiss(t.id)">
+        <span *ngIf="t.type === 'info'" class="toast-dot"></span>
         {{ t.message }}
       </div>
     </div>
@@ -53,6 +55,20 @@ import { ToastService } from '../../services/toast';
 
     .toast-pill--leaving {
       animation: toastOut 180ms cubic-bezier(0.4, 0, 1, 1) both;
+    }
+
+    .toast-pill--info {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .toast-dot {
+      flex-shrink: 0;
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: rgba(255, 251, 254, 0.55);
     }
 
     @keyframes toastIn {

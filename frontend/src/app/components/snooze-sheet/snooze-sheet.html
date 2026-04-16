@@ -1,0 +1,18 @@
+<ng-container *ngIf="visible">
+  <!-- Scrim (mobile only) -->
+  <div class="snooze-scrim" (click)="dismiss()"></div>
+
+  <!-- Sheet panel -->
+  <div class="snooze-panel" role="dialog" [attr.aria-label]="'EDITOR.SNOOZE_LABEL' | translate">
+    <div class="snooze-handle"></div>
+
+    <button
+      *ngFor="let preset of presets"
+      class="snooze-row"
+      type="button"
+      (click)="select(preset)">
+      <mat-icon class="snooze-row-icon">snooze</mat-icon>
+      <span class="snooze-row-label">{{ preset.labelKey | translate }}</span>
+    </button>
+  </div>
+</ng-container>
