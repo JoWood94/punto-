@@ -31,6 +31,7 @@ import { TranslationService } from '../../services/translation';
 import { Observable, Subscription, firstValueFrom, skip } from 'rxjs';
 import { Location } from '@angular/common';
 import { PushNotificationService } from '../../services/push-notification';
+import { NotifyService } from '../../services/notify';
 import { BreakpointObserver, Breakpoints } from '@angular/cdk/layout';
 import { SwUpdate } from '@angular/service-worker';
 import { environment } from '../../../environments/environment';
@@ -70,6 +71,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
   private toast = inject(ToastService);
   translationService = inject(TranslationService);
   private cryptoService: CryptoService = inject(CryptoService);
+  private notifyService: NotifyService = inject(NotifyService);
 @ViewChild('sidenav') sidenav!: MatSidenav;
   /** Riferimento all'editor attivo — usato dalla mobile toolbar in dashboard.html */
   @ViewChild('noteEditor') noteEditorComp?: NoteEditorComponent;
@@ -702,6 +704,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
         update.completionNotifyAt = Date.now();
       }
       await this.noteService.updateNote(note.id, update);
+      if (isShared) this.notifyService.completionRealtime(note.id);
     } catch (e: any) {
       console.error('Errore evadi:', e.message);
     }

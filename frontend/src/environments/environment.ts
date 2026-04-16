@@ -2,6 +2,7 @@ export const environment = {
   appVersion: '5.0.0',
   production: true,
   canonicalUrl: 'https://punto-84646.web.app',
+  notifyUrl: '', // val.town HTTP val URL per push real-time (vuoto = solo cron fallback)
   firebase: {
     apiKey: "AIzaSyDqf9hfsOCbZf_e3wo8lCagMoeUifJChPw",
     authDomain: "punto-84646.firebaseapp.com",

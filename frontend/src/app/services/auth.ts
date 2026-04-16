@@ -57,4 +57,10 @@ export class AuthService {
   getCurrentUserId(): string | null {
     return this.auth.currentUser?.uid || null;
   }
+
+  async getIdToken(): Promise<string | null> {
+    const user = this.auth.currentUser;
+    if (!user) return null;
+    return user.getIdToken();
+  }
 }

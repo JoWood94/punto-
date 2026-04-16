@@ -34,6 +34,7 @@ import { TranslateModule } from '@ngx-translate/core';
 import { TranslationService } from '../../services/translation';
 import { CryptoService } from '../../services/crypto';
 import { ToastService } from '../../services/toast';
+import { NotifyService } from '../../services/notify';
 import { SnoozeSheetComponent } from '../snooze-sheet/snooze-sheet';
 // TODO: import Storage riabilitare con piano Firebase Storage
 // import { getStorage, ref as storageRef, uploadBytesResumable, getDownloadURL, deleteObject } from 'firebase/storage';
@@ -108,6 +109,7 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewInit, Af
   private dialog = inject(MatDialog);
   translationService = inject(TranslationService);
   private toast = inject(ToastService);
+  private notifyService = inject(NotifyService);
 
   /** Set to true whenever the blocks array changes and text blocks need HTML re-init. */
   private textBlocksNeedInit = false;
@@ -1064,9 +1066,11 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewInit, Af
     this.autoSaveTimer = null;
     if (!this.savedNoteId) return;
     this.pendingOwnWrite = true;
+    const willNotifyCompletion = this.completionNotifyPendingFlag;
     try {
       await this.noteService.updateNote(this.savedNoteId, this.buildPayload());
       this.lastSavedAt = Date.now();
+      if (willNotifyCompletion) this.notifyService.completionRealtime(this.savedNoteId);
     } catch (err) {
       console.error('[AutoSave] updateNote error:', err);
     } finally {
