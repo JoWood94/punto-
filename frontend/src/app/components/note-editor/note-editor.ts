@@ -1173,7 +1173,7 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewInit, Af
     };
     this.lastSavedAt = data['updatedAt'];
     this.textBlocksNeedInit = true;
-    // Indicatore sync: cloud (600ms) → spunta (1.5s) → nascosto
+    // Indicatore sync: sync-spinner (600ms) → spunta (1.5s) → nascosto
     clearTimeout(this.syncStateTimer);
     this.syncState.set('syncing');
     this.syncStateTimer = setTimeout(() => {

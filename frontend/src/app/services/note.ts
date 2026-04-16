@@ -534,9 +534,10 @@ export class NoteService {
   /** Listener real-time sulla subcollection collaboratori. */
   watchCollaborators(noteId: string, callback: (collabs: Collaborator[]) => void): () => void {
     const ref = collection(this.db, `notes/${noteId}/collaborators`);
-    return onSnapshot(ref, snap => {
-      callback(snap.docs.map(d => d.data() as Collaborator));
-    }, () => {});
+    return onSnapshot(ref,
+      snap => callback(snap.docs.map(d => d.data() as Collaborator)),
+      (err) => console.error('[watchCollaborators] snapshot error', noteId, err)
+    );
   }
 
   /** Genera un token invito sicuro (20 char alfanumerici) e lo scrive in invites/{token}. Scade dopo 7 giorni. */

@@ -11,6 +11,7 @@ frontend/.angular/
 server/serviceAccountKey.json
 server/.env
 .firebase/
+backups/
 firebase-debug.log
 firestore-debug.log
 *-firebase-adminsdk-*.json

@@ -210,8 +210,8 @@
         </ng-container>
       </div>
 
-      <!-- Floating toolbar Note / Promemoria (solo desktop) -->
-      <div class="list-mode-toolbar" *ngIf="!isMobile">
+      <!-- Floating toolbar Note / Promemoria (solo desktop >=1280px) -->
+      <div class="list-mode-toolbar" *ngIf="isWideDesktop">
         <div class="lmt-pill">
           <button class="lmt-btn" type="button"
                   [class.lmt-btn--active]="activeView === 'notes'"
@@ -348,9 +348,9 @@
   </button>
 </div>
 
-<!-- Unified nav toolbar mobile: Note / Promemoria / Calendario -->
+<!-- Unified nav toolbar — mobile e tablet (<1280px): Note / Promemoria / Calendario -->
 <div class="unified-toolbar"
-     *ngIf="isMobile && activeNote === undefined"
+     *ngIf="!isWideDesktop && activeNote === undefined"
      (touchstart)="onNavTouchStart($event)"
      (touchmove)="onNavTouchMove($event)"
      (touchend)="onNavTouchEnd($event)">

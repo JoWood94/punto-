@@ -80,6 +80,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
   activeNote?: Note | null = undefined;
   editorLeaving = false;   // trigger animazione uscita editor mobile
   isMobile = false;
+  isWideDesktop = false;  // >=1280px: sidenav sempre aperta, no unified-toolbar
   currentMainView: 'list' | 'calendar' = 'calendar';
   activeView: 'notes' | 'reminders' = 'notes';
   private viewAutoSelected = false;
@@ -141,6 +142,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   async ngOnInit() {
     this.isMobile = this.breakpointObserver.isMatched([Breakpoints.Handset]);
+    this.isWideDesktop = this.breakpointObserver.isMatched(['(min-width: 1280px)']);
     this.checkMobile();
 
     if (this.swUpdate.isEnabled) {
@@ -358,6 +360,9 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.breakpointObserver.observe([Breakpoints.Handset]).subscribe(result => {
       this.isMobile = result.matches;
     });
+    this.breakpointObserver.observe(['(min-width: 1280px)']).subscribe(result => {
+      this.isWideDesktop = result.matches;
+    });
   }
 
   private armDeepLinkTimeout() {
@@ -437,6 +442,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
       const res = await fetch(base + 'version.json?_=' + Date.now());
       if (!res.ok) return;
       const data = await res.json();
+      console.log('[checkAppVersion] server=', data.version, 'client=', environment.appVersion);
       if (data.version && data.version !== environment.appVersion) {
         // Mismatch rilevata: il server ha una versione più recente del bundle in memoria.
         //
@@ -455,8 +461,8 @@ export class DashboardComponent implements OnInit, OnDestroy {
           ref.afterClosed().subscribe(() => { this.updatePending = true; });
         }
       }
-    } catch {
-      // Offline o errore di rete: ignora silenziosamente
+    } catch (e) {
+      console.warn('[checkAppVersion] error', e);
     }
   }
 
