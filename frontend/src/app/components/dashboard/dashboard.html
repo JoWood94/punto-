@@ -304,7 +304,7 @@
     <div class="editor-wrapper editor-enter" *ngIf="activeNote !== undefined"
          [class.editor-leaving]="editorLeaving">
       <app-note-editor #noteEditor [selectedNote]="activeNote" [initialReminderDate]="newNoteCalendarDate"
-                       (closeEditor)="closeEditor()"
+                       (closeEditor)="closeEditor($event)"
                        (noteCreated)="onNoteCreated($event)"
                        (noteLiveUpdate)="onNoteLiveUpdate($event)">
       </app-note-editor>

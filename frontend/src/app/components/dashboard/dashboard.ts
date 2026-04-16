@@ -966,10 +966,24 @@ export class DashboardComponent implements OnInit, OnDestroy {
     if (note) this.selectNote(note);
   }
 
-  closeEditor() { this.deactivateNote(); }
+  closeEditor(hasReminder = false) {
+    this.syncViewToNoteType(hasReminder);
+    this.deactivateNote();
+  }
   handleBackButton() {
-    if (this.activeNote !== undefined) this.deactivateNote();
-    else this.currentMainView = 'list';
+    if (this.activeNote !== undefined) {
+      const hasReminder = this.noteEditorComp?.note?.blocks?.some(b => b.type === 'reminder') ?? false;
+      this.syncViewToNoteType(hasReminder);
+      this.deactivateNote();
+    } else {
+      this.currentMainView = 'list';
+    }
+  }
+
+  private syncViewToNoteType(hasReminder: boolean) {
+    const view = hasReminder ? 'reminders' : 'notes';
+    this.activeView = view;
+    if (this.isMobile) this.setMobileNav(view);
   }
 
   private deactivateNote() {

@@ -58,7 +58,7 @@ import { SnoozeSheetComponent } from '../snooze-sheet/snooze-sheet';
 export class NoteEditorComponent implements OnInit, OnChanges, AfterViewInit, AfterViewChecked, OnDestroy {
   @Input() selectedNote: Note | null = null;
   @Input() initialReminderDate?: Date;
-  @Output() closeEditor = new EventEmitter<void>();
+  @Output() closeEditor = new EventEmitter<boolean>();
   @Output() noteCreated = new EventEmitter<string>();
   @Output() noteLiveUpdate = new EventEmitter<{id: string, title: string}>();
 
@@ -250,7 +250,7 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewInit, Af
     ref.afterClosed().subscribe((result) => {
       if (result?.left) {
         this.stopLiveSync();
-        this.closeEditor.emit();
+        this.closeEditor.emit(this.note?.blocks?.some(b => b.type === 'reminder') ?? false);
       }
     });
   }
@@ -1062,7 +1062,7 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewInit, Af
       // Salva eventuali modifiche pendenti
       await this.performAutoSave();
     }
-    this.closeEditor.emit();
+    this.closeEditor.emit(this.note?.blocks?.some(b => b.type === 'reminder') ?? false);
   }
 
   onTitleChange() {
@@ -1092,7 +1092,7 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewInit, Af
           this.stopLiveSync();
           this.ngZone.run(() => {
             this.toast.show(this.translationService.instant('SHARING.REMOVED_FROM_NOTE'));
-            this.closeEditor.emit();
+            this.closeEditor.emit(this.note?.blocks?.some(b => b.type === 'reminder') ?? false);
           });
           return;
         }
