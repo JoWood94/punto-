@@ -177,7 +177,7 @@
   <!-- ── Block list with drag-and-drop ── -->
   <div cdkDropList (cdkDropListDropped)="onBlockDrop($event)" class="blocks-container">
 
-    <ng-container *ngFor="let block of note.blocks; let i = index">
+    <ng-container *ngFor="let block of note.blocks; let i = index; trackBy: trackBlock">
     <div *ngIf="block.type !== 'reminder'"
          cdkDrag class="block-item" [ngClass]="'block-type-' + block.type">
 

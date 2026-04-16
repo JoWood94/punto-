@@ -109,6 +109,9 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewInit, Af
 
   /** Set to true whenever the blocks array changes and text blocks need HTML re-init. */
   private textBlocksNeedInit = false;
+  /** True while own performAutoSave is in-flight — prevents Firestore's local pending-write
+   *  snapshot from triggering applyRemoteUpdate before lastSavedAt is updated. */
+  private pendingOwnWrite = false;
   /** Block index to focus after next DOM init (used to open keyboard on new text block). */
   private pendingFocusBlockIndex: number | null = null;
   /** Set to true when a new note is created — focuses the title input after DOM init. */
@@ -544,6 +547,12 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewInit, Af
 
   canRemoveBlock(_index: number): boolean {
     return true;
+  }
+
+  // TODO: sostituire con block.id stabile (uuid generato alla creazione) per gestire
+  // correttamente riordino e cancellazione senza re-mount dei nodi non coinvolti.
+  trackBlock(index: number, _block: NoteBlock): number {
+    return index;
   }
 
   onBlockDrop(event: CdkDragDrop<NoteBlock[]>) {
@@ -995,11 +1004,14 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewInit, Af
   private async performAutoSave() {
     this.autoSaveTimer = null;
     if (!this.savedNoteId) return;
+    this.pendingOwnWrite = true;
     try {
       await this.noteService.updateNote(this.savedNoteId, this.buildPayload());
       this.lastSavedAt = Date.now();
     } catch (err) {
       console.error('[AutoSave] updateNote error:', err);
+    } finally {
+      this.pendingOwnWrite = false;
     }
   }
 
@@ -1049,7 +1061,7 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewInit, Af
           return;
         }
       }
-      if (this.autoSaveTimer !== null) return; // utente sta modificando
+      if (this.autoSaveTimer !== null || this.pendingOwnWrite) return; // utente sta modificando o scrittura in volo
       const remoteAt = data['updatedAt'] as number | undefined;
       if (!remoteAt || remoteAt <= this.lastSavedAt) return;
       this.applyRemoteUpdate(data);
