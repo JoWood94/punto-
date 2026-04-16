@@ -6,7 +6,7 @@ import { CommonModule } from '@angular/common';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
-import { Note, getNotePreview } from '../../services/note';
+import { Note, getNotePreview, getReminderTime, hasReminder as noteHasReminder, getNoteRecurrence, getRecurrenceEndDate } from '../../services/note';
 import { inject } from '@angular/core';
 import { TranslateModule } from '@ngx-translate/core';
 import { TranslationService } from '../../services/translation';
@@ -289,11 +289,11 @@ export class CalendarViewComponent implements OnChanges, OnInit, AfterViewInit {
   }
 
   hasReminder(note: Note): boolean {
-    return !!note.reminderTime;
+    return noteHasReminder(note);
   }
 
   dayHasReminder(day: CalendarDay): boolean {
-    return day.notes.some(n => !!n.reminderTime);
+    return day.notes.some(n => noteHasReminder(n));
   }
 
   hasReminderRepeat(note: Note): boolean {
@@ -302,30 +302,35 @@ export class CalendarViewComponent implements OnChanges, OnInit, AfterViewInit {
 
   getNotePreview(note: Note): string { return getNotePreview(note); }
 
+  getNoteReminderTime(note: Note): number | null { return getReminderTime(note); }
+
   private getNoteDate(note: Note): Date | null {
-    if (note.reminderTime) return new Date(note.reminderTime);
-    if (note.createdAt)    return new Date(note.createdAt);
+    const rt = getReminderTime(note);
+    if (rt) return new Date(rt);
+    if (note.createdAt) return new Date(note.createdAt);
     return null;
   }
 
-  /** Restituisce il valore di ricorrenza effettivo: preferisce reminderRepeat (nuovo),
-   *  cade su recurrence (legacy) se presente e diverso da 'none'. */
+  /** Restituisce il valore di ricorrenza effettivo: preferisce blocks (RF-01b),
+   *  cade su reminderRepeat, poi su recurrence (legacy). */
   private getEffectiveRepeat(note: Note): 'daily' | 'weekly' | 'monthly' | 'yearly' | null {
-    if (note.reminderRepeat) return note.reminderRepeat;
-    if (note.recurrence && note.recurrence !== 'none') return note.recurrence as 'daily' | 'weekly' | 'monthly' | 'yearly';
+    const rec = getNoteRecurrence(note);
+    if (rec && rec !== 'none') return rec as 'daily' | 'weekly' | 'monthly' | 'yearly';
     return null;
   }
 
   private isRecurringOnDate(note: Note, date: Date): boolean {
     const repeat = this.getEffectiveRepeat(note);
-    if (!repeat || !note.reminderTime) return false;
-    const origin = new Date(note.reminderTime);
+    const rt = getReminderTime(note);
+    if (!repeat || !rt) return false;
+    const origin = new Date(rt);
     // La data richiesta deve essere successiva all'origin (o uguale)
     if (date < origin && !this.isSameDay(date, origin)) return false;
     // Rispetta la data di fine ripetizione (confronto a livello di giorno:
     // la data di fine è mezzanotte, ma date può avere ore > 0 nelle viste settimana/giorno)
-    if (note.recurrenceEndDate) {
-      const endDay = new Date(note.recurrenceEndDate);
+    const endDate = getRecurrenceEndDate(note);
+    if (endDate) {
+      const endDay = new Date(endDate);
       const dateDay = new Date(date.getFullYear(), date.getMonth(), date.getDate());
       const endDayMidnight = new Date(endDay.getFullYear(), endDay.getMonth(), endDay.getDate());
       if (dateDay.getTime() > endDayMidnight.getTime()) return false;
@@ -350,7 +355,8 @@ export class CalendarViewComponent implements OnChanges, OnInit, AfterViewInit {
       if (d && this.isSameDay(d, date)) return true;
       // Includi note ricorrenti (la nota originale, non una copia)
       const repeat = this.getEffectiveRepeat(n);
-      if (repeat && n.reminderTime && !this.isSameDay(new Date(n.reminderTime), date)) {
+      const rt = getReminderTime(n);
+      if (repeat && rt && !this.isSameDay(new Date(rt), date)) {
         return this.isRecurringOnDate(n, date);
       }
       return false;

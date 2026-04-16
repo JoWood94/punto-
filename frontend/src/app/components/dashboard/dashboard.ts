@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, ActivatedRoute } from '@angular/router';
 import { AuthService } from '../../services/auth';
-import { NoteService, Note, getNotePreview, getChecklistProgress } from '../../services/note';
+import { NoteService, Note, getNotePreview, getChecklistProgress, hasReminder, getReminderTime, getReminderStatus, getNoteRecurrence, isRecurringNote } from '../../services/note';
 import { CryptoService } from '../../services/crypto';
 import { MatToolbarModule } from '@angular/material/toolbar';
 import { MatIconModule } from '@angular/material/icon';
@@ -501,12 +501,10 @@ export class DashboardComponent implements OnInit, OnDestroy {
   isEvadedSectionExpanded = true;
   isSharedWithMeSectionExpanded = true;
 
-  private isRecurring(n: Note): boolean { return !!(n.recurrence && n.recurrence !== 'none'); }
-
   get calendarNotes(): Note[] {
     return this.calendarShowAllNotes
       ? this.allNotes
-      : this.allNotes.filter(n => !!n.reminderTime);
+      : this.allNotes.filter(n => hasReminder(n));
   }
 
   get searchPlaceholder(): string {
@@ -519,23 +517,23 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   // ─── Vista NOTE: solo note senza reminder e senza ricorrenza ─
   get pinnedNotes(): Note[] {
-    return this.filteredNotes.filter(n => n.pinned && !n.reminderTime && !this.isRecurring(n) && n.myRole !== 'guest');
+    return this.filteredNotes.filter(n => n.pinned && !hasReminder(n) && !isRecurringNote(n) && n.myRole !== 'guest');
   }
   get plainNotes(): Note[] {
-    return this.filteredNotes.filter(n => !n.pinned && !n.reminderTime && !this.isRecurring(n) && n.myRole !== 'guest');
+    return this.filteredNotes.filter(n => !n.pinned && !hasReminder(n) && !isRecurringNote(n) && n.myRole !== 'guest');
   }
 
   // ─── Vista PROMEMORIA ─────────────────────────────────────────
   get activeReminderNotes(): Note[] {
     return this.filteredNotes.filter(n =>
-      !!n.reminderTime && n.reminderStatus !== 'completed' && !this.isRecurring(n) && n.myRole !== 'guest'
+      hasReminder(n) && getReminderStatus(n) !== 'completed' && !isRecurringNote(n) && n.myRole !== 'guest'
     );
   }
   get recurringReminderNotes(): Note[] {
-    return this.filteredNotes.filter(n => this.isRecurring(n) && n.myRole !== 'guest');
+    return this.filteredNotes.filter(n => isRecurringNote(n) && n.myRole !== 'guest');
   }
   get evadedNotes(): Note[] {
-    return this.filteredNotes.filter(n => n.reminderStatus === 'completed' && n.myRole !== 'guest');
+    return this.filteredNotes.filter(n => getReminderStatus(n) === 'completed' && n.myRole !== 'guest');
   }
 
   // ─── Condivise con me ─────────────────────────────────────────
@@ -643,9 +641,10 @@ export class DashboardComponent implements OnInit, OnDestroy {
   }
 
   getReminderTimeToday(note: Note): string | null {
-    if (!note.reminderTime) return null;
+    const time = getReminderTime(note);
+    if (!time) return null;
     const today = new Date();
-    const rem = new Date(note.reminderTime);
+    const rem = new Date(time);
     if (rem.getFullYear() === today.getFullYear() &&
         rem.getMonth() === today.getMonth() &&
         rem.getDate() === today.getDate()) {
@@ -655,11 +654,13 @@ export class DashboardComponent implements OnInit, OnDestroy {
   }
 
   formatNextOccurrence(note: Note): string {
-    if (!note.reminderTime || !note.recurrence || note.recurrence === 'none') return '';
+    const time = getReminderTime(note);
+    const recurrence = getNoteRecurrence(note);
+    if (!time || recurrence === 'none') return '';
     const locale = this.translationService.locale;
-    const d = new Date(note.reminderTime);
+    const d = new Date(time);
     const timeStr = d.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' });
-    if (note.recurrence === 'daily') {
+    if (recurrence === 'daily') {
       const day = d.toLocaleDateString(locale, { weekday: 'short' });
       return `${day.charAt(0).toUpperCase() + day.slice(1)} ${timeStr}`;
     }
@@ -667,6 +668,11 @@ export class DashboardComponent implements OnInit, OnDestroy {
     const mm = (d.getMonth() + 1).toString().padStart(2, '0');
     return `${dd}/${mm} ${timeStr}`;
   }
+
+  // ─── Template wrappers per helper reminder (template non può usare funzioni importate) ──
+  noteHasReminder(n: Note): boolean { return hasReminder(n); }
+  noteReminderStatus(n: Note): string | null { return getReminderStatus(n); }
+  noteIsRecurring(n: Note): boolean { return isRecurringNote(n); }
 
   /** Colore di sfondo della card nota — null → CSS default (secondary-container) */
   getNoteCardBg(note: Note): string | null {

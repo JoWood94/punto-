@@ -233,14 +233,14 @@
         <div class="note-card"
              (click)="selectNote(note)"
              [class.active-note]="activeNote?.id === note.id"
-             [class.note-card-reminder]="note.reminderTime"
+             [class.note-card-reminder]="noteHasReminder(note)"
              [style.background-color]="getNoteCardBg(note)">
 
           <div class="note-card-body">
             <div class="note-card-title-row">
-              <mat-icon class="note-card-bell" *ngIf="note.reminderStatus === 'completed'">task_alt</mat-icon>
-              <mat-icon class="note-card-bell" *ngIf="note.recurrence && note.recurrence !== 'none'">repeat</mat-icon>
-              <mat-icon class="note-card-bell" *ngIf="note.reminderTime && note.reminderStatus !== 'completed' && (!note.recurrence || note.recurrence === 'none')">notifications</mat-icon>
+              <mat-icon class="note-card-bell" *ngIf="noteReminderStatus(note) === 'completed'">task_alt</mat-icon>
+              <mat-icon class="note-card-bell" *ngIf="noteIsRecurring(note)">repeat</mat-icon>
+              <mat-icon class="note-card-bell" *ngIf="noteHasReminder(note) && noteReminderStatus(note) !== 'completed' && !noteIsRecurring(note)">notifications</mat-icon>
               <mat-icon class="note-card-bell note-card-shared--owned"
                         *ngIf="note.isShared && note.myRole !== 'guest'"
                         [attr.aria-label]="'SHARING.SHARED' | translate">group</mat-icon>
@@ -268,13 +268,13 @@
           </div>
 
           <div class="note-meta-actions">
-            <span class="note-card-time" *ngIf="note.recurrence && note.recurrence !== 'none' && note.reminderTime">{{ formatNextOccurrence(note) }}</span>
-            <ng-container *ngIf="!note.recurrence || note.recurrence === 'none'">
+            <span class="note-card-time" *ngIf="noteIsRecurring(note) && noteHasReminder(note)">{{ formatNextOccurrence(note) }}</span>
+            <ng-container *ngIf="!noteIsRecurring(note)">
               <span class="note-card-time" *ngIf="getReminderTimeToday(note) as t">{{ t }}</span>
             </ng-container>
             <!-- Evadi button: solo in vista Promemoria per note attive non ancora evase -->
             <button mat-icon-button
-                    *ngIf="activeView === 'reminders' && note.reminderTime && note.reminderStatus !== 'completed'"
+                    *ngIf="activeView === 'reminders' && noteHasReminder(note) && noteReminderStatus(note) !== 'completed'"
                     (click)="quickEvadi(note, $event)"
                     matTooltip="Evadi"
                     class="evadi-btn">
@@ -282,7 +282,7 @@
             </button>
             <!-- Pin button: nascosto nella vista Promemoria -->
             <button mat-icon-button
-                    *ngIf="!(activeView === 'reminders' && note.reminderTime)"
+                    *ngIf="!(activeView === 'reminders' && noteHasReminder(note))"
                     (click)="togglePin(note, $event)"
                     [matTooltip]="note.pinned ? ('NOTE.UNPIN' | translate) : ('NOTE.PIN' | translate)"
                     class="pin-btn"

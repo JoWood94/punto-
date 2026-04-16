@@ -105,7 +105,7 @@
               <mat-icon class="chip-repeat" *ngIf="!hasReminder(note) && hasReminderRepeat(note)">repeat</mat-icon>
               <span class="chip-title">{{ (note.title || 'Senza titolo') | slice:0:10 }}{{ (note.title || 'Senza titolo').length > 10 ? '…' : '' }}</span>
             </div>
-            <div class="chip-time" *ngIf="hasReminder(note) && formatTime(note.reminderTime)">{{ formatTime(note.reminderTime) }}</div>
+            <div class="chip-time" *ngIf="hasReminder(note) && formatTime(getNoteReminderTime(note))">{{ formatTime(getNoteReminderTime(note)) }}</div>
           </div>
           <div class="more-notes" *ngIf="isMobile && day.notes.length > 2">+{{ day.notes.length - 2 }}</div>
         </div>
@@ -124,7 +124,7 @@
         <div class="day-note-time">
           <mat-icon class="day-bell" *ngIf="hasReminder(note)">notifications</mat-icon>
           <mat-icon class="chip-repeat" *ngIf="hasReminderRepeat(note)">repeat</mat-icon>
-          <span>{{ formatTime(note.reminderTime) }}</span>
+          <span>{{ formatTime(getNoteReminderTime(note)) }}</span>
         </div>
         <div class="day-note-content">
           <div class="day-note-title">{{ note.title || 'Senza titolo' }}</div>

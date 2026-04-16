@@ -3,7 +3,8 @@ import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import {
   getFirestore, initializeFirestore, persistentLocalCache, persistentMultipleTabManager,
-  collection, doc, addDoc, updateDoc, deleteDoc, query, where, onSnapshot, getDoc, getDocFromServer, setDoc, writeBatch, arrayUnion, arrayRemove, getDocs, Firestore as RawFirestore
+  collection, doc, addDoc, updateDoc, deleteDoc, query, where, onSnapshot, getDoc, getDocFromServer, setDoc, writeBatch, arrayUnion, arrayRemove, getDocs, Firestore as RawFirestore,
+  DocumentReference, DocumentSnapshot
 } from 'firebase/firestore';
 import { Observable, of, switchMap, combineLatest, startWith, map } from 'rxjs';
 import { AuthService } from './auth';
@@ -104,6 +105,39 @@ export interface Note {
   isShared?: boolean;                        // computed: collaboratorUids?.length > 0
   myRole?: 'owner' | 'guest';               // set in getNotes()
   myPermissions?: CollaboratorPermissions;   // set in getNotes() for guests
+}
+
+// ─── Reminder helpers ─────────────────────────────────────────────────────────
+// Post-RF-01b: il reminder vive in blocks[] come ReminderBlock.
+// I flat field (reminderTime, reminderStatus, recurrence) sono @deprecated ma
+// restano come fallback per note legacy (pre-RF-01b).
+
+function findReminderBlock(n: any): any {
+  return (n.blocks as any[] | undefined)?.find((b: any) => b.type === 'reminder') ?? null;
+}
+
+export function getReminderTime(n: Note | any): number | null {
+  return findReminderBlock(n)?.time ?? n.reminderTime ?? null;
+}
+
+export function getReminderStatus(n: Note | any): string | null {
+  return findReminderBlock(n)?.status ?? n.reminderStatus ?? null;
+}
+
+export function getNoteRecurrence(n: Note | any): string {
+  return findReminderBlock(n)?.recurrence ?? n.recurrence ?? 'none';
+}
+
+export function getRecurrenceEndDate(n: Note | any): number | null {
+  return findReminderBlock(n)?.recurrenceEndDate ?? n.recurrenceEndDate ?? null;
+}
+
+export function hasReminder(n: Note | any): boolean {
+  return getReminderTime(n) !== null;
+}
+
+export function isRecurringNote(n: Note | any): boolean {
+  return getNoteRecurrence(n) !== 'none';
 }
 
 // ─── Utilities ────────────────────────────────────────────────────────────────
@@ -274,9 +308,9 @@ export class NoteService {
     if (!uid) throw new Error('Not authenticated');
 
     // Guard: se guest, verifica permessi da Firestore (non dalla cache locale)
-    const noteSnap = await getDoc(doc(this.db, `notes/${id}`));
+    const noteSnap = await this.freshOrCached(doc(this.db, `notes/${id}`));
     if (noteSnap.exists() && noteSnap.data()?.['uid'] !== uid) {
-      const collabSnap = await getDoc(doc(this.db, `notes/${id}/collaborators/${uid}`));
+      const collabSnap = await this.freshOrCached(doc(this.db, `notes/${id}/collaborators/${uid}`));
       const perms = collabSnap.exists() ? (collabSnap.data()?.['permissions'] ?? {}) : {};
       const reminderFields = new Set(['reminderTime', 'reminderStatus', 'recurrence', 'reminderRepeat', 'recurrenceEndDate']);
       const hasContentFields = Object.keys(data).some(k => !reminderFields.has(k) && k !== 'updatedAt');
@@ -307,7 +341,7 @@ export class NoteService {
     if (!uid) throw new Error('Not authenticated');
 
     // Guard: solo il proprietario può eliminare
-    const noteSnap = await getDoc(doc(this.db, `notes/${id}`));
+    const noteSnap = await this.freshOrCached(doc(this.db, `notes/${id}`));
     if (noteSnap.exists() && noteSnap.data()?.['uid'] !== uid) {
       throw new Error('Permission denied: only owner can delete');
     }
@@ -684,7 +718,7 @@ export class NoteService {
 
     // Ri-cifra se encryption attiva (la nota era in chiaro mentre condivisa)
     if (this.cryptoService.isEnabled) {
-      const noteSnap = await getDoc(doc(this.db, `notes/${noteId}`));
+      const noteSnap = await this.freshOrCached(doc(this.db, `notes/${noteId}`));
       if (noteSnap.exists()) {
         const raw = { id: noteSnap.id, ...noteSnap.data() } as any;
         const skipFields: (keyof Note)[] = this.notifTitleEnabled ? ['title'] : [];
@@ -800,5 +834,20 @@ export class NoteService {
       const encrypted = await this.cryptoService.encryptNote(raw);
       await updateDoc(doc(this.db, `notes/${d.id}`), encrypted as any);
     }));
+  }
+
+  /**
+   * Fresh read dal server per bypassare cache stale; fallback a cache se offline.
+   * Allineato a getUserDoc/getNoteUpdatedAt ma con graceful offline fallback
+   * per preservare offline-write capability (persistentLocalCache). Le rules
+   * lato server restano il backstop finale.
+   */
+  private async freshOrCached(ref: DocumentReference): Promise<DocumentSnapshot> {
+    try {
+      return await getDocFromServer(ref);
+    } catch (err) {
+      console.warn('[freshOrCached] server read failed, falling back to cache:', err);
+      return await getDoc(ref);
+    }
   }
 }
