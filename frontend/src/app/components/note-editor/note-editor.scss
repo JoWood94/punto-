@@ -1532,8 +1532,16 @@
     background var(--_t),
     border-color var(--_t);
 
-  @media (min-width: 480px) {
+  // Intermedio: forza CTA su riga propria, full-width
+  @media (min-width: 480px) and (max-width: 767.98px) {
+    flex: 0 0 100%;
+    width: 100%;
+  }
+
+  // Desktop: inline accanto alle righe controlli
+  @media (min-width: 768px) {
     width: auto;
+    flex: 0 0 auto;
   }
 
   mat-icon {
