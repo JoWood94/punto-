@@ -111,6 +111,9 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewInit, Af
 
   /** Set to true whenever the blocks array changes and text blocks need HTML re-init. */
   private textBlocksNeedInit = false;
+  private myUsername: string | null = null;
+  /** Set to true when markReminderCompleted fires on a shared note — buildPayload emits flags. */
+  private completionNotifyPendingFlag = false;
   /** True while own performAutoSave is in-flight — prevents Firestore's local pending-write
    *  snapshot from triggering applyRemoteUpdate before lastSavedAt is updated. */
   private pendingOwnWrite = false;
@@ -262,7 +265,10 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewInit, Af
 
   // ─── Lifecycle ─────────────────────────────────────────────────────────────
 
-  ngOnInit() { this.initNote(); }
+  ngOnInit() {
+    this.initNote();
+    this.noteService.getUsername().then(u => this.myUsername = u).catch(() => {});
+  }
   ngOnChanges(changes: SimpleChanges) { if (changes['selectedNote']) this.initNote(); }
 
   ngAfterViewInit() {
@@ -800,8 +806,10 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewInit, Af
 
   markReminderCompleted(block: any, wasOverdue = false): void {
     const recurrence = block.recurrence ?? 'none';
+    const isShared = !!(this.note.isShared || (this.note as any).collaboratorUids?.length);
     if (recurrence === 'none') {
       block.status = 'completed';
+      if (isShared) this.completionNotifyPendingFlag = true;
       this.triggerAutoSave();
     } else {
       // Usa i campi UI (date/hour/minute) come base, non block.time che potrebbe essere stale
@@ -819,6 +827,7 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewInit, Af
       if (block.recurrenceEndDate && nextTime > block.recurrenceEndDate) {
         block.status = 'completed';
         block.time = currentTime;
+        if (isShared) this.completionNotifyPendingFlag = true;
         this.triggerAutoSave();
         return;
       }
@@ -1019,6 +1028,15 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewInit, Af
     // Strip read-only ownership/sharing metadata — mai scrivibili dal client direttamente
     delete payload.uid; delete payload.id; delete payload.myRole;
     delete payload.myPermissions; delete payload.isShared; delete payload.collaboratorUids;
+    // Completion notify flags: emetti solo una tantum dopo markReminderCompleted su shared note
+    if (this.completionNotifyPendingFlag) {
+      const uid = this.authService.getCurrentUserId();
+      payload.completionNotifyPending = true;
+      payload.completionNotifyBy = uid;
+      payload.completionNotifyByName = this.myUsername || this.translationService.instant('SHARING.UNKNOWN_COLLABORATOR');
+      payload.completionNotifyAt = Date.now();
+      this.completionNotifyPendingFlag = false;
+    }
     Object.keys(payload).forEach(k => { if (payload[k] === undefined) payload[k] = null; });
     return payload;
   }

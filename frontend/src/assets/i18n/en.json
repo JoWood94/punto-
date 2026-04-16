@@ -227,7 +227,8 @@
     "LEAVING": "Leaving...",
     "GUEST_TITLE": "Shared note",
     "REMOTE_UPDATE": "Note updated by a collaborator",
-    "REMOVED_FROM_NOTE": "You have been removed from this note"
+    "REMOVED_FROM_NOTE": "You have been removed from this note",
+    "UNKNOWN_COLLABORATOR": "A collaborator"
   },
   "USERNAME": {
     "LABEL": "Username",

@@ -312,7 +312,8 @@ export class NoteService {
     if (noteSnap.exists() && noteSnap.data()?.['uid'] !== uid) {
       const collabSnap = await this.freshOrCached(doc(this.db, `notes/${id}/collaborators/${uid}`));
       const perms = collabSnap.exists() ? (collabSnap.data()?.['permissions'] ?? {}) : {};
-      const reminderFields = new Set(['reminderTime', 'reminderStatus', 'recurrence', 'reminderRepeat', 'recurrenceEndDate']);
+      const reminderFields = new Set(['reminderTime', 'reminderStatus', 'recurrence', 'reminderRepeat', 'recurrenceEndDate',
+        'completionNotifyPending', 'completionNotifyBy', 'completionNotifyByName', 'completionNotifyAt']);
       const hasContentFields = Object.keys(data).some(k => !reminderFields.has(k) && k !== 'updatedAt');
       const hasReminderFields = Object.keys(data).some(k => reminderFields.has(k));
       if (hasContentFields && !perms['editContent']) {

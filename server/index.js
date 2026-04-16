@@ -311,9 +311,145 @@ async function checkAndSendReminders() {
   }
 }
 
+const COMPLETION_STRINGS = {
+  it: {
+    title: 'punto! — Promemoria evaso',
+    body: (name) => `${name} ha evaso un promemoria condiviso`,
+  },
+  en: {
+    title: 'punto! — Reminder completed',
+    body: (name) => `${name} completed a shared reminder`,
+  },
+};
+
+async function checkAndSendCompletions() {
+  console.log(`[${new Date().toISOString()}] Controllo notifiche evasione condivisa...`);
+  const snap = await db.collection('notes')
+    .where('completionNotifyPending', '==', true)
+    .get();
+
+  if (snap.empty) {
+    console.log("Nessuna evasione da notificare.");
+    return;
+  }
+
+  const tokensCache = {};
+  const updates = [];
+  let sentCount = 0;
+
+  for (const doc of snap.docs) {
+    const note = doc.data();
+    const byUid = note.completionNotifyBy;
+    const byName = note.completionNotifyByName || 'A collaborator';
+    const ownerUid = note.uid;
+
+    // Recipients = owner + collaborators (escluso completatore)
+    const recipientUids = new Set([ownerUid, ...(note.collaboratorUids ?? [])]);
+    recipientUids.delete(byUid);
+
+    const resetPayload = {
+      completionNotifyPending: false,
+      completionNotifyBy: admin.firestore.FieldValue.delete(),
+      completionNotifyByName: admin.firestore.FieldValue.delete(),
+      completionNotifyAt: admin.firestore.FieldValue.delete(),
+    };
+
+    if (recipientUids.size === 0) {
+      updates.push(doc.ref.update(resetPayload));
+      continue;
+    }
+
+    const allUidTokenPairs = [];
+    for (const uid of recipientUids) {
+      if (!tokensCache[uid]) {
+        const userDoc = await db.collection('users').doc(uid).get();
+        const userData = userDoc.exists ? userDoc.data() : {};
+        tokensCache[uid] = {
+          tokens: userData.fcmTokens ?? [],
+          language: userData.language ?? 'it',
+        };
+      }
+      for (const t of tokensCache[uid].tokens) {
+        allUidTokenPairs.push({ uid, token: t, language: tokensCache[uid].language });
+      }
+    }
+
+    if (allUidTokenPairs.length === 0) {
+      updates.push(doc.ref.update(resetPayload));
+      continue;
+    }
+
+    // Raggruppa per lingua (body localizzato)
+    const byLanguage = {};
+    for (const p of allUidTokenPairs) {
+      const lang = p.language in COMPLETION_STRINGS ? p.language : 'it';
+      if (!byLanguage[lang]) byLanguage[lang] = [];
+      byLanguage[lang].push(p);
+    }
+
+    for (const [lang, pairs] of Object.entries(byLanguage)) {
+      const strings = COMPLETION_STRINGS[lang];
+      const title = strings.title;
+      const body = strings.body(byName);
+      const tokens = pairs.map(p => p.token);
+
+      try {
+        const resp = await messaging.sendEachForMulticast({
+          tokens,
+          webpush: {
+            notification: {
+              title,
+              body,
+              icon: '/icons/icon-192x192.png',
+              tag: `completion-${doc.id}`,
+              data: { noteId: doc.id, kind: 'completion' },
+            },
+            data: { title, body, noteId: doc.id, kind: 'completion' },
+          },
+        });
+        sentCount++;
+
+        const failedByUid = {};
+        resp.responses.forEach((r, idx) => {
+          if (!r.success) {
+            const err = r.error;
+            if (err.code === 'messaging/invalid-registration-token' ||
+                err.code === 'messaging/registration-token-not-registered') {
+              const failUid = pairs[idx].uid;
+              if (!failedByUid[failUid]) failedByUid[failUid] = [];
+              failedByUid[failUid].push(pairs[idx].token);
+            }
+          }
+        });
+        for (const [failUid, failTokens] of Object.entries(failedByUid)) {
+          await db.collection('users').doc(failUid).update({
+            fcmTokens: admin.firestore.FieldValue.arrayRemove(...failTokens),
+          });
+        }
+      } catch (e) {
+        console.error(`Failed completion notify for note ${doc.id} lang ${lang}:`, e.message);
+      }
+    }
+
+    updates.push(doc.ref.update(resetPayload));
+  }
+
+  await Promise.all(updates);
+  if (sentCount > 0) {
+    console.log(`Inviate ${sentCount} notifiche evasione.`);
+  } else {
+    console.log("Nessuna notifica evasione inviata in questo slot.");
+  }
+}
+
+async function runAll() {
+  await checkAndSendReminders();
+  await checkAndSendCompletions();
+}
+
 if (process.env.GITHUB_ACTIONS === 'true') {
   console.log("Ambiente GitHub Actions rilevato...");
-  checkAndSendReminders().then(() => {
+  runAll().then(() => {
     console.log("Run GHA terminato correttamente.");
     process.exit(0);
   }).catch(err => {
@@ -322,5 +458,5 @@ if (process.env.GITHUB_ACTIONS === 'true') {
   });
 } else {
   console.log("Avvio del server di test locale 24/7. Cron job ogni minuto...");
-  cron.schedule('* * * * *', checkAndSendReminders);
+  cron.schedule('* * * * *', runAll);
 }

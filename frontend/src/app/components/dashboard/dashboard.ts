@@ -75,6 +75,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
   @ViewChild('noteEditor') noteEditorComp?: NoteEditorComponent;
 
   notes$: Observable<Note[]> | null = null;
+  private myUsername: string | null = null;
   themeColors = ['#6200ee', '#1e88e5', '#43a047', '#e53935', '#ffb300'];
 
   activeNote?: Note | null = undefined;
@@ -144,6 +145,9 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.isMobile = this.breakpointObserver.isMatched([Breakpoints.Handset]);
     this.isWideDesktop = this.breakpointObserver.isMatched(['(min-width: 1280px)']);
     this.checkMobile();
+
+    // Pre-fetch username for completion notifications on shared notes
+    this.noteService.getUsername().then(u => this.myUsername = u).catch(() => {});
 
     if (this.swUpdate.isEnabled) {
       this.swUpdate.versionUpdates.subscribe(event => {
@@ -688,9 +692,16 @@ export class DashboardComponent implements OnInit, OnDestroy {
     event.stopPropagation();
     if (!note.id) return;
     try {
-      await this.noteService.updateNote(note.id, {
-        reminderStatus: 'completed'
-      });
+      const update: any = { reminderStatus: 'completed' };
+      const isShared = note.isShared || (note.collaboratorUids && note.collaboratorUids.length > 0);
+      if (isShared) {
+        const uid = this.authService.getCurrentUserId();
+        update.completionNotifyPending = true;
+        update.completionNotifyBy = uid;
+        update.completionNotifyByName = this.myUsername || this.translationService.instant('SHARING.UNKNOWN_COLLABORATOR');
+        update.completionNotifyAt = Date.now();
+      }
+      await this.noteService.updateNote(note.id, update);
     } catch (e: any) {
       console.error('Errore evadi:', e.message);
     }
