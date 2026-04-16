@@ -57,9 +57,8 @@ export class SharingPanelComponent implements OnInit, OnDestroy {
   }
 
   private get appBaseUrl(): string {
-    // Usa sempre il dominio Firebase canonico, indipendentemente dall'host corrente.
-    // Garantisce che il link apra la PWA installata da Firebase su Android.
-    return environment.canonicalUrl + '/';
+    // Usa l'origin dell'ambiente corrente: staging → staging, prod → prod.
+    return window.location.origin + '/';
   }
 
   async ngOnInit() {
