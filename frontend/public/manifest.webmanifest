@@ -1,10 +1,11 @@
 {
+  "id": "/",
   "name": "punto!",
   "short_name": "punto!",
   "display": "standalone",
   "handle_links": "preferred",
-  "scope": "./",
-  "start_url": "./",
+  "scope": "/",
+  "start_url": "/",
   "background_color": "#1C1B1F",
   "theme_color": "#1C1B1F",
   "icons": [

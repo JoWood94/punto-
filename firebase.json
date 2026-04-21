@@ -9,7 +9,7 @@
       "public": "frontend/dist/firebase/browser",
       "ignore": [
         "firebase.json",
-        "**/.*",
+        "**/.DS_Store",
         "**/node_modules/**"
       ],
       "headers": [
@@ -32,6 +32,13 @@
         {
           "source": "/combined-sw.js",
           "headers": [{ "key": "Cache-Control", "value": "no-store" }]
+        },
+        {
+          "source": "/.well-known/apple-app-site-association",
+          "headers": [
+            { "key": "Content-Type", "value": "application/json" },
+            { "key": "Cache-Control", "value": "no-cache" }
+          ]
         }
       ],
       "rewrites": [
@@ -46,7 +53,7 @@
       "public": "frontend/dist/firebase/browser",
       "ignore": [
         "firebase.json",
-        "**/.*",
+        "**/.DS_Store",
         "**/node_modules/**"
       ],
       "headers": [
@@ -69,6 +76,13 @@
         {
           "source": "/combined-sw.js",
           "headers": [{ "key": "Cache-Control", "value": "no-store" }]
+        },
+        {
+          "source": "/.well-known/apple-app-site-association",
+          "headers": [
+            { "key": "Content-Type", "value": "application/json" },
+            { "key": "Cache-Control", "value": "no-cache" }
+          ]
         }
       ],
       "rewrites": [
