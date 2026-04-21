@@ -103,7 +103,7 @@ export class SharingPanelComponent implements OnInit, OnDestroy {
     const token = await this.noteService.getActiveInvite(this.data.noteId);
     if (token) {
       this.inviteToken = token;
-      this.inviteUrl = `${this.appBaseUrl}#/dashboard?invite=${token}`;
+      this.inviteUrl = `${this.appBaseUrl}dashboard?invite=${token}`;
     }
   }
 
@@ -129,7 +129,7 @@ export class SharingPanelComponent implements OnInit, OnDestroy {
       }
       const token = await this.noteService.createInvite(this.data.noteId);
       this.inviteToken = token;
-      this.inviteUrl = `${this.appBaseUrl}#/dashboard?invite=${token}`;
+      this.inviteUrl = `${this.appBaseUrl}dashboard?invite=${token}`;
     } finally {
       this.generatingLink.set(false);
     }

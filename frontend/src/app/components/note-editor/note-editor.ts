@@ -1,7 +1,7 @@
 import {
   Component, Input, Output, EventEmitter, inject, OnInit, OnChanges, OnDestroy,
   SimpleChanges, ViewChildren, ViewChild, QueryList, ElementRef, ChangeDetectorRef,
-  AfterViewInit, AfterViewChecked, signal, NgZone
+  AfterViewInit, AfterViewChecked, DoCheck, signal, NgZone
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -34,7 +34,6 @@ import { TranslateModule } from '@ngx-translate/core';
 import { TranslationService } from '../../services/translation';
 import { CryptoService } from '../../services/crypto';
 import { ToastService } from '../../services/toast';
-import { NotifyService } from '../../services/notify';
 import { SnoozeSheetComponent } from '../snooze-sheet/snooze-sheet';
 // TODO: import Storage riabilitare con piano Firebase Storage
 // import { getStorage, ref as storageRef, uploadBytesResumable, getDownloadURL, deleteObject } from 'firebase/storage';
@@ -56,7 +55,7 @@ import { SnoozeSheetComponent } from '../snooze-sheet/snooze-sheet';
   templateUrl: './note-editor.html',
   styleUrls: ['./note-editor.scss']
 })
-export class NoteEditorComponent implements OnInit, OnChanges, AfterViewInit, AfterViewChecked, OnDestroy {
+export class NoteEditorComponent implements OnInit, OnChanges, DoCheck, AfterViewInit, AfterViewChecked, OnDestroy {
   @Input() selectedNote: Note | null = null;
   @Input() initialReminderDate?: Date;
   @Output() closeEditor = new EventEmitter<boolean>();
@@ -109,7 +108,6 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewInit, Af
   private dialog = inject(MatDialog);
   translationService = inject(TranslationService);
   private toast = inject(ToastService);
-  private notifyService = inject(NotifyService);
 
   /** Set to true whenever the blocks array changes and text blocks need HTML re-init. */
   private textBlocksNeedInit = false;
@@ -272,6 +270,7 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewInit, Af
     this.noteService.getUsername().then(u => this.myUsername = u).catch(() => {});
   }
   ngOnChanges(changes: SimpleChanges) { if (changes['selectedNote']) this.initNote(); }
+  ngDoCheck() { if (!this.guestCanEdit && this.addBlockMenuOpen()) this.addBlockMenuOpen.set(false); }
 
   ngAfterViewInit() {
     // Focus sul titolo alla prima render di una nuova nota.
@@ -538,6 +537,7 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewInit, Af
   }
 
   toggleAddBlockMenu() {
+    if (!this.guestCanEdit) return;
     this.addBlockMenuOpen.set(!this.addBlockMenuOpen());
   }
 
@@ -1070,7 +1070,6 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewInit, Af
     try {
       await this.noteService.updateNote(this.savedNoteId, this.buildPayload());
       this.lastSavedAt = Date.now();
-      if (willNotifyCompletion) this.notifyService.completionRealtime(this.savedNoteId);
     } catch (err) {
       console.error('[AutoSave] updateNote error:', err);
     } finally {
