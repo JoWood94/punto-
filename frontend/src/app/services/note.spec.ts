@@ -154,6 +154,28 @@ describe('NoteService — Fase 0', () => {
       expect(payload.hasReminderBlock).toBe(false);
     });
 
+    it('type omesso + blocks con ReminderBlock → default="memo"', async () => {
+      await service.createNote({
+        title: 'Promemoria senza type esplicito',
+        color: 'default',
+        blocks: [buildTextBlock(), buildReminderBlock()],
+      });
+      const payload = lastCreatePayload();
+      expect(payload.type).toBe('memo');
+      expect(payload.hasReminderBlock).toBe(true);
+    });
+
+    it('type omesso + reminderTime top-level → default="memo"', async () => {
+      await service.createNote({
+        title: 'Promemoria via flat fields',
+        color: 'default',
+        blocks: [buildTextBlock()],
+        reminderTime: Date.now() + 3600_000,
+      });
+      const payload = lastCreatePayload();
+      expect(payload.type).toBe('memo');
+    });
+
     it('type="note" senza reminder — hasReminderBlock=false', async () => {
       await service.createNote({
         type: 'note',
@@ -319,6 +341,61 @@ describe('NoteService — Fase 0', () => {
       const payload = lastUpdatePayload();
       expect(payload.updatedAt).toBeGreaterThanOrEqual(before);
       expect(payload.updatedAt).toBeLessThanOrEqual(after);
+    });
+
+    it('auto-promote note→memo: aggiunta ReminderBlock a nota esistente', async () => {
+      // Simula doc corrente type='note'
+      vi.mocked(getDocFromServer).mockResolvedValue(
+        makeSnap({ type: 'note', uid: MOCK_UID, collaboratorUids: [] }, true) as any
+      );
+      await service.updateNote('note-id', {
+        blocks: [buildTextBlock(), buildReminderBlock()],
+      });
+      const payload = lastUpdatePayload();
+      expect(payload.type).toBe('memo');
+      expect(payload.hasReminderBlock).toBe(true);
+    });
+
+    it('auto-promote note→memo: aggiunta di reminderTime top-level (senza blocks nel payload)', async () => {
+      vi.mocked(getDocFromServer).mockResolvedValue(
+        makeSnap({ type: 'note', uid: MOCK_UID, collaboratorUids: [] }, true) as any
+      );
+      await service.updateNote('note-id', {
+        reminderTime: Date.now() + 3600_000,
+      });
+      const payload = lastUpdatePayload();
+      expect(payload.type).toBe('memo');
+    });
+
+    it('no auto-promote quando currentType=memo', async () => {
+      vi.mocked(getDocFromServer).mockResolvedValue(
+        makeSnap({ type: 'memo', uid: MOCK_UID, collaboratorUids: [] }, true) as any
+      );
+      await service.updateNote('note-id', {
+        blocks: [buildTextBlock(), buildReminderBlock()],
+      });
+      const payload = lastUpdatePayload();
+      // type NON deve essere toccato (resta memo implicitamente, no override esplicito nel payload)
+      expect(payload.type).toBeUndefined();
+      expect(payload.hasReminderBlock).toBe(true);
+    });
+
+    it('no auto-promote quando update non tocca reminder', async () => {
+      vi.mocked(getDocFromServer).mockResolvedValue(
+        makeSnap({ type: 'note', uid: MOCK_UID, collaboratorUids: [] }, true) as any
+      );
+      await service.updateNote('note-id', { title: 'Solo titolo' });
+      const payload = lastUpdatePayload();
+      expect(payload.type).toBeUndefined();
+    });
+
+    it('memo→note esplicito continua a throwware (guard immutabile)', async () => {
+      vi.mocked(getDocFromServer).mockResolvedValue(
+        makeSnap({ type: 'memo', uid: MOCK_UID, collaboratorUids: [] }, true) as any
+      );
+      await expect(
+        service.updateNote('note-id', { type: 'note' })
+      ).rejects.toThrow('type è immutabile');
     });
   });
 });

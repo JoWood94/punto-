@@ -258,7 +258,18 @@ export class NoteService {
     if (!uid) throw new Error('Not authenticated');
 
     // ── Fase 0: tipo + validazione schema ────────────────────────────────────
-    const noteType: NoteType = noteData.type ?? 'note';
+    // Default-type smart: se l'utente non specifica `type`, deriva da segnali
+    // (ReminderBlock nei blocks o `reminderTime` top-level). Preserva il
+    // comportamento pre-Fase 0 dove "nota + reminder" equivale a un promemoria.
+    let noteType: NoteType;
+    if (noteData.type !== undefined) {
+      noteType = noteData.type;
+    } else {
+      const inputBlocks: NoteBlock[] = (noteData.blocks ?? []) as NoteBlock[];
+      const hasReminderInInput = inputBlocks.some(b => b.type === 'reminder');
+      const hasReminderFlat = !!noteData.reminderTime;
+      noteType = (hasReminderInInput || hasReminderFlat) ? 'memo' : 'note';
+    }
 
     if (noteType === 'event' && !noteData.calendarId) {
       throw new Error('createNote: calendarId è obbligatorio per type="event"');
@@ -318,8 +329,12 @@ export class NoteService {
               }
               return {
                 ...decrypted,
-                // Graceful default per doc legacy pre-migrazione Fase 0 (senza campo `type`)
-                type: (decrypted.type ?? 'note') as NoteType,
+                // Graceful default per doc legacy pre-migrazione Fase 0 (senza campo `type`).
+                // Se `type` manca ma c'è `reminderTime` o un ReminderBlock → memo, altrimenti note.
+                type: (decrypted.type
+                  ?? ((decrypted.reminderTime || (decrypted.blocks as NoteBlock[] | undefined)?.some(b => b?.type === 'reminder'))
+                        ? 'memo'
+                        : 'note')) as NoteType,
                 myRole: 'owner' as const,
                 isShared: (decrypted.collaboratorUids?.length ?? 0) > 0,
               } as Note;
@@ -403,17 +418,42 @@ export class NoteService {
       }
     }
 
-    // ── Fase 0: guard type immutabile + ricalcolo hasReminderBlock ───────────
+    // ── Fase 0: gestione type + hasReminderBlock ─────────────────────────────
+    // In Fase 0 non esiste ancora un FAB speed-dial che distingua Nota/Memo
+    // all'atto della creazione: l'utente crea sempre type='note' per default,
+    // e aggiunge reminder solo dopo via edit. Per preservare la UX pre-Fase 0
+    // ("nota + reminder diventa un promemoria") permettiamo UNA promozione
+    // automatica note→memo quando arriva un ReminderBlock o reminderTime.
+    // Il muro netto fra tipi (Fase 1) lo introdurremo al deploy del FAB.
     const currentType = noteSnap.data()?.['type'] as NoteType | undefined;
+
+    // Calcola se dopo l'update il doc avrà un reminder attivo.
+    // Segnali in ordine di priorità:
+    //   1. payload contiene `blocks` → deriva dai blocks
+    //   2. payload contiene `reminderTime` non-null → reminder aggiunto
+    // Se nessuno dei due è nel payload, l'update non tocca lo stato reminder.
+    let willHaveReminder: boolean | undefined;
+    if (data.blocks !== undefined) {
+      willHaveReminder = this.deriveHasReminderBlock(data.blocks as NoteBlock[]);
+      data = { ...data, hasReminderBlock: willHaveReminder };
+    } else if (data.reminderTime !== undefined && data.reminderTime !== null) {
+      willHaveReminder = true;
+    }
+
+    // Guard: qualsiasi cambio di type diverso da note→memo con reminder è vietato.
+    // (memo→note, note→event, memo→event ecc. richiedono "Duplica come …")
     if (data.type !== undefined && currentType !== undefined && data.type !== currentType) {
       throw new Error(
         `updateNote: type è immutabile (era "${currentType}", tentato "${data.type}"). ` +
         `Per cambiare tipo usa "Duplica come memo/evento".`
       );
     }
-    // Ricalcola hasReminderBlock ogni volta che blocks è incluso nel payload
-    if (data.blocks !== undefined) {
-      data = { ...data, hasReminderBlock: this.deriveHasReminderBlock(data.blocks as NoteBlock[]) };
+
+    // Auto-promozione note→memo: se il doc corrente è 'note' e stiamo aggiungendo
+    // un reminder, promuovi silenziosamente a 'memo' (nessun throw, nessun flag
+    // esplicito richiesto dall'utente). Coerente con UX Fase 0.
+    if (data.type === undefined && currentType === 'note' && willHaveReminder === true) {
+      data = { ...data, type: 'memo' };
     }
     // ─────────────────────────────────────────────────────────────────────────
 
