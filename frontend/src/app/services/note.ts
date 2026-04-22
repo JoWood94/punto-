@@ -55,6 +55,11 @@ export interface LinkBlock {
 
 export type NoteBlock = TextBlock | ChecklistBlock | LocationBlock | ReminderBlock | ImageBlock | LinkBlock;
 
+// ─── Note Type ────────────────────────────────────────────────────────────────
+
+/** Discriminator esclusivo del documento. Immutabile dopo la creazione. */
+export type NoteType = 'note' | 'memo' | 'event';
+
 // ─── Sharing Types ────────────────────────────────────────────────────────────
 
 export interface CollaboratorPermissions {
@@ -85,13 +90,33 @@ export interface Note {
   uid: string;
   title: string;
   blocks: NoteBlock[];
+
+  // ─── Tipizzazione documento (Fase 0) ────────────────────────────────────────
+  /** Discriminator esclusivo. Immutabile post-creazione. Default graceful 'note' per doc legacy. */
+  type: NoteType;
+  /** Solo per type='event'. Setta a true con l'azione "Annulla evento" — l'evento resta visibile ma stilizzato. */
+  cancelled?: boolean;
+  /** Solo per type='event'. Obbligatorio. Indica il calendario di appartenenza. */
+  calendarId?: string;
+  /** Immagine di copertina inline base64. Distinto da ImageBlock nei blocks (legacy).
+   *  Se entrambi presenti, top-level vince nella UI (semantica "locandina"). */
+  image?: {
+    data: string;
+    mimeType: 'image/jpeg' | 'image/png' | 'image/webp';
+  };
+  /** Denormalizzato. Calcolato da `blocks.some(b => b.type === 'reminder')` ad ogni write.
+   *  Usato da Firestore rules e cron per filtrare senza leggere il campo `blocks`. */
+  hasReminderBlock?: boolean;
+
+  // ─── Campi generici ─────────────────────────────────────────────────────────
   pinned?: boolean;
   tags?: string[];
   color: string;
   createdAt: number;
   updatedAt?: number;
   reminderRepeat?: 'daily' | 'weekly' | 'monthly' | 'yearly';
-  // Legacy flat fields — kept for server backward compatibility
+
+  // ─── Legacy flat fields — kept for server backward compatibility ─────────────
   /** @deprecated RF-01b write-off. Field preserved for migrateToBlocks and getNotePreview legacy fallback. Never write on new documents. */
   content?: string;
   reminderTime?: number | null;
@@ -100,7 +125,8 @@ export interface Note {
   lastCompletedAt?: number;
   recurrence?: 'none' | 'daily' | 'weekly' | 'monthly' | 'yearly';
   recurrenceEndDate?: number | null;
-  // Sharing (Fase 2)
+
+  // ─── Sharing (Fase 2) ────────────────────────────────────────────────────────
   collaboratorUids?: string[];
   isShared?: boolean;                        // computed: collaboratorUids?.length > 0
   myRole?: 'owner' | 'guest';               // set in getNotes()
@@ -138,6 +164,21 @@ export function hasReminder(n: Note | any): boolean {
 
 export function isRecurringNote(n: Note | any): boolean {
   return getNoteRecurrence(n) !== 'none';
+}
+
+// ─── NoteType guards (Fase 0) ─────────────────────────────────────────────────
+// Usano il campo `type` con fallback graceful a 'note' per doc legacy pre-migrazione.
+
+export function isNoteType(n: Note | any): boolean {
+  return (n.type ?? 'note') === 'note';
+}
+
+export function isMemoType(n: Note | any): boolean {
+  return (n.type ?? 'note') === 'memo';
+}
+
+export function isEventType(n: Note | any): boolean {
+  return (n.type ?? 'note') === 'event';
 }
 
 // ─── Utilities ────────────────────────────────────────────────────────────────
@@ -191,6 +232,15 @@ export class NoteService {
 
   setNotifTitleEnabled(val: boolean) { this.notifTitleEnabled = val; }
 
+  /**
+   * Calcola se almeno un blocco nel documento è di tipo ReminderBlock.
+   * Centralizzato per garantire coerenza tra createNote e updateNote.
+   * Non esposto pubblicamente: i consumer usano `hasReminder()` o `isMemoType()`.
+   */
+  private deriveHasReminderBlock(blocks: NoteBlock[]): boolean {
+    return blocks.some(b => b.type === 'reminder');
+  }
+
   constructor() {
     const app: FirebaseApp = getApps().length ? getApp() : initializeApp(environment.firebase);
     getAuth(app);
@@ -206,11 +256,36 @@ export class NoteService {
   async createNote(noteData: Partial<Note>): Promise<any> {
     const uid = this.authService.getCurrentUserId();
     if (!uid) throw new Error('Not authenticated');
-    console.log('[NoteService] createNote for uid:', uid);
+
+    // ── Fase 0: tipo + validazione schema ────────────────────────────────────
+    const noteType: NoteType = noteData.type ?? 'note';
+
+    if (noteType === 'event' && !noteData.calendarId) {
+      throw new Error('createNote: calendarId è obbligatorio per type="event"');
+    }
+
+    // Note pure non possono contenere ReminderBlock (li strip silenziosamente)
+    let blocks: NoteBlock[] = (noteData.blocks ?? []) as NoteBlock[];
+    if (noteType === 'note') {
+      blocks = blocks.filter(b => b.type !== 'reminder');
+    }
+
+    const hasReminderBlock = this.deriveHasReminderBlock(blocks);
+    // ─────────────────────────────────────────────────────────────────────────
+
+    console.log('[NoteService] createNote for uid:', uid, 'type:', noteType);
     const notesRef = collection(this.db, 'notes');
     const skipFields: (keyof Note)[] = this.notifTitleEnabled ? ['title'] : [];
     const hasCollaborators = (noteData.collaboratorUids?.length ?? 0) > 0;
-    const base = { collaboratorUids: [] as string[], ...noteData, uid, createdAt: Date.now() };
+    const base = {
+      collaboratorUids: [] as string[],
+      ...noteData,
+      type: noteType,
+      blocks,
+      hasReminderBlock,
+      uid,
+      createdAt: Date.now(),
+    };
     const payload = this.cryptoService.isEnabled && !hasCollaborators
       ? await this.cryptoService.encryptNote(base, skipFields)
       : base;
@@ -243,6 +318,8 @@ export class NoteService {
               }
               return {
                 ...decrypted,
+                // Graceful default per doc legacy pre-migrazione Fase 0 (senza campo `type`)
+                type: (decrypted.type ?? 'note') as NoteType,
                 myRole: 'owner' as const,
                 isShared: (decrypted.collaboratorUids?.length ?? 0) > 0,
               } as Note;
@@ -325,6 +402,20 @@ export class NoteService {
         reminderFields.forEach(k => delete (data as any)[k]);
       }
     }
+
+    // ── Fase 0: guard type immutabile + ricalcolo hasReminderBlock ───────────
+    const currentType = noteSnap.data()?.['type'] as NoteType | undefined;
+    if (data.type !== undefined && currentType !== undefined && data.type !== currentType) {
+      throw new Error(
+        `updateNote: type è immutabile (era "${currentType}", tentato "${data.type}"). ` +
+        `Per cambiare tipo usa "Duplica come memo/evento".`
+      );
+    }
+    // Ricalcola hasReminderBlock ogni volta che blocks è incluso nel payload
+    if (data.blocks !== undefined) {
+      data = { ...data, hasReminderBlock: this.deriveHasReminderBlock(data.blocks as NoteBlock[]) };
+    }
+    // ─────────────────────────────────────────────────────────────────────────
 
     const noteRef = doc(this.db, `notes/${id}`);
     const skipFields: (keyof Note)[] = this.notifTitleEnabled ? ['title'] : [];
