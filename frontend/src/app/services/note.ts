@@ -429,18 +429,18 @@ export class NoteService {
 
     // Calcola se dopo l'update il doc avrà un reminder attivo.
     // Segnali in ordine di priorità:
-    //   1. payload contiene `blocks` → deriva dai blocks
-    //   2. payload contiene `reminderTime` non-null → reminder aggiunto
+    //   1. payload contiene `blocks` → deriva dai blocks (source of truth)
+    //   2. payload contiene `reminderTime` → reminder aggiunto (valore) o rimosso (null)
     // Se nessuno dei due è nel payload, l'update non tocca lo stato reminder.
     let willHaveReminder: boolean | undefined;
     if (data.blocks !== undefined) {
       willHaveReminder = this.deriveHasReminderBlock(data.blocks as NoteBlock[]);
       data = { ...data, hasReminderBlock: willHaveReminder };
-    } else if (data.reminderTime !== undefined && data.reminderTime !== null) {
-      willHaveReminder = true;
+    } else if (data.reminderTime !== undefined) {
+      willHaveReminder = data.reminderTime !== null && data.reminderTime !== 0;
     }
 
-    // Guard: qualsiasi cambio di type diverso da note→memo con reminder è vietato.
+    // Guard: qualsiasi cambio di type esplicito diverso dal corrente è vietato.
     // (memo→note, note→event, memo→event ecc. richiedono "Duplica come …")
     if (data.type !== undefined && currentType !== undefined && data.type !== currentType) {
       throw new Error(
@@ -449,11 +449,17 @@ export class NoteService {
       );
     }
 
-    // Auto-promozione note→memo: se il doc corrente è 'note' e stiamo aggiungendo
-    // un reminder, promuovi silenziosamente a 'memo' (nessun throw, nessun flag
-    // esplicito richiesto dall'utente). Coerente con UX Fase 0.
-    if (data.type === undefined && currentType === 'note' && willHaveReminder === true) {
-      data = { ...data, type: 'memo' };
+    // Auto-transizione type ↔ reminder (UX back-compat Fase 0):
+    // - note → memo quando viene aggiunto il primo reminder
+    // - memo → note quando viene rimosso l'ultimo reminder
+    // In Fase 1 il FAB speed-dial renderà esplicita la scelta del tipo,
+    // e questa transizione automatica verrà rimossa.
+    if (data.type === undefined && willHaveReminder !== undefined) {
+      if (currentType === 'note' && willHaveReminder === true) {
+        data = { ...data, type: 'memo' };
+      } else if (currentType === 'memo' && willHaveReminder === false) {
+        data = { ...data, type: 'note' };
+      }
     }
     // ─────────────────────────────────────────────────────────────────────────
 
