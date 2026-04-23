@@ -48,18 +48,17 @@
         <span>{{ 'SNOOZE.CUSTOM' | translate }}</span>
       </button>
 
-      <!-- Silenzia sempre: accento terracotta, confirm-on-second-tap -->
+      <!-- Silenzia sempre: azione immediata (reversibile via Riattiva) -->
       <button
         *ngIf="!isMuted"
         #pillBtn
         class="snooze-pill snooze-pill--danger"
-        [class.snooze-pill--danger-pending]="muteConfirmPending"
         type="button"
         role="menuitem"
-        [attr.aria-label]="(muteConfirmPending ? 'SNOOZE.MUTE_CONFIRM' : 'SNOOZE.MUTE_ALWAYS') | translate"
+        [attr.aria-label]="'SNOOZE.MUTE_ALWAYS' | translate"
         (click)="mute()">
         <mat-icon>notifications_off</mat-icon>
-        <span>{{ (muteConfirmPending ? 'SNOOZE.MUTE_CONFIRM' : 'SNOOZE.MUTE_ALWAYS') | translate }}</span>
+        <span>{{ 'SNOOZE.MUTE_ALWAYS' | translate }}</span>
       </button>
 
     </ng-container>

@@ -66,11 +66,6 @@ export class SnoozeSheetComponent implements OnChanges, AfterViewInit, OnDestroy
   showCustom = false;
   customDate: Date | null = null;
 
-  // Confirm-on-second-tap per "Silenzia sempre": primo tap → pending, secondo tap → emit.
-  // Timeout automatico di 3s per reset.
-  muteConfirmPending = false;
-  private muteConfirmTimeout: ReturnType<typeof setTimeout> | null = null;
-
   get isMuted(): boolean { return !!this.currentState?.muted; }
   get isSnoozedActive(): boolean {
     const until = this.currentState?.snoozedUntil ?? 0;
@@ -81,10 +76,10 @@ export class SnoozeSheetComponent implements OnChanges, AfterViewInit, OnDestroy
   get tomorrowMinDate(): Date { return new Date(); }
 
   /**
-   * Click-away in CAPTURE phase: consuma l'evento (stopPropagation + preventDefault)
-   * prima che raggiunga il target. Altrimenti il click fuori al menu trigger-ava
-   * anche il bottone sottostante (es. add-block-fab). Gestito via addEventListener
-   * manuale perché @HostListener non supporta l'opzione {capture: true}.
+   * Click-away in CAPTURE phase: al click fuori dallo stack/bell, dismiss
+   * il menu. NON consuma l'evento: il click deve proseguire fino al target
+   * (es. bottone Elimina della dashboard, mat-dialog overlay). Altrimenti
+   * consumare il click blocca qualunque interazione mentre il menu è open.
    */
   private readonly absorbOutsideClick = (ev: Event) => {
     if (!this.visible) return;
@@ -95,15 +90,12 @@ export class SnoozeSheetComponent implements OnChanges, AfterViewInit, OnDestroy
         target.closest('.reminder-mini-fab')) {
       return;
     }
-    ev.stopPropagation();
-    ev.preventDefault();
     if (ev.type === 'click') this.dismiss();
   };
 
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['visible'] && !changes['visible'].currentValue) {
       this.resetCustom();
-      this.resetMuteConfirm();
       this.detachClickAway();
     } else if (changes['visible'] && changes['visible'].currentValue) {
       // Auto-focus prima pill all'apertura (deferred fino al render)
@@ -123,7 +115,6 @@ export class SnoozeSheetComponent implements OnChanges, AfterViewInit, OnDestroy
 
   ngOnDestroy(): void {
     this.detachClickAway();
-    this.resetMuteConfirm();
   }
 
   private clickAwayAttached = false;
@@ -156,13 +147,11 @@ export class SnoozeSheetComponent implements OnChanges, AfterViewInit, OnDestroy
   select(preset: SnoozePreset): void {
     this.presetSelected.emit(preset.getTime());
     this.resetCustom();
-    this.resetMuteConfirm();
   }
 
   toggleCustom(): void {
     this.showCustom = !this.showCustom;
     if (!this.showCustom) this.customDate = null;
-    this.resetMuteConfirm();
   }
 
   onCustomDateChange(d: Date | null): void {
@@ -177,41 +166,24 @@ export class SnoozeSheetComponent implements OnChanges, AfterViewInit, OnDestroy
     this.resetCustom();
   }
 
-  /** Silenzia sempre: richiede doppio tap (confirm). Reset automatico 3s. */
+  /** Silenzia sempre: azione immediata. Reversibile via "Riattiva". */
   mute(): void {
-    if (!this.muteConfirmPending) {
-      this.muteConfirmPending = true;
-      if (this.muteConfirmTimeout) clearTimeout(this.muteConfirmTimeout);
-      this.muteConfirmTimeout = setTimeout(() => this.resetMuteConfirm(), 3000);
-      return;
-    }
     this.muteSelected.emit();
     this.resetCustom();
-    this.resetMuteConfirm();
   }
 
   reactivateNow(): void {
     this.reactivate.emit();
     this.resetCustom();
-    this.resetMuteConfirm();
   }
 
   dismiss(): void {
     this.dismissed.emit();
     this.resetCustom();
-    this.resetMuteConfirm();
   }
 
   private resetCustom(): void {
     this.showCustom = false;
     this.customDate = null;
-  }
-
-  private resetMuteConfirm(): void {
-    this.muteConfirmPending = false;
-    if (this.muteConfirmTimeout) {
-      clearTimeout(this.muteConfirmTimeout);
-      this.muteConfirmTimeout = null;
-    }
   }
 }
