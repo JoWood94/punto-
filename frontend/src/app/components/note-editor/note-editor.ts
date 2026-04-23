@@ -567,11 +567,9 @@ export class NoteEditorComponent implements OnInit, OnChanges, DoCheck, AfterVie
     this.addBlockMenuOpen.set(false);
   }
 
-  onEditorContentClick(event: MouseEvent) {
-    if (event.target === this.editorContent?.nativeElement) {
-      this.toggleAddBlockMenu();
-    }
-  }
+  // onEditorContentClick rimosso: il tap sull'area vuota della nota non apre
+  // più la toolbar add-block (comportamento accidentale). Per aggiungere un
+  // campo occorre cliccare esplicitamente sul FAB + (.add-block-fab).
 
   /** Apre il dialog per URL+label, poi inserisce il LinkBlock solo se confermato. */
   async addLinkBlock() {
