@@ -508,7 +508,7 @@
         (click)="openSnoozeSheet()"
         [class.reminder-mini-fab--active]="!!reminderBlock && !hasActiveSuppression"
         [class.reminder-mini-fab--suppressed]="hasActiveSuppression"
-        [class.reminder-mini-fab--hidden]="activeTextBlockIndex() !== null"
+        [class.reminder-mini-fab--hidden]="activeTextBlockIndex() !== null || addBlockMenuOpen()"
         [attr.aria-label]="('SNOOZE.OPEN_LABEL' | translate)">
   <mat-icon>{{ reminderMuted() ? 'notifications_off' : (hasActiveSuppression ? 'notifications_paused' : (reminderBlock ? 'notifications' : 'notifications_none')) }}</mat-icon>
 </button>
@@ -521,7 +521,7 @@
         (click)="openSharePanel()"
         [class.share-mini-fab--active]="note.isShared"
         [class.share-mini-fab--no-bell]="!note.type || note.type === 'note'"
-        [class.share-mini-fab--hidden]="activeTextBlockIndex() !== null"
+        [class.share-mini-fab--hidden]="activeTextBlockIndex() !== null || addBlockMenuOpen()"
         [class.share-mini-fab--collab-editing]="anyCollaboratorEditing"
         [class.share-mini-fab--collab-viewing]="hasViewingCollaborators"
         [class.share-mini-fab--collab-active]="hasRecentCollabActivity"

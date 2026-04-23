@@ -171,11 +171,12 @@
     transform: translateY(-1px);
   }
 
-  // Nascosto quando la format toolbar è visibile
+  // Nascosto quando la format toolbar o la add-block toolbar è visibile:
+  // slide-down fuori schermo (distanza > altezza FAB + bottom offset).
   &--hidden {
     opacity: 0;
     pointer-events: none;
-    transform: scale(0.8) translateY(4px);
+    transform: translateY(140px) scale(0.9);
   }
 
   // Promemoria ATTIVO: colori invertiti
@@ -242,12 +243,12 @@
     transform: translateY(-1px);
   }
 
-  // Nascosto quando la format toolbar è visibile (sovrascrive anche :disabled)
+  // Nascosto (format toolbar o add-block open): slide-down fuori schermo.
   &--hidden,
   &--hidden:disabled {
     opacity: 0;
     pointer-events: none;
-    transform: scale(0.8) translateY(4px);
+    transform: translateY(140px) scale(0.9);
   }
 
   // Chip presenza: fluttua centrata sopra il bottone
