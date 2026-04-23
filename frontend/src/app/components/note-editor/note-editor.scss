@@ -592,7 +592,11 @@
   height: 56px;
   pointer-events: all;
   z-index: 10;
-  transition: box-shadow 200ms var(--_e);
+  // Transition simmetrica slide-down coerente con campanella/share.
+  transition:
+    box-shadow 200ms var(--_e),
+    transform 280ms cubic-bezier(0.4, 0, 0.2, 1),
+    opacity 280ms cubic-bezier(0.4, 0, 0.2, 1);
 
   mat-icon {
     transition: transform 300ms cubic-bezier(0.34, 1.56, 0.64, 1);
@@ -604,6 +608,14 @@
 
   &:hover {
     box-shadow: var(--mat-sys-level3, 0 6px 12px rgba(0, 0, 0, 0.2)) !important;
+  }
+
+  // Slide-down: quando entra la toolbar di formattazione testo, il FAB
+  // sparisce con la stessa animazione di campanella/share (parity visiva).
+  &--hidden {
+    opacity: 0;
+    transform: translateY(140px) scale(0.9);
+    pointer-events: none;
   }
 }
 
@@ -1166,6 +1178,21 @@
 
 // ─── Link block ──────────────────────────────────────────────
 // .link-block eredita tutto da .metadata-section — nessun override necessario
+
+// Row anchor + edit button quando link valorizzato (header è nascosto).
+// L'anchor mantiene la sua width naturale (shrink-fit della pill Tickets);
+// l'edit button segue a destra dopo il gap, con opacity gestita da .block-item.
+.link-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+
+  .link-anchor {
+    flex: 0 1 auto;
+    min-width: 0;
+  }
+}
 
 // Bottone modifica link: segue stesso pattern di .remove-block-btn
 .edit-link-btn {

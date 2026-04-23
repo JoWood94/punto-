@@ -198,9 +198,9 @@
       <!-- ════ TEXT BLOCK ════ -->
       <ng-container *ngIf="block.type === 'text'">
         <div class="rich-text-wrapper">
-          <div class="block-label-row">
+          <div class="block-label-row" *ngIf="!$any(block).html">
             <mat-icon>notes</mat-icon>
-            <span class="block-label" *ngIf="!$any(block).html">Testo</span>
+            <span class="block-label">Testo</span>
           </div>
           <div
             #textBlockEl
@@ -220,9 +220,9 @@
       <!-- ════ CHECKLIST BLOCK ════ -->
       <ng-container *ngIf="block.type === 'checklist'">
         <div class="checklist-block metadata-section">
-          <div class="checklist-header">
+          <div class="checklist-header" *ngIf="!$any(block).items?.length">
             <mat-icon >check_box</mat-icon>
-            <span class="block-label" *ngIf="!$any(block).items?.length">Checklist</span>
+            <span class="block-label">Checklist</span>
           </div>
           <div class="checklist-items">
             <div class="checklist-item" *ngFor="let item of $any(block).items; let j = index">
@@ -253,9 +253,9 @@
       <!-- ════ LOCATION BLOCK ════ -->
       <ng-container *ngIf="block.type === 'location'">
         <div class="metadata-section location-block">
-          <div class="block-label-row">
+          <div class="block-label-row" *ngIf="!$any(block).address">
             <mat-icon >place</mat-icon>
-            <span class="block-label" *ngIf="!$any(block).address">Luogo</span>
+            <span class="block-label">Luogo</span>
           </div>
 
           <!-- Address search input -->
@@ -299,9 +299,9 @@
       <!-- ════ IMAGE BLOCK ════ — inline base64 (Fase 2), aspect-ratio naturale -->
       <ng-container *ngIf="block.type === 'image'">
         <div class="metadata-section image-block">
-          <div class="block-label-row">
+          <div class="block-label-row" *ngIf="!$any(block).data">
             <mat-icon>photo</mat-icon>
-            <span class="block-label" *ngIf="!$any(block).data">Immagine</span>
+            <span class="block-label">Immagine</span>
           </div>
 
           <!-- Empty state: bottone upload coerente con altri blocchi vuoti -->
@@ -331,9 +331,9 @@
       <!-- ════ LINK BLOCK ════ -->
       <ng-container *ngIf="block.type === 'link'">
         <div class="metadata-section link-block">
-          <div class="block-label-row">
+          <div class="block-label-row" *ngIf="!$any(block).url">
             <mat-icon >link</mat-icon>
-            <span class="block-label" *ngIf="!$any(block).url">Collegamento</span>
+            <span class="block-label">Collegamento</span>
             <button mat-icon-button class="edit-link-btn"
                     [disabled]="!guestCanEdit"
                     (click)="editLinkBlock(i)"
@@ -343,16 +343,24 @@
             </button>
           </div>
 
-          <!-- Link visualizzato come label cliccabile -->
-          <a *ngIf="$any(block).url"
-             [attr.href]="guestCanEdit ? $any(block).url : null"
-             [class.link-anchor--disabled]="!guestCanEdit"
-             target="_blank"
-             rel="noopener noreferrer"
-             class="link-anchor">
-            <mat-icon class="link-anchor-icon">open_in_new</mat-icon>
-            <span class="link-anchor-text">{{ $any(block).label || $any(block).url }}</span>
-          </a>
+          <!-- Link valorizzato: anchor + edit button inline -->
+          <div class="link-row" *ngIf="$any(block).url">
+            <a [attr.href]="guestCanEdit ? $any(block).url : null"
+               [class.link-anchor--disabled]="!guestCanEdit"
+               target="_blank"
+               rel="noopener noreferrer"
+               class="link-anchor">
+              <mat-icon class="link-anchor-icon">open_in_new</mat-icon>
+              <span class="link-anchor-text">{{ $any(block).label || $any(block).url }}</span>
+            </a>
+            <button mat-icon-button class="edit-link-btn"
+                    [disabled]="!guestCanEdit"
+                    (click)="editLinkBlock(i)"
+                    matTooltip="Modifica collegamento"
+                    type="button">
+              <mat-icon>edit</mat-icon>
+            </button>
+          </div>
 
           <!-- Stato vuoto (nessun URL ancora) -->
           <span *ngIf="!$any(block).url" class="link-empty"
@@ -492,6 +500,7 @@
           [disabled]="!guestCanEdit"
           (click)="toggleAddBlockMenu()" type="button"
           [class.add-block-fab-open]="addBlockMenuOpen()"
+          [class.add-block-fab--hidden]="activeTextBlockIndex() !== null"
           aria-label="Aggiungi blocco">
     <mat-icon>add</mat-icon>
   </button>
