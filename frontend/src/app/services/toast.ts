@@ -4,6 +4,7 @@ export interface ToastItem {
   id: number;
   message: string;
   leaving: boolean;
+  type?: 'default' | 'info';
 }
 
 @Injectable({ providedIn: 'root' })
@@ -11,9 +12,9 @@ export class ToastService {
   readonly toasts = signal<ToastItem[]>([]);
   private counter = 0;
 
-  show(message: string, duration = 3500): void {
+  show(message: string, duration = 3500, type: ToastItem['type'] = 'default'): void {
     const id = ++this.counter;
-    this.toasts.update(list => [...list, { id, message, leaving: false }]);
+    this.toasts.update(list => [...list, { id, message, leaving: false, type }]);
     setTimeout(() => this.startDismiss(id), duration);
   }
 

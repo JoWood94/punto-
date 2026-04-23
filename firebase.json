@@ -1,6 +1,7 @@
 {
   "firestore": {
-    "rules": "firestore.rules"
+    "rules": "firestore.rules",
+    "indexes": "firestore.indexes.json"
   },
   "hosting": [
     {
@@ -8,10 +9,14 @@
       "public": "frontend/dist/firebase/browser",
       "ignore": [
         "firebase.json",
-        "**/.*",
+        "**/.DS_Store",
         "**/node_modules/**"
       ],
       "headers": [
+        {
+          "source": "/index.html",
+          "headers": [{ "key": "Cache-Control", "value": "no-cache" }]
+        },
         {
           "source": "/ngsw.json",
           "headers": [{ "key": "Cache-Control", "value": "no-store" }]
@@ -23,6 +28,17 @@
         {
           "source": "/version.json",
           "headers": [{ "key": "Cache-Control", "value": "no-store" }]
+        },
+        {
+          "source": "/combined-sw.js",
+          "headers": [{ "key": "Cache-Control", "value": "no-store" }]
+        },
+        {
+          "source": "/.well-known/apple-app-site-association",
+          "headers": [
+            { "key": "Content-Type", "value": "application/json" },
+            { "key": "Cache-Control", "value": "no-cache" }
+          ]
         }
       ],
       "rewrites": [
@@ -37,10 +53,14 @@
       "public": "frontend/dist/firebase/browser",
       "ignore": [
         "firebase.json",
-        "**/.*",
+        "**/.DS_Store",
         "**/node_modules/**"
       ],
       "headers": [
+        {
+          "source": "/index.html",
+          "headers": [{ "key": "Cache-Control", "value": "no-cache" }]
+        },
         {
           "source": "/ngsw.json",
           "headers": [{ "key": "Cache-Control", "value": "no-store" }]
@@ -52,6 +72,17 @@
         {
           "source": "/version.json",
           "headers": [{ "key": "Cache-Control", "value": "no-store" }]
+        },
+        {
+          "source": "/combined-sw.js",
+          "headers": [{ "key": "Cache-Control", "value": "no-store" }]
+        },
+        {
+          "source": "/.well-known/apple-app-site-association",
+          "headers": [
+            { "key": "Content-Type", "value": "application/json" },
+            { "key": "Cache-Control", "value": "no-cache" }
+          ]
         }
       ],
       "rewrites": [

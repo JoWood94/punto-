@@ -1,0 +1,93 @@
+// datetime-picker — generic date+time picker for reminder/snooze/event
+// Aesthetic: allineato a reminder-strip esistente, editorial minimalism.
+
+:host { display: block; }
+
+.dtp-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.dtp-date-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  min-height: 40px;
+  background: transparent;
+  border: 1px solid rgba(28, 27, 31, 0.18);
+  border-radius: 10px;
+  color: #1C1B1F;
+  font: inherit;
+  cursor: pointer;
+  transition: border-color 120ms, background 120ms;
+
+  &:hover:not(:disabled) {
+    border-color: rgba(28, 27, 31, 0.32);
+    background: rgba(28, 27, 31, 0.03);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  mat-icon {
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
+    line-height: 18px;
+    color: rgba(28, 27, 31, 0.7);
+  }
+
+  .dtp-date-text {
+    font-size: 14px;
+    white-space: nowrap;
+  }
+}
+
+.dtp-hidden-input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+  width: 0;
+  height: 0;
+}
+
+.dtp-time {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+
+  &--disabled { opacity: 0.5; }
+}
+
+.dtp-select {
+  appearance: none;
+  -webkit-appearance: none;
+  background: transparent;
+  border: 1px solid rgba(28, 27, 31, 0.18);
+  border-radius: 8px;
+  padding: 6px 10px;
+  font: inherit;
+  font-size: 14px;
+  color: #1C1B1F;
+  min-width: 52px;
+  text-align: center;
+  cursor: pointer;
+
+  &:hover:not(:disabled) {
+    border-color: rgba(28, 27, 31, 0.32);
+  }
+
+  &:disabled { cursor: not-allowed; }
+}
+
+.dtp-colon {
+  font-size: 14px;
+  color: rgba(28, 27, 31, 0.6);
+  padding: 0 2px;
+}

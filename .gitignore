@@ -11,6 +11,7 @@ frontend/.angular/
 server/serviceAccountKey.json
 server/.env
 .firebase/
+backups/
 firebase-debug.log
 firestore-debug.log
 *-firebase-adminsdk-*.json
@@ -36,3 +37,6 @@ frontend/test-results/
 # ── Agents runtime artifacts ─────────────────────────────────
 agents/inbox/*.seen
 agents/inbox/*.response.md
+
+# Local Claude Code state (not team config)
+.claude/settings.local.json

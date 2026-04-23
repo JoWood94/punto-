@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, ActivatedRoute } from '@angular/router';
 import { AuthService } from '../../services/auth';
-import { NoteService, Note, getNotePreview, getChecklistProgress } from '../../services/note';
+import { NoteService, Note, NoteType, getNotePreview, getChecklistProgress, hasReminder, getReminderTime, getReminderStatus, getNoteRecurrence, isRecurringNote } from '../../services/note';
 import { CryptoService } from '../../services/crypto';
 import { MatToolbarModule } from '@angular/material/toolbar';
 import { MatIconModule } from '@angular/material/icon';
@@ -20,6 +20,7 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { ToastService } from '../../services/toast';
 import { MatChipsModule } from '@angular/material/chips';
 import { NoteEditorComponent } from '../note-editor/note-editor';
+import { CreateFabComponent } from '../create-fab/create-fab.component';
 import { CalendarViewComponent } from '../calendar-view/calendar-view.component';
 import { ConfirmDialogComponent } from '../confirm-dialog/confirm-dialog';
 import { PassphraseDialogComponent } from '../passphrase-dialog/passphrase-dialog';
@@ -56,6 +57,7 @@ import { environment } from '../../../environments/environment';
     MatChipsModule,
     NoteEditorComponent,
     CalendarViewComponent,
+    CreateFabComponent,
     TranslateModule,
   ],
   templateUrl: './dashboard.html',
@@ -75,11 +77,13 @@ export class DashboardComponent implements OnInit, OnDestroy {
   @ViewChild('noteEditor') noteEditorComp?: NoteEditorComponent;
 
   notes$: Observable<Note[]> | null = null;
+  private myUsername: string | null = null;
   themeColors = ['#6200ee', '#1e88e5', '#43a047', '#e53935', '#ffb300'];
 
   activeNote?: Note | null = undefined;
   editorLeaving = false;   // trigger animazione uscita editor mobile
   isMobile = false;
+  isWideDesktop = false;  // >=1280px: sidenav sempre aperta, no unified-toolbar
   currentMainView: 'list' | 'calendar' = 'calendar';
   activeView: 'notes' | 'reminders' = 'notes';
   private viewAutoSelected = false;
@@ -104,6 +108,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
   filteredNotes: Note[] = [];
   searchQuery = '';
   newNoteCalendarDate: Date | undefined = undefined;
+  newNoteType: NoteType = 'note';
   notesLoaded = false;
   pendingSelectNoteId: string | null = null;
   calendarCurrentDate: Date = new Date();
@@ -141,7 +146,11 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   async ngOnInit() {
     this.isMobile = this.breakpointObserver.isMatched([Breakpoints.Handset]);
+    this.isWideDesktop = this.breakpointObserver.isMatched(['(min-width: 1280px)']);
     this.checkMobile();
+
+    // Pre-fetch username for completion notifications on shared notes
+    this.noteService.getUsername().then(u => this.myUsername = u).catch(() => {});
 
     if (this.swUpdate.isEnabled) {
       this.swUpdate.versionUpdates.subscribe(event => {
@@ -358,6 +367,9 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.breakpointObserver.observe([Breakpoints.Handset]).subscribe(result => {
       this.isMobile = result.matches;
     });
+    this.breakpointObserver.observe(['(min-width: 1280px)']).subscribe(result => {
+      this.isWideDesktop = result.matches;
+    });
   }
 
   private armDeepLinkTimeout() {
@@ -391,25 +403,28 @@ export class DashboardComponent implements OnInit, OnDestroy {
       return;
     }
 
-    const [ownerUsername, noteTitle] = await Promise.all([
+    const [ownerUsername, noteMeta] = await Promise.all([
       this.noteService.getUsernameByUid(createdBy),
-      this.noteService.readNoteTitle(noteId),
+      this.noteService.readNoteMeta(noteId),
     ]);
 
-    const accepted = await firstValueFrom(this.dialog.open(InviteAcceptDialogComponent, {
+    const result = await firstValueFrom(this.dialog.open(InviteAcceptDialogComponent, {
       data: {
         ownerUsername: ownerUsername ?? createdBy,
-        noteTitle: noteTitle ?? this.translationService.instant('NOTE.UNTITLED'),
+        noteTitle: noteMeta.title ?? this.translationService.instant('NOTE.UNTITLED'),
+        docType: noteMeta.type as 'note' | 'memo' | 'event' | null,
       },
       width: '420px',
       maxWidth: '95vw',
     }).afterClosed());
 
-    if (!accepted) return;
+    if (!result?.accepted) return;
 
     // Fase 2: accetta l'invito (errori qui = problema tecnico, non invite non valido)
     try {
-      await this.noteService.acceptInvite(token);
+      await this.noteService.acceptInvite(token, {
+        notificationsEnabled: result.notificationsEnabled,
+      });
       this.toast.show(this.translationService.instant('INVITE.ACCEPTED'), 3000);
     } catch (e: any) {
       console.error('[handleInvite] FASE 2 acceptInvite error:', e?.code ?? e?.message ?? e);
@@ -437,6 +452,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
       const res = await fetch(base + 'version.json?_=' + Date.now());
       if (!res.ok) return;
       const data = await res.json();
+      console.log('[checkAppVersion] server=', data.version, 'client=', environment.appVersion);
       if (data.version && data.version !== environment.appVersion) {
         // Mismatch rilevata: il server ha una versione più recente del bundle in memoria.
         //
@@ -455,8 +471,8 @@ export class DashboardComponent implements OnInit, OnDestroy {
           ref.afterClosed().subscribe(() => { this.updatePending = true; });
         }
       }
-    } catch {
-      // Offline o errore di rete: ignora silenziosamente
+    } catch (e) {
+      console.warn('[checkAppVersion] error', e);
     }
   }
 
@@ -495,12 +511,10 @@ export class DashboardComponent implements OnInit, OnDestroy {
   isEvadedSectionExpanded = true;
   isSharedWithMeSectionExpanded = true;
 
-  private isRecurring(n: Note): boolean { return !!(n.recurrence && n.recurrence !== 'none'); }
-
   get calendarNotes(): Note[] {
     return this.calendarShowAllNotes
       ? this.allNotes
-      : this.allNotes.filter(n => !!n.reminderTime);
+      : this.allNotes.filter(n => hasReminder(n));
   }
 
   get searchPlaceholder(): string {
@@ -513,28 +527,30 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   // ─── Vista NOTE: solo note senza reminder e senza ricorrenza ─
   get pinnedNotes(): Note[] {
-    return this.filteredNotes.filter(n => n.pinned && !n.reminderTime && !this.isRecurring(n) && n.myRole !== 'guest');
+    return this.filteredNotes.filter(n => n.pinned && !hasReminder(n) && !isRecurringNote(n) && n.myRole !== 'guest');
   }
   get plainNotes(): Note[] {
-    return this.filteredNotes.filter(n => !n.pinned && !n.reminderTime && !this.isRecurring(n) && n.myRole !== 'guest');
+    return this.filteredNotes.filter(n => !n.pinned && !hasReminder(n) && !isRecurringNote(n) && n.myRole !== 'guest');
   }
 
   // ─── Vista PROMEMORIA ─────────────────────────────────────────
+  // Note condivise con reminder appaiono qui insieme alle proprie (BF-JJ)
   get activeReminderNotes(): Note[] {
     return this.filteredNotes.filter(n =>
-      !!n.reminderTime && n.reminderStatus !== 'completed' && !this.isRecurring(n) && n.myRole !== 'guest'
+      hasReminder(n) && getReminderStatus(n) !== 'completed' && !isRecurringNote(n)
     );
   }
   get recurringReminderNotes(): Note[] {
-    return this.filteredNotes.filter(n => this.isRecurring(n) && n.myRole !== 'guest');
+    return this.filteredNotes.filter(n => isRecurringNote(n));
   }
   get evadedNotes(): Note[] {
-    return this.filteredNotes.filter(n => n.reminderStatus === 'completed' && n.myRole !== 'guest');
+    return this.filteredNotes.filter(n => getReminderStatus(n) === 'completed');
   }
 
-  // ─── Condivise con me ─────────────────────────────────────────
+  // ─── Condivise con me (solo senza reminder) ───────────────────
+  // Le condivise con reminder vivono in vista Promemoria insieme alle proprie.
   get sharedWithMeNotes(): Note[] {
-    return this.filteredNotes.filter(n => n.myRole === 'guest');
+    return this.filteredNotes.filter(n => n.myRole === 'guest' && !hasReminder(n));
   }
 
   private autoSelectView() {
@@ -637,9 +653,10 @@ export class DashboardComponent implements OnInit, OnDestroy {
   }
 
   getReminderTimeToday(note: Note): string | null {
-    if (!note.reminderTime) return null;
+    const time = getReminderTime(note);
+    if (!time) return null;
     const today = new Date();
-    const rem = new Date(note.reminderTime);
+    const rem = new Date(time);
     if (rem.getFullYear() === today.getFullYear() &&
         rem.getMonth() === today.getMonth() &&
         rem.getDate() === today.getDate()) {
@@ -649,11 +666,13 @@ export class DashboardComponent implements OnInit, OnDestroy {
   }
 
   formatNextOccurrence(note: Note): string {
-    if (!note.reminderTime || !note.recurrence || note.recurrence === 'none') return '';
+    const time = getReminderTime(note);
+    const recurrence = getNoteRecurrence(note);
+    if (!time || recurrence === 'none') return '';
     const locale = this.translationService.locale;
-    const d = new Date(note.reminderTime);
+    const d = new Date(time);
     const timeStr = d.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' });
-    if (note.recurrence === 'daily') {
+    if (recurrence === 'daily') {
       const day = d.toLocaleDateString(locale, { weekday: 'short' });
       return `${day.charAt(0).toUpperCase() + day.slice(1)} ${timeStr}`;
     }
@@ -661,6 +680,11 @@ export class DashboardComponent implements OnInit, OnDestroy {
     const mm = (d.getMonth() + 1).toString().padStart(2, '0');
     return `${dd}/${mm} ${timeStr}`;
   }
+
+  // ─── Template wrappers per helper reminder (template non può usare funzioni importate) ──
+  noteHasReminder(n: Note): boolean { return hasReminder(n); }
+  noteReminderStatus(n: Note): string | null { return getReminderStatus(n); }
+  noteIsRecurring(n: Note): boolean { return isRecurringNote(n); }
 
   /** Colore di sfondo della card nota — null → CSS default (secondary-container) */
   getNoteCardBg(note: Note): string | null {
@@ -674,10 +698,16 @@ export class DashboardComponent implements OnInit, OnDestroy {
     event.stopPropagation();
     if (!note.id) return;
     try {
-      await this.noteService.updateNote(note.id, {
-        reminderStatus: 'completed',
-        lastCompletedAt: Date.now()
-      });
+      const update: any = { reminderStatus: 'completed' };
+      const isShared = note.isShared || (note.collaboratorUids && note.collaboratorUids.length > 0);
+      if (isShared) {
+        const uid = this.authService.getCurrentUserId();
+        update.completionNotifyPending = true;
+        update.completionNotifyBy = uid;
+        update.completionNotifyByName = this.myUsername || this.translationService.instant('SHARING.UNKNOWN_COLLABORATOR');
+        update.completionNotifyAt = Date.now();
+      }
+      await this.noteService.updateNote(note.id, update);
     } catch (e: any) {
       console.error('Errore evadi:', e.message);
     }
@@ -915,13 +945,27 @@ export class DashboardComponent implements OnInit, OnDestroy {
   openSettings() { this.router.navigate(['/settings']); }
   reloadApp() { document.location.reload(); }
   logout() { this.authService.logout().then(() => this.router.navigate(['/login'])); }
-  openNoteEditor() {
-    if (this.activeView === 'reminders' || this.mobileNav === 'reminders') {
+  /**
+   * Apre editor per creare nuova nota/memo/evento.
+   * @param type se omesso, deduce dalla view attiva (back-compat pre-FAB speed-dial).
+   *             In Fase 1, il CreateFabComponent passa type esplicito.
+   */
+  openNoteEditor(type?: NoteType) {
+    const resolvedType: NoteType = type
+      ?? ((this.activeView === 'reminders' || this.mobileNav === 'reminders') ? 'memo' : 'note');
+
+    if (resolvedType === 'memo' || resolvedType === 'event') {
       this.newNoteCalendarDate = this.computeDefaultReminderDate();
     } else {
       this.newNoteCalendarDate = undefined;
     }
+    this.newNoteType = resolvedType;
     this.activeNote = null;
+  }
+
+  /** Handler emit dal CreateFabComponent speed-dial. */
+  onCreateFab(type: NoteType) {
+    this.openNoteEditor(type);
   }
 
   private computeDefaultReminderDate(): Date {
@@ -961,10 +1005,24 @@ export class DashboardComponent implements OnInit, OnDestroy {
     if (note) this.selectNote(note);
   }
 
-  closeEditor() { this.deactivateNote(); }
+  closeEditor(hasReminder = false) {
+    this.syncViewToNoteType(hasReminder);
+    this.deactivateNote();
+  }
   handleBackButton() {
-    if (this.activeNote !== undefined) this.deactivateNote();
-    else this.currentMainView = 'list';
+    if (this.activeNote !== undefined) {
+      const hasReminder = this.noteEditorComp?.note?.blocks?.some(b => b.type === 'reminder') ?? false;
+      this.syncViewToNoteType(hasReminder);
+      this.deactivateNote();
+    } else {
+      this.currentMainView = 'list';
+    }
+  }
+
+  private syncViewToNoteType(hasReminder: boolean) {
+    const view = hasReminder ? 'reminders' : 'notes';
+    this.activeView = view;
+    if (this.isMobile) this.setMobileNav(view);
   }
 
   private deactivateNote() {

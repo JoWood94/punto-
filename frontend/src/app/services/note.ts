@@ -3,7 +3,8 @@ import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import {
   getFirestore, initializeFirestore, persistentLocalCache, persistentMultipleTabManager,
-  collection, doc, addDoc, updateDoc, deleteDoc, query, where, onSnapshot, getDoc, getDocFromServer, setDoc, writeBatch, arrayUnion, arrayRemove, getDocs, Firestore as RawFirestore
+  collection, doc, addDoc, updateDoc, deleteDoc, deleteField, query, where, onSnapshot, getDoc, getDocFromServer, setDoc, writeBatch, arrayUnion, arrayRemove, getDocs, Firestore as RawFirestore,
+  DocumentReference, DocumentSnapshot
 } from 'firebase/firestore';
 import { Observable, of, switchMap, combineLatest, startWith, map } from 'rxjs';
 import { AuthService } from './auth';
@@ -35,6 +36,8 @@ export interface ReminderBlock {
   recurrence: 'none' | 'daily' | 'weekly' | 'monthly' | 'yearly';
   recurrenceEndDate?: number | null;
   status: 'pending' | 'sent' | 'completed' | null;
+  completedAt?: number;   // FE-01: timestamp completamento (opzionale B)
+  completedBy?: string;   // FE-01: uid di chi ha completato
 }
 
 export interface ImageBlock {
@@ -52,6 +55,11 @@ export interface LinkBlock {
 
 export type NoteBlock = TextBlock | ChecklistBlock | LocationBlock | ReminderBlock | ImageBlock | LinkBlock;
 
+// ─── Note Type ────────────────────────────────────────────────────────────────
+
+/** Discriminator esclusivo del documento. Immutabile dopo la creazione. */
+export type NoteType = 'note' | 'memo' | 'event';
+
 // ─── Sharing Types ────────────────────────────────────────────────────────────
 
 export interface CollaboratorPermissions {
@@ -65,13 +73,18 @@ export interface Collaborator {
   addedAt: number;
   addedBy: string;
   permissions: CollaboratorPermissions;
+  // Opt-in esplicito alle notifiche push per questo doc (pattern A, Fase 1).
+  // Impostato al primo accept invito su memo/event. Il cron skippa chi ha false.
+  // Assente su note legacy = equivale a true (fallback permissivo).
+  notificationsEnabled?: boolean;
 }
 
 export interface PresenceEntry {
   uid: string;
-  displayName: string;  // username o primo carattere dell'uid
-  lastSeen: number;     // Date.now() ms
+  displayName: string;   // username o primo carattere dell'uid
+  lastSeen: number;      // Date.now() ms
   isEditing: boolean;
+  lastActivityAt?: number; // Date.now() ms — aggiornato su qualsiasi mutazione (checklist, colore, reminder…)
 }
 
 // ─── Note Interface ───────────────────────────────────────────────────────────
@@ -81,24 +94,95 @@ export interface Note {
   uid: string;
   title: string;
   blocks: NoteBlock[];
+
+  // ─── Tipizzazione documento (Fase 0) ────────────────────────────────────────
+  /** Discriminator esclusivo. Immutabile post-creazione. Default graceful 'note' per doc legacy. */
+  type: NoteType;
+  /** Solo per type='event'. Setta a true con l'azione "Annulla evento" — l'evento resta visibile ma stilizzato. */
+  cancelled?: boolean;
+  /** Solo per type='event'. Obbligatorio. Indica il calendario di appartenenza. */
+  calendarId?: string;
+  /** Immagine di copertina inline base64. Distinto da ImageBlock nei blocks (legacy).
+   *  Se entrambi presenti, top-level vince nella UI (semantica "locandina"). */
+  image?: {
+    data: string;
+    mimeType: 'image/jpeg' | 'image/png' | 'image/webp';
+  };
+  /** Denormalizzato. Calcolato da `blocks.some(b => b.type === 'reminder')` ad ogni write.
+   *  Usato da Firestore rules e cron per filtrare senza leggere il campo `blocks`. */
+  hasReminderBlock?: boolean;
+
+  // ─── Campi generici ─────────────────────────────────────────────────────────
   pinned?: boolean;
   tags?: string[];
   color: string;
   createdAt: number;
   updatedAt?: number;
   reminderRepeat?: 'daily' | 'weekly' | 'monthly' | 'yearly';
-  // Legacy flat fields — kept for server backward compatibility
+
+  // ─── Legacy flat fields — kept for server backward compatibility ─────────────
+  /** @deprecated RF-01b write-off. Field preserved for migrateToBlocks and getNotePreview legacy fallback. Never write on new documents. */
   content?: string;
   reminderTime?: number | null;
   reminderStatus?: 'pending' | 'sent' | 'completed' | null;
+  /** @deprecated RF-01b write-off. No active consumers in frontend, server or rules. */
   lastCompletedAt?: number;
   recurrence?: 'none' | 'daily' | 'weekly' | 'monthly' | 'yearly';
   recurrenceEndDate?: number | null;
-  // Sharing (Fase 2)
+
+  // ─── Sharing (Fase 2) ────────────────────────────────────────────────────────
   collaboratorUids?: string[];
   isShared?: boolean;                        // computed: collaboratorUids?.length > 0
   myRole?: 'owner' | 'guest';               // set in getNotes()
   myPermissions?: CollaboratorPermissions;   // set in getNotes() for guests
+}
+
+// ─── Reminder helpers ─────────────────────────────────────────────────────────
+// Post-RF-01b: il reminder vive in blocks[] come ReminderBlock.
+// I flat field (reminderTime, reminderStatus, recurrence) sono @deprecated ma
+// restano come fallback per note legacy (pre-RF-01b).
+
+function findReminderBlock(n: any): any {
+  return (n.blocks as any[] | undefined)?.find((b: any) => b.type === 'reminder') ?? null;
+}
+
+export function getReminderTime(n: Note | any): number | null {
+  return findReminderBlock(n)?.time ?? n.reminderTime ?? null;
+}
+
+export function getReminderStatus(n: Note | any): string | null {
+  return findReminderBlock(n)?.status ?? n.reminderStatus ?? null;
+}
+
+export function getNoteRecurrence(n: Note | any): string {
+  return findReminderBlock(n)?.recurrence ?? n.recurrence ?? 'none';
+}
+
+export function getRecurrenceEndDate(n: Note | any): number | null {
+  return findReminderBlock(n)?.recurrenceEndDate ?? n.recurrenceEndDate ?? null;
+}
+
+export function hasReminder(n: Note | any): boolean {
+  return getReminderTime(n) !== null;
+}
+
+export function isRecurringNote(n: Note | any): boolean {
+  return getNoteRecurrence(n) !== 'none';
+}
+
+// ─── NoteType guards (Fase 0) ─────────────────────────────────────────────────
+// Usano il campo `type` con fallback graceful a 'note' per doc legacy pre-migrazione.
+
+export function isNoteType(n: Note | any): boolean {
+  return (n.type ?? 'note') === 'note';
+}
+
+export function isMemoType(n: Note | any): boolean {
+  return (n.type ?? 'note') === 'memo';
+}
+
+export function isEventType(n: Note | any): boolean {
+  return (n.type ?? 'note') === 'event';
 }
 
 // ─── Utilities ────────────────────────────────────────────────────────────────
@@ -152,6 +236,15 @@ export class NoteService {
 
   setNotifTitleEnabled(val: boolean) { this.notifTitleEnabled = val; }
 
+  /**
+   * Calcola se almeno un blocco nel documento è di tipo ReminderBlock.
+   * Centralizzato per garantire coerenza tra createNote e updateNote.
+   * Non esposto pubblicamente: i consumer usano `hasReminder()` o `isMemoType()`.
+   */
+  private deriveHasReminderBlock(blocks: NoteBlock[]): boolean {
+    return blocks.some(b => b.type === 'reminder');
+  }
+
   constructor() {
     const app: FirebaseApp = getApps().length ? getApp() : initializeApp(environment.firebase);
     getAuth(app);
@@ -167,11 +260,47 @@ export class NoteService {
   async createNote(noteData: Partial<Note>): Promise<any> {
     const uid = this.authService.getCurrentUserId();
     if (!uid) throw new Error('Not authenticated');
-    console.log('[NoteService] createNote for uid:', uid);
+
+    // ── Fase 0: tipo + validazione schema ────────────────────────────────────
+    // Default-type smart: se l'utente non specifica `type`, deriva da segnali
+    // (ReminderBlock nei blocks o `reminderTime` top-level). Preserva il
+    // comportamento pre-Fase 0 dove "nota + reminder" equivale a un promemoria.
+    let noteType: NoteType;
+    if (noteData.type !== undefined) {
+      noteType = noteData.type;
+    } else {
+      const inputBlocks: NoteBlock[] = (noteData.blocks ?? []) as NoteBlock[];
+      const hasReminderInInput = inputBlocks.some(b => b.type === 'reminder');
+      const hasReminderFlat = !!noteData.reminderTime;
+      noteType = (hasReminderInInput || hasReminderFlat) ? 'memo' : 'note';
+    }
+
+    if (noteType === 'event' && !noteData.calendarId) {
+      throw new Error('createNote: calendarId è obbligatorio per type="event"');
+    }
+
+    // Note pure non possono contenere ReminderBlock (li strip silenziosamente)
+    let blocks: NoteBlock[] = (noteData.blocks ?? []) as NoteBlock[];
+    if (noteType === 'note') {
+      blocks = blocks.filter(b => b.type !== 'reminder');
+    }
+
+    const hasReminderBlock = this.deriveHasReminderBlock(blocks);
+    // ─────────────────────────────────────────────────────────────────────────
+
+    console.log('[NoteService] createNote for uid:', uid, 'type:', noteType);
     const notesRef = collection(this.db, 'notes');
     const skipFields: (keyof Note)[] = this.notifTitleEnabled ? ['title'] : [];
     const hasCollaborators = (noteData.collaboratorUids?.length ?? 0) > 0;
-    const base = { collaboratorUids: [] as string[], ...noteData, uid, createdAt: Date.now() };
+    const base = {
+      collaboratorUids: [] as string[],
+      ...noteData,
+      type: noteType,
+      blocks,
+      hasReminderBlock,
+      uid,
+      createdAt: Date.now(),
+    };
     const payload = this.cryptoService.isEnabled && !hasCollaborators
       ? await this.cryptoService.encryptNote(base, skipFields)
       : base;
@@ -204,6 +333,12 @@ export class NoteService {
               }
               return {
                 ...decrypted,
+                // Graceful default per doc legacy pre-migrazione Fase 0 (senza campo `type`).
+                // Se `type` manca ma c'è `reminderTime` o un ReminderBlock → memo, altrimenti note.
+                type: (decrypted.type
+                  ?? ((decrypted.reminderTime || (decrypted.blocks as NoteBlock[] | undefined)?.some(b => b?.type === 'reminder'))
+                        ? 'memo'
+                        : 'note')) as NoteType,
                 myRole: 'owner' as const,
                 isShared: (decrypted.collaboratorUids?.length ?? 0) > 0,
               } as Note;
@@ -269,11 +404,12 @@ export class NoteService {
     if (!uid) throw new Error('Not authenticated');
 
     // Guard: se guest, verifica permessi da Firestore (non dalla cache locale)
-    const noteSnap = await getDoc(doc(this.db, `notes/${id}`));
+    const noteSnap = await this.freshOrCached(doc(this.db, `notes/${id}`));
     if (noteSnap.exists() && noteSnap.data()?.['uid'] !== uid) {
-      const collabSnap = await getDoc(doc(this.db, `notes/${id}/collaborators/${uid}`));
+      const collabSnap = await this.freshOrCached(doc(this.db, `notes/${id}/collaborators/${uid}`));
       const perms = collabSnap.exists() ? (collabSnap.data()?.['permissions'] ?? {}) : {};
-      const reminderFields = new Set(['reminderTime', 'reminderStatus', 'recurrence', 'reminderRepeat', 'recurrenceEndDate']);
+      const reminderFields = new Set(['reminderTime', 'reminderStatus', 'recurrence', 'reminderRepeat', 'recurrenceEndDate',
+        'completionNotifyPending', 'completionNotifyBy', 'completionNotifyByName', 'completionNotifyAt']);
       const hasContentFields = Object.keys(data).some(k => !reminderFields.has(k) && k !== 'updatedAt');
       const hasReminderFields = Object.keys(data).some(k => reminderFields.has(k));
       if (hasContentFields && !perms['editContent']) {
@@ -285,6 +421,51 @@ export class NoteService {
         reminderFields.forEach(k => delete (data as any)[k]);
       }
     }
+
+    // ── Fase 0: gestione type + hasReminderBlock ─────────────────────────────
+    // In Fase 0 non esiste ancora un FAB speed-dial che distingua Nota/Memo
+    // all'atto della creazione: l'utente crea sempre type='note' per default,
+    // e aggiunge reminder solo dopo via edit. Per preservare la UX pre-Fase 0
+    // ("nota + reminder diventa un promemoria") permettiamo UNA promozione
+    // automatica note→memo quando arriva un ReminderBlock o reminderTime.
+    // Il muro netto fra tipi (Fase 1) lo introdurremo al deploy del FAB.
+    const currentType = noteSnap.data()?.['type'] as NoteType | undefined;
+
+    // Calcola se dopo l'update il doc avrà un reminder attivo.
+    // Segnali in ordine di priorità:
+    //   1. payload contiene `blocks` → deriva dai blocks (source of truth)
+    //   2. payload contiene `reminderTime` → reminder aggiunto (valore) o rimosso (null)
+    // Se nessuno dei due è nel payload, l'update non tocca lo stato reminder.
+    let willHaveReminder: boolean | undefined;
+    if (data.blocks !== undefined) {
+      willHaveReminder = this.deriveHasReminderBlock(data.blocks as NoteBlock[]);
+      data = { ...data, hasReminderBlock: willHaveReminder };
+    } else if (data.reminderTime !== undefined) {
+      willHaveReminder = data.reminderTime !== null && data.reminderTime !== 0;
+    }
+
+    // Guard: qualsiasi cambio di type esplicito diverso dal corrente è vietato.
+    // (memo→note, note→event, memo→event ecc. richiedono "Duplica come …")
+    if (data.type !== undefined && currentType !== undefined && data.type !== currentType) {
+      throw new Error(
+        `updateNote: type è immutabile (era "${currentType}", tentato "${data.type}"). ` +
+        `Per cambiare tipo usa "Duplica come memo/evento".`
+      );
+    }
+
+    // Auto-transizione type ↔ reminder (UX back-compat Fase 0):
+    // - note → memo quando viene aggiunto il primo reminder
+    // - memo → note quando viene rimosso l'ultimo reminder
+    // In Fase 1 il FAB speed-dial renderà esplicita la scelta del tipo,
+    // e questa transizione automatica verrà rimossa.
+    if (data.type === undefined && willHaveReminder !== undefined) {
+      if (currentType === 'note' && willHaveReminder === true) {
+        data = { ...data, type: 'memo' };
+      } else if (currentType === 'memo' && willHaveReminder === false) {
+        data = { ...data, type: 'note' };
+      }
+    }
+    // ─────────────────────────────────────────────────────────────────────────
 
     const noteRef = doc(this.db, `notes/${id}`);
     const skipFields: (keyof Note)[] = this.notifTitleEnabled ? ['title'] : [];
@@ -302,7 +483,7 @@ export class NoteService {
     if (!uid) throw new Error('Not authenticated');
 
     // Guard: solo il proprietario può eliminare
-    const noteSnap = await getDoc(doc(this.db, `notes/${id}`));
+    const noteSnap = await this.freshOrCached(doc(this.db, `notes/${id}`));
     if (noteSnap.exists() && noteSnap.data()?.['uid'] !== uid) {
       throw new Error('Permission denied: only owner can delete');
     }
@@ -379,6 +560,13 @@ export class NoteService {
     return onSnapshot(noteRef, snap => {
       if (snap.exists()) callback(snap.data());
     }, () => {});
+  }
+
+  /** Legge updatedAt dal server per il check anti-overwrite. */
+  async getNoteUpdatedAt(noteId: string): Promise<number | null> {
+    const noteRef = doc(this.db, `notes/${noteId}`);
+    const snap = await getDocFromServer(noteRef);
+    return snap.exists() ? (snap.data()?.['updatedAt'] ?? null) : null;
   }
 
   async saveEncryptionKeys(publicKey: string, encryptedPrivateKey: string): Promise<number> {
@@ -478,7 +666,8 @@ export class NoteService {
   async addCollaborator(
     noteId: string,
     guestUid: string,
-    permissions: CollaboratorPermissions = { editContent: false, editReminders: false }
+    permissions: CollaboratorPermissions = { editContent: false, editReminders: false },
+    opts?: { notificationsEnabled?: boolean }
   ): Promise<void> {
     const uid = this.authService.getCurrentUserId();
     if (!uid) throw new Error('Not authenticated');
@@ -492,6 +681,9 @@ export class NoteService {
       addedBy: uid,
       permissions,
     };
+    if (opts?.notificationsEnabled !== undefined) {
+      collabData.notificationsEnabled = opts.notificationsEnabled;
+    }
     batch.set(collabRef, collabData);
     // updatedAt garantisce che il documento cambi in modo visibile per tutti i listener
     // onSnapshot attivi (incluso quello dell'owner), indipendentemente dal comportamento
@@ -532,9 +724,10 @@ export class NoteService {
   /** Listener real-time sulla subcollection collaboratori. */
   watchCollaborators(noteId: string, callback: (collabs: Collaborator[]) => void): () => void {
     const ref = collection(this.db, `notes/${noteId}/collaborators`);
-    return onSnapshot(ref, snap => {
-      callback(snap.docs.map(d => d.data() as Collaborator));
-    }, () => {});
+    return onSnapshot(ref,
+      snap => callback(snap.docs.map(d => d.data() as Collaborator)),
+      (err) => console.error('[watchCollaborators] snapshot error', noteId, err)
+    );
   }
 
   /** Genera un token invito sicuro (20 char alfanumerici) e lo scrive in invites/{token}. Scade dopo 7 giorni. */
@@ -557,8 +750,10 @@ export class NoteService {
     return token;
   }
 
-  /** Accetta un invito: valida token + scadenza, poi chiama addCollaborator. */
-  async acceptInvite(token: string): Promise<string> {
+  /** Accetta un invito: valida token + scadenza, poi chiama addCollaborator.
+   *  Su memo/event il guest sceglie esplicitamente se ricevere notifiche (pattern A).
+   */
+  async acceptInvite(token: string, opts?: { notificationsEnabled?: boolean }): Promise<string> {
     const inviteSnap = await getDoc(doc(this.db, `invites/${token}`));
     if (!inviteSnap.exists()) throw new Error('Invite not found');
 
@@ -572,7 +767,7 @@ export class NoteService {
     if (!uid) throw new Error('Not authenticated');
     if (uid === invite.createdBy) throw new Error('Cannot accept your own invite');
 
-    await this.addCollaborator(invite.noteId, uid);
+    await this.addCollaborator(invite.noteId, uid, undefined, opts);
     // Cleanup asincrono: rimuove tutti gli inviti scaduti per questa nota
     this.cleanupExpiredInvites(invite.noteId).catch(() => {});
     return invite.noteId;
@@ -646,13 +841,15 @@ export class NoteService {
     }
   }
 
-  /** Legge il titolo di una nota direttamente da Firestore (senza decriptare). */
-  async readNoteTitle(noteId: string): Promise<string | null> {
+  /** Legge titolo e type di una nota direttamente da Firestore (senza decriptare). */
+  async readNoteMeta(noteId: string): Promise<{ title: string | null; type: string | null }> {
     try {
       const snap = await getDoc(doc(this.db, `notes/${noteId}`));
-      return snap.exists() ? (snap.data()?.['title'] ?? null) : null;
+      if (!snap.exists()) return { title: null, type: null };
+      const d = snap.data();
+      return { title: d?.['title'] ?? null, type: d?.['type'] ?? null };
     } catch {
-      return null;
+      return { title: null, type: null };
     }
   }
 
@@ -671,7 +868,7 @@ export class NoteService {
 
     // Ri-cifra se encryption attiva (la nota era in chiaro mentre condivisa)
     if (this.cryptoService.isEnabled) {
-      const noteSnap = await getDoc(doc(this.db, `notes/${noteId}`));
+      const noteSnap = await this.freshOrCached(doc(this.db, `notes/${noteId}`));
       if (noteSnap.exists()) {
         const raw = { id: noteSnap.id, ...noteSnap.data() } as any;
         const skipFields: (keyof Note)[] = this.notifTitleEnabled ? ['title'] : [];
@@ -701,11 +898,13 @@ export class NoteService {
   // ─── Presence (Fase 5) ───────────────────────────────────────────────────────
 
   /** Scrive/aggiorna la propria presenza nella subcollection notes/{noteId}/presence/{uid}. */
-  async writePresence(noteId: string, uid: string, displayName: string, isEditing: boolean): Promise<void> {
+  async writePresence(noteId: string, uid: string, displayName: string, isEditing: boolean, lastActivityAt?: number): Promise<void> {
     try {
+      const payload: Record<string, unknown> = { uid, displayName, lastSeen: Date.now(), isEditing };
+      if (lastActivityAt !== undefined) payload['lastActivityAt'] = lastActivityAt;
       await setDoc(
         doc(this.db, `notes/${noteId}/presence/${uid}`),
-        { uid, displayName, lastSeen: Date.now(), isEditing },
+        payload,
         { merge: true }
       );
     } catch { /* silenzioso — presenza non critica */ }
@@ -744,6 +943,71 @@ export class NoteService {
     }, () => callback([]));
   }
 
+  // ─── Reminder subscription per-user (Fase 1) ───────────────────────────────
+  // Ogni utente ha il proprio subdoc `notes/{noteId}/reminderSnoozes/{uid}`
+  // che contiene:
+  //   - muted: boolean → silenzia sempre per questo utente
+  //   - snoozedUntil: number | null → scadenza snooze temporaneo
+  // Il cron rispetta entrambi (skip se muted OR snoozedUntil > now).
+  // Quando entrambi sono "inattivi" (muted=false, snoozedUntil=null), il subdoc
+  // viene eliminato per non sporcare il DB.
+
+  /** Scrive/aggiorna la sottoscrizione reminder per-user. */
+  async writeReminderSubscription(
+    noteId: string,
+    uid: string,
+    sub: { muted?: boolean; snoozedUntil?: number | null }
+  ): Promise<void> {
+    const ref = doc(this.db, `notes/${noteId}/reminderSnoozes/${uid}`);
+    const muted = sub.muted === true;
+    const snoozedUntil = (typeof sub.snoozedUntil === 'number' && sub.snoozedUntil > 0)
+      ? sub.snoozedUntil
+      : null;
+    const isInactive = !muted && snoozedUntil === null;
+    if (isInactive) {
+      await deleteDoc(ref).catch(() => {});
+      return;
+    }
+    await setDoc(ref, {
+      uid,
+      snoozedBy: uid,
+      muted,
+      snoozedUntil,
+      updatedAt: Date.now(),
+    }, { merge: false });
+  }
+
+  /** Listener real-time sulla subscription reminder per-user.
+   *  Ritorna null se non esiste (= stato default: notifica attiva). */
+  watchReminderSubscription(
+    noteId: string,
+    uid: string,
+    callback: (sub: { muted: boolean; snoozedUntil: number | null } | null) => void
+  ): () => void {
+    const ref = doc(this.db, `notes/${noteId}/reminderSnoozes/${uid}`);
+    return onSnapshot(ref, snap => {
+      if (!snap.exists()) { callback(null); return; }
+      const data = snap.data() ?? {};
+      callback({
+        muted: Boolean(data['muted']),
+        snoozedUntil: typeof data['snoozedUntil'] === 'number' ? data['snoozedUntil'] : null,
+      });
+    }, () => callback(null));
+  }
+
+  /** Shim legacy: scrive solo snoozedUntil (mantiene eventuale muted pre-esistente).
+   *  Nuovi call-site usano writeReminderSubscription. */
+  async writeReminderSnooze(noteId: string, uid: string, snoozedUntil: number | null): Promise<void> {
+    await this.writeReminderSubscription(noteId, uid, { snoozedUntil });
+  }
+
+  /** Shim legacy: emette solo snoozedUntil (compat col watcher pre-Fase 1). */
+  watchReminderSnooze(noteId: string, uid: string, callback: (snoozedUntil: number | null) => void): () => void {
+    return this.watchReminderSubscription(noteId, uid, sub => {
+      callback(sub?.snoozedUntil ?? null);
+    });
+  }
+
   /** Cifra in batch le note esistenti dopo il setup E2E (migrazione). */
   async encryptExistingNotes(): Promise<void> {
     const uid = this.authService.getCurrentUserId();
@@ -760,5 +1024,20 @@ export class NoteService {
       const encrypted = await this.cryptoService.encryptNote(raw);
       await updateDoc(doc(this.db, `notes/${d.id}`), encrypted as any);
     }));
+  }
+
+  /**
+   * Fresh read dal server per bypassare cache stale; fallback a cache se offline.
+   * Allineato a getUserDoc/getNoteUpdatedAt ma con graceful offline fallback
+   * per preservare offline-write capability (persistentLocalCache). Le rules
+   * lato server restano il backstop finale.
+   */
+  private async freshOrCached(ref: DocumentReference): Promise<DocumentSnapshot> {
+    try {
+      return await getDocFromServer(ref);
+    } catch (err) {
+      console.warn('[freshOrCached] server read failed, falling back to cache:', err);
+      return await getDoc(ref);
+    }
   }
 }

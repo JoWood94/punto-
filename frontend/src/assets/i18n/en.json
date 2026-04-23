@@ -24,10 +24,35 @@
     "UPDATE": "Update app"
   },
   "FAB": {
-    "NEW_NOTE": "New Note",
+    "NEW_NOTE": "Note",
     "NEW_NOTE_ARIA": "New note",
+    "NEW_MEMO": "Reminder",
+    "NEW_MEMO_ARIA": "New reminder",
+    "NEW_EVENT": "Event",
+    "NEW_EVENT_ARIA": "New event",
     "NEW_REMINDER": "New Reminder",
-    "NEW_REMINDER_ARIA": "New reminder"
+    "NEW_REMINDER_ARIA": "New reminder",
+    "CREATE": "Create",
+    "CLOSE": "Close"
+  },
+  "ENTITY": {
+    "NOTE": "Note",
+    "MEMO": "Reminder",
+    "EVENT": "Event"
+  },
+  "DATETIME": {
+    "SELECT_DATE": "Select date"
+  },
+  "SNOOZE": {
+    "OPEN_LABEL": "Manage notification",
+    "STATUS_MUTED": "Muted",
+    "STATUS_SNOOZED_UNTIL": "Paused until",
+    "REACTIVATE": "Reactivate",
+    "CUSTOM": "Custom",
+    "CUSTOM_CONFIRM": "Confirm",
+    "CANCEL": "Cancel",
+    "MUTE_ALWAYS": "Mute forever",
+    "MUTE_CONFIRM": "Tap again to mute"
   },
   "CONNECTIVITY": {
     "OFFLINE": "Offline",
@@ -97,6 +122,18 @@
     "ADD_REMINDER": "Add reminder",
     "REMOVE_REMINDER": "Remove reminder",
     "ADD_BLOCK": "Add block",
+    "SNOOZE_LABEL": "Snooze",
+    "SNOOZE_15MIN": "15 minutes",
+    "SNOOZE_1H": "1 hour",
+    "SNOOZE_8H": "8 hours",
+    "SNOOZE_TOMORROW": "Tomorrow at 09:00",
+    "SNOOZE_UNTIL": "Snoozed until",
+    "SNOOZE_UNTIL_TOMORROW": "Snoozed until tomorrow",
+    "SNOOZE_UNTIL_DATE": "Snoozed until",
+    "SNOOZE_CANCEL": "Cancel snooze",
+    "SNOOZE_CANCEL_CONFIRM": "Tap again to cancel",
+    "COMPLETED_REMINDER_TOAST": "completed the reminder",
+    "REMOTE_UPDATE_BAIL": "Remote changes received — reopen the note to sync",
     "FORMAT": {
       "BOLD": "Bold",
       "ITALIC": "Italic",
@@ -182,7 +219,11 @@
     "OWN_INVITE_ERROR": "You cannot accept your own invite link.",
     "EXPIRED_ERROR": "This invite link has expired.",
     "INVALID_ERROR": "Invalid or unavailable invite link.",
-    "ACCEPT_ERROR": "Failed to accept the invite. Please try again."
+    "ACCEPT_ERROR": "Failed to accept the invite. Please try again.",
+    "NOTIF_CONSENT_TITLE": "Receive notifications?",
+    "NOTIF_CONSENT_HINT": "Choose whether to be notified when the reminder fires. You can change this anytime from the bell in the editor.",
+    "NOTIF_CONSENT_YES": "Yes, notify me",
+    "NOTIF_CONSENT_NO": "No, owner only"
   },
   "SHARING": {
     "TITLE": "Share note",
@@ -215,7 +256,8 @@
     "LEAVING": "Leaving...",
     "GUEST_TITLE": "Shared note",
     "REMOTE_UPDATE": "Note updated by a collaborator",
-    "REMOVED_FROM_NOTE": "You have been removed from this note"
+    "REMOVED_FROM_NOTE": "You have been removed from this note",
+    "UNKNOWN_COLLABORATOR": "A collaborator"
   },
   "USERNAME": {
     "LABEL": "Username",

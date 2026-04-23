@@ -2,6 +2,37 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    // ── Helper functions ───────────────────────────────────────────────────────
+    // Schema validator per notes tipizzate (Fase 0 shared-calendars.md).
+    // Applicato a create/update in modo da impedire doc malformati post-migrazione.
+
+    function isValidNoteType(data) {
+      return data.type in ['note', 'memo', 'event'];
+    }
+
+    function isValidImage(data) {
+      // Immagine opzionale. Se presente deve essere base64 string <300KB
+      // e mimeType in whitelist (JPEG/PNG/WebP).
+      return !('image' in data) || (
+        data.image.data is string &&
+        data.image.data.size() < 300000 &&
+        data.image.mimeType in ['image/jpeg', 'image/png', 'image/webp']
+      );
+    }
+
+    function isValidTypedNote(data) {
+      // - type obbligatorio in whitelist
+      // - se type=='event' → calendarId richiesto e stringa
+      // - se type=='note' → hasReminderBlock deve essere false (denormalizzato dal FE
+      //   al save; previene ReminderBlock dentro una nota "pura")
+      // - image opzionale con constraint di size/mime
+      return 'type' in data &&
+        isValidNoteType(data) &&
+        (data.type != 'event' || ('calendarId' in data && data.calendarId is string)) &&
+        (data.type != 'note' || data.hasReminderBlock == false) &&
+        isValidImage(data);
+    }
+
     // ── Notes ──────────────────────────────────────────────────────────────────
     match /notes/{noteId} {
       // Owner + guest possono leggere
@@ -12,14 +43,16 @@ service cloud.firestore {
          request.auth.uid in resource.data.collaboratorUids)
       );
 
-      // Solo l'owner può creare
+      // Solo l'owner può creare + schema valido
       allow create: if request.auth != null &&
-        request.resource.data.uid == request.auth.uid;
+        request.resource.data.uid == request.auth.uid &&
+        isValidTypedNote(request.resource.data);
 
       // Owner: aggiornamento libero
       // Guest esistente: può aggiornare contenuto ma non uid/collaboratorUids
       // Guest può rimuovere SOLO se stesso da collaboratorUids (lascia la nota)
       // Nuovo guest via invite: può aggiungere SOLO se stesso a collaboratorUids
+      // In ogni caso lo schema tipizzato deve essere valido post-update.
       allow update: if request.auth != null && (
         resource.data.uid == request.auth.uid ||
         (
@@ -40,7 +73,7 @@ service cloud.firestore {
           request.auth.uid in request.resource.data.collaboratorUids &&
           request.resource.data.uid == resource.data.uid
         )
-      );
+      ) && isValidTypedNote(request.resource.data);
 
       // Solo l'owner può eliminare
       allow delete: if request.auth != null &&
@@ -60,6 +93,45 @@ service cloud.firestore {
           get(/databases/$(database)/documents/notes/$(noteId)).data.uid == request.auth.uid ||
           ('collaboratorUids' in get(/databases/$(database)/documents/notes/$(noteId)).data &&
            request.auth.uid in get(/databases/$(database)/documents/notes/$(noteId)).data.collaboratorUids)
+        );
+      }
+
+      // ── Reminder snoozes subcollection ─────────────────────────────────────
+      // Ogni utente (owner o collaborator) può snoozare un reminder solo per sé.
+      // Doc id = uid snoozato. Scope = istanza corrente del reminder (cancellato dal cron).
+      match /reminderSnoozes/{uid} {
+        // Subscription reminder per-user (Fase 1): { muted, snoozedUntil }.
+        // muted=true → silenzia sempre; snoozedUntil=int → snooze temporaneo (max 7gg);
+        // entrambi falsi → client elimina il doc (stato default = notifica attiva).
+        allow read: if request.auth != null && (
+          get(/databases/$(database)/documents/notes/$(noteId)).data.uid == request.auth.uid ||
+          uid == request.auth.uid
+        );
+        // Write: solo sul proprio subdoc, solo owner/collaborator della nota.
+        allow create, update: if request.auth != null &&
+          uid == request.auth.uid &&
+          (
+            get(/databases/$(database)/documents/notes/$(noteId)).data.uid == request.auth.uid ||
+            ('collaboratorUids' in get(/databases/$(database)/documents/notes/$(noteId)).data &&
+             request.auth.uid in get(/databases/$(database)/documents/notes/$(noteId)).data.collaboratorUids)
+          ) &&
+          request.resource.data.uid == request.auth.uid &&
+          request.resource.data.snoozedBy == request.auth.uid &&
+          request.resource.data.muted is bool &&
+          (
+            // snoozedUntil è esplicitamente null (nessuno snooze temporaneo attivo)…
+            request.resource.data.snoozedUntil == null ||
+            // …oppure int nel futuro e max +7 giorni (previene "snooze eterni")
+            (
+              request.resource.data.snoozedUntil is int &&
+              request.resource.data.snoozedUntil > request.time.toMillis() &&
+              request.resource.data.snoozedUntil <= request.time.toMillis() + 604800000
+            )
+          );
+        // Delete: il proprio subdoc (riattiva) oppure l'owner della nota.
+        allow delete: if request.auth != null && (
+          uid == request.auth.uid ||
+          get(/databases/$(database)/documents/notes/$(noteId)).data.uid == request.auth.uid
         );
       }
 
@@ -107,5 +179,39 @@ service cloud.firestore {
       allow delete: if request.auth != null &&
         resource.data.createdBy == request.auth.uid;
     }
+
+    // ── Calendars (Fase 3 — DA ATTIVARE, bozza commentata) ─────────────────────
+    // Non attiva in Fase 0: viene deployata insieme alla Fase 3 (Task #5).
+    // Inclusa qui come riferimento per coerenza di planning.
+    //
+    // match /calendars/{calId} {
+    //   // Read: owner OR subscriber (esiste subdoc subscribers/{myUid})
+    //   allow read: if request.auth != null && (
+    //     resource.data.uid == request.auth.uid ||
+    //     exists(/databases/$(database)/documents/calendars/$(calId)/subscribers/$(request.auth.uid))
+    //   );
+    //   allow create: if request.auth != null &&
+    //     request.resource.data.uid == request.auth.uid;
+    //   // Owner può aggiornare/cancellare. Cancellazione cascade lato client.
+    //   allow update, delete: if request.auth != null &&
+    //     resource.data.uid == request.auth.uid;
+    //
+    //   // Subscribers subcollection: owner NON può listare (modello feed).
+    //   // Ogni utente legge/scrive solo il proprio subdoc.
+    //   match /subscribers/{subUid} {
+    //     // Read limitato al sub stesso (niente list da parte dell'owner)
+    //     allow read: if request.auth != null && subUid == request.auth.uid;
+    //     // Create: solo su se stessi + doc con uid coerente
+    //     allow create: if request.auth != null &&
+    //       subUid == request.auth.uid &&
+    //       request.resource.data.uid == request.auth.uid;
+    //     // Update: solo toggle notificationsEnabled (self)
+    //     allow update: if request.auth != null &&
+    //       subUid == request.auth.uid &&
+    //       request.resource.data.uid == resource.data.uid;
+    //     // Delete: unsubscribe self
+    //     allow delete: if request.auth != null && subUid == request.auth.uid;
+    //   }
+    // }
   }
 }

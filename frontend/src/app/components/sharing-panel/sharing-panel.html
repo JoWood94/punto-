@@ -32,12 +32,12 @@
           <span>{{ 'SHARING.PARTICIPANTS' | translate }}</span>
         </div>
 
-        <p class="sharing-empty" *ngIf="collaborators.length === 0">
+        <p class="sharing-empty" *ngIf="collaborators().length === 0">
           {{ 'SHARING.NO_COLLABORATORS' | translate }}
         </p>
 
         <div class="collab-list">
-          <div *ngFor="let c of collaborators" class="collab-item collab-item--guest">
+          <div *ngFor="let c of collaborators()" class="collab-item collab-item--guest">
             <mat-icon class="guest-collab-icon">person</mat-icon>
             <span class="collab-username">@{{ c.username }}<span *ngIf="currentUserId === c.uid" class="you-label"> (tu)</span></span>
           </div>
@@ -98,12 +98,12 @@
           <span>{{ 'SHARING.COLLABORATORS' | translate }}</span>
         </div>
 
-        <p class="sharing-empty" *ngIf="collaborators.length === 0">
+        <p class="sharing-empty" *ngIf="collaborators().length === 0">
           {{ 'SHARING.NO_COLLABORATORS' | translate }}
         </p>
 
         <div class="collab-list">
-          <div *ngFor="let c of collaborators" class="collab-item">
+          <div *ngFor="let c of collaborators()" class="collab-item">
             <span class="collab-username">@{{ c.username }}<span *ngIf="currentUserId === c.uid" class="you-label"> (tu)</span></span>
             <div class="collab-toggles">
               <div class="collab-toggle-row">
@@ -134,7 +134,7 @@
           </div>
         </div>
 
-        <button *ngIf="collaborators.length > 0"
+        <button *ngIf="collaborators().length > 0"
                 mat-stroked-button
                 color="warn"
                 class="revoke-all-btn"

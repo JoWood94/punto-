@@ -945,28 +945,26 @@
   }
 }
 
-// ─── Unified nav toolbar — SOLO MOBILE ───────────────────────
+// ─── Unified nav toolbar — mobile e tablet (<1280px) ─────────
+// Il rendering è controllato da *ngIf="!isWideDesktop" nel template.
+// Su desktop (>=1280px) l'elemento non è nel DOM → questo CSS è irrilevante.
 .unified-toolbar {
-  display: none; // nascosta di default (desktop)
-
-  @media (max-width: 599.98px) {
-    display: flex;
-    align-items: center;
-    position: fixed;
-    bottom: calc(28px + env(safe-area-inset-bottom, 0px));
-    left: 20px;
-    z-index: 300;
-    background: #1C1B1F;
-    border-radius: 99px;
-    padding: 4px;
-    gap: 0;
-    box-shadow:
-      0 4px 12px rgba(0, 0, 0, 0.25),
-      0 1px 4px rgba(0, 0, 0, 0.15);
-    user-select: none;
-    -webkit-user-select: none;
-    touch-action: none;
-  }
+  display: flex;
+  align-items: center;
+  position: fixed;
+  bottom: calc(28px + env(safe-area-inset-bottom, 0px));
+  left: 20px;
+  z-index: 300;
+  background: #1C1B1F;
+  border-radius: 99px;
+  padding: 4px;
+  gap: 0;
+  box-shadow:
+    0 4px 12px rgba(0, 0, 0, 0.25),
+    0 1px 4px rgba(0, 0, 0, 0.15);
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: none;
 }
 
 .unified-toolbar-indicator {

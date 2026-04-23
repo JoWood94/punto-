@@ -70,7 +70,45 @@ async function checkAndSendReminders() {
       return;
     }
 
-    const tokensCache = {}; 
+    // Prefetch snooze/mute attivi: due collectionGroup query (index-backed).
+    // snoozeMap → noteId → Set<uid> skippati (unione). Snooze temporaneo cleanup
+    // post-send. Mute persistente → preserved (tracked in mutedMap per escluderlo).
+    const snoozeMap = new Map();
+    const mutedMap = new Map();
+    const addSkip = (map, noteId, uid) => {
+      if (!map.has(noteId)) map.set(noteId, new Set());
+      map.get(noteId).add(uid);
+    };
+    try {
+      const snoozeSnap = await db.collectionGroup('reminderSnoozes')
+        .where('snoozedUntil', '>', now)
+        .get();
+      for (const s of snoozeSnap.docs) {
+        addSkip(snoozeMap, s.ref.parent.parent.id, s.id);
+      }
+      if (snoozeSnap.size > 0) {
+        console.log(`Snoozes temporanei attivi: ${snoozeSnap.size}.`);
+      }
+    } catch (e) {
+      console.warn('[snooze] collectionGroup query (snoozedUntil) failed:', e.message);
+    }
+    try {
+      const mutedSnap = await db.collectionGroup('reminderSnoozes')
+        .where('muted', '==', true)
+        .get();
+      for (const s of mutedSnap.docs) {
+        const noteId = s.ref.parent.parent.id;
+        addSkip(snoozeMap, noteId, s.id);
+        addSkip(mutedMap, noteId, s.id);
+      }
+      if (mutedSnap.size > 0) {
+        console.log(`Mute permanenti attivi: ${mutedSnap.size}.`);
+      }
+    } catch (e) {
+      console.warn('[snooze] collectionGroup query (muted) failed:', e.message);
+    }
+
+    const tokensCache = {};
     const updates = [];
     let sentCount = 0;
 
@@ -88,6 +126,7 @@ async function checkAndSendReminders() {
       }
 
       const uid = note.uid;
+      const snoozedUids = snoozeMap.get(doc.id) ?? new Set();
 
       if (!tokensCache[uid]) {
         const userDoc = await db.collection('users').doc(uid).get();
@@ -101,15 +140,24 @@ async function checkAndSendReminders() {
 
       const { tokens, notifTitleEnabled, language } = tokensCache[uid];
 
-      // Fetch collaborator tokens (guests with editReminders:true)
+      // Fetch collaborator tokens. Skip:
+      //  - chi è snoozed/muted (reminderSnoozes)
+      //  - chi ha notificationsEnabled === false (opt-out esplicito, pattern A Fase 1)
+      //    NOTE: undefined o true → notifica (compat. con collab. pre-pattern A)
       const collabUidTokenPairs = [];
       try {
         const collaboratorsSnap = await db.collection('notes').doc(doc.id)
           .collection('collaborators')
-          .where('permissions.editReminders', '==', true)
           .get();
         for (const collabDoc of collaboratorsSnap.docs) {
           const collabUid = collabDoc.id;
+          const collabData = collabDoc.data() ?? {};
+          if (collabData.notificationsEnabled === false) {
+            continue;
+          }
+          if (snoozedUids.has(collabUid)) {
+            continue;
+          }
           if (!tokensCache[collabUid]) {
             const userDoc = await db.collection('users').doc(collabUid).get();
             const userData = userDoc.exists ? userDoc.data() : {};
@@ -127,10 +175,16 @@ async function checkAndSendReminders() {
         console.error(`Errore fetch collaboratori per nota ${doc.id}:`, e.message);
       }
 
-      // Combined token list: owner + collaborators (with uid tracking for cleanup)
-      const ownerUidTokenPairs = tokens.map(t => ({ uid, token: t }));
+      // Owner tokens: skip se owner snoozato
+      const ownerUidTokenPairs = snoozedUids.has(uid)
+        ? []
+        : tokens.map(t => ({ uid, token: t }));
       const allUidTokenPairs = [...ownerUidTokenPairs, ...collabUidTokenPairs];
       const allTokens = allUidTokenPairs.map(p => p.token);
+
+      if (snoozedUids.size > 0) {
+        console.log(`Nota ${doc.id}: snoozed uids=${[...snoozedUids].join(',')}, recipients=${allTokens.length}`);
+      }
 
       const NOTIF_STRINGS = {
         it: {
@@ -255,6 +309,20 @@ async function checkAndSendReminders() {
         }
         updates.push(doc.ref.update(updatePayload));
       }
+
+      // Cleanup snoozes temporanei processati: lo scope è l'istanza appena emessa/rischedulata.
+      // I doc con muted=true sono esclusi — il mute è permanente e va preservato
+      // per le successive istanze ricorrenti.
+      const mutedUidsForNote = mutedMap.get(doc.id) ?? new Set();
+      const uidsToCleanup = [...snoozedUids].filter(u => !mutedUidsForNote.has(u));
+      if (uidsToCleanup.length > 0) {
+        const batch = db.batch();
+        for (const snoozedUid of uidsToCleanup) {
+          batch.delete(db.collection('notes').doc(doc.id)
+            .collection('reminderSnoozes').doc(snoozedUid));
+        }
+        updates.push(batch.commit());
+      }
     }
 
     await Promise.all(updates);
@@ -269,9 +337,145 @@ async function checkAndSendReminders() {
   }
 }
 
+const COMPLETION_STRINGS = {
+  it: {
+    title: 'punto! — Promemoria evaso',
+    body: (name) => `${name} ha evaso un promemoria condiviso`,
+  },
+  en: {
+    title: 'punto! — Reminder completed',
+    body: (name) => `${name} completed a shared reminder`,
+  },
+};
+
+async function checkAndSendCompletions() {
+  console.log(`[${new Date().toISOString()}] Controllo notifiche evasione condivisa...`);
+  const snap = await db.collection('notes')
+    .where('completionNotifyPending', '==', true)
+    .get();
+
+  if (snap.empty) {
+    console.log("Nessuna evasione da notificare.");
+    return;
+  }
+
+  const tokensCache = {};
+  const updates = [];
+  let sentCount = 0;
+
+  for (const doc of snap.docs) {
+    const note = doc.data();
+    const byUid = note.completionNotifyBy;
+    const byName = note.completionNotifyByName || 'A collaborator';
+    const ownerUid = note.uid;
+
+    // Recipients = owner + collaborators (escluso completatore)
+    const recipientUids = new Set([ownerUid, ...(note.collaboratorUids ?? [])]);
+    recipientUids.delete(byUid);
+
+    const resetPayload = {
+      completionNotifyPending: false,
+      completionNotifyBy: admin.firestore.FieldValue.delete(),
+      completionNotifyByName: admin.firestore.FieldValue.delete(),
+      completionNotifyAt: admin.firestore.FieldValue.delete(),
+    };
+
+    if (recipientUids.size === 0) {
+      updates.push(doc.ref.update(resetPayload));
+      continue;
+    }
+
+    const allUidTokenPairs = [];
+    for (const uid of recipientUids) {
+      if (!tokensCache[uid]) {
+        const userDoc = await db.collection('users').doc(uid).get();
+        const userData = userDoc.exists ? userDoc.data() : {};
+        tokensCache[uid] = {
+          tokens: userData.fcmTokens ?? [],
+          language: userData.language ?? 'it',
+        };
+      }
+      for (const t of tokensCache[uid].tokens) {
+        allUidTokenPairs.push({ uid, token: t, language: tokensCache[uid].language });
+      }
+    }
+
+    if (allUidTokenPairs.length === 0) {
+      updates.push(doc.ref.update(resetPayload));
+      continue;
+    }
+
+    // Raggruppa per lingua (body localizzato)
+    const byLanguage = {};
+    for (const p of allUidTokenPairs) {
+      const lang = p.language in COMPLETION_STRINGS ? p.language : 'it';
+      if (!byLanguage[lang]) byLanguage[lang] = [];
+      byLanguage[lang].push(p);
+    }
+
+    for (const [lang, pairs] of Object.entries(byLanguage)) {
+      const strings = COMPLETION_STRINGS[lang];
+      const title = strings.title;
+      const body = strings.body(byName);
+      const tokens = pairs.map(p => p.token);
+
+      try {
+        const resp = await messaging.sendEachForMulticast({
+          tokens,
+          webpush: {
+            notification: {
+              title,
+              body,
+              icon: '/icons/icon-192x192.png',
+              tag: `completion-${doc.id}`,
+              data: { noteId: doc.id, kind: 'completion' },
+            },
+            data: { title, body, noteId: doc.id, kind: 'completion' },
+          },
+        });
+        sentCount++;
+
+        const failedByUid = {};
+        resp.responses.forEach((r, idx) => {
+          if (!r.success) {
+            const err = r.error;
+            if (err.code === 'messaging/invalid-registration-token' ||
+                err.code === 'messaging/registration-token-not-registered') {
+              const failUid = pairs[idx].uid;
+              if (!failedByUid[failUid]) failedByUid[failUid] = [];
+              failedByUid[failUid].push(pairs[idx].token);
+            }
+          }
+        });
+        for (const [failUid, failTokens] of Object.entries(failedByUid)) {
+          await db.collection('users').doc(failUid).update({
+            fcmTokens: admin.firestore.FieldValue.arrayRemove(...failTokens),
+          });
+        }
+      } catch (e) {
+        console.error(`Failed completion notify for note ${doc.id} lang ${lang}:`, e.message);
+      }
+    }
+
+    updates.push(doc.ref.update(resetPayload));
+  }
+
+  await Promise.all(updates);
+  if (sentCount > 0) {
+    console.log(`Inviate ${sentCount} notifiche evasione.`);
+  } else {
+    console.log("Nessuna notifica evasione inviata in questo slot.");
+  }
+}
+
+async function runAll() {
+  await checkAndSendReminders();
+  await checkAndSendCompletions();
+}
+
 if (process.env.GITHUB_ACTIONS === 'true') {
   console.log("Ambiente GitHub Actions rilevato...");
-  checkAndSendReminders().then(() => {
+  runAll().then(() => {
     console.log("Run GHA terminato correttamente.");
     process.exit(0);
   }).catch(err => {
@@ -280,5 +484,5 @@ if (process.env.GITHUB_ACTIONS === 'true') {
   });
 } else {
   console.log("Avvio del server di test locale 24/7. Cron job ogni minuto...");
-  cron.schedule('* * * * *', checkAndSendReminders);
+  cron.schedule('* * * * *', runAll);
 }

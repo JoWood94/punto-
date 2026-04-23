@@ -57,4 +57,5 @@ export class AuthService {
   getCurrentUserId(): string | null {
     return this.auth.currentUser?.uid || null;
   }
+
 }

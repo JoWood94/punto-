@@ -11,6 +11,7 @@ import { TranslateModule } from '@ngx-translate/core';
 import { NoteService, Collaborator, CollaboratorPermissions } from '../../services/note';
 import { TranslationService } from '../../services/translation';
 import { AuthService } from '../../services/auth';
+import { environment } from '../../../environments/environment';
 
 interface CollaboratorUI extends Collaborator {
   username: string;
@@ -42,7 +43,7 @@ export class SharingPanelComponent implements OnInit, OnDestroy {
   leaving = signal(false);
   inviteUrl: string | null = null;
   inviteToken: string | null = null;   // token Firestore (id documento) dell'invite attivo
-  collaborators: CollaboratorUI[] = [];
+  collaborators = signal<CollaboratorUI[]>([]);
   revoking = signal(false);
   ownerUsername: string | null = null;
   private collabUnsub: (() => void) | null = null;
@@ -56,8 +57,8 @@ export class SharingPanelComponent implements OnInit, OnDestroy {
   }
 
   private get appBaseUrl(): string {
-    const base = document.baseURI;
-    return base.endsWith('/') ? base : base + '/';
+    // Usa l'origin dell'ambiente corrente: staging → staging, prod → prod.
+    return window.location.origin + '/';
   }
 
   async ngOnInit() {
@@ -73,9 +74,9 @@ export class SharingPanelComponent implements OnInit, OnDestroy {
       await this.loadActiveInvite();
       // Live watcher: aggiorna la lista collaboratori in tempo reale
       this.collabUnsub = this.noteService.watchCollaborators(this.data.noteId, async (rawCollabs) => {
-        this.collaborators = await Promise.all(
+        const updated = await Promise.all(
           rawCollabs.map(async c => {
-            const existing = this.collaborators.find(e => e.uid === c.uid);
+            const existing = this.collaborators().find(e => e.uid === c.uid);
             return {
               ...c,
               username: existing?.username ?? (await this.noteService.getUsernameByUid(c.uid)) ?? c.uid,
@@ -83,6 +84,7 @@ export class SharingPanelComponent implements OnInit, OnDestroy {
             };
           })
         );
+        this.collaborators.set(updated);
         this.loading.set(false);
       });
     }
@@ -101,19 +103,19 @@ export class SharingPanelComponent implements OnInit, OnDestroy {
     const token = await this.noteService.getActiveInvite(this.data.noteId);
     if (token) {
       this.inviteToken = token;
-      this.inviteUrl = `${this.appBaseUrl}#/dashboard?invite=${token}`;
+      this.inviteUrl = `${this.appBaseUrl}dashboard?invite=${token}`;
     }
   }
 
   private async loadCollaborators() {
     const list = await this.noteService.getCollaborators(this.data.noteId);
-    this.collaborators = await Promise.all(
+    this.collaborators.set(await Promise.all(
       list.map(async c => ({
         ...c,
         username: (await this.noteService.getUsernameByUid(c.uid)) ?? c.uid,
         removing: false,
       }))
-    );
+    ));
   }
 
   async generateLink() {
@@ -127,7 +129,7 @@ export class SharingPanelComponent implements OnInit, OnDestroy {
       }
       const token = await this.noteService.createInvite(this.data.noteId);
       this.inviteToken = token;
-      this.inviteUrl = `${this.appBaseUrl}#/dashboard?invite=${token}`;
+      this.inviteUrl = `${this.appBaseUrl}dashboard?invite=${token}`;
     } finally {
       this.generatingLink.set(false);
     }
@@ -149,7 +151,7 @@ export class SharingPanelComponent implements OnInit, OnDestroy {
     collab.removing = true;
     try {
       await this.noteService.removeCollaborator(this.data.noteId, collab.uid);
-      this.collaborators = this.collaborators.filter(c => c.uid !== collab.uid);
+      this.collaborators.set(this.collaborators().filter(c => c.uid !== collab.uid));
     } catch {
       collab.removing = false;
     }
@@ -159,7 +161,7 @@ export class SharingPanelComponent implements OnInit, OnDestroy {
     this.revoking.set(true);
     try {
       await this.noteService.revokeAllCollaborators(this.data.noteId);
-      this.collaborators = [];
+      this.collaborators.set([]);
       this.inviteUrl = null;
       this.dialogRef.close({ revoked: true });
     } finally {

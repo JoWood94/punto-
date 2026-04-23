@@ -1,0 +1,155 @@
+// create-fab — speed-dial FAB M3 per creazione Nota/Memo/Evento
+// Aesthetic: editorial minimalism, near-black #1C1B1F su off-white #FFFBFE.
+
+:host { display: block; }
+
+.create-fab-root {
+  position: relative;
+  display: inline-block;
+
+  &--mobile {
+    // Variante mobile: il root è posizionato assoluto dal container parent
+    display: block;
+  }
+}
+
+.create-fab-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(28, 27, 31, 0.32);
+  z-index: 998;
+  animation: create-fab-backdrop-in 160ms ease-out;
+
+  @media (prefers-reduced-motion: reduce) { animation: none; }
+
+  // Desktop: dentro mat-sidenav-content (transformed ancestor) il position:fixed
+  // viene confinato alla regione del content → appare come rettangolo visibile.
+  // Rendiamo il backdrop trasparente su desktop: il click-away funziona comunque
+  // via pointer-events, e non crea artefatti visivi.
+  @media (min-width: 768px) {
+    background: transparent;
+    animation: none;
+  }
+}
+
+@keyframes create-fab-backdrop-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.create-fab-items {
+  position: absolute;
+  bottom: calc(100% + 12px);
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+  z-index: 999;
+  pointer-events: none;
+
+  .create-fab-root--open & {
+    pointer-events: auto;
+  }
+}
+
+.create-fab-item {
+  // M3 extended pill: icona + label inline. Palette coerente col trigger
+  // (near-black su off-white) per unità visiva. Width fissa per ritmo uniforme.
+  // Gap 6px allineato a .unified-toolbar-seg. Tipografia editorial (letter-spacing
+  // negativo + 14.5px) coerente con snooze-sheet.
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 6px;
+  padding: 0 22px 0 18px;
+  width: 168px;
+  height: 48px;
+  border-radius: 24px;
+  background: #1C1B1F;
+  color: #FFFBFE;
+  box-shadow:
+    0 1px 2px rgba(28, 27, 31, 0.06),
+    0 6px 18px rgba(28, 27, 31, 0.14),
+    0 12px 30px rgba(28, 27, 31, 0.06);
+  font-family: inherit;
+  font-weight: 500;
+  font-size: 14.5px;
+  letter-spacing: -0.005em;
+
+  opacity: 0;
+  transform: translateY(8px) scale(0.92);
+  transition: opacity 180ms ease-out, transform 180ms cubic-bezier(0.2, 0, 0, 1);
+  transition-delay: 0ms;
+  pointer-events: none;
+
+  .create-fab-root--open & {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    pointer-events: auto;
+  }
+
+  // Stagger: la voce più in basso (note) entra per prima, poi memo, poi event.
+  // In reverse dal rendering DOM (event è in cima nel template): event ultimo.
+  &--note   { .create-fab-root--open & { transition-delay: 0ms; } }
+  &--memo   { .create-fab-root--open & { transition-delay: 40ms; } }
+  &--event  { .create-fab-root--open & { transition-delay: 80ms; } }
+
+  mat-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    font-size: 20px;
+    line-height: 1;
+    color: #FFFBFE;
+    flex-shrink: 0;
+  }
+
+  &:hover { filter: brightness(1.08); }
+  &:active { transform: translateY(0) scale(0.97); }
+
+  @media (prefers-reduced-motion: reduce) {
+    transition: opacity 0ms;
+  }
+}
+
+.create-fab-item-label {
+  white-space: nowrap;
+}
+
+.create-fab-trigger {
+  position: relative;
+  z-index: 1000;
+  background: #1C1B1F;
+  color: #FFFBFE;
+  transition: background 200ms cubic-bezier(0.2, 0, 0, 1);
+
+  &:disabled {
+    opacity: 0.38;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    transition: none;
+  }
+}
+
+// Trigger icon: single mat-icon che cambia name (add / close) via binding.
+// Il mat-fab M3 centra naturalmente un mat-icon come primo child.
+.create-fab-trigger mat-icon {
+  transition: transform 220ms cubic-bezier(0.2, 0, 0, 1);
+}
+
+.create-fab-trigger--open mat-icon {
+  transform: scale(1.05);
+}
+
+// Mobile: FAB position fisso bottom-right gestito dal parent.
+// In modalità mobile le voci sopra il trigger si estendono verso l'alto.
+.create-fab-root--mobile {
+  .create-fab-items {
+    // su mobile: offset maggiore per evitare overlap con tab bar
+    bottom: calc(100% + 20px);
+  }
+}

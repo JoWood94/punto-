@@ -1,5 +1,6 @@
 export const environment = {
   production: false,
+  canonicalUrl: 'https://punto-84646.web.app',
   firebase: {
     apiKey: "AIzaSyDqf9hfsOCbZf_e3wo8lCagMoeUifJChPw",
     authDomain: "punto-84646.firebaseapp.com",

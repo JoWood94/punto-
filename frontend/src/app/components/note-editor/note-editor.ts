@@ -1,7 +1,7 @@
 import {
   Component, Input, Output, EventEmitter, inject, OnInit, OnChanges, OnDestroy,
   SimpleChanges, ViewChildren, ViewChild, QueryList, ElementRef, ChangeDetectorRef,
-  AfterViewInit, AfterViewChecked, signal, NgZone
+  AfterViewInit, AfterViewChecked, DoCheck, signal, NgZone
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -23,7 +23,7 @@ import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { firstValueFrom } from 'rxjs';
 
 import {
-  NoteService, Note, NoteBlock, TextBlock, ChecklistBlock,
+  NoteService, Note, NoteBlock, NoteType, TextBlock, ChecklistBlock,
   LocationBlock, ReminderBlock, ImageBlock, LinkBlock, migrateToBlocks, PresenceEntry
 } from '../../services/note';
 import { AuthService } from '../../services/auth';
@@ -34,6 +34,7 @@ import { TranslateModule } from '@ngx-translate/core';
 import { TranslationService } from '../../services/translation';
 import { CryptoService } from '../../services/crypto';
 import { ToastService } from '../../services/toast';
+import { SnoozeSheetComponent } from '../snooze-sheet/snooze-sheet';
 // TODO: import Storage riabilitare con piano Firebase Storage
 // import { getStorage, ref as storageRef, uploadBytesResumable, getDownloadURL, deleteObject } from 'firebase/storage';
 // import { getApp } from 'firebase/app';
@@ -49,14 +50,21 @@ import { ToastService } from '../../services/toast';
     MatCheckboxModule, MatDatepickerModule, MatNativeDateModule,
     MatSelectModule, MatChipsModule, MatMenuModule, MatDialogModule,
     DragDropModule, TranslateModule,
+    SnoozeSheetComponent,
   ],
   templateUrl: './note-editor.html',
   styleUrls: ['./note-editor.scss']
 })
-export class NoteEditorComponent implements OnInit, OnChanges, AfterViewInit, AfterViewChecked, OnDestroy {
+export class NoteEditorComponent implements OnInit, OnChanges, DoCheck, AfterViewInit, AfterViewChecked, OnDestroy {
   @Input() selectedNote: Note | null = null;
   @Input() initialReminderDate?: Date;
-  @Output() closeEditor = new EventEmitter<void>();
+  /**
+   * Tipo iniziale per la creazione di una nuova nota (selectedNote == null).
+   * Passato dal CreateFabComponent in Fase 1. Default 'note' per back-compat.
+   * Ignorato quando selectedNote è valorizzato (editing di doc esistente).
+   */
+  @Input() initialNoteType: NoteType = 'note';
+  @Output() closeEditor = new EventEmitter<boolean>();
   @Output() noteCreated = new EventEmitter<string>();
   @Output() noteLiveUpdate = new EventEmitter<{id: string, title: string}>();
 
@@ -109,6 +117,12 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewInit, Af
 
   /** Set to true whenever the blocks array changes and text blocks need HTML re-init. */
   private textBlocksNeedInit = false;
+  private myUsername: string | null = null;
+  /** Set to true when markReminderCompleted fires on a shared note — buildPayload emits flags. */
+  private completionNotifyPendingFlag = false;
+  /** True while own performAutoSave is in-flight — prevents Firestore's local pending-write
+   *  snapshot from triggering applyRemoteUpdate before lastSavedAt is updated. */
+  private pendingOwnWrite = false;
   /** Block index to focus after next DOM init (used to open keyboard on new text block). */
   private pendingFocusBlockIndex: number | null = null;
   /** Set to true when a new note is created — focuses the title input after DOM init. */
@@ -135,6 +149,27 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewInit, Af
   private presenceEditing = false;
   private selfDisplayName: string | null = null;
 
+  // ─── Sottoscrizione reminder per-user (Fase 1) ────────────────────────────
+  readonly snoozedUntil = signal<number | null>(null);
+  readonly reminderMuted = signal<boolean>(false);
+  readonly showSnoozeSheet = signal(false);
+  snoozeConfirmPending = false; // true dopo primo tap su "Annulla snooze" (confirm-on-second-tap)
+  private snoozeUnsub: (() => void) | null = null;
+
+  get reminderSubState(): { muted: boolean; snoozedUntil: number | null } {
+    return { muted: this.reminderMuted(), snoozedUntil: this.snoozedUntil() };
+  }
+
+  /** Stato snooze o mute attivo. Usato per l'icona campanella. */
+  get hasActiveSuppression(): boolean {
+    if (this.reminderMuted()) return true;
+    const until = this.snoozedUntil();
+    return !!until && until > Date.now();
+  }
+  private prevCompletedBy: string | null = null;
+  /** Cache uid→username per evitare fetch ripetuti nel completion toast. */
+  private readonly usernameCache = new Map<string, string>();
+
   get hasReminderBlock(): boolean {
     return this.note.blocks.some(b => b.type === 'reminder');
   }
@@ -145,6 +180,35 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewInit, Af
 
   get hasViewingCollaborators(): boolean {
     return this.presenceUsers().length > 0 && !this.anyCollaboratorEditing;
+  }
+
+  /** True se un collaboratore ha effettuato una qualsiasi mutazione negli ultimi 5s. */
+  get hasRecentCollabActivity(): boolean {
+    const threshold = Date.now() - 5_000;
+    return this.presenceUsers().some(u => (u.lastActivityAt ?? 0) > threshold);
+  }
+
+  /** True se l'utente corrente ha snoozato il reminder e il tempo non è ancora scaduto. */
+  get isSnoozed(): boolean {
+    const until = this.snoozedUntil();
+    return !!until && until > Date.now();
+  }
+
+  /** Etichetta formattata dello snooze attivo (es. "fino alle 10:00", "fino a domani"). */
+  get snoozeLabel(): string {
+    const until = this.snoozedUntil();
+    if (!until) return '';
+    const now = new Date();
+    const target = new Date(until);
+    const isToday = target.toDateString() === now.toDateString();
+    const tomorrow = new Date(now);
+    tomorrow.setDate(now.getDate() + 1);
+    const isTomorrow = target.toDateString() === tomorrow.toDateString();
+    const hhmm = target.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
+    if (isToday) return `${this.translationService.instant('EDITOR.SNOOZE_UNTIL')} ${hhmm}`;
+    if (isTomorrow) return `${this.translationService.instant('EDITOR.SNOOZE_UNTIL_TOMORROW')} ${hhmm}`;
+    const dateStr = target.toLocaleDateString('it-IT', { day: 'numeric', month: 'short' });
+    return `${this.translationService.instant('EDITOR.SNOOZE_UNTIL_DATE')} ${dateStr} ${hhmm}`;
   }
 
   get reminderBlock(): any | null {
@@ -191,7 +255,12 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewInit, Af
           }
         }).afterClosed().toPromise();
         if (!confirmed) return;
-        await this.noteService.updateNote(this.savedNoteId, this.buildPayload(), { skipEncryption: true });
+        this.pendingOwnWrite = true;
+        try {
+          await this.noteService.updateNote(this.savedNoteId, this.buildPayload(), { skipEncryption: true });
+        } finally {
+          this.pendingOwnWrite = false;
+        }
       }
     }
 
@@ -207,15 +276,19 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewInit, Af
     ref.afterClosed().subscribe((result) => {
       if (result?.left) {
         this.stopLiveSync();
-        this.closeEditor.emit();
+        this.closeEditor.emit(this.note?.blocks?.some(b => b.type === 'reminder') ?? false);
       }
     });
   }
 
   // ─── Lifecycle ─────────────────────────────────────────────────────────────
 
-  ngOnInit() { this.initNote(); }
+  ngOnInit() {
+    this.initNote();
+    this.noteService.getUsername().then(u => this.myUsername = u).catch(() => {});
+  }
   ngOnChanges(changes: SimpleChanges) { if (changes['selectedNote']) this.initNote(); }
+  ngDoCheck() { if (!this.guestCanEdit && this.addBlockMenuOpen()) this.addBlockMenuOpen.set(false); }
 
   ngAfterViewInit() {
     // Focus sul titolo alla prima render di una nuova nota.
@@ -344,6 +417,7 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewInit, Af
       this.lastSavedAt = this.selectedNote.updatedAt ?? 0;
       this.stopLiveSync();
       this.startLiveSync();
+      this.startSnoozeWatcher();
     } else {
       // Guard: ngOnInit + ngOnChanges chiamano entrambi initNote() al mount — evita doppia creazione
       if (this.isNewNote) return;
@@ -351,6 +425,11 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewInit, Af
       if (this.savedNoteId) return;
 
       this.userHasModifiedContent = false;
+      // Fase 1: type esplicito dal FAB speed-dial, default 'note' per back-compat.
+      // Se ha un initialReminderDate (apertura da vista Promemoria o calendario), forziamo 'memo'.
+      const resolvedType: NoteType = this.initialReminderDate && this.initialNoteType === 'note'
+        ? 'memo'
+        : this.initialNoteType;
       if (this.initialReminderDate) {
         // Da vista Promemoria o da calendario: blocco reminder, nessun titolo di default
         const d = this.initialReminderDate;
@@ -363,9 +442,9 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewInit, Af
           hour: reminderHour.toString().padStart(2, '0'),
           minute: reminderMin.toString().padStart(2, '0')
         };
-        this.note = { title: '', blocks: [reminderBlock], tags: [], color: 'default' };
+        this.note = { title: '', blocks: [reminderBlock], tags: [], color: 'default', type: resolvedType };
       } else {
-        this.note = { title: '', blocks: [], tags: [], color: 'default' };
+        this.note = { title: '', blocks: [], tags: [], color: 'default', type: resolvedType };
       }
       this.isNewNote = true;
       this.pendingFocusTitleInput = true;
@@ -376,6 +455,7 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewInit, Af
           this.savedNoteId = result.id;
           (this.note as any).id = result.id;
           this.noteCreated.emit(result.id);
+          this.startSnoozeWatcher();
         })
         .catch(err => console.error('[AutoSave] createNote error:', err));
     }
@@ -471,6 +551,7 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewInit, Af
     } else {
       this.addReminder();
     }
+    this.signalActivity();
   }
 
   addBlockAfterActive(type: NoteBlock['type']) {
@@ -479,6 +560,7 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewInit, Af
   }
 
   toggleAddBlockMenu() {
+    if (!this.guestCanEdit) return;
     this.addBlockMenuOpen.set(!this.addBlockMenuOpen());
   }
 
@@ -537,6 +619,12 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewInit, Af
 
   canRemoveBlock(_index: number): boolean {
     return true;
+  }
+
+  // TODO: sostituire con block.id stabile (uuid generato alla creazione) per gestire
+  // correttamente riordino e cancellazione senza re-mount dei nodi non coinvolti.
+  trackBlock(index: number, _block: NoteBlock): number {
+    return index;
   }
 
   onBlockDrop(event: CdkDragDrop<NoteBlock[]>) {
@@ -632,6 +720,7 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewInit, Af
 
   onChecklistItemChange() {
     if (!this.guestCanEdit) return;
+    this.signalActivity();
     this.triggerAutoSave();
   }
 
@@ -721,6 +810,7 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewInit, Af
         (b as any)._prevTime = null;
       }
     });
+    this.signalActivity();
     this.triggerAutoSave();
   }
 
@@ -741,9 +831,10 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewInit, Af
 
   markReminderCompleted(block: any, wasOverdue = false): void {
     const recurrence = block.recurrence ?? 'none';
+    const isShared = !!(this.note.isShared || (this.note as any).collaboratorUids?.length);
     if (recurrence === 'none') {
       block.status = 'completed';
-      (this.note as any).lastCompletedAt = Date.now();
+      if (isShared) this.completionNotifyPendingFlag = true;
       this.triggerAutoSave();
     } else {
       // Usa i campi UI (date/hour/minute) come base, non block.time che potrebbe essere stale
@@ -761,7 +852,7 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewInit, Af
       if (block.recurrenceEndDate && nextTime > block.recurrenceEndDate) {
         block.status = 'completed';
         block.time = currentTime;
-        (this.note as any).lastCompletedAt = Date.now();
+        if (isShared) this.completionNotifyPendingFlag = true;
         this.triggerAutoSave();
         return;
       }
@@ -952,10 +1043,8 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewInit, Af
       ...this.note,
       blocks,
       tags: this.note.tags ?? [],
-      content: textHtml,
       reminderTime: reminder?.time ?? null,
       reminderStatus: reminder?.status ?? null,
-      lastCompletedAt: (this.note as any).lastCompletedAt ?? null,
       recurrence: reminder?.recurrence ?? 'none',
       reminderRepeat: repeatValue,
       recurrenceEndDate: reminder?.recurrenceEndDate ?? null,
@@ -964,6 +1053,15 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewInit, Af
     // Strip read-only ownership/sharing metadata — mai scrivibili dal client direttamente
     delete payload.uid; delete payload.id; delete payload.myRole;
     delete payload.myPermissions; delete payload.isShared; delete payload.collaboratorUids;
+    // Completion notify flags: emetti solo una tantum dopo markReminderCompleted su shared note
+    if (this.completionNotifyPendingFlag) {
+      const uid = this.authService.getCurrentUserId();
+      payload.completionNotifyPending = true;
+      payload.completionNotifyBy = uid;
+      payload.completionNotifyByName = this.myUsername || this.translationService.instant('SHARING.UNKNOWN_COLLABORATOR');
+      payload.completionNotifyAt = Date.now();
+      this.completionNotifyPendingFlag = false;
+    }
     Object.keys(payload).forEach(k => { if (payload[k] === undefined) payload[k] = null; });
     return payload;
   }
@@ -990,11 +1088,15 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewInit, Af
   private async performAutoSave() {
     this.autoSaveTimer = null;
     if (!this.savedNoteId) return;
+    this.pendingOwnWrite = true;
+    const willNotifyCompletion = this.completionNotifyPendingFlag;
     try {
       await this.noteService.updateNote(this.savedNoteId, this.buildPayload());
       this.lastSavedAt = Date.now();
     } catch (err) {
       console.error('[AutoSave] updateNote error:', err);
+    } finally {
+      this.pendingOwnWrite = false;
     }
   }
 
@@ -1005,11 +1107,22 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewInit, Af
     if (this.isNewNote && this.savedNoteId && this.isPristine()) {
       // Nuova nota senza contenuto reale → cancella
       try { await this.noteService.deleteNote(this.savedNoteId); } catch { /* ignora */ }
-    } else if (this.savedNoteId) {
-      // Salva eventuali modifiche pendenti
+    } else if (this.savedNoteId && this.userHasModifiedContent) {
+      // L2: salva solo se l'owner ha effettivamente modificato qualcosa —
+      // evita di sovrascrivere con stato stale se la nota era condivisa runtime (BF-GG).
+      // L3: fresh read prima del save — se il remote è più aggiornato del nostro stato,
+      // non sovrascrivere (un solo read per sessione, non per keystroke).
+      try {
+        const remoteAt = await this.noteService.getNoteUpdatedAt(this.savedNoteId);
+        if (remoteAt && remoteAt > this.lastSavedAt) {
+          console.warn('[anti-overwrite] handleClose bail — remoteAt:', remoteAt, 'lastSavedAt:', this.lastSavedAt);
+          this.closeEditor.emit(this.note?.blocks?.some(b => b.type === 'reminder') ?? false);
+          return;
+        }
+      } catch { /* errore di rete: procedi con il save */ }
       await this.performAutoSave();
     }
-    this.closeEditor.emit();
+    this.closeEditor.emit(this.note?.blocks?.some(b => b.type === 'reminder') ?? false);
   }
 
   onTitleChange() {
@@ -1019,7 +1132,6 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewInit, Af
 
   undoReminderCompleted(block: any): void {
     block.status = 'pending';
-    (this.note as any).lastCompletedAt = null;
     this.triggerAutoSave();
   }
 
@@ -1027,10 +1139,10 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewInit, Af
 
   private startLiveSync() {
     if (!this.savedNoteId) return;
-    if (!(this.note.isShared || this.note.myRole === 'guest')) return;
     this.stopLiveSync();
-    this.startPermissionsSync();
-    this.startPresence(this.savedNoteId);
+
+    // watchNote sempre attivo — necessario per ricevere update dal guest anche su note
+    // che non erano ancora shared al momento dell'apertura (BF-GG fix).
     this.liveNoteUnsub = this.noteService.watchNote(this.savedNoteId, (data) => {
       // Guest kick: se siamo stati rimossi dai collaboratori, chiudi l'editor
       if (this.note.myRole === 'guest') {
@@ -1040,16 +1152,22 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewInit, Af
           this.stopLiveSync();
           this.ngZone.run(() => {
             this.toast.show(this.translationService.instant('SHARING.REMOVED_FROM_NOTE'));
-            this.closeEditor.emit();
+            this.closeEditor.emit(this.note?.blocks?.some(b => b.type === 'reminder') ?? false);
           });
           return;
         }
       }
-      if (this.autoSaveTimer !== null) return; // utente sta modificando
+      if (this.autoSaveTimer !== null || this.pendingOwnWrite) return; // utente sta modificando o scrittura in volo
       const remoteAt = data['updatedAt'] as number | undefined;
       if (!remoteAt || remoteAt <= this.lastSavedAt) return;
       this.applyRemoteUpdate(data);
     });
+
+    // Presence e permessi: solo per note condivise (ha senso solo in presenza di collaboratori)
+    if (this.note.isShared || this.note.myRole === 'guest') {
+      this.startPermissionsSync();
+      this.startPresence(this.savedNoteId);
+    }
   }
 
   private stopLiveSync() {
@@ -1106,6 +1224,82 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewInit, Af
     if (uid && this.savedNoteId) {
       this.noteService.deletePresence(this.savedNoteId, uid);
     }
+  }
+
+  /** Segnala un'attività non-typing (checklist toggle, cambio colore, reminder) per far pulsare il FAB sui collaboratori. */
+  signalActivity() {
+    if (!this.savedNoteId) return;
+    const uid = this.authService.getCurrentUserId();
+    if (!uid || !this.selfDisplayName) return;
+    this.noteService.writePresence(this.savedNoteId, uid, this.selfDisplayName, this.presenceEditing, Date.now());
+  }
+
+  // ─── Snooze (FE-01) ─────────────────────────────────────────────────────────
+
+  /** Apre lo snooze-mute sheet (Fase 1 campanella). Disponibile solo per memo/event. */
+  openSnoozeSheet() {
+    if (!this.savedNoteId) return;
+    if (this.note.type === 'note') return;
+    this.showSnoozeSheet.set(true);
+  }
+
+  async snoozeReminder(timestamp: number) {
+    const uid = this.authService.getCurrentUserId();
+    if (!uid || !this.savedNoteId) return;
+    this.showSnoozeSheet.set(false);
+    this.snoozedUntil.set(timestamp);
+    this.reminderMuted.set(false);
+    this.snoozeConfirmPending = false;
+    await this.noteService.writeReminderSubscription(this.savedNoteId, uid, {
+      muted: false,
+      snoozedUntil: timestamp,
+    }).catch(() => {});
+  }
+
+  async muteReminder() {
+    const uid = this.authService.getCurrentUserId();
+    if (!uid || !this.savedNoteId) return;
+    this.showSnoozeSheet.set(false);
+    this.reminderMuted.set(true);
+    this.snoozedUntil.set(null);
+    await this.noteService.writeReminderSubscription(this.savedNoteId, uid, {
+      muted: true,
+      snoozedUntil: null,
+    }).catch(() => {});
+  }
+
+  async reactivateReminder() {
+    const uid = this.authService.getCurrentUserId();
+    if (!uid || !this.savedNoteId) return;
+    this.showSnoozeSheet.set(false);
+    this.reminderMuted.set(false);
+    this.snoozedUntil.set(null);
+    await this.noteService.writeReminderSubscription(this.savedNoteId, uid, {
+      muted: false,
+      snoozedUntil: null,
+    }).catch(() => {});
+  }
+
+  async cancelSnooze() {
+    if (!this.snoozeConfirmPending) {
+      // Primo tap: mostra messaggio di conferma
+      this.snoozeConfirmPending = true;
+      setTimeout(() => { this.snoozeConfirmPending = false; }, 3000);
+      return;
+    }
+    // Secondo tap: esegui → riattiva (stesso effetto di reactivateReminder)
+    this.snoozeConfirmPending = false;
+    await this.reactivateReminder();
+  }
+
+  private startSnoozeWatcher() {
+    const uid = this.authService.getCurrentUserId();
+    if (!uid || !this.savedNoteId) return;
+    this.snoozeUnsub?.();
+    this.snoozeUnsub = this.noteService.watchReminderSubscription(this.savedNoteId, uid, (sub) => {
+      this.reminderMuted.set(!!sub?.muted);
+      this.snoozedUntil.set(sub?.snoozedUntil ?? null);
+    });
   }
 
   /** Segnala che l'utente sta modificando: aggiorna isEditing:true, resetta dopo 3s di inattività. */
@@ -1171,6 +1365,33 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewInit, Af
         this.checkStalledEvasion(rb);
       }
     });
+    // Completion toast (FE-01 fase 6.5): se un collaboratore ha completato il reminder
+    const uid = this.authService.getCurrentUserId();
+    const newRb = blocks.find(b => b.type === 'reminder') as any;
+    const newCB: string | null = newRb?.completedBy ?? null;
+    if (newCB && newCB !== uid && newCB !== this.prevCompletedBy) {
+      const presenceName = this.presenceUsers().find(u => u.uid === newCB)?.displayName ?? null;
+      const resolveAndToast = async () => {
+        let displayName: string;
+        if (presenceName) {
+          displayName = presenceName;
+        } else if (this.usernameCache.has(newCB)) {
+          displayName = this.usernameCache.get(newCB)!;
+        } else {
+          const fetched = await this.noteService.getUsernameByUid(newCB);
+          displayName = fetched ?? newCB.slice(0, 8);
+          if (fetched) this.usernameCache.set(newCB, fetched);
+        }
+        this.toast.show(
+          `${displayName} ${this.translationService.instant('EDITOR.COMPLETED_REMINDER_TOAST')}`,
+          4500,
+          'info'
+        );
+      };
+      resolveAndToast();
+    }
+    this.prevCompletedBy = newCB;
+
     this.note = {
       ...this.note,
       title: data['title'] ?? this.note.title,
@@ -1178,7 +1399,7 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewInit, Af
     };
     this.lastSavedAt = data['updatedAt'];
     this.textBlocksNeedInit = true;
-    // Indicatore sync: cloud (600ms) → spunta (1.5s) → nascosto
+    // Indicatore sync: sync-spinner (600ms) → spunta (1.5s) → nascosto
     clearTimeout(this.syncStateTimer);
     this.syncState.set('syncing');
     this.syncStateTimer = setTimeout(() => {
@@ -1189,6 +1410,7 @@ export class NoteEditorComponent implements OnInit, OnChanges, AfterViewInit, Af
   }
 
   ngOnDestroy() {
+    this.snoozeUnsub?.();
     this.stopLiveSync();
     // Forza sincronizzazione valore input titolo prima di salvare (fix: swipe-back senza blur)
     if (this.titleInputRef?.nativeElement) {

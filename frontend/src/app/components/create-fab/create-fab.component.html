@@ -1,0 +1,39 @@
+<div class="create-fab-root" [class.create-fab-root--open]="open" [class.create-fab-root--mobile]="variant === 'mobile'">
+  <div class="create-fab-backdrop" *ngIf="open" (click)="close()"></div>
+
+  <div class="create-fab-items" [attr.aria-hidden]="!open">
+    <button mat-fab extended class="create-fab-item create-fab-item--event"
+            *ngIf="eventsEnabled"
+            (click)="pick('event')"
+            [attr.tabindex]="open ? 0 : -1"
+            [attr.aria-label]="'FAB.NEW_EVENT' | translate">
+      <mat-icon>event</mat-icon>
+      <span class="create-fab-item-label">{{ 'FAB.NEW_EVENT' | translate }}</span>
+    </button>
+
+    <button mat-fab extended class="create-fab-item create-fab-item--memo"
+            (click)="pick('memo')"
+            [attr.tabindex]="open ? 0 : -1"
+            [attr.aria-label]="'FAB.NEW_MEMO' | translate">
+      <mat-icon>notifications</mat-icon>
+      <span class="create-fab-item-label">{{ 'FAB.NEW_MEMO' | translate }}</span>
+    </button>
+
+    <button mat-fab extended class="create-fab-item create-fab-item--note"
+            (click)="pick('note')"
+            [attr.tabindex]="open ? 0 : -1"
+            [attr.aria-label]="'FAB.NEW_NOTE' | translate">
+      <mat-icon>edit_note</mat-icon>
+      <span class="create-fab-item-label">{{ 'FAB.NEW_NOTE' | translate }}</span>
+    </button>
+  </div>
+
+  <button mat-fab class="create-fab-trigger"
+          [class.create-fab-trigger--open]="open"
+          [disabled]="disabled"
+          (click)="toggle()"
+          [attr.aria-expanded]="open"
+          [attr.aria-label]="(open ? 'FAB.CLOSE' : 'FAB.CREATE') | translate">
+    <mat-icon>{{ open ? 'close' : 'add' }}</mat-icon>
+  </button>
+</div>

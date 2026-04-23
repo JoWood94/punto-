@@ -163,12 +163,18 @@
   }
 }
 
-// ─── Mini-FAB condivisione: affiancato al reminder-mini-fab (gap 12px) ──
+// ─── Mini-FAB condivisione: affiancato al reminder-mini-fab (gap 12px).
+// Se la campanella non è renderizzata (type='note') occupa lo slot della
+// campanella tramite la modifier .share-mini-fab--no-bell.
 .share-mini-fab {
   position: absolute;
   bottom: calc(28px + min(env(safe-area-inset-bottom, 0px), 44px));
   left: calc(28px + 56px + 12px); // reminder-fab width + gap
   z-index: 300;
+
+  &--no-bell {
+    left: 28px;
+  }
   width: 56px;
   height: 56px;
   border-radius: 50%;
@@ -284,12 +290,14 @@
 
   @media (prefers-reduced-motion: reduce) {
     &::before,
-    &--collab-viewing mat-icon {
+    &--collab-viewing mat-icon,
+    &--collab-active::before,
+    &--active mat-icon {
       animation: none;
     }
   }
 
-  // Nota già condivisa: colori invertiti (come reminder attivo)
+  // Nota già condivisa: colori invertiti + breathe sottile (indica nota collaborativa)
   &--active {
     background: #FFFBFE;
     color: #1C1B1F;
@@ -298,13 +306,37 @@
       0 1px 3px rgba(0, 0, 0, 0.12),
       0 2px 8px rgba(0, 0, 0, 0.08);
 
-    mat-icon { color: #1C1B1F; }
+    mat-icon {
+      color: #1C1B1F;
+      animation: shareActiveBreathe 3.5s ease-in-out infinite;
+    }
 
     &:hover {
       box-shadow:
         0 2px 6px rgba(0, 0, 0, 0.15),
         0 4px 14px rgba(0, 0, 0, 0.1);
     }
+  }
+
+  // Quando qualcuno sta attivamente modificando: la pulse ring domina, blocca il breathe icona
+  &--collab-editing mat-icon {
+    animation: none !important;
+  }
+
+  // Attività recente non-typing (checklist, colore, reminder): pulse ring leggera
+  &--collab-active::before {
+    animation: shareCollabActivityPulse 0.8s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+  }
+
+  @keyframes shareCollabActivityPulse {
+    0%   { box-shadow: 0 0 0 0   rgba(28, 27, 31, 0.3); }
+    70%  { box-shadow: 0 0 0 10px rgba(28, 27, 31, 0);  }
+    100% { box-shadow: 0 0 0 10px rgba(28, 27, 31, 0);  }
+  }
+
+  @keyframes shareActiveBreathe {
+    0%, 100% { opacity: 1;    transform: scale(1);    }
+    50%       { opacity: 0.7; transform: scale(0.93); }
   }
 }
 
@@ -1469,6 +1501,28 @@
     transition: opacity var(--_t);
     &:hover { opacity: 0.85; }
   }
+
+  // Snooze attivo: muted, non invasivo
+  &--snoozed {
+    background: rgba(28, 27, 31, 0.06);
+    color: rgba(28, 27, 31, 0.65);
+    border: 1px solid rgba(28, 27, 31, 0.12);
+    mat-icon { color: rgba(28, 27, 31, 0.5); }
+    &:hover { background: rgba(28, 27, 31, 0.1); }
+  }
+
+  // Muted permanente: accento terracotta coerente con snooze-pill--danger
+  &--muted {
+    background: rgba(212, 116, 107, 0.08);
+    color: #A85A52;
+    border: 1px solid rgba(212, 116, 107, 0.24);
+    mat-icon { color: #A85A52; }
+  }
+}
+
+// Anchor per il snooze-sheet (positioning context su desktop)
+.snooze-sheet-anchor {
+  position: relative;
 }
 
 // CTA compatta in-strip
@@ -1492,8 +1546,16 @@
     background var(--_t),
     border-color var(--_t);
 
-  @media (min-width: 480px) {
+  // Intermedio: forza CTA su riga propria, full-width
+  @media (min-width: 480px) and (max-width: 767.98px) {
+    flex: 0 0 100%;
+    width: 100%;
+  }
+
+  // Desktop: inline accanto alle righe controlli
+  @media (min-width: 768px) {
     width: auto;
+    flex: 0 0 auto;
   }
 
   mat-icon {

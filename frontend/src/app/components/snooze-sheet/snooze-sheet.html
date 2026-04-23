@@ -1,0 +1,90 @@
+<ng-container *ngIf="visible">
+  <!-- Click-away gestito via HostListener document:click (più robusto dello
+       scrim absolute, funziona dentro mat-sidenav-content transformed). -->
+
+  <div
+    class="snooze-stack"
+    [class.snooze-stack--custom]="showCustom"
+    role="menu"
+    [attr.aria-label]="'SNOOZE.OPEN_LABEL' | translate">
+
+    <!-- Stack principale: pill floating. Hidden quando il picker custom è aperto.
+         Lo stato snooze/muted è mostrato nella strip del reminder (badge), non
+         duplicato qui per mantenere il menu puramente action-oriented. -->
+    <ng-container *ngIf="!showCustom">
+
+      <!-- Riattiva: pill inversa (chiara) per evidenziare azione di uscita -->
+      <button
+        *ngIf="canReactivate"
+        #pillBtn
+        class="snooze-pill snooze-pill--reactivate"
+        type="button"
+        role="menuitem"
+        (click)="reactivateNow()">
+        <mat-icon>notifications_active</mat-icon>
+        <span>{{ 'SNOOZE.REACTIVATE' | translate }}</span>
+      </button>
+
+      <!-- Preset rapidi -->
+      <button
+        *ngFor="let preset of presets"
+        #pillBtn
+        class="snooze-pill"
+        type="button"
+        role="menuitem"
+        (click)="select(preset)">
+        <mat-icon>snooze</mat-icon>
+        <span>{{ preset.labelKey | translate }}</span>
+      </button>
+
+      <!-- Data/ora custom: apre overlay secondario -->
+      <button
+        #pillBtn
+        class="snooze-pill"
+        type="button"
+        role="menuitem"
+        (click)="toggleCustom()">
+        <mat-icon>event</mat-icon>
+        <span>{{ 'SNOOZE.CUSTOM' | translate }}</span>
+      </button>
+
+      <!-- Silenzia sempre: accento terracotta, confirm-on-second-tap -->
+      <button
+        *ngIf="!isMuted"
+        #pillBtn
+        class="snooze-pill snooze-pill--danger"
+        [class.snooze-pill--danger-pending]="muteConfirmPending"
+        type="button"
+        role="menuitem"
+        [attr.aria-label]="(muteConfirmPending ? 'SNOOZE.MUTE_CONFIRM' : 'SNOOZE.MUTE_ALWAYS') | translate"
+        (click)="mute()">
+        <mat-icon>notifications_off</mat-icon>
+        <span>{{ (muteConfirmPending ? 'SNOOZE.MUTE_CONFIRM' : 'SNOOZE.MUTE_ALWAYS') | translate }}</span>
+      </button>
+
+    </ng-container>
+
+    <!-- Custom datetime picker overlay (secondo step) -->
+    <div class="snooze-custom-overlay" *ngIf="showCustom" role="group" [attr.aria-label]="'SNOOZE.CUSTOM' | translate">
+      <app-datetime-picker
+        [value]="customDate"
+        [minuteStep]="1"
+        [minDate]="tomorrowMinDate"
+        (valueChange)="onCustomDateChange($event)">
+      </app-datetime-picker>
+      <div class="snooze-custom-actions">
+        <button class="snooze-pill snooze-pill--ghost" type="button" (click)="toggleCustom()">
+          {{ 'SNOOZE.CANCEL' | translate }}
+        </button>
+        <button
+          class="snooze-pill snooze-pill--primary"
+          type="button"
+          [disabled]="!customDate"
+          (click)="confirmCustom()">
+          {{ 'SNOOZE.CUSTOM_CONFIRM' | translate }}
+        </button>
+      </div>
+    </div>
+
+  </div>
+</ng-container>

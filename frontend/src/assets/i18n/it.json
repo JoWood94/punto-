@@ -24,10 +24,35 @@
     "UPDATE": "Aggiorna app"
   },
   "FAB": {
-    "NEW_NOTE": "Nuova Nota",
+    "NEW_NOTE": "Nota",
     "NEW_NOTE_ARIA": "Nuova nota",
+    "NEW_MEMO": "Promemoria",
+    "NEW_MEMO_ARIA": "Nuovo promemoria",
+    "NEW_EVENT": "Evento",
+    "NEW_EVENT_ARIA": "Nuovo evento",
     "NEW_REMINDER": "Nuovo Promemoria",
-    "NEW_REMINDER_ARIA": "Nuovo promemoria"
+    "NEW_REMINDER_ARIA": "Nuovo promemoria",
+    "CREATE": "Crea",
+    "CLOSE": "Chiudi"
+  },
+  "ENTITY": {
+    "NOTE": "Nota",
+    "MEMO": "Promemoria",
+    "EVENT": "Evento"
+  },
+  "DATETIME": {
+    "SELECT_DATE": "Seleziona data"
+  },
+  "SNOOZE": {
+    "OPEN_LABEL": "Gestisci notifica",
+    "STATUS_MUTED": "Silenziata",
+    "STATUS_SNOOZED_UNTIL": "In pausa fino a",
+    "REACTIVATE": "Riattiva",
+    "CUSTOM": "Personalizzato",
+    "CUSTOM_CONFIRM": "Conferma",
+    "CANCEL": "Annulla",
+    "MUTE_ALWAYS": "Silenzia sempre",
+    "MUTE_CONFIRM": "Tocca ancora per silenziare"
   },
   "CONNECTIVITY": {
     "OFFLINE": "Offline",
@@ -97,6 +122,18 @@
     "ADD_REMINDER": "Aggiungi promemoria",
     "REMOVE_REMINDER": "Rimuovi promemoria",
     "ADD_BLOCK": "Aggiungi blocco",
+    "SNOOZE_LABEL": "Snooze",
+    "SNOOZE_15MIN": "15 minuti",
+    "SNOOZE_1H": "1 ora",
+    "SNOOZE_8H": "8 ore",
+    "SNOOZE_TOMORROW": "Domani alle 09:00",
+    "SNOOZE_UNTIL": "Snoozato fino alle",
+    "SNOOZE_UNTIL_TOMORROW": "Snoozato fino a domani",
+    "SNOOZE_UNTIL_DATE": "Snoozato fino al",
+    "SNOOZE_CANCEL": "Annulla snooze",
+    "SNOOZE_CANCEL_CONFIRM": "Tocca ancora per annullare",
+    "COMPLETED_REMINDER_TOAST": "ha completato il promemoria",
+    "REMOTE_UPDATE_BAIL": "Modifiche remote ricevute — riapri la nota per sincronizzare",
     "FORMAT": {
       "BOLD": "Grassetto",
       "ITALIC": "Corsivo",
@@ -182,7 +219,11 @@
     "OWN_INVITE_ERROR": "Non puoi accettare il tuo stesso link di invito.",
     "EXPIRED_ERROR": "Questo link di invito è scaduto.",
     "INVALID_ERROR": "Link di invito non valido o non disponibile.",
-    "ACCEPT_ERROR": "Errore durante l'accettazione dell'invito. Riprova."
+    "ACCEPT_ERROR": "Errore durante l'accettazione dell'invito. Riprova.",
+    "NOTIF_CONSENT_TITLE": "Ricevere notifiche?",
+    "NOTIF_CONSENT_HINT": "Scegli se vuoi essere avvisato quando scatta il promemoria. Potrai cambiare idea dalla campanella nell'editor.",
+    "NOTIF_CONSENT_YES": "Sì, avvisami",
+    "NOTIF_CONSENT_NO": "No, solo l'owner"
   },
   "SHARING": {
     "TITLE": "Condividi nota",
@@ -215,7 +256,8 @@
     "LEAVING": "Uscita...",
     "GUEST_TITLE": "Nota condivisa",
     "REMOTE_UPDATE": "Nota aggiornata da un collaboratore",
-    "REMOVED_FROM_NOTE": "Sei stato rimosso da questa nota"
+    "REMOVED_FROM_NOTE": "Sei stato rimosso da questa nota",
+    "UNKNOWN_COLLABORATOR": "Un collaboratore"
   },
   "USERNAME": {
     "LABEL": "Username",

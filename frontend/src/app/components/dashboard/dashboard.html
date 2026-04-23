@@ -210,8 +210,8 @@
         </ng-container>
       </div>
 
-      <!-- Floating toolbar Note / Promemoria (solo desktop) -->
-      <div class="list-mode-toolbar" *ngIf="!isMobile">
+      <!-- Floating toolbar Note / Promemoria (solo desktop >=1280px) -->
+      <div class="list-mode-toolbar" *ngIf="isWideDesktop">
         <div class="lmt-pill">
           <button class="lmt-btn" type="button"
                   [class.lmt-btn--active]="activeView === 'notes'"
@@ -233,14 +233,14 @@
         <div class="note-card"
              (click)="selectNote(note)"
              [class.active-note]="activeNote?.id === note.id"
-             [class.note-card-reminder]="note.reminderTime"
+             [class.note-card-reminder]="noteHasReminder(note)"
              [style.background-color]="getNoteCardBg(note)">
 
           <div class="note-card-body">
             <div class="note-card-title-row">
-              <mat-icon class="note-card-bell" *ngIf="note.reminderStatus === 'completed'">task_alt</mat-icon>
-              <mat-icon class="note-card-bell" *ngIf="note.recurrence && note.recurrence !== 'none'">repeat</mat-icon>
-              <mat-icon class="note-card-bell" *ngIf="note.reminderTime && note.reminderStatus !== 'completed' && (!note.recurrence || note.recurrence === 'none')">notifications</mat-icon>
+              <mat-icon class="note-card-bell" *ngIf="noteReminderStatus(note) === 'completed'">task_alt</mat-icon>
+              <mat-icon class="note-card-bell" *ngIf="noteIsRecurring(note)">repeat</mat-icon>
+              <mat-icon class="note-card-bell" *ngIf="noteHasReminder(note) && noteReminderStatus(note) !== 'completed' && !noteIsRecurring(note)">notifications</mat-icon>
               <mat-icon class="note-card-bell note-card-shared--owned"
                         *ngIf="note.isShared && note.myRole !== 'guest'"
                         [attr.aria-label]="'SHARING.SHARED' | translate">group</mat-icon>
@@ -268,13 +268,13 @@
           </div>
 
           <div class="note-meta-actions">
-            <span class="note-card-time" *ngIf="note.recurrence && note.recurrence !== 'none' && note.reminderTime">{{ formatNextOccurrence(note) }}</span>
-            <ng-container *ngIf="!note.recurrence || note.recurrence === 'none'">
+            <span class="note-card-time" *ngIf="noteIsRecurring(note) && noteHasReminder(note)">{{ formatNextOccurrence(note) }}</span>
+            <ng-container *ngIf="!noteIsRecurring(note)">
               <span class="note-card-time" *ngIf="getReminderTimeToday(note) as t">{{ t }}</span>
             </ng-container>
             <!-- Evadi button: solo in vista Promemoria per note attive non ancora evase -->
             <button mat-icon-button
-                    *ngIf="activeView === 'reminders' && note.reminderTime && note.reminderStatus !== 'completed'"
+                    *ngIf="activeView === 'reminders' && noteHasReminder(note) && noteReminderStatus(note) !== 'completed'"
                     (click)="quickEvadi(note, $event)"
                     matTooltip="Evadi"
                     class="evadi-btn">
@@ -282,7 +282,7 @@
             </button>
             <!-- Pin button: nascosto nella vista Promemoria -->
             <button mat-icon-button
-                    *ngIf="!(activeView === 'reminders' && note.reminderTime)"
+                    *ngIf="!(activeView === 'reminders' && noteHasReminder(note))"
                     (click)="togglePin(note, $event)"
                     [matTooltip]="note.pinned ? ('NOTE.UNPIN' | translate) : ('NOTE.PIN' | translate)"
                     class="pin-btn"
@@ -304,7 +304,8 @@
     <div class="editor-wrapper editor-enter" *ngIf="activeNote !== undefined"
          [class.editor-leaving]="editorLeaving">
       <app-note-editor #noteEditor [selectedNote]="activeNote" [initialReminderDate]="newNoteCalendarDate"
-                       (closeEditor)="closeEditor()"
+                       [initialNoteType]="newNoteType"
+                       (closeEditor)="closeEditor($event)"
                        (noteCreated)="onNoteCreated($event)"
                        (noteLiveUpdate)="onNoteLiveUpdate($event)">
       </app-note-editor>
@@ -319,38 +320,22 @@
       </app-calendar-view>
     </div>
 
-    <!-- FAB desktop: fixed bottom-right -->
+    <!-- FAB desktop: speed-dial Nota/Memo/Evento (Fase 1) -->
     <div class="sidenav-fab-area" *ngIf="activeNote === undefined && !isMobile">
-      <button mat-fab extended (click)="openNoteEditor()" class="new-note-fab"
-              [attr.aria-label]="(activeView === 'notes' ? 'FAB.NEW_NOTE_ARIA' : 'FAB.NEW_REMINDER_ARIA') | translate">
-        <span class="fab-icon-slot">
-          <mat-icon class="fab-ic" [class.fab-ic--on]="activeView === 'notes'">edit</mat-icon>
-          <mat-icon class="fab-ic" [class.fab-ic--on]="activeView !== 'notes'">notification_add</mat-icon>
-        </span>
-        <span class="fab-lb" [class.fab-lb--on]="activeView === 'notes'">{{ 'FAB.NEW_NOTE' | translate }}</span>
-        <span class="fab-lb" [class.fab-lb--on]="activeView !== 'notes'">{{ 'FAB.NEW_REMINDER' | translate }}</span>
-      </button>
+      <app-create-fab variant="desktop" (create)="onCreateFab($event)"></app-create-fab>
     </div>
   </mat-sidenav-content>
 
 </mat-sidenav-container>
 
-<!-- FAB mobile: icon-only round, position:fixed fuori dal sidenav-container -->
+<!-- FAB mobile: speed-dial Nota/Memo/Evento (Fase 1) -->
 <div class="mobile-fab-overlay" *ngIf="isMobile && activeNote === undefined">
-  <button mat-fab
-          (click)="currentMainView === 'calendar' ? openNoteEditorFromCalendar(calendarCurrentDate) : openNoteEditor()"
-          class="new-note-fab"
-          [attr.aria-label]="(mobileNav === 'notes' ? 'FAB.NEW_NOTE_ARIA' : 'FAB.NEW_REMINDER_ARIA') | translate">
-    <span class="fab-icon-slot">
-      <mat-icon class="fab-ic" [class.fab-ic--on]="mobileNav === 'notes'">edit</mat-icon>
-      <mat-icon class="fab-ic" [class.fab-ic--on]="mobileNav !== 'notes'">notification_add</mat-icon>
-    </span>
-  </button>
+  <app-create-fab variant="mobile" (create)="onCreateFab($event)"></app-create-fab>
 </div>
 
-<!-- Unified nav toolbar mobile: Note / Promemoria / Calendario -->
+<!-- Unified nav toolbar — mobile e tablet (<1280px): Note / Promemoria / Calendario -->
 <div class="unified-toolbar"
-     *ngIf="isMobile && activeNote === undefined"
+     *ngIf="!isWideDesktop && activeNote === undefined"
      (touchstart)="onNavTouchStart($event)"
      (touchmove)="onNavTouchMove($event)"
      (touchend)="onNavTouchEnd($event)">

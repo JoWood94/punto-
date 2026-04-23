@@ -130,6 +130,17 @@
     <mat-icon class="undo-icon">undo</mat-icon>
   </button>
 
+  <!-- Badge stato snooze/mute (solo visual, non cliccabile).
+       La gestione avviene via campanella (reminder-mini-fab); qui solo feedback. -->
+  <div class="strip-badge strip-badge--muted" *ngIf="reminderMuted()">
+    <mat-icon>notifications_off</mat-icon>
+    <span>{{ 'SNOOZE.STATUS_MUTED' | translate }}</span>
+  </div>
+  <div class="strip-badge strip-badge--snoozed" *ngIf="!reminderMuted() && isSnoozed">
+    <mat-icon>notifications_paused</mat-icon>
+    <span>{{ 'SNOOZE.STATUS_SNOOZED_UNTIL' | translate }} {{ snoozedUntil() | date:'HH:mm':'':dateLocale }}</span>
+  </div>
+
   <!-- CTA: evadi ricorrenza scaduta -->
   <button class="strip-cta" type="button"
           *ngIf="note?.id && isOverdueRecurring(reminderBlock)"
@@ -168,8 +179,7 @@
        [class.sync-indicator--visible]="syncState() !== 'idle'"
        [class.sync-indicator--syncing]="syncState() === 'syncing'"
        [attr.aria-label]="syncState() === 'syncing' ? 'Sincronizzazione in corso' : 'Nota aggiornata'">
-    <mat-icon *ngIf="syncState() === 'syncing'">sync</mat-icon>
-    <mat-icon *ngIf="syncState() === 'synced'">done</mat-icon>
+    <mat-icon>{{ syncState() === 'syncing' ? 'sync' : 'done' }}</mat-icon>
   </div>
 </div>
 
@@ -178,7 +188,7 @@
   <!-- ── Block list with drag-and-drop ── -->
   <div cdkDropList (cdkDropListDropped)="onBlockDrop($event)" class="blocks-container">
 
-    <ng-container *ngFor="let block of note.blocks; let i = index">
+    <ng-container *ngFor="let block of note.blocks; let i = index; trackBy: trackBlock">
     <div *ngIf="block.type !== 'reminder'"
          cdkDrag class="block-item" [ngClass]="'block-type-' + block.type">
 
@@ -496,30 +506,52 @@
 
 </div>
 
-<!-- Mini-FAB promemoria: absolute bottom-left -->
+<!-- Mini-FAB campanella (Fase 1): visibile solo su memo ed event.
+     Non aggiunge/rimuove reminder — apre il dialog snooze/mute per-user.
+     Icona riflette lo stato della sottoscrizione corrente:
+       - muted → notifications_off
+       - snoozed attivo → notifications_paused
+       - attivo → notifications (se reminder presente) / notifications_none -->
 <button class="reminder-mini-fab"
         type="button"
-        [disabled]="!guestCanEditReminders"
-        (click)="toggleReminder()"
-        [class.reminder-mini-fab--active]="!!reminderBlock"
+        *ngIf="note.type && note.type !== 'note'"
+        (click)="openSnoozeSheet()"
+        [class.reminder-mini-fab--active]="!!reminderBlock && !hasActiveSuppression"
+        [class.reminder-mini-fab--suppressed]="hasActiveSuppression"
         [class.reminder-mini-fab--hidden]="activeTextBlockIndex() !== null"
-        [attr.aria-label]="reminderBlock ? ('EDITOR.REMOVE_REMINDER' | translate) : ('EDITOR.ADD_REMINDER' | translate)">
-  <mat-icon>{{ reminderBlock ? 'notifications' : 'notifications_none' }}</mat-icon>
+        [attr.aria-label]="('SNOOZE.OPEN_LABEL' | translate)">
+  <mat-icon>{{ reminderMuted() ? 'notifications_off' : (hasActiveSuppression ? 'notifications_paused' : (reminderBlock ? 'notifications' : 'notifications_none')) }}</mat-icon>
 </button>
 
-<!-- Mini-FAB condivisione: absolute bottom-left, affiancato al reminder-mini-fab -->
+<!-- Mini-FAB condivisione: absolute bottom-left, affiancato al reminder-mini-fab.
+     Se la campanella non è presente (type='note') occupa lo slot della campanella. -->
 <button class="share-mini-fab"
         type="button"
         *ngIf="canShare"
         (click)="openSharePanel()"
         [class.share-mini-fab--active]="note.isShared"
+        [class.share-mini-fab--no-bell]="!note.type || note.type === 'note'"
         [class.share-mini-fab--hidden]="activeTextBlockIndex() !== null"
         [class.share-mini-fab--collab-editing]="anyCollaboratorEditing"
         [class.share-mini-fab--collab-viewing]="hasViewingCollaborators"
+        [class.share-mini-fab--collab-active]="hasRecentCollabActivity"
         [attr.aria-label]="'SHARING.SHARE_BTN' | translate">
-  <mat-icon>{{ (anyCollaboratorEditing || hasViewingCollaborators) ? 'group' : 'ios_share' }}</mat-icon>
+  <mat-icon>{{ (note.isShared || note.myRole === 'guest') ? 'group' : 'ios_share' }}</mat-icon>
   <span class="presence-chip" *ngIf="presenceUsers().length > 0">
     @{{ presenceUsers()[0].displayName }}{{ presenceUsers().length > 1 ? ' +' + (presenceUsers().length - 1) : '' }}
   </span>
 </button>
+
+<!-- Snooze/mute sheet (Fase 1): si apre dal click sulla campanella (reminder-mini-fab).
+     Visibile solo per memo/event. Offre preset snooze, data custom, silenzia sempre, riattiva. -->
+<div class="snooze-sheet-anchor" *ngIf="note.type && note.type !== 'note'">
+  <app-snooze-sheet
+    [visible]="showSnoozeSheet()"
+    [currentState]="reminderSubState"
+    (presetSelected)="snoozeReminder($event)"
+    (muteSelected)="muteReminder()"
+    (reactivate)="reactivateReminder()"
+    (dismissed)="showSnoozeSheet.set(false)">
+  </app-snooze-sheet>
+</div>
 
