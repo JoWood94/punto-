@@ -111,6 +111,7 @@ export class NoteEditorComponent implements OnInit, OnChanges, DoCheck, AfterVie
   private sanitizer = inject(DomSanitizer);
   private cdr = inject(ChangeDetectorRef);
   private ngZone = inject(NgZone);
+  private overdueTicker: ReturnType<typeof setInterval> | null = null;
   private dialog = inject(MatDialog);
   translationService = inject(TranslationService);
   private toast = inject(ToastService);
@@ -286,6 +287,10 @@ export class NoteEditorComponent implements OnInit, OnChanges, DoCheck, AfterVie
   ngOnInit() {
     this.initNote();
     this.noteService.getUsername().then(u => this.myUsername = u).catch(() => {});
+    // Ticker per re-evaluare stato overdue: se l'editor è aperto quando passa
+    // l'orario del reminder, isOverdueRecurring/isSingleOverdue sono valutati
+    // in CD. CD non parte da solo a tempo: ogni 30s forziamo il check.
+    this.overdueTicker = setInterval(() => this.cdr.markForCheck(), 30000);
   }
   ngOnChanges(changes: SimpleChanges) { if (changes['selectedNote']) this.initNote(); }
   ngDoCheck() { if (!this.guestCanEdit && this.addBlockMenuOpen()) this.addBlockMenuOpen.set(false); }
@@ -1426,6 +1431,7 @@ export class NoteEditorComponent implements OnInit, OnChanges, DoCheck, AfterVie
   ngOnDestroy() {
     this.snoozeUnsub?.();
     this.stopLiveSync();
+    if (this.overdueTicker) { clearInterval(this.overdueTicker); this.overdueTicker = null; }
     // Forza sincronizzazione valore input titolo prima di salvare (fix: swipe-back senza blur)
     if (this.titleInputRef?.nativeElement) {
       this.note.title = this.titleInputRef.nativeElement.value;
