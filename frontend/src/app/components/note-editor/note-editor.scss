@@ -829,10 +829,18 @@
     transition: transform var(--_t);
   }
 
-  // Su hover mostra drag, remove ed edit-link
+  // Su hover (desktop) mostra drag, remove ed edit-link
   &:hover .drag-handle  { opacity: 0.5; }
   &:hover .remove-block-btn { opacity: 0.6; }
   &:hover .edit-link-btn { opacity: 0.6; }
+
+  // Su dispositivi touch (no-hover) drag-handle sempre visibile (discreto),
+  // altrimenti l'utente non ha modo di sapere che può riordinare i blocchi.
+  @media (hover: none) {
+    .drag-handle { opacity: 0.38; }
+    .remove-block-btn { opacity: 0.5; }
+    .edit-link-btn { opacity: 0.5; }
+  }
 }
 
 // Placeholder durante il drag
