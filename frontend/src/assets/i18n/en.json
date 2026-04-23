@@ -1,4 +1,14 @@
 {
+  "IMAGE": {
+    "ADD": "Add image",
+    "ADD_COVER": "Add cover",
+    "REMOVE": "Remove image",
+    "TOO_LARGE": "Image too large (max 200KB after compression)",
+    "UNSUPPORTED_FORMAT": "Unsupported format",
+    "HEIC_UNSUPPORTED": "HEIC not supported on this browser",
+    "PROCESSING": "Processing image...",
+    "RETRY": "Retry"
+  },
   "COMMON": {
     "CANCEL": "Cancel",
     "CONFIRM": "Confirm",

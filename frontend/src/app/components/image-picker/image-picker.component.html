@@ -1,0 +1,55 @@
+<!-- Input file nascosto — azionato via openPicker() -->
+<input
+  #fileInput
+  type="file"
+  accept="image/*"
+  class="file-input-hidden"
+  (change)="onFileSelected($event)"
+  aria-hidden="true"
+  tabindex="-1">
+
+<!-- ── Stato: loaded ── -->
+<div class="picker-preview" *ngIf="state() === 'loaded' && value">
+  <img
+    [src]="value.data"
+    [alt]="placeholder | translate"
+    class="preview-img"
+    loading="lazy">
+  <button
+    type="button"
+    class="remove-btn"
+    (click)="remove()"
+    [attr.aria-label]="'IMAGE.REMOVE' | translate">
+    <mat-icon>close</mat-icon>
+  </button>
+</div>
+
+<!-- ── Stato: uploading ── -->
+<div class="picker-uploading" *ngIf="state() === 'uploading'" aria-live="polite">
+  <div class="spinner-ring"></div>
+  <span class="uploading-label">{{ 'IMAGE.PROCESSING' | translate }}</span>
+</div>
+
+<!-- ── Stato: error ── -->
+<div class="picker-error" *ngIf="state() === 'error'" role="alert">
+  <mat-icon class="error-icon">broken_image</mat-icon>
+  <span class="error-label">{{ (error()?.key ?? 'IMAGE.UNSUPPORTED_FORMAT') | translate }}</span>
+  <button
+    type="button"
+    class="retry-btn"
+    (click)="retry()">
+    <mat-icon>refresh</mat-icon>
+    <span>{{ 'IMAGE.RETRY' | translate }}</span>
+  </button>
+</div>
+
+<!-- ── Stato: empty ── -->
+<button
+  *ngIf="state() === 'empty'"
+  type="button"
+  class="picker-add-btn"
+  (click)="openPicker()"
+  [attr.aria-label]="placeholder | translate">
+  <mat-icon>add_photo_alternate</mat-icon>
+  <span>{{ placeholder | translate }}</span>
+</button>

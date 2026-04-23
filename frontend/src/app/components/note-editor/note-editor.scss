@@ -19,6 +19,19 @@
   }
 }
 
+// Image picker wrapper (Fase 2): padding x allineato a .editor-header.
+.editor-image-picker-wrap {
+  padding: 8px 24px 0;
+
+  @media (max-width: 479px) {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+
+  &--has-image { padding-bottom: 0; }
+  &--readonly { pointer-events: none; opacity: 0.6; }
+}
+
 .editor-header {
   position: relative;
   display: flex;

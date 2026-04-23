@@ -154,6 +154,18 @@
 
 </div><!-- /reminder-strip -->
 
+<!-- Image picker (Fase 2): sopra il titolo, sotto la reminder-strip.
+     Placeholder "locandina" se type='event', "immagine" altrimenti. -->
+<div class="editor-image-picker-wrap"
+     [class.editor-image-picker-wrap--has-image]="!!note.image?.data"
+     [class.editor-image-picker-wrap--readonly]="!guestCanEdit">
+  <app-image-picker
+    [value]="note.image ?? null"
+    [placeholder]="imagePickerPlaceholder"
+    (valueChange)="onImageChange($event)">
+  </app-image-picker>
+</div>
+
 <div class="editor-header">
   <!-- Badge "Shared with you" — guest -->
   <div class="shared-with-you-badge" *ngIf="isGuest">

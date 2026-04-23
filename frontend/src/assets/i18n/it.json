@@ -1,4 +1,14 @@
 {
+  "IMAGE": {
+    "ADD": "Aggiungi immagine",
+    "ADD_COVER": "Aggiungi locandina",
+    "REMOVE": "Rimuovi immagine",
+    "TOO_LARGE": "Immagine troppo grande (max 200KB dopo compressione)",
+    "UNSUPPORTED_FORMAT": "Formato non supportato",
+    "HEIC_UNSUPPORTED": "HEIC non supportato su questo browser",
+    "PROCESSING": "Elaborazione immagine...",
+    "RETRY": "Riprova"
+  },
   "COMMON": {
     "CANCEL": "Annulla",
     "CONFIRM": "Conferma",

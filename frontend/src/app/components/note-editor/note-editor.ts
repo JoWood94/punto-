@@ -35,6 +35,7 @@ import { TranslationService } from '../../services/translation';
 import { CryptoService } from '../../services/crypto';
 import { ToastService } from '../../services/toast';
 import { SnoozeSheetComponent } from '../snooze-sheet/snooze-sheet';
+import { ImagePickerComponent } from '../image-picker/image-picker.component';
 // TODO: import Storage riabilitare con piano Firebase Storage
 // import { getStorage, ref as storageRef, uploadBytesResumable, getDownloadURL, deleteObject } from 'firebase/storage';
 // import { getApp } from 'firebase/app';
@@ -51,6 +52,7 @@ import { SnoozeSheetComponent } from '../snooze-sheet/snooze-sheet';
     MatSelectModule, MatChipsModule, MatMenuModule, MatDialogModule,
     DragDropModule, TranslateModule,
     SnoozeSheetComponent,
+    ImagePickerComponent,
   ],
   templateUrl: './note-editor.html',
   styleUrls: ['./note-editor.scss']
@@ -134,6 +136,8 @@ export class NoteEditorComponent implements OnInit, OnChanges, DoCheck, AfterVie
   private savedNoteId: string | null = null;
   private isNewNote = false;
   private autoSaveTimer: any = null;
+  /** True dopo che l'utente ha rimosso l'immagine: forza image:null nel payload per cancellare il campo Firestore. */
+  private imageExplicitlyRemoved = false;
   private createNotePromise: Promise<void> | null = null;
   private liveNoteUnsub: (() => void) | null = null;
   private livePermsUnsub: (() => void) | null = null;
@@ -350,7 +354,26 @@ export class NoteEditorComponent implements OnInit, OnChanges, DoCheck, AfterVie
     });
   }
 
+  /** Placeholder per <app-image-picker>: "locandina" per event, "immagine" altrimenti. */
+  get imagePickerPlaceholder(): string {
+    return this.note.type === 'event' ? 'IMAGE.ADD_COVER' : 'IMAGE.ADD';
+  }
+
+  /** Handler: aggiorna note.image, trigger autosave, traccia rimozione esplicita. */
+  onImageChange(image: { data: string; mimeType: string } | null): void {
+    if (image) {
+      (this.note as any).image = image;
+      this.imageExplicitlyRemoved = false;
+    } else {
+      delete (this.note as any).image;
+      this.imageExplicitlyRemoved = true;
+    }
+    this.userHasModifiedContent = true;
+    this.triggerAutoSave();
+  }
+
   private initNote() {
+    this.imageExplicitlyRemoved = false;
     if (this.selectedNote) {
       // Se stiamo già editando questa stessa nota, non re-inizializzare (preserva le modifiche non ancora salvate)
       if (this.selectedNote.id && this.selectedNote.id === this.savedNoteId) {
@@ -1073,6 +1096,11 @@ export class NoteEditorComponent implements OnInit, OnChanges, DoCheck, AfterVie
     // Strip read-only ownership/sharing metadata — mai scrivibili dal client direttamente
     delete payload.uid; delete payload.id; delete payload.myRole;
     delete payload.myPermissions; delete payload.isShared; delete payload.collaboratorUids;
+    // Image: se l'utente l'ha rimossa esplicitamente, forza null per cancellare
+    // il field in Firestore (altrimenti lo spread di this.note non porta il delete).
+    if (this.imageExplicitlyRemoved && !payload.image) {
+      payload.image = null;
+    }
     // Completion notify flags: emetti solo una tantum dopo markReminderCompleted su shared note
     if (this.completionNotifyPendingFlag) {
       const uid = this.authService.getCurrentUserId();

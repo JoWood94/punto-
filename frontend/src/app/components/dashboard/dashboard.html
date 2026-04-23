@@ -255,6 +255,9 @@
              [class.note-card-reminder]="noteHasReminder(note)"
              [style.background-color]="getNoteCardBg(note)">
 
+          <!-- Thumbnail immagine (Fase 2): banner sopra il titolo. -->
+          <img *ngIf="note.image?.data" [src]="note.image.data" alt="" class="note-list-thumb">
+
           <div class="note-card-body">
             <div class="note-card-title-row">
               <mat-icon class="note-card-bell" *ngIf="noteReminderStatus(note) === 'completed'">task_alt</mat-icon>
