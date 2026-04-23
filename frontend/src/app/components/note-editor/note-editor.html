@@ -511,9 +511,13 @@
 
 </div>
 
-<!-- Mini-FAB promemoria: absolute bottom-left -->
+<!-- Mini-FAB promemoria/campanella: visibile solo su memo ed event (Fase 1 — le
+     note "pure" non possono avere reminder; il tipo è scelto dal FAB speed-dial).
+     Su memo/event cliccarla toggla il ReminderBlock e, nel prossimo step Fase 1,
+     diventerà entry point del dialog snooze/mute per-user. -->
 <button class="reminder-mini-fab"
         type="button"
+        *ngIf="note.type && note.type !== 'note'"
         [disabled]="!guestCanEditReminders"
         (click)="toggleReminder()"
         [class.reminder-mini-fab--active]="!!reminderBlock"
