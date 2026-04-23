@@ -156,14 +156,34 @@
 }
 
 // Con thumbnail la card è colonna verticale; padding reintrodotto sui figli.
+// !important + box-sizing per vincere specificity di .note-card base e
+// impedire sbordamento sulle varianti reminder/shared (che estendono .note-card).
 .note-card:has(.note-list-thumb) {
-  flex-direction: column;
-  align-items: stretch;
-  padding: 0;
+  flex-direction: column !important;
+  align-items: stretch !important;
+  padding: 0 !important;
+  gap: 0 !important;
   overflow: hidden;
+  box-sizing: border-box;
 
-  .note-card-body { padding: 10px 8px 4px 14px; }
-  .note-meta-actions { padding: 0 8px 8px 14px; }
+  .note-list-thumb {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    margin: 0;
+  }
+
+  .note-card-body {
+    padding: 10px 14px 4px;
+    min-width: 0; // consente ellipsis nel titolo
+  }
+
+  .note-meta-actions {
+    padding: 4px 10px 10px 14px;
+    justify-content: space-between; // time sx, actions dx
+    width: 100%;
+    box-sizing: border-box;
+  }
 }
 
 .note-card {

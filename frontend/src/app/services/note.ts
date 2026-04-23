@@ -42,8 +42,9 @@ export interface ReminderBlock {
 
 export interface ImageBlock {
   type: 'image';
-  url: string;
-  storagePath: string;
+  /** Base64 data URL completo (es. "data:image/jpeg;base64,..."). */
+  data: string;
+  mimeType: 'image/jpeg' | 'image/png' | 'image/webp';
   caption?: string;
 }
 

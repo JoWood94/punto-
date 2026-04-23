@@ -154,18 +154,6 @@
 
 </div><!-- /reminder-strip -->
 
-<!-- Image picker (Fase 2): sopra il titolo, sotto la reminder-strip.
-     Placeholder "locandina" se type='event', "immagine" altrimenti. -->
-<div class="editor-image-picker-wrap"
-     [class.editor-image-picker-wrap--has-image]="!!note.image?.data"
-     [class.editor-image-picker-wrap--readonly]="!guestCanEdit">
-  <app-image-picker
-    [value]="note.image ?? null"
-    [placeholder]="imagePickerPlaceholder"
-    (valueChange)="onImageChange($event)">
-  </app-image-picker>
-</div>
-
 <div class="editor-header">
   <!-- Badge "Shared with you" — guest -->
   <div class="shared-with-you-badge" *ngIf="isGuest">
@@ -307,45 +295,37 @@
         </div>
       </ng-container>
 
-      <!-- ════ IMAGE BLOCK ════ -->
-      <!-- TODO: upload immagini disabilitato — riabilitare quando si cambia piano Firebase Storage
+      <!-- ════ IMAGE BLOCK ════ — inline base64 (Fase 2), aspect-ratio naturale -->
       <ng-container *ngIf="block.type === 'image'">
         <div class="metadata-section image-block">
           <div class="block-label-row">
-            <mat-icon >photo</mat-icon>
+            <mat-icon>photo</mat-icon>
             <span class="block-label">Immagine</span>
           </div>
-          <div class="image-upload-area" *ngIf="!$any(block).url">
-            <input type="file" accept="image/*" #imgInput style="display:none"
-                   (change)="onImageSelected(i, $event)">
-            <button mat-stroked-button (click)="imgInput.click()" type="button"
-                    *ngIf="!uploadProgress.has(i)">
-              <mat-icon>add_photo_alternate</mat-icon>
-              Seleziona immagine
+
+          <!-- Empty state: bottone upload coerente con altri blocchi vuoti -->
+          <div class="image-empty" *ngIf="!$any(block).data">
+            <input type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif"
+                   #imgFileInput hidden
+                   (change)="onImageBlockFileSelected(i, $event)">
+            <button class="image-empty-btn" type="button"
+                    [disabled]="!guestCanEdit || imageBlockUploading() === i"
+                    (click)="imgFileInput.click()">
+              <mat-icon *ngIf="imageBlockUploading() !== i">add_photo_alternate</mat-icon>
+              <mat-icon *ngIf="imageBlockUploading() === i" class="image-spin">refresh</mat-icon>
+              <span>{{ (imageBlockUploading() === i ? 'IMAGE.PROCESSING' : 'IMAGE.ADD') | translate }}</span>
             </button>
-            <div class="upload-progress-label" *ngIf="uploadProgress.has(i)">
-              <mat-icon>cloud_upload</mat-icon>
-              Caricamento {{ uploadProgress.get(i) }}%...
+            <div class="image-error" *ngIf="imageBlockError(i) as err">
+              {{ err | translate }}
             </div>
           </div>
-          <div class="image-preview-area" *ngIf="$any(block).url">
-            <img [src]="$any(block).url"
-                 [alt]="$any(block).caption || 'Immagine allegata'"
-                 class="attached-image">
-            <div class="image-caption-row">
-              <mat-form-field appearance="outline" class="full-width">
-                <mat-label>Didascalia (opzionale)</mat-label>
-                <input matInput [(ngModel)]="$any(block).caption">
-              </mat-form-field>
-              <button mat-icon-button color="warn" (click)="removeImage($any(block))"
-                      matTooltip="Rimuovi immagine" type="button">
-                <mat-icon>delete</mat-icon>
-              </button>
-            </div>
+
+          <!-- Loaded state: preview aspect-ratio naturale, max-height. -->
+          <div class="image-preview" *ngIf="$any(block).data">
+            <img [src]="$any(block).data" [alt]="$any(block).caption || ''" class="image-preview-img">
           </div>
         </div>
       </ng-container>
-      -->
 
       <!-- ════ LINK BLOCK ════ -->
       <ng-container *ngIf="block.type === 'link'">
@@ -492,6 +472,11 @@
             [disabled]="!guestCanEdit"
             (click)="addBlockAfterActive('location'); closeAddBlockMenu()" aria-label="Luogo">
       <mat-icon>place</mat-icon>
+    </button>
+    <button mat-icon-button type="button" tabindex="-1"
+            [disabled]="!guestCanEdit"
+            (click)="addBlockAfterActive('image'); closeAddBlockMenu()" aria-label="Immagine">
+      <mat-icon>photo</mat-icon>
     </button>
     <button mat-icon-button type="button" tabindex="-1"
             [disabled]="!guestCanEdit"

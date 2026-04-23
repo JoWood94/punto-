@@ -35,7 +35,7 @@ import { TranslationService } from '../../services/translation';
 import { CryptoService } from '../../services/crypto';
 import { ToastService } from '../../services/toast';
 import { SnoozeSheetComponent } from '../snooze-sheet/snooze-sheet';
-import { ImagePickerComponent } from '../image-picker/image-picker.component';
+import { ImageProcessorService } from '../../services/image-processor.service';
 // TODO: import Storage riabilitare con piano Firebase Storage
 // import { getStorage, ref as storageRef, uploadBytesResumable, getDownloadURL, deleteObject } from 'firebase/storage';
 // import { getApp } from 'firebase/app';
@@ -52,7 +52,6 @@ import { ImagePickerComponent } from '../image-picker/image-picker.component';
     MatSelectModule, MatChipsModule, MatMenuModule, MatDialogModule,
     DragDropModule, TranslateModule,
     SnoozeSheetComponent,
-    ImagePickerComponent,
   ],
   templateUrl: './note-editor.html',
   styleUrls: ['./note-editor.scss']
@@ -136,9 +135,11 @@ export class NoteEditorComponent implements OnInit, OnChanges, DoCheck, AfterVie
   private savedNoteId: string | null = null;
   private isNewNote = false;
   private autoSaveTimer: any = null;
-  /** True dopo che l'utente ha rimosso l'immagine: forza image:null nel payload per cancellare il campo Firestore. */
-  private imageExplicitlyRemoved = false;
   private createNotePromise: Promise<void> | null = null;
+  private imageProcessor = inject(ImageProcessorService);
+  /** Indice del block image attualmente in upload (null se nessuno). */
+  readonly imageBlockUploading = signal<number | null>(null);
+  private imageBlockErrors = new Map<number, string>();
   private liveNoteUnsub: (() => void) | null = null;
   private livePermsUnsub: (() => void) | null = null;
   private lastSavedAt = 0;
@@ -354,26 +355,46 @@ export class NoteEditorComponent implements OnInit, OnChanges, DoCheck, AfterVie
     });
   }
 
-  /** Placeholder per <app-image-picker>: "locandina" per event, "immagine" altrimenti. */
-  get imagePickerPlaceholder(): string {
-    return this.note.type === 'event' ? 'IMAGE.ADD_COVER' : 'IMAGE.ADD';
+  /** Error corrente per l'image block a `idx` (i18n key). Letto dal template. */
+  imageBlockError(idx: number): string | null {
+    return this.imageBlockErrors.get(idx) ?? null;
   }
 
-  /** Handler: aggiorna note.image, trigger autosave, traccia rimozione esplicita. */
-  onImageChange(image: { data: string; mimeType: string } | null): void {
-    if (image) {
-      (this.note as any).image = image;
-      this.imageExplicitlyRemoved = false;
-    } else {
-      delete (this.note as any).image;
-      this.imageExplicitlyRemoved = true;
+  /**
+   * Handler input file per image-block: comprime via ImageProcessorService,
+   * assegna data+mimeType al block e triggera autosave.
+   */
+  async onImageBlockFileSelected(blockIndex: number, event: Event): Promise<void> {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    input.value = ''; // permette re-selezione dello stesso file
+    if (!file) return;
+    const block = this.note.blocks[blockIndex] as ImageBlock;
+    if (!block || block.type !== 'image') return;
+
+    this.imageBlockErrors.delete(blockIndex);
+    this.imageBlockUploading.set(blockIndex);
+    try {
+      const out = await this.imageProcessor.compressImage(file);
+      block.data = out.data;
+      block.mimeType = out.mimeType as any;
+      this.userHasModifiedContent = true;
+      this.triggerAutoSave();
+    } catch (err: any) {
+      const code = (err?.message as string) ?? 'UNSUPPORTED_FORMAT';
+      const key = code === 'TOO_LARGE' ? 'IMAGE.TOO_LARGE'
+                : code === 'HEIC_UNSUPPORTED' ? 'IMAGE.HEIC_UNSUPPORTED'
+                : 'IMAGE.UNSUPPORTED_FORMAT';
+      this.imageBlockErrors.set(blockIndex, key);
+    } finally {
+      this.imageBlockUploading.set(null);
+      this.cdr.detectChanges();
     }
-    this.userHasModifiedContent = true;
-    this.triggerAutoSave();
   }
 
   private initNote() {
-    this.imageExplicitlyRemoved = false;
+    this.imageBlockErrors.clear();
+    this.imageBlockUploading.set(null);
     if (this.selectedNote) {
       // Se stiamo già editando questa stessa nota, non re-inizializzare (preserva le modifiche non ancora salvate)
       if (this.selectedNote.id && this.selectedNote.id === this.savedNoteId) {
@@ -529,7 +550,7 @@ export class NoteEditorComponent implements OnInit, OnChanges, DoCheck, AfterVie
         break;
       }
       case 'image':
-        newBlock = { type: 'image', url: '', storagePath: '' } as ImageBlock;
+        newBlock = { type: 'image', data: '', mimeType: 'image/jpeg' } as ImageBlock;
         break;
       case 'link':
         newBlock = { type: 'link', url: '', label: '' } as LinkBlock;
@@ -1096,11 +1117,8 @@ export class NoteEditorComponent implements OnInit, OnChanges, DoCheck, AfterVie
     // Strip read-only ownership/sharing metadata — mai scrivibili dal client direttamente
     delete payload.uid; delete payload.id; delete payload.myRole;
     delete payload.myPermissions; delete payload.isShared; delete payload.collaboratorUids;
-    // Image: se l'utente l'ha rimossa esplicitamente, forza null per cancellare
-    // il field in Firestore (altrimenti lo spread di this.note non porta il delete).
-    if (this.imageExplicitlyRemoved && !payload.image) {
-      payload.image = null;
-    }
+    // Top-level image cleanup (ora l'immagine vive in blocks[] come ImageBlock).
+    if (payload.image !== undefined) payload.image = null;
     // Completion notify flags: emetti solo una tantum dopo markReminderCompleted su shared note
     if (this.completionNotifyPendingFlag) {
       const uid = this.authService.getCurrentUserId();

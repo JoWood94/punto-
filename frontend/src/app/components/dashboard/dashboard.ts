@@ -684,6 +684,17 @@ export class DashboardComponent implements OnInit, OnDestroy {
   // ─── Template wrappers per helper reminder (template non può usare funzioni importate) ──
   noteHasReminder(n: Note): boolean { return hasReminder(n); }
   noteReminderStatus(n: Note): string | null { return getReminderStatus(n); }
+
+  /**
+   * URL thumbnail per la note card: primo ImageBlock nei blocks[] con data
+   * base64, fallback al legacy note.image.data (Fase 2 pre-block).
+   */
+  noteThumbUrl(n: Note): string | null {
+    const ib = n.blocks?.find((b: any) => b.type === 'image' && b.data);
+    if (ib) return (ib as any).data as string;
+    const legacy = (n as any).image?.data;
+    return typeof legacy === 'string' && legacy ? legacy : null;
+  }
   noteIsRecurring(n: Note): boolean { return isRecurringNote(n); }
 
   /** Colore di sfondo della card nota — null → CSS default (secondary-container) */
