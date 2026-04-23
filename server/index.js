@@ -70,25 +70,42 @@ async function checkAndSendReminders() {
       return;
     }
 
-    // Prefetch snoozes attivi via collectionGroup (1 query totale, index-backed).
-    // Mappa noteId → Set<uid> snoozati al momento del run.
+    // Prefetch snooze/mute attivi: due collectionGroup query (index-backed).
+    // snoozeMap → noteId → Set<uid> skippati (unione). Snooze temporaneo cleanup
+    // post-send. Mute persistente → preserved (tracked in mutedMap per escluderlo).
     const snoozeMap = new Map();
+    const mutedMap = new Map();
+    const addSkip = (map, noteId, uid) => {
+      if (!map.has(noteId)) map.set(noteId, new Set());
+      map.get(noteId).add(uid);
+    };
     try {
       const snoozeSnap = await db.collectionGroup('reminderSnoozes')
         .where('snoozedUntil', '>', now)
         .get();
       for (const s of snoozeSnap.docs) {
-        const noteId = s.ref.parent.parent.id;
-        if (!snoozeMap.has(noteId)) snoozeMap.set(noteId, new Set());
-        snoozeMap.get(noteId).add(s.id);
+        addSkip(snoozeMap, s.ref.parent.parent.id, s.id);
       }
       if (snoozeSnap.size > 0) {
-        console.log(`Snoozes attivi: ${snoozeSnap.size} su ${snoozeMap.size} note.`);
+        console.log(`Snoozes temporanei attivi: ${snoozeSnap.size}.`);
       }
     } catch (e) {
-      // Se l'index non è ancora deployato, la query fallisce: degradazione graceful,
-      // nessuno skippato → comportamento pre-FE-01.
-      console.warn('[snooze] collectionGroup query failed, proceeding without snooze filter:', e.message);
+      console.warn('[snooze] collectionGroup query (snoozedUntil) failed:', e.message);
+    }
+    try {
+      const mutedSnap = await db.collectionGroup('reminderSnoozes')
+        .where('muted', '==', true)
+        .get();
+      for (const s of mutedSnap.docs) {
+        const noteId = s.ref.parent.parent.id;
+        addSkip(snoozeMap, noteId, s.id);
+        addSkip(mutedMap, noteId, s.id);
+      }
+      if (mutedSnap.size > 0) {
+        console.log(`Mute permanenti attivi: ${mutedSnap.size}.`);
+      }
+    } catch (e) {
+      console.warn('[snooze] collectionGroup query (muted) failed:', e.message);
     }
 
     const tokensCache = {};
@@ -123,15 +140,21 @@ async function checkAndSendReminders() {
 
       const { tokens, notifTitleEnabled, language } = tokensCache[uid];
 
-      // Fetch collaborator tokens (guests with editReminders:true); skip chi è snoozato
+      // Fetch collaborator tokens. Skip:
+      //  - chi è snoozed/muted (reminderSnoozes)
+      //  - chi ha notificationsEnabled === false (opt-out esplicito, pattern A Fase 1)
+      //    NOTE: undefined o true → notifica (compat. con collab. pre-pattern A)
       const collabUidTokenPairs = [];
       try {
         const collaboratorsSnap = await db.collection('notes').doc(doc.id)
           .collection('collaborators')
-          .where('permissions.editReminders', '==', true)
           .get();
         for (const collabDoc of collaboratorsSnap.docs) {
           const collabUid = collabDoc.id;
+          const collabData = collabDoc.data() ?? {};
+          if (collabData.notificationsEnabled === false) {
+            continue;
+          }
           if (snoozedUids.has(collabUid)) {
             continue;
           }
@@ -287,11 +310,14 @@ async function checkAndSendReminders() {
         updates.push(doc.ref.update(updatePayload));
       }
 
-      // Cleanup snoozes processati: lo scope è l'istanza di reminder appena emessa/rischedulata.
-      // Subcol svuotata → prossima istanza ricorrente parte pulita.
-      if (snoozedUids.size > 0) {
+      // Cleanup snoozes temporanei processati: lo scope è l'istanza appena emessa/rischedulata.
+      // I doc con muted=true sono esclusi — il mute è permanente e va preservato
+      // per le successive istanze ricorrenti.
+      const mutedUidsForNote = mutedMap.get(doc.id) ?? new Set();
+      const uidsToCleanup = [...snoozedUids].filter(u => !mutedUidsForNote.has(u));
+      if (uidsToCleanup.length > 0) {
         const batch = db.batch();
-        for (const snoozedUid of snoozedUids) {
+        for (const snoozedUid of uidsToCleanup) {
           batch.delete(db.collection('notes').doc(doc.id)
             .collection('reminderSnoozes').doc(snoozedUid));
         }

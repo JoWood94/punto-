@@ -73,6 +73,10 @@ export interface Collaborator {
   addedAt: number;
   addedBy: string;
   permissions: CollaboratorPermissions;
+  // Opt-in esplicito alle notifiche push per questo doc (pattern A, Fase 1).
+  // Impostato al primo accept invito su memo/event. Il cron skippa chi ha false.
+  // Assente su note legacy = equivale a true (fallback permissivo).
+  notificationsEnabled?: boolean;
 }
 
 export interface PresenceEntry {
@@ -662,7 +666,8 @@ export class NoteService {
   async addCollaborator(
     noteId: string,
     guestUid: string,
-    permissions: CollaboratorPermissions = { editContent: false, editReminders: false }
+    permissions: CollaboratorPermissions = { editContent: false, editReminders: false },
+    opts?: { notificationsEnabled?: boolean }
   ): Promise<void> {
     const uid = this.authService.getCurrentUserId();
     if (!uid) throw new Error('Not authenticated');
@@ -676,6 +681,9 @@ export class NoteService {
       addedBy: uid,
       permissions,
     };
+    if (opts?.notificationsEnabled !== undefined) {
+      collabData.notificationsEnabled = opts.notificationsEnabled;
+    }
     batch.set(collabRef, collabData);
     // updatedAt garantisce che il documento cambi in modo visibile per tutti i listener
     // onSnapshot attivi (incluso quello dell'owner), indipendentemente dal comportamento
@@ -742,8 +750,10 @@ export class NoteService {
     return token;
   }
 
-  /** Accetta un invito: valida token + scadenza, poi chiama addCollaborator. */
-  async acceptInvite(token: string): Promise<string> {
+  /** Accetta un invito: valida token + scadenza, poi chiama addCollaborator.
+   *  Su memo/event il guest sceglie esplicitamente se ricevere notifiche (pattern A).
+   */
+  async acceptInvite(token: string, opts?: { notificationsEnabled?: boolean }): Promise<string> {
     const inviteSnap = await getDoc(doc(this.db, `invites/${token}`));
     if (!inviteSnap.exists()) throw new Error('Invite not found');
 
@@ -757,7 +767,7 @@ export class NoteService {
     if (!uid) throw new Error('Not authenticated');
     if (uid === invite.createdBy) throw new Error('Cannot accept your own invite');
 
-    await this.addCollaborator(invite.noteId, uid);
+    await this.addCollaborator(invite.noteId, uid, undefined, opts);
     // Cleanup asincrono: rimuove tutti gli inviti scaduti per questa nota
     this.cleanupExpiredInvites(invite.noteId).catch(() => {});
     return invite.noteId;
@@ -831,13 +841,15 @@ export class NoteService {
     }
   }
 
-  /** Legge il titolo di una nota direttamente da Firestore (senza decriptare). */
-  async readNoteTitle(noteId: string): Promise<string | null> {
+  /** Legge titolo e type di una nota direttamente da Firestore (senza decriptare). */
+  async readNoteMeta(noteId: string): Promise<{ title: string | null; type: string | null }> {
     try {
       const snap = await getDoc(doc(this.db, `notes/${noteId}`));
-      return snap.exists() ? (snap.data()?.['title'] ?? null) : null;
+      if (!snap.exists()) return { title: null, type: null };
+      const d = snap.data();
+      return { title: d?.['title'] ?? null, type: d?.['type'] ?? null };
     } catch {
-      return null;
+      return { title: null, type: null };
     }
   }
 

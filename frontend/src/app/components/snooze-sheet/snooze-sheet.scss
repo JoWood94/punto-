@@ -2,16 +2,19 @@
   display: contents;
 }
 
-// ── Scrim (mobile) ──────────────────────────────────────────────────────────
+// ── Scrim ───────────────────────────────────────────────────────────────────
+// z-index 1099: sopra ai mini-FAB dell'editor (300) per garantire click-away.
+// Su desktop resta interattivo ma visivamente trasparente (popover-style).
 .snooze-scrim {
   position: fixed;
   inset: 0;
-  z-index: 200;
+  z-index: 1099;
   background: rgba(28, 27, 31, 0.4);
   animation: scrimIn 180ms ease both;
 
   @media (min-width: 768px) {
-    display: none;
+    background: transparent;
+    animation: none;
   }
 }
 
@@ -21,7 +24,7 @@
   bottom: 0;
   left: 0;
   right: 0;
-  z-index: 201;
+  z-index: 1100;
   background: #FFFBFE;
   border-radius: 16px 16px 0 0;
   padding: 8px 0 max(16px, env(safe-area-inset-bottom, 16px));

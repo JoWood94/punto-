@@ -217,7 +217,11 @@
     "OWN_INVITE_ERROR": "Non puoi accettare il tuo stesso link di invito.",
     "EXPIRED_ERROR": "Questo link di invito è scaduto.",
     "INVALID_ERROR": "Link di invito non valido o non disponibile.",
-    "ACCEPT_ERROR": "Errore durante l'accettazione dell'invito. Riprova."
+    "ACCEPT_ERROR": "Errore durante l'accettazione dell'invito. Riprova.",
+    "NOTIF_CONSENT_TITLE": "Ricevere notifiche?",
+    "NOTIF_CONSENT_HINT": "Scegli se vuoi essere avvisato quando scatta il promemoria. Potrai cambiare idea dalla campanella nell'editor.",
+    "NOTIF_CONSENT_YES": "Sì, avvisami",
+    "NOTIF_CONSENT_NO": "No, solo l'owner"
   },
   "SHARING": {
     "TITLE": "Condividi nota",

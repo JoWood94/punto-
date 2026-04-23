@@ -403,25 +403,28 @@ export class DashboardComponent implements OnInit, OnDestroy {
       return;
     }
 
-    const [ownerUsername, noteTitle] = await Promise.all([
+    const [ownerUsername, noteMeta] = await Promise.all([
       this.noteService.getUsernameByUid(createdBy),
-      this.noteService.readNoteTitle(noteId),
+      this.noteService.readNoteMeta(noteId),
     ]);
 
-    const accepted = await firstValueFrom(this.dialog.open(InviteAcceptDialogComponent, {
+    const result = await firstValueFrom(this.dialog.open(InviteAcceptDialogComponent, {
       data: {
         ownerUsername: ownerUsername ?? createdBy,
-        noteTitle: noteTitle ?? this.translationService.instant('NOTE.UNTITLED'),
+        noteTitle: noteMeta.title ?? this.translationService.instant('NOTE.UNTITLED'),
+        docType: noteMeta.type as 'note' | 'memo' | 'event' | null,
       },
       width: '420px',
       maxWidth: '95vw',
     }).afterClosed());
 
-    if (!accepted) return;
+    if (!result?.accepted) return;
 
     // Fase 2: accetta l'invito (errori qui = problema tecnico, non invite non valido)
     try {
-      await this.noteService.acceptInvite(token);
+      await this.noteService.acceptInvite(token, {
+        notificationsEnabled: result.notificationsEnabled,
+      });
       this.toast.show(this.translationService.instant('INVITE.ACCEPTED'), 3000);
     } catch (e: any) {
       console.error('[handleInvite] FASE 2 acceptInvite error:', e?.code ?? e?.message ?? e);

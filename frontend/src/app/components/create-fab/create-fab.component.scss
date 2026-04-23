@@ -47,10 +47,11 @@
 .create-fab-item {
   // M3 extended pill: icona + label inline. Palette coerente col trigger
   // (near-black su off-white) per unità visiva. Width fissa per allineamento.
+  // Gap 6px allineato a .unified-toolbar-seg per coerenza visiva.
   display: inline-flex;
   align-items: center;
   justify-content: flex-start;
-  gap: 12px;
+  gap: 6px;
   padding: 0 20px 0 16px;
   width: 168px;
   height: 48px;

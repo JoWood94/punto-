@@ -130,21 +130,8 @@
     <mat-icon class="undo-icon">undo</mat-icon>
   </button>
 
-  <!-- Snooze indicator -->
-  <button class="strip-badge strip-badge--snoozed strip-badge--clickable" type="button"
-          *ngIf="isSnoozed"
-          (click)="cancelSnooze()">
-    <mat-icon>snooze</mat-icon>
-    <span>{{ snoozeConfirmPending ? ('EDITOR.SNOOZE_CANCEL_CONFIRM' | translate) : snoozeLabel }}</span>
-  </button>
-
-  <!-- CTA: snooze -->
-  <button class="strip-cta strip-cta--snooze" type="button"
-          *ngIf="isReminderActionable(reminderBlock) && !isSnoozed"
-          (click)="showSnoozeSheet.set(true)">
-    <mat-icon>snooze</mat-icon>
-    {{ 'EDITOR.SNOOZE_LABEL' | translate }}
-  </button>
+  <!-- Snooze/mute: gestiti esclusivamente dalla campanella (reminder-mini-fab).
+       Badge di stato e CTA rimossi dalla strip per evitare duplicazione. -->
 
   <!-- CTA: evadi ricorrenza scaduta -->
   <button class="strip-cta" type="button"
@@ -528,12 +515,14 @@
   <mat-icon>{{ reminderMuted() ? 'notifications_off' : (hasActiveSuppression ? 'notifications_paused' : (reminderBlock ? 'notifications' : 'notifications_none')) }}</mat-icon>
 </button>
 
-<!-- Mini-FAB condivisione: absolute bottom-left, affiancato al reminder-mini-fab -->
+<!-- Mini-FAB condivisione: absolute bottom-left, affiancato al reminder-mini-fab.
+     Se la campanella non è presente (type='note') occupa lo slot della campanella. -->
 <button class="share-mini-fab"
         type="button"
         *ngIf="canShare"
         (click)="openSharePanel()"
         [class.share-mini-fab--active]="note.isShared"
+        [class.share-mini-fab--no-bell]="!note.type || note.type === 'note'"
         [class.share-mini-fab--hidden]="activeTextBlockIndex() !== null"
         [class.share-mini-fab--collab-editing]="anyCollaboratorEditing"
         [class.share-mini-fab--collab-viewing]="hasViewingCollaborators"

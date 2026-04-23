@@ -163,12 +163,18 @@
   }
 }
 
-// ─── Mini-FAB condivisione: affiancato al reminder-mini-fab (gap 12px) ──
+// ─── Mini-FAB condivisione: affiancato al reminder-mini-fab (gap 12px).
+// Se la campanella non è renderizzata (type='note') occupa lo slot della
+// campanella tramite la modifier .share-mini-fab--no-bell.
 .share-mini-fab {
   position: absolute;
   bottom: calc(28px + min(env(safe-area-inset-bottom, 0px), 44px));
   left: calc(28px + 56px + 12px); // reminder-fab width + gap
   z-index: 300;
+
+  &--no-bell {
+    left: 28px;
+  }
   width: 56px;
   height: 56px;
   border-radius: 50%;

@@ -217,7 +217,11 @@
     "OWN_INVITE_ERROR": "You cannot accept your own invite link.",
     "EXPIRED_ERROR": "This invite link has expired.",
     "INVALID_ERROR": "Invalid or unavailable invite link.",
-    "ACCEPT_ERROR": "Failed to accept the invite. Please try again."
+    "ACCEPT_ERROR": "Failed to accept the invite. Please try again.",
+    "NOTIF_CONSENT_TITLE": "Receive notifications?",
+    "NOTIF_CONSENT_HINT": "Choose whether to be notified when the reminder fires. You can change this anytime from the bell in the editor.",
+    "NOTIF_CONSENT_YES": "Yes, notify me",
+    "NOTIF_CONSENT_NO": "No, owner only"
   },
   "SHARING": {
     "TITLE": "Share note",
