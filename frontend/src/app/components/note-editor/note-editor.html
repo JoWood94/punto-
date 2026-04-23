@@ -1,163 +1,163 @@
-<!-- ── Reminder strip (above title) ── -->
-<div class="reminder-strip" *ngIf="!!reminderBlock">
+<!-- ── Reminder strip (above title) — editorial hero + meta line ─────────
+     Un memo è "una cosa da ricordare, quando": la quando diventa typography,
+     non form. Hero row (data·ora) + CTA inline. Meta line (ricorrenza · fine
+     · stato) come testo cliccabile in-place. Select nativi nascosti sotto
+     label visibili per preservare il picker OS su mobile. -->
+<div class="reminder-strip" *ngIf="!!reminderBlock"
+     [class.reminder-strip--overdue]="isSingleOverdue(reminderBlock) || isOverdueRecurring(reminderBlock)"
+     [class.reminder-strip--completed]="reminderBlock.status === 'completed' || (reminderBlock.recurrence !== 'none' && reminderBlock._evaded)">
 
-  <!-- Row 1: data + ora -->
-  <div class="reminder-strip-row">
+  <!-- Hero row: data + ora + CTA primaria -->
+  <div class="reminder-hero">
 
-    <button class="strip-date-btn" type="button"
+    <!-- Data: button text-style che apre mat-datepicker -->
+    <button class="reminder-hero-date" type="button"
             [disabled]="!guestCanEditReminders"
             (click)="guestCanEditReminders && reminderDatepicker.open()"
             (focus)="onNonTextFieldFocus()"
             (blur)="onNonTextFieldBlur()">
-      <mat-icon>event</mat-icon>
-      <span>{{ (reminderBlock.date | date:'EEE d MMM':'':dateLocale) ?? ('EDITOR.SELECT_DATE' | translate) }}</span>
+      {{ (reminderBlock.date | date:'EEEE d MMMM':'':dateLocale) ?? ('EDITOR.SELECT_DATE' | translate) }}
       <input [matDatepicker]="reminderDatepicker"
              [(ngModel)]="reminderBlock.date"
              (ngModelChange)="onReminderChange()"
-             style="position:absolute;opacity:0;pointer-events:none;width:0;height:0;">
+             class="reminder-hidden-input">
       <mat-datepicker #reminderDatepicker
                       (opened)="onNonTextFieldFocus()"
                       (closed)="onNonTextFieldBlur(); onReminderChange()">
       </mat-datepicker>
     </button>
 
-    <div class="strip-time">
+    <span class="reminder-hero-sep" aria-hidden="true">·</span>
+
+    <!-- Ora: due select nativi affiancati, styling che li fonde col hero -->
+    <span class="reminder-hero-time">
       <select [(ngModel)]="reminderBlock.hour"
               [disabled]="!guestCanEditReminders"
               (change)="onReminderChange()"
               (focus)="onNonTextFieldFocus()"
               (blur)="onNonTextFieldBlur()"
-              class="strip-select">
+              class="reminder-hero-time-select">
         <option *ngFor="let h of hours" [value]="h">{{ h }}</option>
-      </select>
-      <span class="strip-colon">:</span>
-      <select [(ngModel)]="reminderBlock.minute"
+      </select><span class="reminder-hero-time-colon">:</span><select
+              [(ngModel)]="reminderBlock.minute"
               [disabled]="!guestCanEditReminders"
               (change)="onReminderChange()"
               (focus)="onNonTextFieldFocus()"
               (blur)="onNonTextFieldBlur()"
-              class="strip-select">
+              class="reminder-hero-time-select">
         <option *ngFor="let m of minutes" [value]="m">{{ m }}</option>
       </select>
-    </div>
+    </span>
 
-  </div><!-- /reminder-strip-row -->
-
-  <!-- Row 2: ricorrenza + data fine -->
-  <div class="reminder-strip-row reminder-strip-row--recurrence">
-
-    <select [(ngModel)]="reminderBlock.recurrence"
+    <!-- CTA primaria: pill dark inline-end. Visibile solo quando c'è un'azione. -->
+    <button class="reminder-cta" type="button"
+            *ngIf="note?.id && isOverdueRecurring(reminderBlock)"
             [disabled]="!guestCanEditReminders"
-            (change)="onReminderChange()"
-            (focus)="onNonTextFieldFocus()"
-            (blur)="onNonTextFieldBlur()"
-            class="strip-select strip-recurrence">
-      <option value="none">{{ 'EDITOR.RECURRENCE.ONCE' | translate }}</option>
-      <option value="daily">{{ 'EDITOR.RECURRENCE.DAILY' | translate }}</option>
-      <option value="weekly">{{ 'EDITOR.RECURRENCE.WEEKLY' | translate }}</option>
-      <option value="monthly">{{ 'EDITOR.RECURRENCE.MONTHLY' | translate }}</option>
-      <option value="yearly">{{ 'EDITOR.RECURRENCE.YEARLY' | translate }}</option>
-    </select>
+            (click)="markReminderCompleted(reminderBlock, true)">
+      {{ 'EDITOR.EVADE_RECURRING' | translate }}
+    </button>
+    <button class="reminder-cta" type="button"
+            *ngIf="isReminderActionable(reminderBlock) && !isOverdueRecurring(reminderBlock)"
+            [disabled]="!guestCanEditReminders"
+            (click)="markReminderCompleted(reminderBlock)">
+      {{ getReminderActionLabel(reminderBlock) }}
+    </button>
 
-    <div class="strip-end-date"
-         [class.strip-end-date--disabled]="reminderBlock.recurrence === 'none'">
-      <button class="strip-date-btn strip-end-date-btn" type="button"
+  </div>
+
+  <!-- Meta line: ricorrenza · fine · stato snooze/muted · evaso
+       Ogni chunk è un label/button text-style, separatori · visivi. -->
+  <div class="reminder-meta">
+
+    <!-- Ricorrenza: label con select nativo sottostante -->
+    <label class="reminder-meta-chunk"
+           [class.reminder-meta-chunk--muted]="reminderBlock.recurrence === 'none'">
+      <select [(ngModel)]="reminderBlock.recurrence"
+              [disabled]="!guestCanEditReminders"
+              (change)="onReminderChange()"
+              (focus)="onNonTextFieldFocus()"
+              (blur)="onNonTextFieldBlur()"
+              class="reminder-meta-chunk-select">
+        <option value="none">{{ 'EDITOR.RECURRENCE.ONCE' | translate }}</option>
+        <option value="daily">{{ 'EDITOR.RECURRENCE.DAILY' | translate }}</option>
+        <option value="weekly">{{ 'EDITOR.RECURRENCE.WEEKLY' | translate }}</option>
+        <option value="monthly">{{ 'EDITOR.RECURRENCE.MONTHLY' | translate }}</option>
+        <option value="yearly">{{ 'EDITOR.RECURRENCE.YEARLY' | translate }}</option>
+      </select>
+      <span>{{ (reminderBlock.recurrence === 'none' ? 'EDITOR.RECURRENCE.ONCE' :
+        reminderBlock.recurrence === 'daily'   ? 'EDITOR.RECURRENCE.DAILY'   :
+        reminderBlock.recurrence === 'weekly'  ? 'EDITOR.RECURRENCE.WEEKLY'  :
+        reminderBlock.recurrence === 'monthly' ? 'EDITOR.RECURRENCE.MONTHLY' :
+        'EDITOR.RECURRENCE.YEARLY') | translate }}</span>
+    </label>
+
+    <!-- End-date: visibile solo se ricorre -->
+    <ng-container *ngIf="reminderBlock.recurrence !== 'none'">
+      <span class="reminder-meta-sep" aria-hidden="true">·</span>
+      <button class="reminder-meta-chunk" type="button"
               [disabled]="!guestCanEditReminders"
               (click)="guestCanEditReminders && recurrenceEndDatepicker.open()"
               (focus)="onNonTextFieldFocus()"
               (blur)="onNonTextFieldBlur()">
-        <mat-icon>event_busy</mat-icon>
-        <span>{{ reminderBlock._endDate ? (reminderBlock._endDate | date:'d MMM yyyy':'':dateLocale) : ('EDITOR.RECURRENCE_END' | translate) }}</span>
+        {{ reminderBlock._endDate ? (reminderBlock._endDate | date:'d MMM yyyy':'':dateLocale) : ('EDITOR.RECURRENCE_END' | translate) }}
         <input [matDatepicker]="recurrenceEndDatepicker"
                [(ngModel)]="reminderBlock._endDate"
                (ngModelChange)="onRecurrenceEndDateChange($event)"
-               style="position:absolute;opacity:0;pointer-events:none;width:0;height:0;">
+               class="reminder-hidden-input">
         <mat-datepicker #recurrenceEndDatepicker
                         (opened)="onNonTextFieldFocus()"
                         (closed)="onNonTextFieldBlur()">
         </mat-datepicker>
       </button>
-      <button *ngIf="reminderBlock._endDate && reminderBlock.recurrence !== 'none'" class="strip-end-date-clear"
-              type="button" [disabled]="!guestCanEditReminders" (click)="clearRecurrenceEndDate()">
+      <button *ngIf="reminderBlock._endDate" class="reminder-meta-clear"
+              type="button" [disabled]="!guestCanEditReminders"
+              (click)="clearRecurrenceEndDate()"
+              aria-label="Rimuovi termine ricorrenza">
         <mat-icon>close</mat-icon>
       </button>
-    </div>
+    </ng-container>
+
+    <!-- Stato snooze/muted: testo inline, colorato -->
+    <ng-container *ngIf="reminderMuted()">
+      <span class="reminder-meta-sep" aria-hidden="true">·</span>
+      <span class="reminder-meta-chunk reminder-meta-chunk--muted-state">
+        {{ 'SNOOZE.STATUS_MUTED' | translate }}
+      </span>
+    </ng-container>
+    <ng-container *ngIf="!reminderMuted() && isSnoozed">
+      <span class="reminder-meta-sep" aria-hidden="true">·</span>
+      <span class="reminder-meta-chunk reminder-meta-chunk--snoozed-state">
+        {{ 'SNOOZE.STATUS_SNOOZED_UNTIL' | translate }} {{ snoozedUntil() | date:'HH:mm':'':dateLocale }}
+      </span>
+    </ng-container>
+
+    <!-- Stato evaso (ricorrente o singolo): testo inline con undo -->
+    <ng-container *ngIf="note?.id && reminderBlock.recurrence !== 'none' && reminderBlock._evaded && reminderBlock._wasOverdue">
+      <span class="reminder-meta-sep" aria-hidden="true">·</span>
+      <span class="reminder-meta-chunk reminder-meta-chunk--evaded-state">
+        {{ 'EDITOR.EVADED_NEXT_PREFIX' | translate }} {{ reminderBlock.time | date:'d MMM':'':dateLocale }}
+      </span>
+    </ng-container>
+    <button class="reminder-meta-chunk reminder-meta-chunk--evaded-state reminder-meta-chunk--clickable"
+            type="button"
+            *ngIf="note?.id && reminderBlock.recurrence !== 'none' && reminderBlock._evaded && !reminderBlock._wasOverdue"
+            [disabled]="!guestCanEditReminders"
+            (click)="undoRecurringEvasion(reminderBlock)"
+            matTooltip="Tocca per annullare evasione">
+      {{ 'EDITOR.EVADED_NEXT_PREFIX' | translate }} {{ reminderBlock.time | date:'d MMM':'':dateLocale }}
+      <mat-icon class="reminder-meta-chunk-undo">undo</mat-icon>
+    </button>
+    <button class="reminder-meta-chunk reminder-meta-chunk--evaded-state reminder-meta-chunk--clickable"
+            type="button"
+            *ngIf="reminderBlock.status === 'completed'"
+            [disabled]="!guestCanEditReminders"
+            (click)="undoReminderCompleted(reminderBlock)"
+            matTooltip="Tocca per annullare">
+      <span>{{ 'EDITOR.EVADED' | translate }}</span>
+      <mat-icon class="reminder-meta-chunk-undo">undo</mat-icon>
+    </button>
 
   </div>
-
-  <!-- Row 2: badge/CTA condizionali -->
-
-  <!-- Scaduto singolo -->
-  <div class="strip-badge strip-badge--overdue"
-       *ngIf="isSingleOverdue(reminderBlock)">
-    <mat-icon>schedule</mat-icon>
-    <span>{{ 'EDITOR.OVERDUE_PREFIX' | translate }} {{ reminderBlock.time | date:'d MMM, HH:mm':'':dateLocale }}</span>
-  </div>
-
-  <!-- Scaduto ricorrente -->
-  <div class="strip-badge strip-badge--overdue"
-       *ngIf="isOverdueRecurring(reminderBlock)">
-    <mat-icon>schedule</mat-icon>
-    <span>{{ 'EDITOR.OVERDUE_PREFIX' | translate }} {{ reminderBlock.time | date:'d MMM':'':dateLocale }}</span>
-  </div>
-
-  <!-- Evaso post-scaduto (no undo) -->
-  <div class="strip-badge strip-badge--evaded"
-       *ngIf="note?.id && reminderBlock.recurrence !== 'none' && reminderBlock._evaded && reminderBlock._wasOverdue">
-    <mat-icon>check_circle</mat-icon>
-    <span>{{ 'EDITOR.EVADED_NEXT_PREFIX' | translate }} {{ reminderBlock.time | date:'d MMM':'':dateLocale }}</span>
-  </div>
-
-  <!-- Evaso ricorrente con undo -->
-  <button class="strip-badge strip-badge--evaded strip-badge--clickable" type="button"
-          *ngIf="note?.id && reminderBlock.recurrence !== 'none' && reminderBlock._evaded && !reminderBlock._wasOverdue"
-          [disabled]="!guestCanEditReminders"
-          (click)="undoRecurringEvasion(reminderBlock)"
-          matTooltip="Tocca per annullare evasione">
-    <mat-icon>task_alt</mat-icon>
-    <span>{{ 'EDITOR.EVADED_NEXT_PREFIX' | translate }} {{ reminderBlock.time | date:'d MMM':'':dateLocale }}</span>
-    <mat-icon class="undo-icon">undo</mat-icon>
-  </button>
-
-  <!-- Completato singolo con undo -->
-  <button class="strip-badge strip-badge--evaded strip-badge--clickable" type="button"
-          *ngIf="reminderBlock.status === 'completed'"
-          [disabled]="!guestCanEditReminders"
-          (click)="undoReminderCompleted(reminderBlock)"
-          matTooltip="Tocca per annullare">
-    <mat-icon>task_alt</mat-icon>
-    <span>{{ 'EDITOR.EVADED' | translate }}</span>
-    <mat-icon class="undo-icon">undo</mat-icon>
-  </button>
-
-  <!-- Badge stato snooze/mute (solo visual, non cliccabile).
-       La gestione avviene via campanella (reminder-mini-fab); qui solo feedback. -->
-  <div class="strip-badge strip-badge--muted" *ngIf="reminderMuted()">
-    <mat-icon>notifications_off</mat-icon>
-    <span>{{ 'SNOOZE.STATUS_MUTED' | translate }}</span>
-  </div>
-  <div class="strip-badge strip-badge--snoozed" *ngIf="!reminderMuted() && isSnoozed">
-    <mat-icon>notifications_paused</mat-icon>
-    <span>{{ 'SNOOZE.STATUS_SNOOZED_UNTIL' | translate }} {{ snoozedUntil() | date:'HH:mm':'':dateLocale }}</span>
-  </div>
-
-  <!-- CTA: evadi ricorrenza scaduta -->
-  <button class="strip-cta" type="button"
-          *ngIf="note?.id && isOverdueRecurring(reminderBlock)"
-          [disabled]="!guestCanEditReminders"
-          (click)="markReminderCompleted(reminderBlock, true)">
-    <mat-icon>check_circle</mat-icon>
-    {{ 'EDITOR.EVADE_RECURRING' | translate }}
-  </button>
-
-  <!-- CTA: segna come evaso -->
-  <button class="strip-cta" type="button"
-          *ngIf="isReminderActionable(reminderBlock)"
-          [disabled]="!guestCanEditReminders"
-          (click)="markReminderCompleted(reminderBlock)">
-    <mat-icon>check_circle</mat-icon>
-    {{ getReminderActionLabel(reminderBlock) }}
-  </button>
 
 </div><!-- /reminder-strip -->
 

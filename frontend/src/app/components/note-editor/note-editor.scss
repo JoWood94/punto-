@@ -1242,132 +1242,271 @@
   }
 }
 
-// ─── Reminder strip (flex item tra header e content) ─────────
+// ─── Reminder strip — editorial hero + meta line ──────────────────────────
+// Un memo è "una cosa da ricordare, quando": la quando diventa typography,
+// non form. Palette app (#1C1B1F/#FFFBFE), font Plus Jakarta Sans con
+// letter-spacing tight, pickerizzati come text-style click-to-edit.
+
+$rs-ink: #1C1B1F;
+$rs-paper: #FFFBFE;
+$rs-danger: #D4746B;   // terracotta coerente con snooze-pill--danger
+$rs-muted:  rgba(28, 27, 31, 0.55);
+$rs-sep:    rgba(28, 27, 31, 0.28);
+$rs-hover-bg: rgba(28, 27, 31, 0.05);
 
 .reminder-strip {
   flex-shrink: 0;
-  background: var(--punto-bg, #FFFBFE);
-  border-bottom: 1px solid var(--mat-sys-outline-variant);
-  // Mobile: column layout, compact padding
-  padding: 8px 16px;
+  background: var(--punto-bg, #{$rs-paper});
+  padding: 14px 24px 12px;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
   overflow: hidden;
 
-  // Intermedio (480-767px): row wrap — controlli riga 1, badge/CTA riga 2 side-by-side
-  @media (min-width: 480px) and (max-width: 767.98px) {
-    flex-direction: row;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 8px;
-    padding: 8px 20px;
+  @media (max-width: 479px) {
+    padding: 12px 16px;
   }
 
-  // Desktop (>=768px): tutto su una riga
-  @media (min-width: 768px) {
-    flex-direction: row;
-    flex-wrap: nowrap;
-    align-items: center;
-    gap: 10px;
-    padding: 8px 24px;
+  // Overdue: l'hero diventa terracotta (sistema colore pre-esistente a #B3261E
+  // sostituito col terracotta brand-coherent #D4746B)
+  &--overdue .reminder-hero-date,
+  &--overdue .reminder-hero-time-select {
+    color: $rs-danger;
+  }
+
+  // Completed / evaso: opacity leggera + strikethrough hero
+  &--completed .reminder-hero {
+    opacity: 0.55;
+    .reminder-hero-date, .reminder-hero-time-select { text-decoration: line-through; }
   }
 }
 
-.reminder-strip-row {
+// ── Hero row: data · ora + CTA ─────────────────────────────────────────────
+.reminder-hero {
   display: flex;
-  align-items: center;
-  flex-wrap: nowrap;
+  align-items: baseline;
+  flex-wrap: wrap;
   gap: 8px;
-  width: 100%;
-  min-width: 0;
+  font-family: inherit;
+}
 
-  // Intermedio: full-width → spinge badge/CTA alla riga sotto
-  @media (min-width: 480px) and (max-width: 767.98px) {
-    flex: 0 0 100%;
+.reminder-hero-date,
+.reminder-hero-time-select {
+  font-family: inherit;
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: $rs-ink;
+  background: transparent;
+  border: none;
+  padding: 0 4px;
+  cursor: pointer;
+  white-space: nowrap;
+  line-height: 1.25;
+  transition:
+    color 180ms cubic-bezier(0.2, 0, 0, 1),
+    background 160ms cubic-bezier(0.2, 0, 0, 1);
+
+  @media (max-width: 479px) {
+    font-size: 18px;
   }
 
-  // Desktop: auto-width → affiancato a badge/CTA
-  @media (min-width: 768px) {
-    flex: 0 0 auto;
-    width: auto;
+  &:hover:not(:disabled) {
+    background: $rs-hover-bg;
+    border-radius: 6px;
+  }
+
+  &:focus-visible {
+    outline: 2px solid $rs-ink;
+    outline-offset: 2px;
+    border-radius: 6px;
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
   }
 }
 
-// Date button: compact chip that opens the datepicker
-.strip-date-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 5px 10px;
-  border-radius: 99px;
-  border: none;
-  background: color-mix(in srgb, var(--mat-sys-on-surface) 6%, transparent);
-  cursor: pointer;
-  font-size: 0.875rem;
-  font-weight: 500;
-  color: var(--mat-sys-on-surface);
-  white-space: nowrap;
+.reminder-hero-date {
   position: relative;
-  font-family: inherit;
-  transition: background var(--_t);
-  flex: 1 1 0;
-  justify-content: flex-start;
-
-  mat-icon {
-    font-size: 14px;
-    width: 14px;
-    height: 14px;
-    color: var(--mat-sys-on-surface-variant);
-  }
-
-  &:hover {
-    background: color-mix(in srgb, var(--mat-sys-on-surface) 10%, transparent);
-  }
+  text-align: left;
+  text-transform: capitalize; // "giovedì 23 aprile" → "Giovedì 23 Aprile"
 }
 
-.strip-end-date {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  flex: 1 1 0;
-  min-width: 0;
-}
-
-.strip-end-date--disabled {
-  opacity: 0.4;
-  pointer-events: none;
-}
-
-.strip-end-date-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 5px 10px;
-  border-radius: 99px;
-  border: none;
-  background: color-mix(in srgb, var(--mat-sys-on-surface) 6%, transparent);
-  cursor: pointer;
-  font-size: 0.875rem;
+.reminder-hero-sep {
+  font-size: 18px;
   font-weight: 500;
-  color: var(--mat-sys-on-surface);
-  white-space: nowrap;
-  font-family: inherit;
-  transition: background var(--_t);
-  flex: 1;
-  justify-content: flex-start;
+  color: $rs-sep;
+  user-select: none;
+  padding: 0 2px;
+}
 
-  &:hover {
-    background: color-mix(in srgb, var(--mat-sys-on-surface) 10%, transparent);
+.reminder-hero-time {
+  display: inline-flex;
+  align-items: baseline;
+}
+
+.reminder-hero-time-select {
+  // iOS auto-zoom fix: font-size >= 16px is required on focus. Usiamo 20px
+  // che è già sopra soglia.
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: none;
+  text-align: center;
+  text-align-last: center;
+  min-width: 32px;
+}
+
+.reminder-hero-time-colon {
+  font-family: inherit;
+  font-size: 20px;
+  font-weight: 600;
+  color: $rs-ink;
+  opacity: 0.5;
+  padding: 0 1px;
+  line-height: 1.25;
+
+  @media (max-width: 479px) { font-size: 18px; }
+}
+
+.reminder-cta {
+  // Pill dark inline-end. Coerente col linguaggio pill-shaped del resto app.
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 0 18px;
+  border-radius: 999px;
+  border: none;
+  background: $rs-ink;
+  color: $rs-paper;
+  font-family: inherit;
+  font-weight: 500;
+  font-size: 13.5px;
+  letter-spacing: -0.005em;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: filter 160ms cubic-bezier(0.2, 0, 0, 1), transform 160ms cubic-bezier(0.2, 0, 0, 1);
+  box-shadow:
+    0 1px 2px rgba(28, 27, 31, 0.08),
+    0 4px 10px rgba(28, 27, 31, 0.10);
+
+  &:hover:not(:disabled) { filter: brightness(1.1); }
+  &:active:not(:disabled) { transform: scale(0.97); }
+
+  &:focus-visible {
+    outline: 2px solid $rs-ink;
+    outline-offset: 2px;
+  }
+
+  &:disabled {
+    opacity: 0.38;
+    cursor: not-allowed;
   }
 }
 
-// Row 2: recurrence + end date — fills full width
-.reminder-strip-row--recurrence {
-  gap: 8px;
+// ── Meta line: ricorrenza · fine · stato (text-style click-to-edit) ────────
+.reminder-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 6px;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: -0.005em;
+  color: $rs-muted;
+  line-height: 1.5;
+  margin-top: 2px;
 }
 
-.strip-end-date-clear {
+.reminder-meta-chunk {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-family: inherit;
+  font-size: inherit;
+  font-weight: inherit;
+  letter-spacing: inherit;
+  color: inherit;
+  background: transparent;
+  border: none;
+  padding: 3px 6px;
+  border-radius: 6px;
+  cursor: pointer;
+  white-space: nowrap;
+  text-transform: lowercase;
+  transition: background 160ms cubic-bezier(0.2, 0, 0, 1), color 180ms cubic-bezier(0.2, 0, 0, 1);
+
+  &:hover:not(:disabled) {
+    background: $rs-hover-bg;
+    color: $rs-ink;
+  }
+
+  &:focus-visible {
+    outline: 2px solid $rs-ink;
+    outline-offset: 1px;
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  // Select nativo sottostante (cattura tap/click → OS picker) con label
+  // visibile sopra. Preserva il picker nativo mobile per UX familiare.
+  .reminder-meta-chunk-select {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0;
+    cursor: pointer;
+    appearance: none;
+    -webkit-appearance: none;
+    font-size: 16px; // iOS anti-zoom
+    border: none;
+    background: transparent;
+  }
+
+  // Variant: ricorrenza = "once" (nessuna info utile → muted ulteriore)
+  &--muted { opacity: 0.7; }
+
+  // Variant: stato muted permanente (terracotta)
+  &--muted-state { color: $rs-danger; cursor: default; pointer-events: none; }
+
+  // Variant: stato snoozed temporaneo (coerente meta, non invasivo)
+  &--snoozed-state { color: $rs-ink; cursor: default; pointer-events: none; }
+
+  // Variant: evaso (più marcato)
+  &--evaded-state { color: $rs-ink; font-weight: 600; }
+
+  &--clickable {
+    cursor: pointer;
+    pointer-events: auto;
+    &:hover:not(:disabled) { background: $rs-hover-bg; }
+  }
+}
+
+.reminder-meta-chunk-undo {
+  font-size: 14px !important;
+  width: 14px !important;
+  height: 14px !important;
+  opacity: 0.6;
+  margin-left: 2px;
+}
+
+.reminder-meta-sep {
+  color: $rs-sep;
+  user-select: none;
+  font-weight: 500;
+  padding: 0 2px;
+}
+
+.reminder-meta-clear {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1375,149 +1514,36 @@
   height: 20px;
   border-radius: 50%;
   border: none;
-  background: color-mix(in srgb, var(--mat-sys-on-surface) 8%, transparent);
+  background: transparent;
   cursor: pointer;
   padding: 0;
-  transition: background var(--_t);
+  color: $rs-muted;
+  transition: background 160ms cubic-bezier(0.2, 0, 0, 1), color 180ms;
 
   mat-icon {
     font-size: 14px;
     width: 14px;
     height: 14px;
-    color: var(--mat-sys-on-surface-variant);
+    color: inherit;
   }
 
-  &:hover {
-    background: color-mix(in srgb, var(--mat-sys-on-surface) 14%, transparent);
-  }
-}
-
-// Select nativi compatti
-.strip-select {
-  border: none;
-  background: color-mix(in srgb, var(--mat-sys-on-surface) 6%, transparent);
-  border-radius: 99px; // pill — coerente con chip e strip-date-btn
-  padding: 5px 28px 5px 12px;
-  font-size: 1rem; // >= 16px: previene auto-zoom iOS
-  font-weight: 500;
-  font-family: inherit;
-  color: var(--mat-sys-on-surface);
-  cursor: pointer;
-  appearance: none;
-  -webkit-appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%231C1B1F' opacity='.4'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 6px center;
-  transition: background-color var(--_t);
-
-  &:hover {
-    background-color: color-mix(in srgb, var(--mat-sys-on-surface) 10%, transparent);
+  &:hover:not(:disabled) {
+    background: $rs-hover-bg;
+    color: $rs-ink;
   }
 
-  &:focus {
-    outline: 2px solid var(--punto-primary);
-    outline-offset: 1px;
+  &:disabled {
+    opacity: 0.38;
+    cursor: not-allowed;
   }
 }
 
-.strip-recurrence {
-  max-width: 140px;
-  min-width: 80px;
-  flex: 0 0 auto;
-}
-
-.strip-time {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-  flex: 0 0 auto; // Never clip time controls
-}
-
-.strip-colon {
-  font-size: 0.875rem;
-  font-weight: 600;
-  color: var(--mat-sys-on-surface);
-  opacity: 0.6;
-  flex-shrink: 0;
-}
-
-// .strip-dot removed — elements now fill full row width
-
-// Badge riga 2 (condizionale)
-.strip-badge {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  padding: 8px 16px;
-  border-radius: 99px;
-  font-size: 0.85rem;
-  font-weight: 500;
-  min-height: 36px;
-  width: 100%;
-
-  @media (min-width: 480px) {
-    width: auto;
-  }
-  border: none;
-  font-family: inherit;
-  overflow: visible;
-  box-sizing: border-box;
-
-  span {
-    white-space: normal;
-    overflow: visible;
-    text-overflow: unset;
-  }
-
-  mat-icon {
-    flex-shrink: 0;
-    font-size: 14px;
-    width: 14px;
-    height: 14px;
-  }
-
-  .undo-icon {
-    font-size: 13px;
-    width: 13px;
-    height: 13px;
-    opacity: 0.7;
-  }
-
-  &--overdue {
-    background: color-mix(in srgb, #B3261E 12%, var(--punto-bg, #FFFBFE));
-    color: #B3261E;
-    mat-icon { color: #B3261E; }
-  }
-
-  &--evaded {
-    background: #1C1B1F;
-    color: white;
-    mat-icon { color: white; }
-  }
-
-  &--clickable {
-    cursor: pointer;
-    transition: opacity var(--_t);
-    &:hover { opacity: 0.85; }
-  }
-
-  // Snooze attivo: muted, non invasivo
-  &--snoozed {
-    background: rgba(28, 27, 31, 0.06);
-    color: rgba(28, 27, 31, 0.65);
-    border: 1px solid rgba(28, 27, 31, 0.12);
-    mat-icon { color: rgba(28, 27, 31, 0.5); }
-    &:hover { background: rgba(28, 27, 31, 0.1); }
-  }
-
-  // Muted permanente: accento terracotta coerente con snooze-pill--danger
-  &--muted {
-    background: rgba(212, 116, 107, 0.08);
-    color: #A85A52;
-    border: 1px solid rgba(212, 116, 107, 0.24);
-    mat-icon { color: #A85A52; }
-  }
+.reminder-hidden-input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+  width: 0;
+  height: 0;
 }
 
 // Anchor per il snooze-sheet (positioning context su desktop)
@@ -1525,54 +1551,7 @@
   position: relative;
 }
 
-// CTA compatta in-strip
-.strip-cta {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 8px 16px;
-  border-radius: 99px;
-  border: 1px solid var(--mat-sys-outline-variant);
-  background: transparent;
-  font-size: 0.85rem;
-  font-weight: 500;
-  min-height: 36px;
-  font-family: inherit;
-  color: var(--mat-sys-on-surface);
-  cursor: pointer;
-  width: 100%;
-  justify-content: center;
-  transition:
-    background var(--_t),
-    border-color var(--_t);
-
-  // Intermedio: forza CTA su riga propria, full-width
-  @media (min-width: 480px) and (max-width: 767.98px) {
-    flex: 0 0 100%;
-    width: 100%;
-  }
-
-  // Desktop: inline accanto alle righe controlli
-  @media (min-width: 768px) {
-    width: auto;
-    flex: 0 0 auto;
-  }
-
-  mat-icon {
-    font-size: 14px;
-    width: 14px;
-    height: 14px;
-    color: var(--mat-sys-on-surface-variant);
-  }
-
-  &:hover {
-    background: color-mix(in srgb, var(--mat-sys-on-surface) 6%, transparent);
-    border-color: var(--mat-sys-outline);
-  }
-}
-
 // ─── Guest disabled state (permissions) ─────────────────────
-// Copertura uniforme: opacity 0.38 (M3 standard), no pointer-events, no cursor
 .title-input-raw:disabled {
   opacity: 0.38;
   cursor: not-allowed;
@@ -1589,28 +1568,6 @@
 .checklist-add-input:disabled {
   opacity: 0.38;
   cursor: not-allowed;
-}
-
-.strip-date-btn:disabled,
-.strip-end-date-btn:disabled,
-.strip-end-date-clear:disabled,
-.strip-cta:disabled,
-.strip-badge--clickable:disabled {
-  opacity: 0.38;
-  cursor: not-allowed;
-  pointer-events: none;
-
-  &:hover {
-    background: inherit;
-    border-color: inherit;
-    opacity: 0.38;
-  }
-}
-
-.strip-select:disabled {
-  opacity: 0.38;
-  cursor: not-allowed;
-  pointer-events: none;
 }
 
 .reminder-mini-fab:disabled:not(.reminder-mini-fab--hidden) {

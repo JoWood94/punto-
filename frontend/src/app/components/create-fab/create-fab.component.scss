@@ -16,20 +16,10 @@
 .create-fab-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(28, 27, 31, 0.32);
+  background: transparent;
   z-index: 998;
-  animation: create-fab-backdrop-in 160ms ease-out;
-
-  @media (prefers-reduced-motion: reduce) { animation: none; }
-
-  // Desktop: dentro mat-sidenav-content (transformed ancestor) il position:fixed
-  // viene confinato alla regione del content → appare come rettangolo visibile.
-  // Rendiamo il backdrop trasparente su desktop: il click-away funziona comunque
-  // via pointer-events, e non crea artefatti visivi.
-  @media (min-width: 768px) {
-    background: transparent;
-    animation: none;
-  }
+  // Nessun dim: l'app resta leggibile in background. Lo scrim serve solo per
+  // catturare click-away (pointer-events transparent via background).
 }
 
 @keyframes create-fab-backdrop-in {

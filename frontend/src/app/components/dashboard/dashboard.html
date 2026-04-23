@@ -366,8 +366,8 @@
   </button>
 </div>
 
-<!-- Menu impostazioni globale -->
-<mat-menu #settingsMenu="matMenu" xPosition="before">
+<!-- Menu impostazioni globale — pill-shaped coerente col design system -->
+<mat-menu #settingsMenu="matMenu" xPosition="before" panelClass="punto-pill-menu">
   <button mat-menu-item *ngIf="updatePending" (click)="reloadApp()">
     <mat-icon>system_update</mat-icon>
     <span>{{ 'MENU.UPDATE' | translate }}</span>

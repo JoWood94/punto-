@@ -1,10 +1,10 @@
-// snooze-sheet — container pill unico verticale (variante A: no divider, hover row).
-// Coerenza con la toolbar add-block (right-side) che usa lo stesso pattern:
-// container pill monolitico con segmenti interni. Editorial minimalism.
+// snooze-sheet — floating pill stack, coerente col linguaggio create-fab.
+// Palette: near-black #1C1B1F su off-white #FFFBFE. Identità editorial/minimalist
+// di punto!, niente bottom-sheet Material generico.
 
 :host { display: contents; }
 
-// ── Tokens locali ───────────────────────────────────────────────────────────
+// ── Tokens locali (da estrarre in /polish successivo) ───────────────────────
 $c-ink: #1C1B1F;
 $c-paper: #FFFBFE;
 $c-danger: #D4746B; // rosso terracotta Bear-like, warm, più editorial di Material Red
@@ -14,54 +14,46 @@ $shadow-floating:
   0 12px 30px rgba(28, 27, 31, 0.06);
 $ease-out-editorial: cubic-bezier(0.2, 0, 0, 1);
 
-// ── Container pill verticale: posizionato sopra la campanella (bottom-left).
-// position:absolute ancorato a :host del note-editor (position:relative). ──
+// Nessuno scrim: il click-away è gestito via HostListener document:click nel
+// component TS, più robusto dello scrim absolute/fixed dentro ancestor
+// transformed (mat-sidenav-content). Dim visivo mobile rimosso per ora.
+
+// ── Stack: posizionato sopra la campanella (bottom-left dell'editor).
+// position:absolute su :host del note-editor (position:relative). ──────────
 .snooze-stack {
   position: absolute;
+  // Ancoraggio: la campanella è a bottom:calc(28px + safe-area) + height 56px.
+  // Lo stack parte 12px sopra la campanella. left allineato al bordo sinistro.
   bottom: calc(28px + 56px + 12px + min(env(safe-area-inset-bottom, 0px), 44px));
   left: 28px;
   z-index: 1100;
   display: flex;
-  flex-direction: column;
-  align-items: stretch;
-  width: 240px;
+  flex-direction: column-reverse; // prima voce in template = più vicina al FAB
+  align-items: flex-start;
+  gap: 8px;
   max-width: calc(100% - 56px);
+  pointer-events: none;
 
-  background: $c-ink;
-  border-radius: 20px;
-  box-shadow: $shadow-floating;
-  overflow: hidden;
+  > * { pointer-events: auto; }
 
-  opacity: 0;
-  transform: translateY(8px) scale(0.96);
-  animation: snooze-stack-in 200ms $ease-out-editorial forwards;
-
-  @media (prefers-reduced-motion: reduce) {
-    animation: none;
-    opacity: 1;
-    transform: none;
-  }
-
-  // Quando è aperto il custom picker: rilascia il container pill
-  // (l'overlay è un blocco indipendente con bg chiaro)
   &--custom {
-    background: transparent;
-    box-shadow: none;
-    overflow: visible;
-    width: auto;
+    flex-direction: column;
   }
 }
 
-// ── Riga interna ────────────────────────────────────────────────────────────
+// ── Pill base ───────────────────────────────────────────────────────────────
+// Width fissa per ritmo uniforme (allineato al linguaggio create-fab).
+// letter-spacing negativo → editorial tight (Things 3, Linear).
 .snooze-pill {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 10px;
-  width: 100%;
-  min-width: 0;
-  height: 44px;
-  padding: 0 18px;
-  background: transparent;
+  justify-content: flex-start;
+  gap: 6px;
+  width: 200px;
+  height: 48px;
+  padding: 0 22px 0 18px;
+  border-radius: 24px;
+  background: $c-ink;
   color: $c-paper;
   border: none;
   font-family: inherit;
@@ -69,11 +61,17 @@ $ease-out-editorial: cubic-bezier(0.2, 0, 0, 1);
   font-size: 14.5px;
   letter-spacing: -0.005em;
   white-space: nowrap;
-  text-align: left;
   cursor: pointer;
+  box-shadow: $shadow-floating;
   transition:
-    background 160ms $ease-out-editorial,
+    filter 160ms $ease-out-editorial,
+    transform 160ms $ease-out-editorial,
+    background 180ms $ease-out-editorial,
     color 180ms $ease-out-editorial;
+
+  opacity: 0;
+  transform: translateY(8px) scale(0.92);
+  animation: snooze-pill-in 180ms $ease-out-editorial forwards;
 
   mat-icon {
     display: inline-flex;
@@ -87,53 +85,62 @@ $ease-out-editorial: cubic-bezier(0.2, 0, 0, 1);
     color: inherit;
   }
 
-  span {
-    flex: 1;
-    overflow: hidden;
-    text-overflow: ellipsis;
+  span { overflow: hidden; text-overflow: ellipsis; }
+
+  &:hover { filter: brightness(1.12); }
+  &:active { transform: translateY(0) scale(0.97); }
+  &:focus-visible {
+    outline: 2px solid $c-paper;
+    outline-offset: 2px;
   }
 
-  &:hover { background: rgba(255, 251, 254, 0.06); }
-  &:active { background: rgba(255, 251, 254, 0.10); }
-  &:focus-visible {
-    background: rgba(255, 251, 254, 0.08);
-    outline: none;
+  // Stagger entrata (coerente con create-fab)
+  @for $i from 1 through 8 {
+    &:nth-child(#{$i}) { animation-delay: #{($i - 1) * 35}ms; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+    opacity: 1;
+    transform: none;
+    transition: none;
   }
 }
 
-// ── Varianti riga ──────────────────────────────────────────────────────────
+// ── Varianti pill ───────────────────────────────────────────────────────────
 
-// Riattiva: riga primaria, palette inversa. Prima nel container → clippata
-// dal border-radius top del container (overflow:hidden).
+// Riattiva: palette inversa (pill chiara su stack scuro) per evidenziare l'uscita
 .snooze-pill--reactivate {
   background: $c-paper;
   color: $c-ink;
-  font-weight: 600;
+  border: 1px solid rgba(28, 27, 31, 0.10);
+  box-shadow:
+    0 1px 2px rgba(28, 27, 31, 0.05),
+    0 4px 14px rgba(28, 27, 31, 0.10);
 
-  mat-icon { color: $c-ink; }
-
-  &:hover { background: rgba(255, 251, 254, 0.88); }
-  &:active { background: rgba(255, 251, 254, 0.80); }
-  &:focus-visible { background: rgba(255, 251, 254, 0.88); }
+  &:hover { filter: brightness(0.98); }
+  &:focus-visible { outline-color: $c-ink; }
 }
 
-// Silenzia sempre: accento terracotta su icona + label
+// Silenzia sempre: accento terracotta su icona + label (bg scuro preservato)
 .snooze-pill--danger {
-  color: $c-danger;
-  mat-icon { color: $c-danger; }
+  mat-icon,
+  span { color: $c-danger; }
 }
 
-// Stato pending confirm-on-second-tap: riga riempita terracotta
+// Stato pending confirm-on-second-tap: pill diventa interamente terracotta
 .snooze-pill--danger-pending {
   background: $c-danger;
-  color: $c-paper;
-  mat-icon { color: $c-paper; }
-  animation: danger-pulse 1.8s ease-in-out infinite;
 
-  &:hover { background: $c-danger; filter: brightness(1.05); }
-  &:focus-visible { background: $c-danger; }
+  mat-icon,
+  span { color: $c-paper; }
 
-  @media (prefers-reduced-motion: reduce) { animation: none; }
+  // Pulse sottile per indicare "in attesa di conferma"
+  animation:
+    snooze-pill-in 180ms $ease-out-editorial forwards,
+    danger-pulse 1.8s ease-in-out infinite 180ms;
+
+  &:focus-visible { outline-color: $c-paper; }
 }
 
 @keyframes danger-pulse {
@@ -141,9 +148,52 @@ $ease-out-editorial: cubic-bezier(0.2, 0, 0, 1);
   50% { filter: brightness(1.08); }
 }
 
+// ── Status chip (informativa, NON-interattiva) ─────────────────────────────
+// Differenziazione morfologica dalla pill azione: forma più compatta, variante
+// "tag" con border sottile. Evita confusione di affordance.
+.snooze-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  height: 32px;
+  padding: 0 14px;
+  border-radius: 16px;
+  background: rgba(255, 251, 254, 0.94);
+  color: rgba(28, 27, 31, 0.78);
+  border: 1px solid rgba(28, 27, 31, 0.08);
+  font-family: inherit;
+  font-weight: 500;
+  font-size: 12.5px;
+  letter-spacing: -0.002em;
+  white-space: nowrap;
+  box-shadow: 0 1px 2px rgba(28, 27, 31, 0.04);
+  cursor: default;
+  pointer-events: none;
+
+  opacity: 0;
+  transform: translateY(8px) scale(0.96);
+  animation: snooze-pill-in 180ms $ease-out-editorial forwards;
+  animation-delay: 0ms;
+
+  mat-icon {
+    flex-shrink: 0;
+    width: 14px;
+    height: 14px;
+    font-size: 14px;
+    line-height: 14px;
+    opacity: 0.7;
+    color: inherit;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+}
+
 // ── Custom datetime overlay (secondo step) ──────────────────────────────────
-// Popover indipendente (non integrato nel container pill) perché richiede
-// palette chiara per il picker.
 .snooze-custom-overlay {
   background: $c-paper;
   border-radius: 24px;
@@ -154,7 +204,7 @@ $ease-out-editorial: cubic-bezier(0.2, 0, 0, 1);
 
   opacity: 0;
   transform: translateY(8px) scale(0.96);
-  animation: snooze-stack-in 200ms $ease-out-editorial forwards;
+  animation: snooze-pill-in 180ms $ease-out-editorial forwards;
 
   @media (prefers-reduced-motion: reduce) {
     animation: none;
@@ -170,15 +220,12 @@ $ease-out-editorial: cubic-bezier(0.2, 0, 0, 1);
   margin-top: 14px;
 }
 
-// Pill compatte per le azioni del custom overlay. Qui restano "pill" separate
-// perché il popover ha palette chiara (design diverso dal container scuro).
+// Pill compatte per le azioni del custom overlay
 .snooze-pill--primary,
 .snooze-pill--ghost {
-  width: auto;
   min-width: 0;
   height: 40px;
   padding: 0 18px;
-  border-radius: 20px;
   font-size: 13.5px;
   animation: none;
   opacity: 1;
@@ -186,14 +233,6 @@ $ease-out-editorial: cubic-bezier(0.2, 0, 0, 1);
 }
 
 .snooze-pill--primary {
-  background: $c-ink;
-  color: $c-paper;
-  box-shadow:
-    0 1px 2px rgba(28, 27, 31, 0.08),
-    0 4px 10px rgba(28, 27, 31, 0.10);
-
-  &:hover { background: $c-ink; filter: brightness(1.1); }
-
   &:disabled {
     opacity: 0.38;
     cursor: not-allowed;
@@ -207,11 +246,11 @@ $ease-out-editorial: cubic-bezier(0.2, 0, 0, 1);
   box-shadow: none;
 
   &:hover { background: rgba(28, 27, 31, 0.06); filter: none; }
-  &:focus-visible { background: rgba(28, 27, 31, 0.06); }
+  &:focus-visible { outline-color: $c-ink; }
 }
 
 // ── Animazioni ───────────────────────────────────────────────────────────────
-@keyframes snooze-stack-in {
+@keyframes snooze-pill-in {
   to {
     opacity: 1;
     transform: translateY(0) scale(1);
