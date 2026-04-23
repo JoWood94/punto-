@@ -28,6 +28,12 @@
   // partendo da y=0). Non serve ripeterne il valore qui.
   padding: 16px 24px 16px;
   gap: 4px;
+
+  // Mobile: allineato ai margini x della reminder-strip (16px).
+  @media (max-width: 479px) {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
 }
 
 .editor-header-row {
@@ -422,6 +428,12 @@
   // Forza GPU compositing: previene l'artefatto WebKit (div bianco) che appare quando
   // --vh cambia e il layer composited non si invalida finché l'utente non scrolla.
   transform: translateZ(0);
+
+  // Mobile: allineato ai margini x della reminder-strip (16px).
+  @media (max-width: 479px) {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
 }
 
 .full-width {
