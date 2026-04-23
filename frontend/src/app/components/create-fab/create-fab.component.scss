@@ -46,7 +46,7 @@
 
 .create-fab-item {
   // M3 extended pill: icona + label inline. Palette coerente col trigger
-  // (near-black su off-white) per unità visiva. min-content respira sul label.
+  // (near-black su off-white) per unità visiva. Width fissa per ritmo uniforme.
   // Gap 6px allineato a .unified-toolbar-seg. Tipografia editorial (letter-spacing
   // negativo + 14.5px) coerente con snooze-sheet.
   display: inline-flex;
@@ -54,7 +54,7 @@
   justify-content: flex-start;
   gap: 6px;
   padding: 0 22px 0 18px;
-  min-width: min-content;
+  width: 168px;
   height: 48px;
   border-radius: 24px;
   background: #1C1B1F;
@@ -110,11 +110,8 @@
   z-index: 1000;
   background: #1C1B1F;
   color: #FFFBFE;
-  transition: transform 200ms cubic-bezier(0.2, 0, 0, 1), background 200ms;
-
-  &--open {
-    transform: rotate(45deg);
-  }
+  overflow: hidden;
+  transition: background 200ms cubic-bezier(0.2, 0, 0, 1);
 
   &:disabled {
     opacity: 0.38;
@@ -122,6 +119,41 @@
 
   @media (prefers-reduced-motion: reduce) {
     transition: none;
+  }
+}
+
+// Icone stacked: crossfade tra + e × al toggle open. Niente rotate 45° (che
+// telegrafa "Material speed-dial generico"). Fade + subtle scale è più editoriale.
+.create-fab-trigger-icon {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) scale(1);
+  transition:
+    opacity 180ms cubic-bezier(0.2, 0, 0, 1),
+    transform 220ms cubic-bezier(0.2, 0, 0, 1);
+
+  @media (prefers-reduced-motion: reduce) {
+    transition: opacity 0ms;
+  }
+}
+
+.create-fab-trigger-icon--add {
+  opacity: 1;
+
+  .create-fab-trigger--open & {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.6);
+  }
+}
+
+.create-fab-trigger-icon--close {
+  opacity: 0;
+  transform: translate(-50%, -50%) scale(0.6);
+
+  .create-fab-trigger--open & {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
   }
 }
 

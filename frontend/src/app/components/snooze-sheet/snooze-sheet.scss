@@ -14,17 +14,20 @@ $shadow-floating:
   0 12px 30px rgba(28, 27, 31, 0.06);
 $ease-out-editorial: cubic-bezier(0.2, 0, 0, 1);
 
-// ── Scrim: trasparente (come create-fab), cattura click-away ────────────────
+// ── Scrim: absolute sul parent editor (NON fixed: mat-sidenav-content applica
+// transforms che rompono position:fixed — stesso motivo per cui reminder-mini-fab
+// è absolute). Cattura click-away dentro l'area editor.
 .snooze-scrim {
-  position: fixed;
+  position: absolute;
   inset: 0;
   z-index: 1099;
   background: transparent;
 }
 
-// ── Stack: posizionato sopra la campanella (bottom-left dell'editor) ───────
+// ── Stack: posizionato sopra la campanella (bottom-left dell'editor).
+// position:absolute su :host del note-editor (position:relative). ──────────
 .snooze-stack {
-  position: fixed;
+  position: absolute;
   // Ancoraggio: la campanella è a bottom:calc(28px + safe-area) + height 56px.
   // Lo stack parte 12px sopra la campanella. left allineato al bordo sinistro.
   bottom: calc(28px + 56px + 12px + min(env(safe-area-inset-bottom, 0px), 44px));
@@ -34,7 +37,7 @@ $ease-out-editorial: cubic-bezier(0.2, 0, 0, 1);
   flex-direction: column-reverse; // prima voce in template = più vicina al FAB
   align-items: flex-start;
   gap: 8px;
-  max-width: calc(100vw - 56px);
+  max-width: calc(100% - 56px);
   pointer-events: none;
 
   > * { pointer-events: auto; }
@@ -45,14 +48,14 @@ $ease-out-editorial: cubic-bezier(0.2, 0, 0, 1);
 }
 
 // ── Pill base ───────────────────────────────────────────────────────────────
-// min-width: min-content → pill che respirano sul contenuto, non rigidity
-// letter-spacing negativo → editorial tight (Things 3, Linear)
+// Width fissa per ritmo uniforme (allineato al linguaggio create-fab).
+// letter-spacing negativo → editorial tight (Things 3, Linear).
 .snooze-pill {
   display: inline-flex;
   align-items: center;
   justify-content: flex-start;
   gap: 6px;
-  min-width: min-content;
+  width: 200px;
   height: 48px;
   padding: 0 22px 0 18px;
   border-radius: 24px;
