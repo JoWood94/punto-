@@ -24,10 +24,21 @@
     "UPDATE": "Update app"
   },
   "FAB": {
-    "NEW_NOTE": "New Note",
+    "NEW_NOTE": "Note",
     "NEW_NOTE_ARIA": "New note",
+    "NEW_MEMO": "Reminder",
+    "NEW_MEMO_ARIA": "New reminder",
+    "NEW_EVENT": "Event",
+    "NEW_EVENT_ARIA": "New event",
     "NEW_REMINDER": "New Reminder",
-    "NEW_REMINDER_ARIA": "New reminder"
+    "NEW_REMINDER_ARIA": "New reminder",
+    "CREATE": "Create",
+    "CLOSE": "Close"
+  },
+  "ENTITY": {
+    "NOTE": "Note",
+    "MEMO": "Reminder",
+    "EVENT": "Event"
   },
   "CONNECTIVITY": {
     "OFFLINE": "Offline",

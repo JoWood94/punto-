@@ -2,7 +2,7 @@
   <div class="create-fab-backdrop" *ngIf="open" (click)="close()"></div>
 
   <div class="create-fab-items" [attr.aria-hidden]="!open">
-    <button mat-fab class="create-fab-item create-fab-item--event"
+    <button mat-fab extended class="create-fab-item create-fab-item--event"
             *ngIf="eventsEnabled"
             (click)="pick('event')"
             [attr.tabindex]="open ? 0 : -1"
@@ -11,7 +11,7 @@
       <span class="create-fab-item-label">{{ 'FAB.NEW_EVENT' | translate }}</span>
     </button>
 
-    <button mat-fab class="create-fab-item create-fab-item--memo"
+    <button mat-fab extended class="create-fab-item create-fab-item--memo"
             (click)="pick('memo')"
             [attr.tabindex]="open ? 0 : -1"
             [attr.aria-label]="'FAB.NEW_MEMO' | translate">
@@ -19,7 +19,7 @@
       <span class="create-fab-item-label">{{ 'FAB.NEW_MEMO' | translate }}</span>
     </button>
 
-    <button mat-fab class="create-fab-item create-fab-item--note"
+    <button mat-fab extended class="create-fab-item create-fab-item--note"
             (click)="pick('note')"
             [attr.tabindex]="open ? 0 : -1"
             [attr.aria-label]="'FAB.NEW_NOTE' | translate">
