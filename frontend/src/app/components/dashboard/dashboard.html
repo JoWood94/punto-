@@ -304,6 +304,7 @@
     <div class="editor-wrapper editor-enter" *ngIf="activeNote !== undefined"
          [class.editor-leaving]="editorLeaving">
       <app-note-editor #noteEditor [selectedNote]="activeNote" [initialReminderDate]="newNoteCalendarDate"
+                       [initialNoteType]="newNoteType"
                        (closeEditor)="closeEditor($event)"
                        (noteCreated)="onNoteCreated($event)"
                        (noteLiveUpdate)="onNoteLiveUpdate($event)">
@@ -319,33 +320,17 @@
       </app-calendar-view>
     </div>
 
-    <!-- FAB desktop: fixed bottom-right -->
+    <!-- FAB desktop: speed-dial Nota/Memo/Evento (Fase 1) -->
     <div class="sidenav-fab-area" *ngIf="activeNote === undefined && !isMobile">
-      <button mat-fab extended (click)="openNoteEditor()" class="new-note-fab"
-              [attr.aria-label]="(activeView === 'notes' ? 'FAB.NEW_NOTE_ARIA' : 'FAB.NEW_REMINDER_ARIA') | translate">
-        <span class="fab-icon-slot">
-          <mat-icon class="fab-ic" [class.fab-ic--on]="activeView === 'notes'">edit</mat-icon>
-          <mat-icon class="fab-ic" [class.fab-ic--on]="activeView !== 'notes'">notification_add</mat-icon>
-        </span>
-        <span class="fab-lb" [class.fab-lb--on]="activeView === 'notes'">{{ 'FAB.NEW_NOTE' | translate }}</span>
-        <span class="fab-lb" [class.fab-lb--on]="activeView !== 'notes'">{{ 'FAB.NEW_REMINDER' | translate }}</span>
-      </button>
+      <app-create-fab variant="desktop" (create)="onCreateFab($event)"></app-create-fab>
     </div>
   </mat-sidenav-content>
 
 </mat-sidenav-container>
 
-<!-- FAB mobile: icon-only round, position:fixed fuori dal sidenav-container -->
+<!-- FAB mobile: speed-dial Nota/Memo/Evento (Fase 1) -->
 <div class="mobile-fab-overlay" *ngIf="isMobile && activeNote === undefined">
-  <button mat-fab
-          (click)="currentMainView === 'calendar' ? openNoteEditorFromCalendar(calendarCurrentDate) : openNoteEditor()"
-          class="new-note-fab"
-          [attr.aria-label]="(mobileNav === 'notes' ? 'FAB.NEW_NOTE_ARIA' : 'FAB.NEW_REMINDER_ARIA') | translate">
-    <span class="fab-icon-slot">
-      <mat-icon class="fab-ic" [class.fab-ic--on]="mobileNav === 'notes'">edit</mat-icon>
-      <mat-icon class="fab-ic" [class.fab-ic--on]="mobileNav !== 'notes'">notification_add</mat-icon>
-    </span>
-  </button>
+  <app-create-fab variant="mobile" (create)="onCreateFab($event)"></app-create-fab>
 </div>
 
 <!-- Unified nav toolbar — mobile e tablet (<1280px): Note / Promemoria / Calendario -->

@@ -23,7 +23,7 @@ import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { firstValueFrom } from 'rxjs';
 
 import {
-  NoteService, Note, NoteBlock, TextBlock, ChecklistBlock,
+  NoteService, Note, NoteBlock, NoteType, TextBlock, ChecklistBlock,
   LocationBlock, ReminderBlock, ImageBlock, LinkBlock, migrateToBlocks, PresenceEntry
 } from '../../services/note';
 import { AuthService } from '../../services/auth';
@@ -58,6 +58,12 @@ import { SnoozeSheetComponent } from '../snooze-sheet/snooze-sheet';
 export class NoteEditorComponent implements OnInit, OnChanges, DoCheck, AfterViewInit, AfterViewChecked, OnDestroy {
   @Input() selectedNote: Note | null = null;
   @Input() initialReminderDate?: Date;
+  /**
+   * Tipo iniziale per la creazione di una nuova nota (selectedNote == null).
+   * Passato dal CreateFabComponent in Fase 1. Default 'note' per back-compat.
+   * Ignorato quando selectedNote è valorizzato (editing di doc esistente).
+   */
+  @Input() initialNoteType: NoteType = 'note';
   @Output() closeEditor = new EventEmitter<boolean>();
   @Output() noteCreated = new EventEmitter<string>();
   @Output() noteLiveUpdate = new EventEmitter<{id: string, title: string}>();
@@ -407,6 +413,11 @@ export class NoteEditorComponent implements OnInit, OnChanges, DoCheck, AfterVie
       if (this.savedNoteId) return;
 
       this.userHasModifiedContent = false;
+      // Fase 1: type esplicito dal FAB speed-dial, default 'note' per back-compat.
+      // Se ha un initialReminderDate (apertura da vista Promemoria o calendario), forziamo 'memo'.
+      const resolvedType: NoteType = this.initialReminderDate && this.initialNoteType === 'note'
+        ? 'memo'
+        : this.initialNoteType;
       if (this.initialReminderDate) {
         // Da vista Promemoria o da calendario: blocco reminder, nessun titolo di default
         const d = this.initialReminderDate;
@@ -419,9 +430,9 @@ export class NoteEditorComponent implements OnInit, OnChanges, DoCheck, AfterVie
           hour: reminderHour.toString().padStart(2, '0'),
           minute: reminderMin.toString().padStart(2, '0')
         };
-        this.note = { title: '', blocks: [reminderBlock], tags: [], color: 'default' };
+        this.note = { title: '', blocks: [reminderBlock], tags: [], color: 'default', type: resolvedType };
       } else {
-        this.note = { title: '', blocks: [], tags: [], color: 'default' };
+        this.note = { title: '', blocks: [], tags: [], color: 'default', type: resolvedType };
       }
       this.isNewNote = true;
       this.pendingFocusTitleInput = true;

@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, ActivatedRoute } from '@angular/router';
 import { AuthService } from '../../services/auth';
-import { NoteService, Note, getNotePreview, getChecklistProgress, hasReminder, getReminderTime, getReminderStatus, getNoteRecurrence, isRecurringNote } from '../../services/note';
+import { NoteService, Note, NoteType, getNotePreview, getChecklistProgress, hasReminder, getReminderTime, getReminderStatus, getNoteRecurrence, isRecurringNote } from '../../services/note';
 import { CryptoService } from '../../services/crypto';
 import { MatToolbarModule } from '@angular/material/toolbar';
 import { MatIconModule } from '@angular/material/icon';
@@ -20,6 +20,7 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { ToastService } from '../../services/toast';
 import { MatChipsModule } from '@angular/material/chips';
 import { NoteEditorComponent } from '../note-editor/note-editor';
+import { CreateFabComponent } from '../create-fab/create-fab.component';
 import { CalendarViewComponent } from '../calendar-view/calendar-view.component';
 import { ConfirmDialogComponent } from '../confirm-dialog/confirm-dialog';
 import { PassphraseDialogComponent } from '../passphrase-dialog/passphrase-dialog';
@@ -56,6 +57,7 @@ import { environment } from '../../../environments/environment';
     MatChipsModule,
     NoteEditorComponent,
     CalendarViewComponent,
+    CreateFabComponent,
     TranslateModule,
   ],
   templateUrl: './dashboard.html',
@@ -106,6 +108,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
   filteredNotes: Note[] = [];
   searchQuery = '';
   newNoteCalendarDate: Date | undefined = undefined;
+  newNoteType: NoteType = 'note';
   notesLoaded = false;
   pendingSelectNoteId: string | null = null;
   calendarCurrentDate: Date = new Date();
@@ -939,13 +942,27 @@ export class DashboardComponent implements OnInit, OnDestroy {
   openSettings() { this.router.navigate(['/settings']); }
   reloadApp() { document.location.reload(); }
   logout() { this.authService.logout().then(() => this.router.navigate(['/login'])); }
-  openNoteEditor() {
-    if (this.activeView === 'reminders' || this.mobileNav === 'reminders') {
+  /**
+   * Apre editor per creare nuova nota/memo/evento.
+   * @param type se omesso, deduce dalla view attiva (back-compat pre-FAB speed-dial).
+   *             In Fase 1, il CreateFabComponent passa type esplicito.
+   */
+  openNoteEditor(type?: NoteType) {
+    const resolvedType: NoteType = type
+      ?? ((this.activeView === 'reminders' || this.mobileNav === 'reminders') ? 'memo' : 'note');
+
+    if (resolvedType === 'memo' || resolvedType === 'event') {
       this.newNoteCalendarDate = this.computeDefaultReminderDate();
     } else {
       this.newNoteCalendarDate = undefined;
     }
+    this.newNoteType = resolvedType;
     this.activeNote = null;
+  }
+
+  /** Handler emit dal CreateFabComponent speed-dial. */
+  onCreateFab(type: NoteType) {
+    this.openNoteEditor(type);
   }
 
   private computeDefaultReminderDate(): Date {

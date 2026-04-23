@@ -1,0 +1,127 @@
+// create-fab — speed-dial FAB M3 per creazione Nota/Memo/Evento
+// Aesthetic: editorial minimalism, near-black #1C1B1F su off-white #FFFBFE.
+
+:host { display: block; }
+
+.create-fab-root {
+  position: relative;
+  display: inline-block;
+
+  &--mobile {
+    // Variante mobile: il root è posizionato assoluto dal container parent
+    display: block;
+  }
+}
+
+.create-fab-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(28, 27, 31, 0.32);
+  z-index: 998;
+  animation: create-fab-backdrop-in 160ms ease-out;
+
+  @media (prefers-reduced-motion: reduce) { animation: none; }
+}
+
+@keyframes create-fab-backdrop-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.create-fab-items {
+  position: absolute;
+  bottom: calc(100% + 16px);
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 12px;
+  z-index: 999;
+  pointer-events: none;
+
+  .create-fab-root--open & {
+    pointer-events: auto;
+  }
+}
+
+.create-fab-item {
+  // M3 extended-like: icona + label inline, allineato a destra
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 20px 0 16px;
+  min-width: 56px;
+  height: 48px;
+  border-radius: 24px;
+  background: #FFFBFE;
+  color: #1C1B1F;
+  box-shadow: 0 3px 6px rgba(0,0,0,0.16), 0 3px 6px rgba(0,0,0,0.23);
+  font-weight: 500;
+  font-size: 14px;
+  letter-spacing: 0.01em;
+
+  opacity: 0;
+  transform: translateY(8px) scale(0.92);
+  transition: opacity 180ms ease-out, transform 180ms cubic-bezier(0.2, 0, 0, 1);
+  transition-delay: 0ms;
+  pointer-events: none;
+
+  .create-fab-root--open & {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    pointer-events: auto;
+  }
+
+  // Stagger: la voce più in basso (note) entra per prima, poi memo, poi event.
+  // In reverse dal rendering DOM (event è in cima nel template): event ultimo.
+  &--note   { .create-fab-root--open & { transition-delay: 0ms; } }
+  &--memo   { .create-fab-root--open & { transition-delay: 40ms; } }
+  &--event  { .create-fab-root--open & { transition-delay: 80ms; } }
+
+  mat-icon {
+    width: 20px;
+    height: 20px;
+    font-size: 20px;
+    line-height: 20px;
+  }
+
+  &:hover { filter: brightness(0.97); }
+  &:active { transform: translateY(0) scale(0.97); }
+
+  @media (prefers-reduced-motion: reduce) {
+    transition: opacity 0ms;
+  }
+}
+
+.create-fab-item-label {
+  white-space: nowrap;
+}
+
+.create-fab-trigger {
+  position: relative;
+  z-index: 1000;
+  background: #1C1B1F;
+  color: #FFFBFE;
+  transition: transform 200ms cubic-bezier(0.2, 0, 0, 1), background 200ms;
+
+  &--open {
+    transform: rotate(45deg);
+  }
+
+  &:disabled {
+    opacity: 0.38;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    transition: none;
+  }
+}
+
+// Mobile: FAB position fisso bottom-right gestito dal parent.
+// In modalità mobile le voci sopra il trigger si estendono verso l'alto.
+.create-fab-root--mobile {
+  .create-fab-items {
+    // su mobile: offset maggiore per evitare overlap con tab bar
+    bottom: calc(100% + 20px);
+  }
+}

@@ -24,10 +24,21 @@
     "UPDATE": "Aggiorna app"
   },
   "FAB": {
-    "NEW_NOTE": "Nuova Nota",
+    "NEW_NOTE": "Nota",
     "NEW_NOTE_ARIA": "Nuova nota",
+    "NEW_MEMO": "Promemoria",
+    "NEW_MEMO_ARIA": "Nuovo promemoria",
+    "NEW_EVENT": "Evento",
+    "NEW_EVENT_ARIA": "Nuovo evento",
     "NEW_REMINDER": "Nuovo Promemoria",
-    "NEW_REMINDER_ARIA": "Nuovo promemoria"
+    "NEW_REMINDER_ARIA": "Nuovo promemoria",
+    "CREATE": "Crea",
+    "CLOSE": "Chiudi"
+  },
+  "ENTITY": {
+    "NOTE": "Nota",
+    "MEMO": "Promemoria",
+    "EVENT": "Evento"
   },
   "CONNECTIVITY": {
     "OFFLINE": "Offline",
