@@ -129,8 +129,9 @@ body {
   border-radius: var(--punto-shape-lg, 16px) !important;
 }
 
-/* menu: palette punto! — sfondo scuro */
-.mat-mdc-menu-panel {
+/* menu: palette punto! — sfondo scuro (default per menu generici).
+   Escludo .punto-pill-menu per non contendere con l'override pill sotto. */
+.mat-mdc-menu-panel:not(.punto-pill-menu) {
   box-shadow: var(--punto-shadow-3);
   background: var(--punto-primary, #1C1B1F) !important;
   border-radius: var(--punto-shape-md, 12px) !important;
