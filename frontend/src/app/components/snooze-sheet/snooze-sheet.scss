@@ -4,6 +4,16 @@
 
 :host { display: contents; }
 
+// ── Tokens locali (da estrarre in /polish successivo) ───────────────────────
+$c-ink: #1C1B1F;
+$c-paper: #FFFBFE;
+$c-danger: #D4746B; // rosso terracotta Bear-like, warm, più editorial di Material Red
+$shadow-floating:
+  0 1px 2px rgba(28, 27, 31, 0.06),
+  0 6px 18px rgba(28, 27, 31, 0.14),
+  0 12px 30px rgba(28, 27, 31, 0.06);
+$ease-out-editorial: cubic-bezier(0.2, 0, 0, 1);
+
 // ── Scrim: trasparente (come create-fab), cattura click-away ────────────────
 .snooze-scrim {
   position: fixed;
@@ -35,34 +45,36 @@
 }
 
 // ── Pill base ───────────────────────────────────────────────────────────────
+// min-width: min-content → pill che respirano sul contenuto, non rigidity
+// letter-spacing negativo → editorial tight (Things 3, Linear)
 .snooze-pill {
   display: inline-flex;
   align-items: center;
   justify-content: flex-start;
   gap: 6px;
-  min-width: 168px;
+  min-width: min-content;
   height: 48px;
-  padding: 0 20px 0 16px;
+  padding: 0 22px 0 18px;
   border-radius: 24px;
-  background: #1C1B1F;
-  color: #FFFBFE;
+  background: $c-ink;
+  color: $c-paper;
   border: none;
   font-family: inherit;
   font-weight: 500;
-  font-size: 14px;
-  letter-spacing: 0.01em;
+  font-size: 14.5px;
+  letter-spacing: -0.005em;
   white-space: nowrap;
   cursor: pointer;
-  box-shadow:
-    0 3px 6px rgba(0, 0, 0, 0.16),
-    0 3px 6px rgba(0, 0, 0, 0.23);
+  box-shadow: $shadow-floating;
   transition:
-    filter 160ms cubic-bezier(0.2, 0, 0, 1),
-    transform 160ms cubic-bezier(0.2, 0, 0, 1);
+    filter 160ms $ease-out-editorial,
+    transform 160ms $ease-out-editorial,
+    background 180ms $ease-out-editorial,
+    color 180ms $ease-out-editorial;
 
   opacity: 0;
   transform: translateY(8px) scale(0.92);
-  animation: snooze-pill-in 180ms cubic-bezier(0.2, 0, 0, 1) forwards;
+  animation: snooze-pill-in 180ms $ease-out-editorial forwards;
 
   mat-icon {
     flex-shrink: 0;
@@ -73,14 +85,14 @@
     color: inherit;
   }
 
-  span {
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
+  span { overflow: hidden; text-overflow: ellipsis; }
 
   &:hover { filter: brightness(1.12); }
   &:active { transform: translateY(0) scale(0.97); }
-  &:focus-visible { outline: 2px solid #FFFBFE; outline-offset: 2px; }
+  &:focus-visible {
+    outline: 2px solid $c-paper;
+    outline-offset: 2px;
+  }
 
   // Stagger entrata (coerente con create-fab)
   @for $i from 1 through 8 {
@@ -95,49 +107,104 @@
   }
 }
 
-// ── Varianti ────────────────────────────────────────────────────────────────
-
-// Status: informativa, non cliccabile
-.snooze-pill--status {
-  cursor: default;
-  pointer-events: none;
-
-  mat-icon { opacity: 0.7; }
-  span { opacity: 0.88; font-weight: 500; }
-}
+// ── Varianti pill ───────────────────────────────────────────────────────────
 
 // Riattiva: palette inversa (pill chiara su stack scuro) per evidenziare l'uscita
 .snooze-pill--reactivate {
-  background: #FFFBFE;
-  color: #1C1B1F;
-  border: 1px solid rgba(28, 27, 31, 0.12);
+  background: $c-paper;
+  color: $c-ink;
+  border: 1px solid rgba(28, 27, 31, 0.10);
   box-shadow:
-    0 2px 4px rgba(0, 0, 0, 0.08),
-    0 4px 12px rgba(0, 0, 0, 0.08);
+    0 1px 2px rgba(28, 27, 31, 0.05),
+    0 4px 14px rgba(28, 27, 31, 0.10);
 
   &:hover { filter: brightness(0.98); }
+  &:focus-visible { outline-color: $c-ink; }
 }
 
-// Silenzia sempre: accento rosso su icona + label, background scuro preservato
+// Silenzia sempre: accento terracotta su icona + label (bg scuro preservato)
 .snooze-pill--danger {
-  mat-icon { color: #FF8A80; }
-  span { color: #FF8A80; }
+  mat-icon,
+  span { color: $c-danger; }
+}
+
+// Stato pending confirm-on-second-tap: pill diventa interamente terracotta
+.snooze-pill--danger-pending {
+  background: $c-danger;
+
+  mat-icon,
+  span { color: $c-paper; }
+
+  // Pulse sottile per indicare "in attesa di conferma"
+  animation:
+    snooze-pill-in 180ms $ease-out-editorial forwards,
+    danger-pulse 1.8s ease-in-out infinite 180ms;
+
+  &:focus-visible { outline-color: $c-paper; }
+}
+
+@keyframes danger-pulse {
+  0%, 100% { filter: brightness(1); }
+  50% { filter: brightness(1.08); }
+}
+
+// ── Status chip (informativa, NON-interattiva) ─────────────────────────────
+// Differenziazione morfologica dalla pill azione: forma più compatta, variante
+// "tag" con border sottile. Evita confusione di affordance.
+.snooze-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  height: 32px;
+  padding: 0 14px;
+  border-radius: 16px;
+  background: rgba(255, 251, 254, 0.94);
+  color: rgba(28, 27, 31, 0.78);
+  border: 1px solid rgba(28, 27, 31, 0.08);
+  font-family: inherit;
+  font-weight: 500;
+  font-size: 12.5px;
+  letter-spacing: -0.002em;
+  white-space: nowrap;
+  box-shadow: 0 1px 2px rgba(28, 27, 31, 0.04);
+  cursor: default;
+  pointer-events: none;
+
+  opacity: 0;
+  transform: translateY(8px) scale(0.96);
+  animation: snooze-pill-in 180ms $ease-out-editorial forwards;
+  animation-delay: 0ms;
+
+  mat-icon {
+    flex-shrink: 0;
+    width: 14px;
+    height: 14px;
+    font-size: 14px;
+    line-height: 14px;
+    opacity: 0.7;
+    color: inherit;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
 }
 
 // ── Custom datetime overlay (secondo step) ──────────────────────────────────
 .snooze-custom-overlay {
-  background: #FFFBFE;
+  background: $c-paper;
   border-radius: 24px;
   padding: 16px 18px 14px;
-  box-shadow:
-    0 8px 24px rgba(28, 27, 31, 0.18),
-    0 2px 6px rgba(28, 27, 31, 0.08);
+  box-shadow: $shadow-floating;
   min-width: 280px;
   max-width: min(360px, calc(100vw - 56px));
 
   opacity: 0;
   transform: translateY(8px) scale(0.96);
-  animation: snooze-pill-in 180ms cubic-bezier(0.2, 0, 0, 1) forwards;
+  animation: snooze-pill-in 180ms $ease-out-editorial forwards;
 
   @media (prefers-reduced-motion: reduce) {
     animation: none;
@@ -159,7 +226,7 @@
   min-width: 0;
   height: 40px;
   padding: 0 18px;
-  font-size: 13px;
+  font-size: 13.5px;
   animation: none;
   opacity: 1;
   transform: none;
@@ -175,10 +242,11 @@
 
 .snooze-pill--ghost {
   background: transparent;
-  color: #1C1B1F;
+  color: $c-ink;
   box-shadow: none;
 
   &:hover { background: rgba(28, 27, 31, 0.06); filter: none; }
+  &:focus-visible { outline-color: $c-ink; }
 }
 
 // ── Animazioni ───────────────────────────────────────────────────────────────

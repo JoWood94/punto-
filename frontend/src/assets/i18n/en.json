@@ -51,7 +51,8 @@
     "CUSTOM": "Date and time",
     "CUSTOM_CONFIRM": "Confirm",
     "CANCEL": "Cancel",
-    "MUTE_ALWAYS": "Mute forever"
+    "MUTE_ALWAYS": "Mute forever",
+    "MUTE_CONFIRM": "Tap again to mute"
   },
   "CONNECTIVITY": {
     "OFFLINE": "Offline",

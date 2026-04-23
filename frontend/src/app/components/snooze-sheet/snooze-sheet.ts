@@ -1,4 +1,7 @@
-import { Component, EventEmitter, Input, Output, inject } from '@angular/core';
+import {
+  AfterViewInit, Component, ElementRef, EventEmitter, HostListener,
+  Input, OnChanges, Output, QueryList, SimpleChanges, ViewChildren, inject,
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatIconModule } from '@angular/material/icon';
 import { TranslateModule } from '@ngx-translate/core';
@@ -16,12 +19,14 @@ export interface ReminderSubscriptionState {
 }
 
 /**
- * Sheet/popover per gestire la sottoscrizione reminder per-user.
- * Fase 1: unica CTA dalla campanella nell'editor. Offre:
- *  - Preset rapidi (snooze 15min/1h/8h/domani)
- *  - Data/ora personalizzata (via DatetimePicker)
- *  - "Silenzia sempre" → muted=true
- *  - "Riattiva" → muted=false + snoozedUntil=null (visibile solo se non attivo)
+ * Menu floating per gestire la sottoscrizione reminder per-user.
+ * Stack di pill coerente con create-fab (editorial minimalism).
+ *
+ * Accessibility:
+ *  - role="menu" + aria-label
+ *  - ESC → dismiss
+ *  - Focus automatico sulla prima pill interattiva all'apertura
+ *  - Confirm-on-second-tap su "Silenzia sempre" (azione distruttiva)
  */
 @Component({
   selector: 'app-snooze-sheet',
@@ -30,7 +35,7 @@ export interface ReminderSubscriptionState {
   templateUrl: './snooze-sheet.html',
   styleUrls: ['./snooze-sheet.scss'],
 })
-export class SnoozeSheetComponent {
+export class SnoozeSheetComponent implements OnChanges, AfterViewInit {
   @Input() visible = false;
   @Input() currentState: ReminderSubscriptionState | null = null;
 
@@ -38,6 +43,8 @@ export class SnoozeSheetComponent {
   @Output() muteSelected = new EventEmitter<void>();
   @Output() reactivate = new EventEmitter<void>();
   @Output() dismissed = new EventEmitter<void>();
+
+  @ViewChildren('pillBtn') pillButtons!: QueryList<ElementRef<HTMLButtonElement>>;
 
   translationService = inject(TranslationService);
 
@@ -59,6 +66,11 @@ export class SnoozeSheetComponent {
   showCustom = false;
   customDate: Date | null = null;
 
+  // Confirm-on-second-tap per "Silenzia sempre": primo tap → pending, secondo tap → emit.
+  // Timeout automatico di 3s per reset.
+  muteConfirmPending = false;
+  private muteConfirmTimeout: ReturnType<typeof setTimeout> | null = null;
+
   get isMuted(): boolean { return !!this.currentState?.muted; }
   get isSnoozedActive(): boolean {
     const until = this.currentState?.snoozedUntil ?? 0;
@@ -68,14 +80,41 @@ export class SnoozeSheetComponent {
 
   get tomorrowMinDate(): Date { return new Date(); }
 
+  ngOnChanges(changes: SimpleChanges): void {
+    if (changes['visible'] && !changes['visible'].currentValue) {
+      this.resetCustom();
+      this.resetMuteConfirm();
+    } else if (changes['visible'] && changes['visible'].currentValue) {
+      // Auto-focus prima pill all'apertura (deferred fino al render)
+      queueMicrotask(() => this.focusFirstInteractivePill());
+    }
+  }
+
+  ngAfterViewInit(): void {
+    if (this.visible) queueMicrotask(() => this.focusFirstInteractivePill());
+  }
+
+  @HostListener('document:keydown.escape')
+  onEscape(): void {
+    if (!this.visible) return;
+    this.dismiss();
+  }
+
+  private focusFirstInteractivePill(): void {
+    const first = this.pillButtons?.first?.nativeElement;
+    first?.focus();
+  }
+
   select(preset: SnoozePreset): void {
     this.presetSelected.emit(preset.getTime());
     this.resetCustom();
+    this.resetMuteConfirm();
   }
 
   toggleCustom(): void {
     this.showCustom = !this.showCustom;
     if (!this.showCustom) this.customDate = null;
+    this.resetMuteConfirm();
   }
 
   onCustomDateChange(d: Date | null): void {
@@ -90,23 +129,41 @@ export class SnoozeSheetComponent {
     this.resetCustom();
   }
 
+  /** Silenzia sempre: richiede doppio tap (confirm). Reset automatico 3s. */
   mute(): void {
+    if (!this.muteConfirmPending) {
+      this.muteConfirmPending = true;
+      if (this.muteConfirmTimeout) clearTimeout(this.muteConfirmTimeout);
+      this.muteConfirmTimeout = setTimeout(() => this.resetMuteConfirm(), 3000);
+      return;
+    }
     this.muteSelected.emit();
     this.resetCustom();
+    this.resetMuteConfirm();
   }
 
   reactivateNow(): void {
     this.reactivate.emit();
     this.resetCustom();
+    this.resetMuteConfirm();
   }
 
   dismiss(): void {
     this.dismissed.emit();
     this.resetCustom();
+    this.resetMuteConfirm();
   }
 
   private resetCustom(): void {
     this.showCustom = false;
     this.customDate = null;
+  }
+
+  private resetMuteConfirm(): void {
+    this.muteConfirmPending = false;
+    if (this.muteConfirmTimeout) {
+      clearTimeout(this.muteConfirmTimeout);
+      this.muteConfirmTimeout = null;
+    }
   }
 }

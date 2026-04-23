@@ -51,7 +51,8 @@
     "CUSTOM": "Data e ora",
     "CUSTOM_CONFIRM": "Conferma",
     "CANCEL": "Annulla",
-    "MUTE_ALWAYS": "Silenzia sempre"
+    "MUTE_ALWAYS": "Silenzia sempre",
+    "MUTE_CONFIRM": "Tocca ancora per silenziare"
   },
   "CONNECTIVITY": {
     "OFFLINE": "Offline",
