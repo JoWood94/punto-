@@ -360,6 +360,11 @@ export class NoteEditorComponent implements OnInit, OnChanges, DoCheck, AfterVie
     return this.imageBlockErrors.get(idx) ?? null;
   }
 
+  /** True se la nota ha già un ImageBlock (limite: una immagine per nota). */
+  get hasImageBlock(): boolean {
+    return this.note.blocks.some(b => b.type === 'image');
+  }
+
   /**
    * Handler input file per image-block: comprime via ImageProcessorService,
    * assegna data+mimeType al block e triggera autosave.

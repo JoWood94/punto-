@@ -474,6 +474,7 @@
       <mat-icon>place</mat-icon>
     </button>
     <button mat-icon-button type="button" tabindex="-1"
+            *ngIf="!hasImageBlock"
             [disabled]="!guestCanEdit"
             (click)="addBlockAfterActive('image'); closeAddBlockMenu()" aria-label="Immagine">
       <mat-icon>photo</mat-icon>
