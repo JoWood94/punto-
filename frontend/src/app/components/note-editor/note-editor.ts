@@ -394,10 +394,9 @@ export class NoteEditorComponent implements OnInit, OnChanges, DoCheck, AfterVie
             const d = new Date(rb.time);
             rb.date = d;
             rb.hour = d.getHours().toString().padStart(2, '0');
-            rb.minute = (Math.round(d.getMinutes() / 5) * 5 % 60).toString().padStart(2, '0');
+            rb.minute = d.getMinutes().toString().padStart(2, '0');
           } else {
             const now = new Date();
-            now.setMinutes(Math.round(now.getMinutes() / 5) * 5, 0, 0);
             rb.date = now;
             rb.hour = now.getHours().toString().padStart(2, '0');
             rb.minute = now.getMinutes().toString().padStart(2, '0');
@@ -783,8 +782,8 @@ export class NoteEditorComponent implements OnInit, OnChanges, DoCheck, AfterVie
 
   // ─── Reminder Block ─────────────────────────────────────────────────────────
 
-  readonly hours   = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'));
-  readonly minutes = ['00','05','10','15','20','25','30','35','40','45','50','55'];
+  // hours/minutes array rimossi: input type="time" nativo non ha più bisogno
+  // di liste di option. Tutti i minuti sono consentiti (step=60s).
 
   clearReminder(block: any) {
     block.time = null;
@@ -1372,7 +1371,7 @@ export class NoteEditorComponent implements OnInit, OnChanges, DoCheck, AfterVie
           const d = new Date(rb.time);
           rb.date = d;
           rb.hour = d.getHours().toString().padStart(2, '0');
-          rb.minute = (Math.round(d.getMinutes() / 5) * 5 % 60).toString().padStart(2, '0');
+          rb.minute = d.getMinutes().toString().padStart(2, '0');
         }
         rb._evaded = rb.evaded ?? false;
         rb._wasOverdue = rb.wasOverdue ?? false;

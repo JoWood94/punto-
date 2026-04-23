@@ -1269,9 +1269,11 @@ $rs-hover-bg: rgba(28, 27, 31, 0.05);
 
   // Overdue: l'hero diventa terracotta (sistema colore pre-esistente a #B3261E
   // sostituito col terracotta brand-coherent #D4746B)
+  // Overdue: hero terracotta. !important per sovrascrivere base color anche
+  // quando il reminder è snoozato/mutato (l'utente deve VEDERE lo scaduto).
   &--overdue .reminder-hero-date,
   &--overdue .reminder-hero-time > span {
-    color: $rs-danger;
+    color: $rs-danger !important;
   }
 
   // Completed / evaso: opacity leggera + strikethrough hero

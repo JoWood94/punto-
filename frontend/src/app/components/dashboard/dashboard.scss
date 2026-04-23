@@ -1055,4 +1055,79 @@
   to   { opacity: 1; transform: scale(1); }
 }
 
+// ─── Settings dropdown custom (pill stack) ──────────────────────────────
+// Coerente col linguaggio snooze-sheet / create-fab. Pill dark separate,
+// animazione stagger. Posizionato absolute dal bottone trigger (.settings-menu-btn).
+.punto-settings-dropdown {
+  position: absolute;
+  top: calc(var(--app-header-h, 80px) - 8px);
+  right: 12px;
+  z-index: 1200;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+  pointer-events: auto;
+}
+
+.punto-settings-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 10px;
+  width: 180px;
+  height: 44px;
+  padding: 0 20px;
+  border-radius: 24px;
+  background: #1C1B1F;
+  color: #FFFBFE;
+  border: none;
+  font-family: inherit;
+  font-weight: 500;
+  font-size: 14.5px;
+  letter-spacing: -0.005em;
+  white-space: nowrap;
+  cursor: pointer;
+  box-shadow:
+    0 1px 2px rgba(28, 27, 31, 0.06),
+    0 6px 18px rgba(28, 27, 31, 0.14),
+    0 12px 30px rgba(28, 27, 31, 0.06);
+  transition: filter 160ms cubic-bezier(0.2, 0, 0, 1), transform 140ms cubic-bezier(0.2, 0, 0, 1);
+
+  opacity: 0;
+  transform: translateY(8px) scale(0.92);
+  animation: punto-settings-pill-in 180ms cubic-bezier(0.2, 0, 0, 1) forwards;
+
+  mat-icon {
+    flex-shrink: 0;
+    font-size: 20px;
+    width: 20px;
+    height: 20px;
+    line-height: 1;
+    color: #FFFBFE;
+  }
+
+  &:hover { filter: brightness(1.12); }
+  &:active { transform: translateY(0) scale(0.97); }
+  &:focus-visible {
+    outline: 2px solid #FFFBFE;
+    outline-offset: 2px;
+  }
+
+  // Stagger entrata
+  &:nth-child(1) { animation-delay: 0ms; }
+  &:nth-child(2) { animation-delay: 35ms; }
+  &:nth-child(3) { animation-delay: 70ms; }
+
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes punto-settings-pill-in {
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
 

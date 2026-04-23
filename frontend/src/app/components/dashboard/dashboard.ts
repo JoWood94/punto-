@@ -942,9 +942,46 @@ export class DashboardComponent implements OnInit, OnDestroy {
     }
   }
 
-  openSettings() { this.router.navigate(['/settings']); }
-  reloadApp() { document.location.reload(); }
-  logout() { this.authService.logout().then(() => this.router.navigate(['/login'])); }
+  // Settings dropdown custom (pill stack coerente col resto app). Sostituisce
+  // mat-menu il cui panelClass non veniva ereditato dagli override CSS globali.
+  showSettingsDropdown = false;
+  toggleSettingsDropdown(ev?: Event) {
+    ev?.stopPropagation();
+    this.showSettingsDropdown = !this.showSettingsDropdown;
+    if (this.showSettingsDropdown) {
+      queueMicrotask(() => this.attachSettingsClickAway());
+    } else {
+      this.detachSettingsClickAway();
+    }
+  }
+  closeSettingsDropdown() {
+    if (!this.showSettingsDropdown) return;
+    this.showSettingsDropdown = false;
+    this.detachSettingsClickAway();
+  }
+  private settingsClickAwayAttached = false;
+  private readonly settingsClickAway = (ev: Event) => {
+    if (!this.showSettingsDropdown) return;
+    const target = ev.target as HTMLElement | null;
+    if (!target) return;
+    if (target.closest('.punto-settings-dropdown') ||
+        target.closest('.settings-menu-btn')) return;
+    if (ev.type === 'click') this.closeSettingsDropdown();
+  };
+  private attachSettingsClickAway() {
+    if (this.settingsClickAwayAttached) return;
+    document.addEventListener('click', this.settingsClickAway, { capture: true });
+    this.settingsClickAwayAttached = true;
+  }
+  private detachSettingsClickAway() {
+    if (!this.settingsClickAwayAttached) return;
+    document.removeEventListener('click', this.settingsClickAway, { capture: true } as any);
+    this.settingsClickAwayAttached = false;
+  }
+
+  openSettings() { this.closeSettingsDropdown(); this.router.navigate(['/settings']); }
+  reloadApp() { this.closeSettingsDropdown(); document.location.reload(); }
+  logout() { this.closeSettingsDropdown(); this.authService.logout().then(() => this.router.navigate(['/login'])); }
   /**
    * Apre editor per creare nuova nota/memo/evento.
    * @param type se omesso, deduce dalla view attiva (back-compat pre-FAB speed-dial).

@@ -37,13 +37,31 @@
   </button>
 
   <!-- Menu impostazioni — nascosto nell'editor su mobile, sempre visibile su desktop -->
-  <button mat-icon-button [disableRipple]="true" [matMenuTriggerFor]="settingsMenu" aria-label="Menu"
-          *ngIf="!isMobile || activeNote === undefined" [disabled]="!settingsMenuEnabled" class="settings-menu-btn">
+  <button mat-icon-button [disableRipple]="true" (click)="toggleSettingsDropdown($event)" aria-label="Menu"
+          *ngIf="!isMobile || activeNote === undefined" [disabled]="!settingsMenuEnabled"
+          class="settings-menu-btn" [class.settings-menu-btn--open]="showSettingsDropdown">
     <div class="settings-icon-wrapper">
       <mat-icon>more_vert</mat-icon>
       <span class="update-badge" *ngIf="updatePending"></span>
     </div>
   </button>
+
+  <!-- Dropdown settings custom: pill stack inline, click-away + stagger anim.
+       Posizionato absolute rispetto al toolbar; z-index sopra tutto. -->
+  <div class="punto-settings-dropdown" *ngIf="showSettingsDropdown" role="menu">
+    <button class="punto-settings-pill" *ngIf="updatePending" (click)="reloadApp()" role="menuitem" type="button">
+      <mat-icon>system_update</mat-icon>
+      <span>{{ 'MENU.UPDATE' | translate }}</span>
+    </button>
+    <button class="punto-settings-pill" (click)="openSettings()" role="menuitem" type="button">
+      <mat-icon>settings</mat-icon>
+      <span>{{ 'MENU.SETTINGS' | translate }}</span>
+    </button>
+    <button class="punto-settings-pill" (click)="logout()" role="menuitem" type="button">
+      <mat-icon>logout</mat-icon>
+      <span>{{ 'MENU.LOGOUT' | translate }}</span>
+    </button>
+  </div>
 
 </mat-toolbar>
 
@@ -366,18 +384,4 @@
   </button>
 </div>
 
-<!-- Menu impostazioni globale — pill-shaped coerente col design system -->
-<mat-menu #settingsMenu="matMenu" xPosition="before" panelClass="punto-pill-menu">
-  <button mat-menu-item *ngIf="updatePending" (click)="reloadApp()">
-    <mat-icon>system_update</mat-icon>
-    <span>{{ 'MENU.UPDATE' | translate }}</span>
-  </button>
-  <button mat-menu-item (click)="openSettings()">
-    <mat-icon>settings</mat-icon>
-    <span>{{ 'MENU.SETTINGS' | translate }}</span>
-  </button>
-  <button mat-menu-item (click)="logout()">
-    <mat-icon>logout</mat-icon>
-    <span>{{ 'MENU.LOGOUT' | translate }}</span>
-  </button>
-</mat-menu>
+<!-- Settings dropdown custom ora inline nel toolbar (vedi sopra). -->
