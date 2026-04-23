@@ -1269,12 +1269,9 @@ $rs-hover-bg: rgba(28, 27, 31, 0.05);
 
   // Overdue: l'hero diventa terracotta (sistema colore pre-esistente a #B3261E
   // sostituito col terracotta brand-coherent #D4746B)
-  // Overdue: hero terracotta. !important per sovrascrivere base color anche
-  // quando il reminder è snoozato/mutato (l'utente deve VEDERE lo scaduto).
-  &--overdue .reminder-hero-date,
-  &--overdue .reminder-hero-time > span {
-    color: $rs-danger !important;
-  }
+  // Overdue: segnalato SOLO via pill "Scaduto" nel meta (non colorare
+  // l'hero — date/ora in terracotta era aggressivo). Vedi
+  // .reminder-meta-chunk--overdue-state sotto.
 
   // Completed / evaso: opacity leggera + strikethrough hero
   &--completed .reminder-hero {
@@ -1460,8 +1457,8 @@ $rs-hover-bg: rgba(28, 27, 31, 0.05);
 
 // CTA ghost pill — solo per azioni secondarie (es. "Evadi ricorrenza" overdue).
 // Meno dominante del filled CTA: border sottile, bg transparent.
+// Inline naturale nella meta-line (no margin-left:auto che creava un buco).
 .reminder-cta-ghost {
-  margin-left: auto;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1584,11 +1581,12 @@ $rs-hover-bg: rgba(28, 27, 31, 0.05);
   // Distinzione morfologica dai chunk editabili (dotted underline): gli stati
   // sono pill filled scure #26252A (leggermente più chiaro di $rs-ink) con
   // label bianca. Forma coerente col linguaggio pill-shaped dell'app.
+  // --overdue-state usa terracotta (stessa height+padding+font delle altre).
   &--muted-state,
   &--snoozed-state,
-  &--evaded-state {
+  &--evaded-state,
+  &--overdue-state {
     text-decoration: none;
-    background: #26252A;
     color: $rs-paper;
     border: none;
     border-radius: 999px;
@@ -1598,6 +1596,18 @@ $rs-hover-bg: rgba(28, 27, 31, 0.05);
     font-weight: 500;
     line-height: 1;
     letter-spacing: -0.003em;
+  }
+
+  &--muted-state,
+  &--snoozed-state,
+  &--evaded-state {
+    background: #26252A;
+  }
+
+  &--overdue-state {
+    background: $rs-danger;
+    cursor: default;
+    pointer-events: none;
   }
 
   &--muted-state {

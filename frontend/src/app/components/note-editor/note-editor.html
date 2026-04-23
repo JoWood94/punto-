@@ -112,6 +112,13 @@
       </button>
     </ng-container>
 
+    <!-- Pill "Scaduto" terracotta: compare quando il reminder è overdue,
+         anche se contemporaneamente muted/snoozed (l'utente deve vederlo). -->
+    <span class="reminder-meta-chunk reminder-meta-chunk--overdue-state"
+          *ngIf="isSingleOverdue(reminderBlock) || isOverdueRecurring(reminderBlock)">
+      {{ 'EDITOR.OVERDUE' | translate }}
+    </span>
+
     <!-- Stati come pill scure tema app (bg #26252A, label bianca): distinti
          morfologicamente dai chunk editabili (text-style dotted). Niente sep · -->
     <span class="reminder-meta-chunk reminder-meta-chunk--muted-state" *ngIf="reminderMuted()">

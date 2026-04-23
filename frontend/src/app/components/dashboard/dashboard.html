@@ -46,24 +46,25 @@
     </div>
   </button>
 
-  <!-- Dropdown settings custom: pill stack inline, click-away + stagger anim.
-       Posizionato absolute rispetto al toolbar; z-index sopra tutto. -->
-  <div class="punto-settings-dropdown" *ngIf="showSettingsDropdown" role="menu">
-    <button class="punto-settings-pill" *ngIf="updatePending" (click)="reloadApp()" role="menuitem" type="button">
-      <mat-icon>system_update</mat-icon>
-      <span>{{ 'MENU.UPDATE' | translate }}</span>
-    </button>
-    <button class="punto-settings-pill" (click)="openSettings()" role="menuitem" type="button">
-      <mat-icon>settings</mat-icon>
-      <span>{{ 'MENU.SETTINGS' | translate }}</span>
-    </button>
-    <button class="punto-settings-pill" (click)="logout()" role="menuitem" type="button">
-      <mat-icon>logout</mat-icon>
-      <span>{{ 'MENU.LOGOUT' | translate }}</span>
-    </button>
-  </div>
 
 </mat-toolbar>
+
+<!-- Dropdown settings custom: pill stack. FUORI dal <mat-toolbar> così le
+     mat-icon non ereditano color: var(--punto-primary) da .app-header. -->
+<div class="punto-settings-dropdown" *ngIf="showSettingsDropdown" role="menu">
+  <button class="punto-settings-pill" *ngIf="updatePending" (click)="reloadApp()" role="menuitem" type="button">
+    <mat-icon>system_update</mat-icon>
+    <span>{{ 'MENU.UPDATE' | translate }}</span>
+  </button>
+  <button class="punto-settings-pill" (click)="openSettings()" role="menuitem" type="button">
+    <mat-icon>settings</mat-icon>
+    <span>{{ 'MENU.SETTINGS' | translate }}</span>
+  </button>
+  <button class="punto-settings-pill" (click)="logout()" role="menuitem" type="button">
+    <mat-icon>logout</mat-icon>
+    <span>{{ 'MENU.LOGOUT' | translate }}</span>
+  </button>
+</div>
 
 <mat-sidenav-container class="dashboard-container"
   style="touch-action: pan-y"

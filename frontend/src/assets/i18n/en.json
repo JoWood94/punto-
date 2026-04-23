@@ -116,6 +116,7 @@
     },
     "RECURRENCE_END": "Ends on",
     "OVERDUE_PREFIX": "Overdue:",
+    "OVERDUE": "Overdue",
     "EVADED_NEXT_PREFIX": "Done — next",
     "EVADED": "Done",
     "EVADE_RECURRING": "Complete overdue recurrence",
