@@ -1,59 +1,81 @@
 <ng-container *ngIf="visible">
-  <!-- Scrim (mobile only) -->
+  <!-- Scrim trasparente per click-away (coerente con create-fab) -->
   <div class="snooze-scrim" (click)="dismiss()"></div>
 
-  <!-- Sheet panel -->
-  <div class="snooze-panel" role="dialog" [attr.aria-label]="'EDITOR.SNOOZE_LABEL' | translate">
-    <div class="snooze-handle"></div>
+  <div class="snooze-stack" [class.snooze-stack--custom]="showCustom">
 
-    <!-- Status header: stato corrente (se muted o snoozed attivo) -->
-    <div class="snooze-status" *ngIf="isMuted">
-      <mat-icon>notifications_off</mat-icon>
-      <span>{{ 'SNOOZE.STATUS_MUTED' | translate }}</span>
-    </div>
-    <div class="snooze-status" *ngIf="!isMuted && isSnoozedActive">
-      <mat-icon>notifications_paused</mat-icon>
-      <span>{{ 'SNOOZE.STATUS_SNOOZED_UNTIL' | translate }} {{ currentState?.snoozedUntil | date:'EEE d MMM, HH:mm':'':translationService.pipeDateLocale }}</span>
-    </div>
+    <!-- Stack principale: pill floating. Hidden quando il picker custom è aperto. -->
+    <ng-container *ngIf="!showCustom">
 
-    <!-- Riattiva: visibile solo se muted o snoozed attivo -->
-    <button *ngIf="canReactivate" class="snooze-row snooze-row--primary" type="button" (click)="reactivateNow()">
-      <mat-icon class="snooze-row-icon">notifications_active</mat-icon>
-      <span class="snooze-row-label">{{ 'SNOOZE.REACTIVATE' | translate }}</span>
-    </button>
+      <!-- Status chip (informativa, non interattiva) -->
+      <div class="snooze-pill snooze-pill--status" *ngIf="isMuted">
+        <mat-icon>notifications_off</mat-icon>
+        <span>{{ 'SNOOZE.STATUS_MUTED' | translate }}</span>
+      </div>
+      <div class="snooze-pill snooze-pill--status" *ngIf="!isMuted && isSnoozedActive">
+        <mat-icon>notifications_paused</mat-icon>
+        <span>{{ 'SNOOZE.STATUS_SNOOZED_UNTIL' | translate }} {{ currentState?.snoozedUntil | date:'HH:mm':'':translationService.pipeDateLocale }}</span>
+      </div>
 
-    <!-- Preset rapidi -->
-    <button
-      *ngFor="let preset of presets"
-      class="snooze-row"
-      type="button"
-      (click)="select(preset)">
-      <mat-icon class="snooze-row-icon">snooze</mat-icon>
-      <span class="snooze-row-label">{{ preset.labelKey | translate }}</span>
-    </button>
+      <!-- Riattiva: pill inversa (chiara) per evidenziare azione di uscita -->
+      <button
+        *ngIf="canReactivate"
+        class="snooze-pill snooze-pill--reactivate"
+        type="button"
+        (click)="reactivateNow()">
+        <mat-icon>notifications_active</mat-icon>
+        <span>{{ 'SNOOZE.REACTIVATE' | translate }}</span>
+      </button>
 
-    <!-- Data/ora personalizzata -->
-    <button class="snooze-row" type="button" (click)="toggleCustom()">
-      <mat-icon class="snooze-row-icon">event</mat-icon>
-      <span class="snooze-row-label">{{ 'SNOOZE.CUSTOM' | translate }}</span>
-      <mat-icon class="snooze-row-chevron">{{ showCustom ? 'expand_less' : 'expand_more' }}</mat-icon>
-    </button>
-    <div class="snooze-custom" *ngIf="showCustom">
+      <!-- Preset rapidi -->
+      <button
+        *ngFor="let preset of presets"
+        class="snooze-pill"
+        type="button"
+        (click)="select(preset)">
+        <mat-icon>snooze</mat-icon>
+        <span>{{ preset.labelKey | translate }}</span>
+      </button>
+
+      <!-- Data/ora custom: apre overlay secondario -->
+      <button class="snooze-pill" type="button" (click)="toggleCustom()">
+        <mat-icon>event</mat-icon>
+        <span>{{ 'SNOOZE.CUSTOM' | translate }}</span>
+      </button>
+
+      <!-- Silenzia sempre: accento rosso su icona+label -->
+      <button
+        *ngIf="!isMuted"
+        class="snooze-pill snooze-pill--danger"
+        type="button"
+        (click)="mute()">
+        <mat-icon>notifications_off</mat-icon>
+        <span>{{ 'SNOOZE.MUTE_ALWAYS' | translate }}</span>
+      </button>
+
+    </ng-container>
+
+    <!-- Custom datetime picker overlay (secondo step) -->
+    <div class="snooze-custom-overlay" *ngIf="showCustom">
       <app-datetime-picker
         [value]="customDate"
         [minuteStep]="1"
         [minDate]="tomorrowMinDate"
         (valueChange)="onCustomDateChange($event)">
       </app-datetime-picker>
-      <button class="snooze-custom-confirm" type="button" [disabled]="!customDate" (click)="confirmCustom()">
-        {{ 'SNOOZE.CUSTOM_CONFIRM' | translate }}
-      </button>
+      <div class="snooze-custom-actions">
+        <button class="snooze-pill snooze-pill--ghost" type="button" (click)="toggleCustom()">
+          {{ 'SNOOZE.CANCEL' | translate }}
+        </button>
+        <button
+          class="snooze-pill snooze-pill--primary"
+          type="button"
+          [disabled]="!customDate"
+          (click)="confirmCustom()">
+          {{ 'SNOOZE.CUSTOM_CONFIRM' | translate }}
+        </button>
+      </div>
     </div>
 
-    <!-- Silenzia sempre -->
-    <button class="snooze-row snooze-row--danger" type="button" (click)="mute()" *ngIf="!isMuted">
-      <mat-icon class="snooze-row-icon">notifications_off</mat-icon>
-      <span class="snooze-row-label">{{ 'SNOOZE.MUTE_ALWAYS' | translate }}</span>
-    </button>
   </div>
 </ng-container>

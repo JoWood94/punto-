@@ -45,11 +45,12 @@
   },
   "SNOOZE": {
     "OPEN_LABEL": "Manage notification",
-    "STATUS_MUTED": "Notification muted",
+    "STATUS_MUTED": "Muted",
     "STATUS_SNOOZED_UNTIL": "Paused until",
-    "REACTIVATE": "Reactivate notification",
-    "CUSTOM": "Custom date and time",
+    "REACTIVATE": "Reactivate",
+    "CUSTOM": "Date and time",
     "CUSTOM_CONFIRM": "Confirm",
+    "CANCEL": "Cancel",
     "MUTE_ALWAYS": "Mute forever"
   },
   "CONNECTIVITY": {

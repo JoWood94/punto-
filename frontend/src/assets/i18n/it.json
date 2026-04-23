@@ -45,11 +45,12 @@
   },
   "SNOOZE": {
     "OPEN_LABEL": "Gestisci notifica",
-    "STATUS_MUTED": "Notifica silenziata",
+    "STATUS_MUTED": "Silenziata",
     "STATUS_SNOOZED_UNTIL": "In pausa fino a",
-    "REACTIVATE": "Riattiva notifica",
-    "CUSTOM": "Data e ora personalizzate",
+    "REACTIVATE": "Riattiva",
+    "CUSTOM": "Data e ora",
     "CUSTOM_CONFIRM": "Conferma",
+    "CANCEL": "Annulla",
     "MUTE_ALWAYS": "Silenzia sempre"
   },
   "CONNECTIVITY": {
