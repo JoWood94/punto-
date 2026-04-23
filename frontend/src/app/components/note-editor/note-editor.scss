@@ -1303,9 +1303,15 @@ $rs-hover-bg: rgba(28, 27, 31, 0.05);
   cursor: pointer;
   white-space: nowrap;
   line-height: 1.25;
+  // Editable-text affordance: dotted underline sempre visibile a rest.
+  // Pattern unificato per tutti i chunk cliccabili (hero + meta).
+  text-decoration: underline dotted $rs-sep;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 4px;
   transition:
     color 180ms cubic-bezier(0.2, 0, 0, 1),
-    background 160ms cubic-bezier(0.2, 0, 0, 1);
+    background 160ms cubic-bezier(0.2, 0, 0, 1),
+    text-decoration-color 180ms cubic-bezier(0.2, 0, 0, 1);
 
   @media (max-width: 479px) {
     font-size: 18px;
@@ -1314,6 +1320,8 @@ $rs-hover-bg: rgba(28, 27, 31, 0.05);
   &:hover:not(:disabled) {
     background: $rs-hover-bg;
     border-radius: 6px;
+    text-decoration-style: solid;
+    text-decoration-color: $rs-muted;
   }
 
   &:focus-visible {
@@ -1325,6 +1333,7 @@ $rs-hover-bg: rgba(28, 27, 31, 0.05);
   &:disabled {
     opacity: 0.5;
     cursor: not-allowed;
+    text-decoration: none;
   }
 }
 
@@ -1393,6 +1402,15 @@ $rs-hover-bg: rgba(28, 27, 31, 0.05);
     0 1px 2px rgba(28, 27, 31, 0.08),
     0 4px 10px rgba(28, 27, 31, 0.10);
 
+  // Mobile: su schermi stretti date lunghe (es. "Giovedì 23 Aprile") wrappano
+  // con la CTA, amputando il layout. Forza la CTA a nuova riga full-width.
+  @media (max-width: 479px) {
+    flex-basis: 100%;
+    margin-left: 0;
+    margin-top: 4px;
+    justify-content: center;
+  }
+
   &:hover:not(:disabled) { filter: brightness(1.1); }
   &:active:not(:disabled) { transform: scale(0.97); }
 
@@ -1438,12 +1456,20 @@ $rs-hover-bg: rgba(28, 27, 31, 0.05);
   border-radius: 6px;
   cursor: pointer;
   white-space: nowrap;
-  text-transform: lowercase;
-  transition: background 160ms cubic-bezier(0.2, 0, 0, 1), color 180ms cubic-bezier(0.2, 0, 0, 1);
+  // Editable-text affordance coerente con hero (dotted a rest → solid on hover).
+  text-decoration: underline dotted $rs-sep;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+  transition:
+    background 160ms cubic-bezier(0.2, 0, 0, 1),
+    color 180ms cubic-bezier(0.2, 0, 0, 1),
+    text-decoration-color 180ms cubic-bezier(0.2, 0, 0, 1);
 
   &:hover:not(:disabled) {
     background: $rs-hover-bg;
     color: $rs-ink;
+    text-decoration-style: solid;
+    text-decoration-color: $rs-muted;
   }
 
   &:focus-visible {
@@ -1454,6 +1480,7 @@ $rs-hover-bg: rgba(28, 27, 31, 0.05);
   &:disabled {
     opacity: 0.5;
     cursor: not-allowed;
+    text-decoration: none;
   }
 
   // Select nativo sottostante (cattura tap/click → OS picker) con label
@@ -1475,19 +1502,53 @@ $rs-hover-bg: rgba(28, 27, 31, 0.05);
   // Variant: ricorrenza = "once" (nessuna info utile → muted ulteriore)
   &--muted { opacity: 0.7; }
 
-  // Variant: stato muted permanente (terracotta)
-  &--muted-state { color: $rs-danger; cursor: default; pointer-events: none; }
+  // ── Stati informativi come micro-pill ────────────────────────────────────
+  // Distinzione morfologica dai chunk editabili (che hanno dotted underline).
+  // Pill micro tinted: forma unificata col linguaggio pill-shaped dell'app,
+  // ma scala ridotta (22px) → no confusione con CTA o chunk modificabili.
+  &--muted-state,
+  &--snoozed-state,
+  &--evaded-state {
+    text-decoration: none;
+    background: rgba(28, 27, 31, 0.04);
+    border: 1px solid rgba(28, 27, 31, 0.10);
+    border-radius: 999px;
+    height: 22px;
+    padding: 0 10px;
+    font-size: 12px;
+    font-weight: 500;
+    line-height: 1;
+  }
 
-  // Variant: stato snoozed temporaneo (coerente meta, non invasivo)
-  &--snoozed-state { color: $rs-ink; cursor: default; pointer-events: none; }
+  // Variant: stato muted permanente — neutrale (non più terracotta pieno).
+  // Terracotta riservato a overdue e danger-pending.
+  &--muted-state {
+    color: rgba(28, 27, 31, 0.72);
+    cursor: default;
+    pointer-events: none;
+  }
 
-  // Variant: evaso (più marcato)
-  &--evaded-state { color: $rs-ink; font-weight: 600; }
+  // Variant: stato snoozed temporaneo — tono neutro discreto.
+  &--snoozed-state {
+    color: rgba(28, 27, 31, 0.78);
+    cursor: default;
+    pointer-events: none;
+  }
 
+  // Variant: evaso — più marcato (peso + ink pieno).
+  &--evaded-state {
+    color: $rs-ink;
+    font-weight: 600;
+  }
+
+  // Mini-pill cliccabile (undo evasione): affordance via hover.
   &--clickable {
     cursor: pointer;
     pointer-events: auto;
-    &:hover:not(:disabled) { background: $rs-hover-bg; }
+    &:hover:not(:disabled) {
+      background: rgba(28, 27, 31, 0.08);
+      border-color: rgba(28, 27, 31, 0.18);
+    }
   }
 }
 
