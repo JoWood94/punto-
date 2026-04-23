@@ -8,18 +8,10 @@
     role="menu"
     [attr.aria-label]="'SNOOZE.OPEN_LABEL' | translate">
 
-    <!-- Stack principale: pill floating. Hidden quando il picker custom è aperto. -->
+    <!-- Stack principale: pill floating. Hidden quando il picker custom è aperto.
+         Lo stato snooze/muted è mostrato nella strip del reminder (badge), non
+         duplicato qui per mantenere il menu puramente action-oriented. -->
     <ng-container *ngIf="!showCustom">
-
-      <!-- Status chip (informativa, non interattiva) -->
-      <div class="snooze-chip snooze-chip--status" *ngIf="isMuted" role="status">
-        <mat-icon>notifications_off</mat-icon>
-        <span>{{ 'SNOOZE.STATUS_MUTED' | translate }}</span>
-      </div>
-      <div class="snooze-chip snooze-chip--status" *ngIf="!isMuted && isSnoozedActive" role="status">
-        <mat-icon>notifications_paused</mat-icon>
-        <span>{{ 'SNOOZE.STATUS_SNOOZED_UNTIL' | translate }} {{ currentState?.snoozedUntil | date:'HH:mm':'':translationService.pipeDateLocale }}</span>
-      </div>
 
       <!-- Riattiva: pill inversa (chiara) per evidenziare azione di uscita -->
       <button

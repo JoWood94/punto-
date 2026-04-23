@@ -1,6 +1,6 @@
 import {
   AfterViewInit, Component, ElementRef, EventEmitter, HostListener,
-  Input, OnChanges, Output, QueryList, SimpleChanges, ViewChildren, inject,
+  Input, OnChanges, OnDestroy, Output, QueryList, SimpleChanges, ViewChildren, inject,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatIconModule } from '@angular/material/icon';
@@ -35,7 +35,7 @@ export interface ReminderSubscriptionState {
   templateUrl: './snooze-sheet.html',
   styleUrls: ['./snooze-sheet.scss'],
 })
-export class SnoozeSheetComponent implements OnChanges, AfterViewInit {
+export class SnoozeSheetComponent implements OnChanges, AfterViewInit, OnDestroy {
   @Input() visible = false;
   @Input() currentState: ReminderSubscriptionState | null = null;
 
@@ -80,42 +80,71 @@ export class SnoozeSheetComponent implements OnChanges, AfterViewInit {
 
   get tomorrowMinDate(): Date { return new Date(); }
 
-  ngOnChanges(changes: SimpleChanges): void {
-    if (changes['visible'] && !changes['visible'].currentValue) {
-      this.resetCustom();
-      this.resetMuteConfirm();
-    } else if (changes['visible'] && changes['visible'].currentValue) {
-      // Auto-focus prima pill all'apertura (deferred fino al render)
-      queueMicrotask(() => this.focusFirstInteractivePill());
-    }
-  }
-
-  ngAfterViewInit(): void {
-    if (this.visible) queueMicrotask(() => this.focusFirstInteractivePill());
-  }
-
-  @HostListener('document:keydown.escape')
-  onEscape(): void {
-    if (!this.visible) return;
-    this.dismiss();
-  }
-
   /**
-   * Click-away globale: chiude il menu se il click è fuori dallo stack/overlay.
-   * Preferito al scrim fisso perché funziona anche dentro mat-sidenav-content
-   * (transformed ancestor che rompe position:fixed). Ignora click sulla
-   * campanella trigger (.reminder-mini-fab) che è la stessa CTA di apertura.
+   * Click-away in CAPTURE phase: consuma l'evento (stopPropagation + preventDefault)
+   * prima che raggiunga il target. Altrimenti il click fuori al menu trigger-ava
+   * anche il bottone sottostante (es. add-block-fab). Gestito via addEventListener
+   * manuale perché @HostListener non supporta l'opzione {capture: true}.
    */
-  @HostListener('document:click', ['$event'])
-  onDocumentClick(event: MouseEvent): void {
+  private readonly absorbOutsideClick = (ev: Event) => {
     if (!this.visible) return;
-    const target = event.target as HTMLElement | null;
+    const target = ev.target as HTMLElement | null;
     if (!target) return;
     if (target.closest('.snooze-stack') ||
         target.closest('.snooze-custom-overlay') ||
         target.closest('.reminder-mini-fab')) {
       return;
     }
+    ev.stopPropagation();
+    ev.preventDefault();
+    if (ev.type === 'click') this.dismiss();
+  };
+
+  ngOnChanges(changes: SimpleChanges): void {
+    if (changes['visible'] && !changes['visible'].currentValue) {
+      this.resetCustom();
+      this.resetMuteConfirm();
+      this.detachClickAway();
+    } else if (changes['visible'] && changes['visible'].currentValue) {
+      // Auto-focus prima pill all'apertura (deferred fino al render)
+      queueMicrotask(() => this.focusFirstInteractivePill());
+      // Il listener viene attaccato nel microtask successivo per evitare che
+      // catturi lo stesso click che ha aperto il menu (sulla campanella).
+      queueMicrotask(() => this.attachClickAway());
+    }
+  }
+
+  ngAfterViewInit(): void {
+    if (this.visible) {
+      queueMicrotask(() => this.focusFirstInteractivePill());
+      queueMicrotask(() => this.attachClickAway());
+    }
+  }
+
+  ngOnDestroy(): void {
+    this.detachClickAway();
+    this.resetMuteConfirm();
+  }
+
+  private clickAwayAttached = false;
+  private attachClickAway(): void {
+    if (this.clickAwayAttached) return;
+    document.addEventListener('mousedown', this.absorbOutsideClick, { capture: true });
+    document.addEventListener('click', this.absorbOutsideClick, { capture: true });
+    document.addEventListener('touchstart', this.absorbOutsideClick, { capture: true, passive: false });
+    this.clickAwayAttached = true;
+  }
+  private detachClickAway(): void {
+    if (!this.clickAwayAttached) return;
+    document.removeEventListener('mousedown', this.absorbOutsideClick, { capture: true } as any);
+    document.removeEventListener('click', this.absorbOutsideClick, { capture: true } as any);
+    document.removeEventListener('touchstart', this.absorbOutsideClick, { capture: true } as any);
+    this.clickAwayAttached = false;
+  }
+
+  @HostListener('document:keydown.escape')
+  onEscape(): void {
+    if (!this.visible) return;
     this.dismiss();
   }
 
