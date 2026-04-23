@@ -40,6 +40,9 @@
     "MEMO": "Promemoria",
     "EVENT": "Evento"
   },
+  "DATETIME": {
+    "SELECT_DATE": "Seleziona data"
+  },
   "CONNECTIVITY": {
     "OFFLINE": "Offline",
     "ERROR": "Errore di connessione"

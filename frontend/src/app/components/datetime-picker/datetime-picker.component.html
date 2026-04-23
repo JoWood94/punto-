@@ -1,0 +1,34 @@
+<div class="dtp-row">
+  <button class="dtp-date-btn" type="button"
+          [disabled]="disabled"
+          (click)="!disabled && dp.open()">
+    <mat-icon>event</mat-icon>
+    <span class="dtp-date-text">
+      {{ localDate ? (localDate | date:'EEE d MMM':'':dateLocale) : (placeholder || ('DATETIME.SELECT_DATE' | translate)) }}
+    </span>
+    <input [matDatepicker]="dp"
+           [min]="minDate"
+           [(ngModel)]="localDate"
+           (ngModelChange)="onFieldChange()"
+           class="dtp-hidden-input">
+    <mat-datepicker #dp></mat-datepicker>
+  </button>
+
+  <div class="dtp-time" [class.dtp-time--disabled]="disabled">
+    <select [(ngModel)]="hour"
+            [disabled]="disabled"
+            (change)="onFieldChange()"
+            class="dtp-select"
+            aria-label="Hour">
+      <option *ngFor="let h of hours" [value]="h">{{ h }}</option>
+    </select>
+    <span class="dtp-colon">:</span>
+    <select [(ngModel)]="minute"
+            [disabled]="disabled"
+            (change)="onFieldChange()"
+            class="dtp-select"
+            aria-label="Minute">
+      <option *ngFor="let m of minutes" [value]="m">{{ m }}</option>
+    </select>
+  </div>
+</div>

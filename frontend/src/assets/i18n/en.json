@@ -40,6 +40,9 @@
     "MEMO": "Reminder",
     "EVENT": "Event"
   },
+  "DATETIME": {
+    "SELECT_DATE": "Select date"
+  },
   "CONNECTIVITY": {
     "OFFLINE": "Offline",
     "ERROR": "Connection error"
