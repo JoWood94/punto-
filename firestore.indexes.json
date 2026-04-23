@@ -15,6 +15,14 @@
         { "fieldPath": "calendarId", "order": "ASCENDING" },
         { "fieldPath": "reminderTime", "order": "ASCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "notes",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "calendarId", "order": "ASCENDING" },
+        { "fieldPath": "type", "order": "ASCENDING" }
+      ]
     }
   ],
   "fieldOverrides": [
@@ -28,6 +36,13 @@
     {
       "collectionGroup": "reminderSnoozes",
       "fieldPath": "muted",
+      "indexes": [
+        { "order": "ASCENDING", "queryScope": "COLLECTION_GROUP" }
+      ]
+    },
+    {
+      "collectionGroup": "subscribers",
+      "fieldPath": "uid",
       "indexes": [
         { "order": "ASCENDING", "queryScope": "COLLECTION_GROUP" }
       ]

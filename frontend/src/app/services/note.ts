@@ -3,7 +3,7 @@ import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import {
   getFirestore, initializeFirestore, persistentLocalCache, persistentMultipleTabManager,
-  collection, doc, addDoc, updateDoc, deleteDoc, deleteField, query, where, onSnapshot, getDoc, getDocFromServer, setDoc, writeBatch, arrayUnion, arrayRemove, getDocs, Firestore as RawFirestore,
+  collection, collectionGroup, doc, addDoc, updateDoc, deleteDoc, deleteField, query, where, onSnapshot, getDoc, getDocFromServer, setDoc, writeBatch, arrayUnion, arrayRemove, getDocs, Firestore as RawFirestore,
   DocumentReference, DocumentSnapshot
 } from 'firebase/firestore';
 import { Observable, of, switchMap, combineLatest, startWith, map } from 'rxjs';
@@ -399,12 +399,131 @@ export class NoteService {
     );
   }
 
+  /**
+   * Stream real-time degli EVENTI (note con `type='event'`) visibili all'utente
+   * corrente: l'unione di eventi in calendari owned + calendari subscribed.
+   *
+   * Implementazione (Fase 3 scaffold):
+   *   1. Ascolta i calendari visibili via `collectionGroup('subscribers')
+   *      where('uid','==',currentUid)` (owner auto-iscritto → cattura anche gli owned).
+   *   2. Per ogni calendarId, apre uno snapshot listener su
+   *      `notes where calendarId==id AND type=='event'`.
+   *   3. Merge di tutti i feed in una sola emission.
+   *
+   * Limitazione nota (MVP): Firestore `in` ammette max 30 valori, quindi in teoria
+   * potremmo usare `where('calendarId','in',[...])` con una sola query. In pratica
+   * un utente può seguire >30 calendari nel medio periodo → usiamo N listener
+   * separati (costo: N connections, ma ogni singola query è indicizzata).
+   *
+   * Per vista mese efficiente, il chiamante può filtrare lato client per range
+   * temporale. Una futura ottimizzazione userà `where('reminderTime','>=',monthStart)`
+   * sfruttando l'index composito `(calendarId, reminderTime)`.
+   */
+  getEventsStream(): Observable<Note[]> {
+    return this.authService.user$.pipe(
+      switchMap(user => {
+        if (!user) return of([] as Note[]);
+
+        // Stream 1: elenco calendarId visibili (owned auto-iscritti + subscribed)
+        const visibleCalIds$ = new Observable<string[]>(subscriber => {
+          const q = query(
+            collectionGroup(this.db, 'subscribers'),
+            where('uid', '==', user.uid)
+          );
+          const unsub = onSnapshot(q, snap => {
+            const ids = snap.docs.map(d => d.ref.parent.parent!.id);
+            subscriber.next(ids);
+          }, err => {
+            console.warn('[NoteService] getEventsStream subscribers error:', err.code, err.message);
+            subscriber.next([]);
+          });
+          return () => unsub();
+        });
+
+        // Stream 2: per ogni calendarId un listener eventi. Merge in array piatto.
+        return visibleCalIds$.pipe(
+          switchMap(calIds => {
+            if (calIds.length === 0) return of([] as Note[]);
+
+            const perCal$: Observable<Note[]>[] = calIds.map(calId =>
+              new Observable<Note[]>(subscriber => {
+                const q = query(
+                  collection(this.db, 'notes'),
+                  where('calendarId', '==', calId),
+                  where('type', '==', 'event')
+                );
+                const unsub = onSnapshot(q, snap => {
+                  const events: Note[] = snap.docs.map(d => {
+                    const raw = { id: d.id, ...d.data() } as any;
+                    if (!raw.blocks || (raw.blocks as any[]).length === 0) {
+                      raw.blocks = migrateToBlocks(raw);
+                    }
+                    // myRole qui è sempre 'owner' se raw.uid==currentUid, altrimenti
+                    // semanticamente "subscriber" (lettura-only). Riusiamo il campo
+                    // `myRole` esistente per coerenza con getNotes().
+                    return {
+                      ...raw,
+                      type: 'event' as NoteType,
+                      myRole: raw.uid === user.uid ? 'owner' as const : 'guest' as const,
+                      myPermissions: raw.uid === user.uid
+                        ? undefined
+                        : { editContent: false, editReminders: false },
+                    } as Note;
+                  });
+                  subscriber.next(events);
+                }, err => {
+                  console.warn('[NoteService] getEventsStream calendar', calId, 'error:', err.code, err.message);
+                  subscriber.next([]);
+                });
+                return () => unsub();
+              }).pipe(startWith([] as Note[]))
+            );
+
+            // combineLatest emette ogni volta che UNO qualsiasi dei feed cambia;
+            // flatten finale e dedup by id (un event non può stare in 2 cal,
+            // ma una re-entrance del listener può duplicare transitoriamente).
+            return combineLatest(perCal$).pipe(
+              map(lists => {
+                const byId = new Map<string, Note>();
+                lists.flat().forEach(n => { if (n.id) byId.set(n.id, n); });
+                return Array.from(byId.values());
+              })
+            );
+          })
+        );
+      })
+    );
+  }
+
   async updateNote(id: string, data: Partial<Note>, options?: { skipEncryption?: boolean }) {
     const uid = this.authService.getCurrentUserId();
     if (!uid) throw new Error('Not authenticated');
 
     // Guard: se guest, verifica permessi da Firestore (non dalla cache locale)
     const noteSnap = await this.freshOrCached(doc(this.db, `notes/${id}`));
+
+    // ── Fase 3: Guard eventi di calendari non-owned ────────────────────────
+    // Gli eventi (type='event') vivono in `notes` ma appartengono a un calendario
+    // (`calendarId`). Un utente iscritto a un calendario altrui può LEGGERE gli
+    // eventi (rules lo permettono via subscribers), ma non può modificarli.
+    // Il messaggio di errore è esplicito così la UI può gestirlo con toast/banner
+    // "Sola lettura — calendario condiviso". Le rules sono il backstop finale.
+    if (noteSnap.exists() && noteSnap.data()?.['type'] === 'event') {
+      const calendarId = noteSnap.data()?.['calendarId'];
+      if (calendarId) {
+        try {
+          const calSnap = await this.freshOrCached(doc(this.db, `calendars/${calendarId}`));
+          if (calSnap.exists() && calSnap.data()?.['uid'] !== uid) {
+            throw new Error('read-only event in subscribed calendar');
+          }
+        } catch (err: any) {
+          // Rilancia se è il nostro guard; altrimenti ignora (offline/missing calendar
+          // → lasciamo decidere alle rules per non bloccare flussi legittimi).
+          if (err?.message === 'read-only event in subscribed calendar') throw err;
+        }
+      }
+    }
+
     if (noteSnap.exists() && noteSnap.data()?.['uid'] !== uid) {
       const collabSnap = await this.freshOrCached(doc(this.db, `notes/${id}/collaborators/${uid}`));
       const perms = collabSnap.exists() ? (collabSnap.data()?.['permissions'] ?? {}) : {};
@@ -484,6 +603,24 @@ export class NoteService {
 
     // Guard: solo il proprietario può eliminare
     const noteSnap = await this.freshOrCached(doc(this.db, `notes/${id}`));
+
+    // ── Fase 3: Guard eventi di calendari non-owned ────────────────────────
+    // Stesso razionale di updateNote(): eventi read-only per subscriber del
+    // calendario. Messaggio specifico così la UI può distinguere da "not owner".
+    if (noteSnap.exists() && noteSnap.data()?.['type'] === 'event') {
+      const calendarId = noteSnap.data()?.['calendarId'];
+      if (calendarId) {
+        try {
+          const calSnap = await this.freshOrCached(doc(this.db, `calendars/${calendarId}`));
+          if (calSnap.exists() && calSnap.data()?.['uid'] !== uid) {
+            throw new Error('read-only event in subscribed calendar');
+          }
+        } catch (err: any) {
+          if (err?.message === 'read-only event in subscribed calendar') throw err;
+        }
+      }
+    }
+
     if (noteSnap.exists() && noteSnap.data()?.['uid'] !== uid) {
       throw new Error('Permission denied: only owner can delete');
     }
@@ -730,59 +867,121 @@ export class NoteService {
     );
   }
 
-  /** Genera un token invito sicuro (20 char alfanumerici) e lo scrive in invites/{token}. Scade dopo 7 giorni. */
-  async createInvite(noteId: string): Promise<string> {
+  /**
+   * Genera un token invito sicuro (20 char alfanumerici, 62^20 ≈ 7×10^35 combinazioni)
+   * e lo scrive in `invites/{token}`.
+   *
+   * **Firma generalizzata (Fase 3)**: accetta oggetto `{ type, resourceId }` per distinguere
+   * invites note vs calendar. Gli invites note mantengono `type='note'` e scadono a 7gg;
+   * gli invites calendar usano `CalendarService.createCalendarInvite()` (30gg).
+   *
+   * **Backward-compat**: se chiamato con una string (firma legacy `createInvite(noteId)`)
+   * fallback a `type='note', resourceId=noteId`. Questo preserva i call-site esistenti
+   * (sharing-panel) senza rotture.
+   *
+   * Il doc invite scritto include SIA il nuovo schema (`type`, `resourceId`) SIA il
+   * legacy `noteId` (per compat con `acceptInvite`/`readInvite` pre-Fase 3 e con il
+   * server cron se mai leggesse).
+   */
+  async createInvite(arg: string | { type: 'note' | 'calendar'; resourceId: string }): Promise<string> {
     const uid = this.authService.getCurrentUserId();
     if (!uid) throw new Error('Not authenticated');
+
+    // Normalizza input (backcompat)
+    const { type, resourceId } = typeof arg === 'string'
+      ? { type: 'note' as const, resourceId: arg }
+      : arg;
 
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
     const bytes = crypto.getRandomValues(new Uint8Array(20));
     const token = Array.from(bytes).map(b => chars[b % chars.length]).join('');
 
     const now = Date.now();
-    await setDoc(doc(this.db, `invites/${token}`), {
-      noteId,
+    // TTL differenziato: calendar=30gg, note=7gg (cfr. piano shared-calendars.md)
+    const ttl = type === 'calendar'
+      ? 30 * 24 * 60 * 60 * 1000
+      : 7 * 24 * 60 * 60 * 1000;
+
+    const payload: Record<string, unknown> = {
+      type,
+      resourceId,
       createdBy: uid,
       createdAt: now,
-      expiresAt: now + 7 * 24 * 60 * 60 * 1000,
-    });
+      expiresAt: now + ttl,
+    };
+    // Backcompat: scrivi anche `noteId` per gli invites note così i consumer
+    // legacy (acceptInvite/readInvite) continuano a funzionare senza leggere
+    // `resourceId`. Per calendar invites questo campo è assente (non ha senso).
+    if (type === 'note') {
+      payload['noteId'] = resourceId;
+    }
 
+    await setDoc(doc(this.db, `invites/${token}`), payload);
     return token;
   }
 
-  /** Accetta un invito: valida token + scadenza, poi chiama addCollaborator.
+  /** Accetta un invito NOTE: valida token + scadenza + type, poi chiama addCollaborator.
    *  Su memo/event il guest sceglie esplicitamente se ricevere notifiche (pattern A).
+   *
+   *  Post-Fase 3: rifiuta invites con `type='calendar'` (usare CalendarService.subscribeToCalendar).
    */
   async acceptInvite(token: string, opts?: { notificationsEnabled?: boolean }): Promise<string> {
     const inviteSnap = await getDoc(doc(this.db, `invites/${token}`));
     if (!inviteSnap.exists()) throw new Error('Invite not found');
 
-    const invite = inviteSnap.data() as { noteId: string; expiresAt: number; createdBy: string };
+    const invite = inviteSnap.data() as {
+      noteId?: string;
+      resourceId?: string;
+      type?: 'note' | 'calendar';
+      expiresAt: number;
+      createdBy: string;
+    };
     if (Date.now() > invite.expiresAt) {
       deleteDoc(inviteSnap.ref); // cleanup on-read, fire-and-forget
       throw new Error('Invite expired');
     }
 
+    // Guard post-Fase 3: rifiuta calendar invites su questo path (wrong service).
+    // Type mancante = legacy note invite.
+    if (invite.type === 'calendar') {
+      throw new Error('invite/wrong-type: use CalendarService.subscribeToCalendar');
+    }
+
+    // Risoluzione noteId con backcompat: privilegia `noteId` legacy (sempre presente
+    // sugli invites note pre e post Fase 3), fallback a `resourceId`.
+    const noteId = invite.noteId ?? invite.resourceId;
+    if (!noteId) throw new Error('Invite malformed: missing noteId');
+
     const uid = this.authService.getCurrentUserId();
     if (!uid) throw new Error('Not authenticated');
     if (uid === invite.createdBy) throw new Error('Cannot accept your own invite');
 
-    await this.addCollaborator(invite.noteId, uid, undefined, opts);
+    await this.addCollaborator(noteId, uid, undefined, opts);
     // Cleanup asincrono: rimuove tutti gli inviti scaduti per questa nota
-    this.cleanupExpiredInvites(invite.noteId).catch(() => {});
-    return invite.noteId;
+    this.cleanupExpiredInvites(noteId).catch(() => {});
+    return noteId;
   }
 
-  /** Legge e valida un token invito senza accettarlo: ritorna { noteId, createdBy } o lancia errore. */
+  /** Legge e valida un token invito note senza accettarlo: ritorna { noteId, createdBy } o lancia errore.
+   *  Rifiuta invites `type='calendar'` con 'invite/wrong-type'. */
   async readInvite(token: string): Promise<{ noteId: string; createdBy: string }> {
     const inviteSnap = await getDoc(doc(this.db, `invites/${token}`));
     if (!inviteSnap.exists()) throw new Error('invite/not-found');
-    const invite = inviteSnap.data() as { noteId: string; expiresAt: number; createdBy: string };
+    const invite = inviteSnap.data() as {
+      noteId?: string;
+      resourceId?: string;
+      type?: 'note' | 'calendar';
+      expiresAt: number;
+      createdBy: string;
+    };
     if (Date.now() > invite.expiresAt) {
       deleteDoc(inviteSnap.ref); // cleanup on-read, fire-and-forget
       throw new Error('invite/expired');
     }
-    return { noteId: invite.noteId, createdBy: invite.createdBy };
+    if (invite.type === 'calendar') throw new Error('invite/wrong-type');
+    const noteId = invite.noteId ?? invite.resourceId;
+    if (!noteId) throw new Error('invite/malformed');
+    return { noteId, createdBy: invite.createdBy };
   }
 
   /** True se il contenuto della nota in Firestore è effettivamente cifrato con PGP. */
