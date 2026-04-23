@@ -1,33 +1,52 @@
-// datetime-picker — generic date+time picker for reminder/snooze/event
-// Aesthetic: allineato a reminder-strip esistente, editorial minimalism.
+// datetime-picker — generic date+time picker (reminder / snooze / event)
+// Palette coerente con app: near-black #1C1B1F su off-white #FFFBFE.
+// Pill-shaped, editorial minimalism (Bear/Things-adjacent).
 
 :host { display: block; }
+
+$c-ink: #1C1B1F;
+$c-paper: #FFFBFE;
+$c-edge: rgba(28, 27, 31, 0.10);
+$c-edge-hover: rgba(28, 27, 31, 0.24);
+$ease-out-editorial: cubic-bezier(0.2, 0, 0, 1);
 
 .dtp-row {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   flex-wrap: wrap;
 }
 
+// ── Date button: pill outlined coerente con la toolbar strip dell'app ──────
 .dtp-date-btn {
   position: relative;
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  padding: 8px 12px;
+  padding: 0 16px;
   min-height: 40px;
   background: transparent;
-  border: 1px solid rgba(28, 27, 31, 0.18);
-  border-radius: 10px;
-  color: #1C1B1F;
-  font: inherit;
+  border: 1px solid $c-edge;
+  border-radius: 999px;
+  color: $c-ink;
+  font-family: inherit;
+  font-weight: 500;
+  font-size: 14px;
+  letter-spacing: -0.005em;
   cursor: pointer;
-  transition: border-color 120ms, background 120ms;
+  transition:
+    border-color 160ms $ease-out-editorial,
+    background 160ms $ease-out-editorial;
 
   &:hover:not(:disabled) {
-    border-color: rgba(28, 27, 31, 0.32);
-    background: rgba(28, 27, 31, 0.03);
+    border-color: $c-edge-hover;
+    background: rgba(28, 27, 31, 0.04);
+  }
+
+  &:focus-visible {
+    outline: 2px solid $c-ink;
+    outline-offset: 2px;
+    border-color: $c-ink;
   }
 
   &:disabled {
@@ -36,15 +55,18 @@
   }
 
   mat-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
     font-size: 18px;
     width: 18px;
     height: 18px;
-    line-height: 18px;
-    color: rgba(28, 27, 31, 0.7);
+    line-height: 1;
+    color: rgba(28, 27, 31, 0.65);
   }
 
   .dtp-date-text {
-    font-size: 14px;
     white-space: nowrap;
   }
 }
@@ -57,10 +79,11 @@
   height: 0;
 }
 
+// ── Time: coppia HH:MM con select pill ─────────────────────────────────────
 .dtp-time {
   display: inline-flex;
   align-items: center;
-  gap: 2px;
+  gap: 4px;
 
   &--disabled { opacity: 0.5; }
 }
@@ -69,18 +92,30 @@
   appearance: none;
   -webkit-appearance: none;
   background: transparent;
-  border: 1px solid rgba(28, 27, 31, 0.18);
-  border-radius: 8px;
-  padding: 6px 10px;
-  font: inherit;
+  border: 1px solid $c-edge;
+  border-radius: 999px;
+  padding: 0 14px;
+  min-height: 40px;
+  font-family: inherit;
+  font-weight: 500;
   font-size: 14px;
-  color: #1C1B1F;
-  min-width: 52px;
+  letter-spacing: -0.005em;
+  color: $c-ink;
+  min-width: 58px;
   text-align: center;
+  text-align-last: center;
   cursor: pointer;
+  transition: border-color 160ms $ease-out-editorial, background 160ms $ease-out-editorial;
 
   &:hover:not(:disabled) {
-    border-color: rgba(28, 27, 31, 0.32);
+    border-color: $c-edge-hover;
+    background: rgba(28, 27, 31, 0.04);
+  }
+
+  &:focus-visible {
+    outline: 2px solid $c-ink;
+    outline-offset: 2px;
+    border-color: $c-ink;
   }
 
   &:disabled { cursor: not-allowed; }
@@ -88,6 +123,7 @@
 
 .dtp-colon {
   font-size: 14px;
-  color: rgba(28, 27, 31, 0.6);
+  font-weight: 500;
+  color: rgba(28, 27, 31, 0.45);
   padding: 0 2px;
 }
