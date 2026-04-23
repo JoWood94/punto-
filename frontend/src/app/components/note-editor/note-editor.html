@@ -11,17 +11,31 @@
   <!-- Hero row: [checkbox] data · ora · ricorrenza -->
   <div class="reminder-hero">
 
-    <!-- Checkbox round inline (Things 3 pattern). Visibile quando c'è
-         un'azione di completamento o reminder già completato. -->
-    <button *ngIf="isReminderActionable(reminderBlock) || reminderBlock.status === 'completed'"
+    <!-- Checkbox round inline (Things 3 pattern). Affordance unica per
+         completamento/undo, valida per singoli e ricorrenti.
+         Stati:
+         - actionable non-completato → ring vuoto, click = mark completed
+         - singolo completato → filled, click = undo completed
+         - ricorrente evaso (manuale o da cron) → filled, click = undo evasione -->
+    <button *ngIf="isReminderActionable(reminderBlock)
+                   || reminderBlock.status === 'completed'
+                   || (reminderBlock.recurrence !== 'none' && reminderBlock._evaded)"
             class="reminder-hero-check"
-            [class.reminder-hero-check--checked]="reminderBlock.status === 'completed'"
+            [class.reminder-hero-check--checked]="reminderBlock.status === 'completed'
+                                                  || (reminderBlock.recurrence !== 'none' && reminderBlock._evaded)"
             type="button"
-            [disabled]="!guestCanEditReminders"
-            (click)="reminderBlock.status === 'completed' ? undoReminderCompleted(reminderBlock) : markReminderCompleted(reminderBlock)"
-            [attr.aria-pressed]="reminderBlock.status === 'completed'"
-            [attr.aria-label]="reminderBlock.status === 'completed' ? ('EDITOR.EVADED' | translate) : getReminderActionLabel(reminderBlock)">
-      <mat-icon>{{ reminderBlock.status === 'completed' ? 'check_circle' : 'radio_button_unchecked' }}</mat-icon>
+            [disabled]="!guestCanEditReminders
+                        || (reminderBlock.recurrence !== 'none' && reminderBlock._evaded && !reminderBlock._prevTime)"
+            (click)="reminderBlock.status === 'completed'
+                       ? undoReminderCompleted(reminderBlock)
+                       : (reminderBlock.recurrence !== 'none' && reminderBlock._evaded
+                            ? undoRecurringEvasion(reminderBlock)
+                            : markReminderCompleted(reminderBlock))"
+            [attr.aria-pressed]="reminderBlock.status === 'completed' || reminderBlock._evaded"
+            [attr.aria-label]="(reminderBlock.status === 'completed' || reminderBlock._evaded)
+                                 ? ('EDITOR.EVADED' | translate)
+                                 : getReminderActionLabel(reminderBlock)">
+      <mat-icon>{{ (reminderBlock.status === 'completed' || (reminderBlock.recurrence !== 'none' && reminderBlock._evaded)) ? 'check_circle' : 'radio_button_unchecked' }}</mat-icon>
     </button>
 
     <!-- Data: button text-style che apre mat-datepicker -->
@@ -85,7 +99,7 @@
 
   <!-- Meta line: end-date · stati · CTA ghost (evadi ricorrenza overdue).
        Ogni chunk è un label/button text-style, separatori · visivi. -->
-  <div class="reminder-meta" *ngIf="reminderBlock.recurrence !== 'none' || reminderMuted() || isSnoozed || (reminderBlock.recurrence !== 'none' && reminderBlock._evaded) || isOverdueRecurring(reminderBlock)">
+  <div class="reminder-meta" *ngIf="reminderBlock.recurrence !== 'none' || reminderMuted() || isSnoozed || isSingleOverdue(reminderBlock) || isOverdueRecurring(reminderBlock)">
 
     <!-- End-date: visibile solo se ricorre -->
     <ng-container *ngIf="reminderBlock.recurrence !== 'none'">
@@ -128,20 +142,9 @@
       {{ 'SNOOZE.STATUS_SNOOZED_UNTIL' | translate }} {{ snoozedUntil() | date:'HH:mm':'':dateLocale }}
     </span>
 
-    <!-- Stato evaso ricorrente overdue (non cliccabile) -->
-    <span class="reminder-meta-chunk reminder-meta-chunk--evaded-state"
-          *ngIf="note?.id && reminderBlock.recurrence !== 'none' && reminderBlock._evaded && reminderBlock._wasOverdue">
-      {{ 'EDITOR.EVADED_NEXT_PREFIX' | translate }} {{ reminderBlock.time | date:'d MMM':'':dateLocale }}
-    </span>
-    <button class="reminder-meta-chunk reminder-meta-chunk--evaded-state reminder-meta-chunk--clickable"
-            type="button"
-            *ngIf="note?.id && reminderBlock.recurrence !== 'none' && reminderBlock._evaded && !reminderBlock._wasOverdue"
-            [disabled]="!guestCanEditReminders"
-            (click)="undoRecurringEvasion(reminderBlock)"
-            matTooltip="Tocca per annullare evasione">
-      {{ 'EDITOR.EVADED_NEXT_PREFIX' | translate }} {{ reminderBlock.time | date:'d MMM':'':dateLocale }}
-      <mat-icon class="reminder-meta-chunk-undo">undo</mat-icon>
-    </button>
+    <!-- Pill "Done" meta rimosse: lo stato done ora è comunicato dalla
+         checkbox hero filled + strikethrough, pattern unico per singoli
+         e ricorrenti. -->
 
     <!-- CTA "Evadi ricorrenza": ghost pill inline-end (solo overdue recurring) -->
     <button class="reminder-cta-ghost" type="button"

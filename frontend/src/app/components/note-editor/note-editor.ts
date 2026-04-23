@@ -879,9 +879,11 @@ export class NoteEditorComponent implements OnInit, OnChanges, DoCheck, AfterVie
   }
 
   undoRecurringEvasion(block: any): void {
+    if (block._prevTime == null) return; // safe-guard: niente prev → no-op
     block.time = block._prevTime;
     block._prevTime = null;
     block._evaded = false;
+    block._wasOverdue = false;
     block.status = 'pending';
     // Ripristina i campi UI usati da buildPayload
     const prevDate = new Date(block.time);
