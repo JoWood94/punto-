@@ -151,13 +151,14 @@
   box-shadow:
     0 2px 4px rgba(0, 0, 0, 0.3),
     0 4px 12px rgba(0, 0, 0, 0.15);
+  // Slide simmetrico (ease-in-out) 280ms per apertura/chiusura uguali.
   transition:
     background 200ms var(--_e),
     color 200ms var(--_e),
     border-color 200ms var(--_e),
     box-shadow 200ms var(--_e),
-    transform 260ms var(--_e),
-    opacity 260ms var(--_e);
+    transform 280ms cubic-bezier(0.4, 0, 0.2, 1),
+    opacity 280ms cubic-bezier(0.4, 0, 0.2, 1);
 
   mat-icon {
     font-size: 24px;
@@ -224,13 +225,14 @@
   box-shadow:
     0 2px 4px rgba(0, 0, 0, 0.3),
     0 4px 12px rgba(0, 0, 0, 0.15);
+  // Slide simmetrico (ease-in-out) 280ms per apertura/chiusura uguali.
   transition:
     background 200ms var(--_e),
     color 200ms var(--_e),
     border-color 200ms var(--_e),
     box-shadow 200ms var(--_e),
-    transform 260ms var(--_e),
-    opacity 260ms var(--_e);
+    transform 280ms cubic-bezier(0.4, 0, 0.2, 1),
+    opacity 280ms cubic-bezier(0.4, 0, 0.2, 1);
 
   mat-icon {
     font-size: 24px;
@@ -513,11 +515,17 @@
 // editor-content (flex:1) si riduce, la toolbar rimane visibile sopra la tastiera.
 // Funziona perché dashboard-container ha height:var(--vh) + overflow:hidden
 // → l'intera catena flex si riduce con la tastiera senza position tricks.
+// position: absolute così il container non occupa spazio flex — il contenuto
+// dell'editor scrolla fino al bordo inferiore e i FAB fluttuano sopra,
+// niente fascia bianca di spacer sotto l'ultimo blocco.
 .floating-toolbar-area {
-  position: relative;
-  flex-shrink: 0;
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
   height: calc(84px + min(env(safe-area-inset-bottom, 0px), 44px));
   pointer-events: none;
+  z-index: 5;
 
   &.toolbar-hidden {
     visibility: hidden;

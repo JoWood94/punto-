@@ -188,9 +188,10 @@
       <!-- Drag placeholder (styled by Agent 2) -->
       <div class="drag-placeholder" *cdkDragPlaceholder></div>
 
-      <!-- Drag handle: sempre nel DOM per CDK, collassato per l'unico blocco testo -->
+      <!-- Drag handle: sempre nel DOM per CDK, collassato se è l'unico blocco
+           draggabile (reminder escluso da *ngIf sopra). -->
       <div cdkDragHandle class="drag-handle"
-           [class.drag-handle-collapsed]="note.blocks.length <= 1">
+           [class.drag-handle-collapsed]="draggableBlockCount <= 1">
         <mat-icon>drag_indicator</mat-icon>
       </div>
 
@@ -199,7 +200,7 @@
         <div class="rich-text-wrapper">
           <div class="block-label-row">
             <mat-icon>notes</mat-icon>
-            <span class="block-label">Testo</span>
+            <span class="block-label" *ngIf="!$any(block).html">Testo</span>
           </div>
           <div
             #textBlockEl
@@ -221,7 +222,7 @@
         <div class="checklist-block metadata-section">
           <div class="checklist-header">
             <mat-icon >check_box</mat-icon>
-            <span class="block-label">Checklist</span>
+            <span class="block-label" *ngIf="!$any(block).items?.length">Checklist</span>
           </div>
           <div class="checklist-items">
             <div class="checklist-item" *ngFor="let item of $any(block).items; let j = index">
@@ -254,7 +255,7 @@
         <div class="metadata-section location-block">
           <div class="block-label-row">
             <mat-icon >place</mat-icon>
-            <span class="block-label">Luogo</span>
+            <span class="block-label" *ngIf="!$any(block).address">Luogo</span>
           </div>
 
           <!-- Address search input -->
@@ -300,7 +301,7 @@
         <div class="metadata-section image-block">
           <div class="block-label-row">
             <mat-icon>photo</mat-icon>
-            <span class="block-label">Immagine</span>
+            <span class="block-label" *ngIf="!$any(block).data">Immagine</span>
           </div>
 
           <!-- Empty state: bottone upload coerente con altri blocchi vuoti -->
@@ -332,7 +333,7 @@
         <div class="metadata-section link-block">
           <div class="block-label-row">
             <mat-icon >link</mat-icon>
-            <span class="block-label">Collegamento</span>
+            <span class="block-label" *ngIf="!$any(block).url">Collegamento</span>
             <button mat-icon-button class="edit-link-btn"
                     [disabled]="!guestCanEdit"
                     (click)="editLinkBlock(i)"

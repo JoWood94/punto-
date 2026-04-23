@@ -365,6 +365,11 @@ export class NoteEditorComponent implements OnInit, OnChanges, DoCheck, AfterVie
     return this.note.blocks.some(b => b.type === 'image');
   }
 
+  /** Conteggio blocchi effettivamente draggabili (esclude reminder virtuale). */
+  get draggableBlockCount(): number {
+    return this.note.blocks.filter(b => b.type !== 'reminder').length;
+  }
+
   /**
    * Handler input file per image-block: comprime via ImageProcessorService,
    * assegna data+mimeType al block e triggera autosave.
@@ -680,8 +685,17 @@ export class NoteEditorComponent implements OnInit, OnChanges, DoCheck, AfterVie
 
   onBlockDrop(event: CdkDragDrop<NoteBlock[]>) {
     this.saveTextBlocksFromDOM();
+    // Gli indici CDK si riferiscono al subset dei blocchi effettivamente
+    // nel DOM (reminder è filtrato da *ngIf). Convertiamo gli indici
+    // nel riferimento dell'array originale.
+    const draggable = this.note.blocks
+      .map((b, i) => ({ b, i }))
+      .filter(x => x.b.type !== 'reminder');
+    const realPrev = draggable[event.previousIndex]?.i;
+    const realCurr = draggable[event.currentIndex]?.i;
+    if (realPrev == null || realCurr == null) return;
     const blocks = [...this.note.blocks];
-    moveItemInArray(blocks, event.previousIndex, event.currentIndex);
+    moveItemInArray(blocks, realPrev, realCurr);
     this.note.blocks = blocks;
     this.textBlocksNeedInit = true;
     this.triggerAutoSave();
