@@ -931,29 +931,69 @@ export class NoteService {
     }, () => callback([]));
   }
 
-  // ─── Snooze per-user (FE-01 fase 6.4) ───────────────────────────────────────
+  // ─── Reminder subscription per-user (Fase 1) ───────────────────────────────
+  // Ogni utente ha il proprio subdoc `notes/{noteId}/reminderSnoozes/{uid}`
+  // che contiene:
+  //   - muted: boolean → silenzia sempre per questo utente
+  //   - snoozedUntil: number | null → scadenza snooze temporaneo
+  // Il cron rispetta entrambi (skip se muted OR snoozedUntil > now).
+  // Quando entrambi sono "inattivi" (muted=false, snoozedUntil=null), il subdoc
+  // viene eliminato per non sporcare il DB.
 
-  /** Scrive o cancella lo snooze per-user. null = cancella.
-   *  Path: notes/{noteId}/reminderSnoozes/{uid} (coerente con rules + cron collectionGroup). */
-  async writeReminderSnooze(noteId: string, uid: string, snoozedUntil: number | null): Promise<void> {
+  /** Scrive/aggiorna la sottoscrizione reminder per-user. */
+  async writeReminderSubscription(
+    noteId: string,
+    uid: string,
+    sub: { muted?: boolean; snoozedUntil?: number | null }
+  ): Promise<void> {
     const ref = doc(this.db, `notes/${noteId}/reminderSnoozes/${uid}`);
-    if (snoozedUntil === null) {
+    const muted = sub.muted === true;
+    const snoozedUntil = (typeof sub.snoozedUntil === 'number' && sub.snoozedUntil > 0)
+      ? sub.snoozedUntil
+      : null;
+    const isInactive = !muted && snoozedUntil === null;
+    if (isInactive) {
       await deleteDoc(ref).catch(() => {});
-    } else {
-      await setDoc(ref, { snoozedUntil }, { merge: false });
+      return;
     }
+    await setDoc(ref, {
+      uid,
+      snoozedBy: uid,
+      muted,
+      snoozedUntil,
+      updatedAt: Date.now(),
+    }, { merge: false });
   }
 
-  /** Listener real-time sullo snooze dell'utente corrente. */
-  watchReminderSnooze(noteId: string, uid: string, callback: (snoozedUntil: number | null) => void): () => void {
+  /** Listener real-time sulla subscription reminder per-user.
+   *  Ritorna null se non esiste (= stato default: notifica attiva). */
+  watchReminderSubscription(
+    noteId: string,
+    uid: string,
+    callback: (sub: { muted: boolean; snoozedUntil: number | null } | null) => void
+  ): () => void {
     const ref = doc(this.db, `notes/${noteId}/reminderSnoozes/${uid}`);
     return onSnapshot(ref, snap => {
-      if (snap.exists()) {
-        callback((snap.data()?.['snoozedUntil'] as number) ?? null);
-      } else {
-        callback(null);
-      }
+      if (!snap.exists()) { callback(null); return; }
+      const data = snap.data() ?? {};
+      callback({
+        muted: Boolean(data['muted']),
+        snoozedUntil: typeof data['snoozedUntil'] === 'number' ? data['snoozedUntil'] : null,
+      });
     }, () => callback(null));
+  }
+
+  /** Shim legacy: scrive solo snoozedUntil (mantiene eventuale muted pre-esistente).
+   *  Nuovi call-site usano writeReminderSubscription. */
+  async writeReminderSnooze(noteId: string, uid: string, snoozedUntil: number | null): Promise<void> {
+    await this.writeReminderSubscription(noteId, uid, { snoozedUntil });
+  }
+
+  /** Shim legacy: emette solo snoozedUntil (compat col watcher pre-Fase 1). */
+  watchReminderSnooze(noteId: string, uid: string, callback: (snoozedUntil: number | null) => void): () => void {
+    return this.watchReminderSubscription(noteId, uid, sub => {
+      callback(sub?.snoozedUntil ?? null);
+    });
   }
 
   /** Cifra in batch le note esistenti dopo il setup E2E (migrazione). */

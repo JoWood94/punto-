@@ -149,11 +149,23 @@ export class NoteEditorComponent implements OnInit, OnChanges, DoCheck, AfterVie
   private presenceEditing = false;
   private selfDisplayName: string | null = null;
 
-  // ─── Snooze per-user (FE-01) ──────────────────────────────────────────────
+  // ─── Sottoscrizione reminder per-user (Fase 1) ────────────────────────────
   readonly snoozedUntil = signal<number | null>(null);
+  readonly reminderMuted = signal<boolean>(false);
   readonly showSnoozeSheet = signal(false);
   snoozeConfirmPending = false; // true dopo primo tap su "Annulla snooze" (confirm-on-second-tap)
   private snoozeUnsub: (() => void) | null = null;
+
+  get reminderSubState(): { muted: boolean; snoozedUntil: number | null } {
+    return { muted: this.reminderMuted(), snoozedUntil: this.snoozedUntil() };
+  }
+
+  /** Stato snooze o mute attivo. Usato per l'icona campanella. */
+  get hasActiveSuppression(): boolean {
+    if (this.reminderMuted()) return true;
+    const until = this.snoozedUntil();
+    return !!until && until > Date.now();
+  }
   private prevCompletedBy: string | null = null;
   /** Cache uid→username per evitare fetch ripetuti nel completion toast. */
   private readonly usernameCache = new Map<string, string>();
@@ -1224,13 +1236,48 @@ export class NoteEditorComponent implements OnInit, OnChanges, DoCheck, AfterVie
 
   // ─── Snooze (FE-01) ─────────────────────────────────────────────────────────
 
+  /** Apre lo snooze-mute sheet (Fase 1 campanella). Disponibile solo per memo/event. */
+  openSnoozeSheet() {
+    if (!this.savedNoteId) return;
+    if (this.note.type === 'note') return;
+    this.showSnoozeSheet.set(true);
+  }
+
   async snoozeReminder(timestamp: number) {
     const uid = this.authService.getCurrentUserId();
     if (!uid || !this.savedNoteId) return;
     this.showSnoozeSheet.set(false);
     this.snoozedUntil.set(timestamp);
+    this.reminderMuted.set(false);
     this.snoozeConfirmPending = false;
-    await this.noteService.writeReminderSnooze(this.savedNoteId, uid, timestamp).catch(() => {});
+    await this.noteService.writeReminderSubscription(this.savedNoteId, uid, {
+      muted: false,
+      snoozedUntil: timestamp,
+    }).catch(() => {});
+  }
+
+  async muteReminder() {
+    const uid = this.authService.getCurrentUserId();
+    if (!uid || !this.savedNoteId) return;
+    this.showSnoozeSheet.set(false);
+    this.reminderMuted.set(true);
+    this.snoozedUntil.set(null);
+    await this.noteService.writeReminderSubscription(this.savedNoteId, uid, {
+      muted: true,
+      snoozedUntil: null,
+    }).catch(() => {});
+  }
+
+  async reactivateReminder() {
+    const uid = this.authService.getCurrentUserId();
+    if (!uid || !this.savedNoteId) return;
+    this.showSnoozeSheet.set(false);
+    this.reminderMuted.set(false);
+    this.snoozedUntil.set(null);
+    await this.noteService.writeReminderSubscription(this.savedNoteId, uid, {
+      muted: false,
+      snoozedUntil: null,
+    }).catch(() => {});
   }
 
   async cancelSnooze() {
@@ -1240,20 +1287,18 @@ export class NoteEditorComponent implements OnInit, OnChanges, DoCheck, AfterVie
       setTimeout(() => { this.snoozeConfirmPending = false; }, 3000);
       return;
     }
-    // Secondo tap: esegui
+    // Secondo tap: esegui → riattiva (stesso effetto di reactivateReminder)
     this.snoozeConfirmPending = false;
-    const uid = this.authService.getCurrentUserId();
-    if (!uid || !this.savedNoteId) return;
-    this.snoozedUntil.set(null);
-    await this.noteService.writeReminderSnooze(this.savedNoteId, uid, null).catch(() => {});
+    await this.reactivateReminder();
   }
 
   private startSnoozeWatcher() {
     const uid = this.authService.getCurrentUserId();
     if (!uid || !this.savedNoteId) return;
     this.snoozeUnsub?.();
-    this.snoozeUnsub = this.noteService.watchReminderSnooze(this.savedNoteId, uid, (snoozedUntil) => {
-      this.snoozedUntil.set(snoozedUntil);
+    this.snoozeUnsub = this.noteService.watchReminderSubscription(this.savedNoteId, uid, (sub) => {
+      this.reminderMuted.set(!!sub?.muted);
+      this.snoozedUntil.set(sub?.snoozedUntil ?? null);
     });
   }
 

@@ -6,6 +6,23 @@
   <div class="snooze-panel" role="dialog" [attr.aria-label]="'EDITOR.SNOOZE_LABEL' | translate">
     <div class="snooze-handle"></div>
 
+    <!-- Status header: stato corrente (se muted o snoozed attivo) -->
+    <div class="snooze-status" *ngIf="isMuted">
+      <mat-icon>notifications_off</mat-icon>
+      <span>{{ 'SNOOZE.STATUS_MUTED' | translate }}</span>
+    </div>
+    <div class="snooze-status" *ngIf="!isMuted && isSnoozedActive">
+      <mat-icon>notifications_paused</mat-icon>
+      <span>{{ 'SNOOZE.STATUS_SNOOZED_UNTIL' | translate }} {{ currentState?.snoozedUntil | date:'EEE d MMM, HH:mm':'':translationService.pipeDateLocale }}</span>
+    </div>
+
+    <!-- Riattiva: visibile solo se muted o snoozed attivo -->
+    <button *ngIf="canReactivate" class="snooze-row snooze-row--primary" type="button" (click)="reactivateNow()">
+      <mat-icon class="snooze-row-icon">notifications_active</mat-icon>
+      <span class="snooze-row-label">{{ 'SNOOZE.REACTIVATE' | translate }}</span>
+    </button>
+
+    <!-- Preset rapidi -->
     <button
       *ngFor="let preset of presets"
       class="snooze-row"
@@ -13,6 +30,30 @@
       (click)="select(preset)">
       <mat-icon class="snooze-row-icon">snooze</mat-icon>
       <span class="snooze-row-label">{{ preset.labelKey | translate }}</span>
+    </button>
+
+    <!-- Data/ora personalizzata -->
+    <button class="snooze-row" type="button" (click)="toggleCustom()">
+      <mat-icon class="snooze-row-icon">event</mat-icon>
+      <span class="snooze-row-label">{{ 'SNOOZE.CUSTOM' | translate }}</span>
+      <mat-icon class="snooze-row-chevron">{{ showCustom ? 'expand_less' : 'expand_more' }}</mat-icon>
+    </button>
+    <div class="snooze-custom" *ngIf="showCustom">
+      <app-datetime-picker
+        [value]="customDate"
+        [minuteStep]="1"
+        [minDate]="tomorrowMinDate"
+        (valueChange)="onCustomDateChange($event)">
+      </app-datetime-picker>
+      <button class="snooze-custom-confirm" type="button" [disabled]="!customDate" (click)="confirmCustom()">
+        {{ 'SNOOZE.CUSTOM_CONFIRM' | translate }}
+      </button>
+    </div>
+
+    <!-- Silenzia sempre -->
+    <button class="snooze-row snooze-row--danger" type="button" (click)="mute()" *ngIf="!isMuted">
+      <mat-icon class="snooze-row-icon">notifications_off</mat-icon>
+      <span class="snooze-row-label">{{ 'SNOOZE.MUTE_ALWAYS' | translate }}</span>
     </button>
   </div>
 </ng-container>

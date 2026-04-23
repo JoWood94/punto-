@@ -43,6 +43,15 @@
   "DATETIME": {
     "SELECT_DATE": "Select date"
   },
+  "SNOOZE": {
+    "OPEN_LABEL": "Manage notification",
+    "STATUS_MUTED": "Notification muted",
+    "STATUS_SNOOZED_UNTIL": "Paused until",
+    "REACTIVATE": "Reactivate notification",
+    "CUSTOM": "Custom date and time",
+    "CUSTOM_CONFIRM": "Confirm",
+    "MUTE_ALWAYS": "Mute forever"
+  },
   "CONNECTIVITY": {
     "OFFLINE": "Offline",
     "ERROR": "Connection error"

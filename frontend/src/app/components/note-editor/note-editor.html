@@ -511,19 +511,21 @@
 
 </div>
 
-<!-- Mini-FAB promemoria/campanella: visibile solo su memo ed event (Fase 1 — le
-     note "pure" non possono avere reminder; il tipo è scelto dal FAB speed-dial).
-     Su memo/event cliccarla toggla il ReminderBlock e, nel prossimo step Fase 1,
-     diventerà entry point del dialog snooze/mute per-user. -->
+<!-- Mini-FAB campanella (Fase 1): visibile solo su memo ed event.
+     Non aggiunge/rimuove reminder — apre il dialog snooze/mute per-user.
+     Icona riflette lo stato della sottoscrizione corrente:
+       - muted → notifications_off
+       - snoozed attivo → notifications_paused
+       - attivo → notifications (se reminder presente) / notifications_none -->
 <button class="reminder-mini-fab"
         type="button"
         *ngIf="note.type && note.type !== 'note'"
-        [disabled]="!guestCanEditReminders"
-        (click)="toggleReminder()"
-        [class.reminder-mini-fab--active]="!!reminderBlock"
+        (click)="openSnoozeSheet()"
+        [class.reminder-mini-fab--active]="!!reminderBlock && !hasActiveSuppression"
+        [class.reminder-mini-fab--suppressed]="hasActiveSuppression"
         [class.reminder-mini-fab--hidden]="activeTextBlockIndex() !== null"
-        [attr.aria-label]="reminderBlock ? ('EDITOR.REMOVE_REMINDER' | translate) : ('EDITOR.ADD_REMINDER' | translate)">
-  <mat-icon>{{ reminderBlock ? 'notifications' : 'notifications_none' }}</mat-icon>
+        [attr.aria-label]="('SNOOZE.OPEN_LABEL' | translate)">
+  <mat-icon>{{ reminderMuted() ? 'notifications_off' : (hasActiveSuppression ? 'notifications_paused' : (reminderBlock ? 'notifications' : 'notifications_none')) }}</mat-icon>
 </button>
 
 <!-- Mini-FAB condivisione: absolute bottom-left, affiancato al reminder-mini-fab -->
@@ -543,11 +545,15 @@
   </span>
 </button>
 
-<!-- Snooze sheet (FE-01): si apre dal reminder-strip. Su mobile è un bottom-sheet, su desktop un popover. -->
-<div class="snooze-sheet-anchor" *ngIf="!!reminderBlock">
+<!-- Snooze/mute sheet (Fase 1): si apre dal click sulla campanella (reminder-mini-fab).
+     Visibile solo per memo/event. Offre preset snooze, data custom, silenzia sempre, riattiva. -->
+<div class="snooze-sheet-anchor" *ngIf="note.type && note.type !== 'note'">
   <app-snooze-sheet
     [visible]="showSnoozeSheet()"
+    [currentState]="reminderSubState"
     (presetSelected)="snoozeReminder($event)"
+    (muteSelected)="muteReminder()"
+    (reactivate)="reactivateReminder()"
     (dismissed)="showSnoozeSheet.set(false)">
   </app-snooze-sheet>
 </div>

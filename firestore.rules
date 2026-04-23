@@ -100,13 +100,14 @@ service cloud.firestore {
       // Ogni utente (owner o collaborator) può snoozare un reminder solo per sé.
       // Doc id = uid snoozato. Scope = istanza corrente del reminder (cancellato dal cron).
       match /reminderSnoozes/{uid} {
-        // Owner legge tutti (per UI admin futura); ogni utente vede il proprio
+        // Subscription reminder per-user (Fase 1): { muted, snoozedUntil }.
+        // muted=true → silenzia sempre; snoozedUntil=int → snooze temporaneo (max 7gg);
+        // entrambi falsi → client elimina il doc (stato default = notifica attiva).
         allow read: if request.auth != null && (
           get(/databases/$(database)/documents/notes/$(noteId)).data.uid == request.auth.uid ||
           uid == request.auth.uid
         );
-        // Scrittura: solo sul proprio subdoc, solo se owner o collaborator della nota.
-        // Clamp snoozedUntil: deve essere futuro, max +7 giorni (previene snooze "eterni").
+        // Write: solo sul proprio subdoc, solo owner/collaborator della nota.
         allow create, update: if request.auth != null &&
           uid == request.auth.uid &&
           (
@@ -114,11 +115,20 @@ service cloud.firestore {
             ('collaboratorUids' in get(/databases/$(database)/documents/notes/$(noteId)).data &&
              request.auth.uid in get(/databases/$(database)/documents/notes/$(noteId)).data.collaboratorUids)
           ) &&
-          request.resource.data.snoozedUntil is int &&
-          request.resource.data.snoozedUntil > request.time.toMillis() &&
-          request.resource.data.snoozedUntil <= request.time.toMillis() + 604800000 &&
-          request.resource.data.snoozedBy == request.auth.uid;
-        // Delete: il proprio snooze o l'owner della nota
+          request.resource.data.uid == request.auth.uid &&
+          request.resource.data.snoozedBy == request.auth.uid &&
+          request.resource.data.muted is bool &&
+          (
+            // snoozedUntil è esplicitamente null (nessuno snooze temporaneo attivo)…
+            request.resource.data.snoozedUntil == null ||
+            // …oppure int nel futuro e max +7 giorni (previene "snooze eterni")
+            (
+              request.resource.data.snoozedUntil is int &&
+              request.resource.data.snoozedUntil > request.time.toMillis() &&
+              request.resource.data.snoozedUntil <= request.time.toMillis() + 604800000
+            )
+          );
+        // Delete: il proprio subdoc (riattiva) oppure l'owner della nota.
         allow delete: if request.auth != null && (
           uid == request.auth.uid ||
           get(/databases/$(database)/documents/notes/$(noteId)).data.uid == request.auth.uid
