@@ -16,13 +16,7 @@ jobs:
           echo "Server UTC time: $(date -u)"
 
       - name: Checkout Repository
-        # NOTE: workflow_dispatch sul default branch (main) checkoutava main. Il
-        # server code più aggiornato (filtri snooze/mute, opt-in collaboratori)
-        # vive in develop. Mantenere ref=develop finché non viene mergiato in
-        # main per il go-live prod.
         uses: actions/checkout@v4
-        with:
-          ref: develop
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
