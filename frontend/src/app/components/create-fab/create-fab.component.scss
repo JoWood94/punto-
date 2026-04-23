@@ -44,12 +44,12 @@
 }
 
 .create-fab-item {
-  // M3 extended pill: icona a sinistra + label dopo (left-aligned). Width fissa
-  // per ritmo uniforme; tipografia editorial (14.5px, letter-spacing negativo).
+  // M3 extended pill: icona a sinistra + label dopo (left-aligned). Gap 6px
+  // per matchare .unified-toolbar-seg--active. Width fissa per ritmo uniforme.
   display: inline-flex;
   align-items: center;
   justify-content: flex-start;
-  gap: 10px;
+  gap: 6px;
   padding: 0 18px;
   width: 168px;
   height: 48px;

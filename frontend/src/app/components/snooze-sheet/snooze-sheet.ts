@@ -76,7 +76,9 @@ export class SnoozeSheetComponent implements OnChanges, AfterViewInit, OnDestroy
     if (!this.visible) return;
     const target = ev.target as HTMLElement | null;
     if (!target) return;
-    if (target.closest('.snooze-stack') ||
+    // Chiude al click su QUALSIASI cosa tranne una pill del menu o la
+    // campanella trigger: anche gap vuoti dentro lo stack chiudono.
+    if (target.closest('.snooze-pill') ||
         target.closest('.reminder-mini-fab')) {
       return;
     }
