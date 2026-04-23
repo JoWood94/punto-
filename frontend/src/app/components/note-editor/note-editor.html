@@ -30,7 +30,7 @@
                        ? undoReminderCompleted(reminderBlock)
                        : (reminderBlock.recurrence !== 'none' && reminderBlock._evaded
                             ? undoRecurringEvasion(reminderBlock)
-                            : markReminderCompleted(reminderBlock))"
+                            : markReminderCompleted(reminderBlock, isOverdueRecurring(reminderBlock)))"
             [attr.aria-pressed]="reminderBlock.status === 'completed' || reminderBlock._evaded"
             [attr.aria-label]="(reminderBlock.status === 'completed' || reminderBlock._evaded)
                                  ? ('EDITOR.EVADED' | translate)
@@ -146,13 +146,9 @@
          checkbox hero filled + strikethrough, pattern unico per singoli
          e ricorrenti. -->
 
-    <!-- CTA "Evadi ricorrenza": ghost pill inline-end (solo overdue recurring) -->
-    <button class="reminder-cta-ghost" type="button"
-            *ngIf="note?.id && isOverdueRecurring(reminderBlock)"
-            [disabled]="!guestCanEditReminders"
-            (click)="markReminderCompleted(reminderBlock, true)">
-      {{ 'EDITOR.EVADE_RECURRING' | translate }}
-    </button>
+    <!-- CTA "Evadi ricorrenza" rimossa: ora l'evasione della ricorrenza
+         overdue avviene cliccando la checkbox hero (stesso pattern delle
+         singole occorrenze), con wasOverdue=true. Affordance unificata. -->
 
   </div>
 

@@ -902,7 +902,8 @@ export class NoteEditorComponent implements OnInit, OnChanges, DoCheck, AfterVie
     if (!this.note?.id) return false;
     if ((block.status as string) === 'completed') return false;
     if ((block.recurrence ?? 'none') !== 'none') {
-      if (this.isOverdueRecurring(block)) return false;
+      // Overdue-recurring ora è actionable: checkbox hero evade l'istanza
+      // corrente (con wasOverdue=true). Sostituisce il vecchio CTA ghost.
       return !block._evaded;
     }
     return true;
