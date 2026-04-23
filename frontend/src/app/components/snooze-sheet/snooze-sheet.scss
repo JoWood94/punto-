@@ -14,15 +14,9 @@ $shadow-floating:
   0 12px 30px rgba(28, 27, 31, 0.06);
 $ease-out-editorial: cubic-bezier(0.2, 0, 0, 1);
 
-// ── Scrim: absolute sul parent editor (NON fixed: mat-sidenav-content applica
-// transforms che rompono position:fixed — stesso motivo per cui reminder-mini-fab
-// è absolute). Cattura click-away dentro l'area editor.
-.snooze-scrim {
-  position: absolute;
-  inset: 0;
-  z-index: 1099;
-  background: transparent;
-}
+// Nessuno scrim: il click-away è gestito via HostListener document:click nel
+// component TS, più robusto dello scrim absolute/fixed dentro ancestor
+// transformed (mat-sidenav-content). Dim visivo mobile rimosso per ora.
 
 // ── Stack: posizionato sopra la campanella (bottom-left dell'editor).
 // position:absolute su :host del note-editor (position:relative). ──────────
@@ -80,11 +74,14 @@ $ease-out-editorial: cubic-bezier(0.2, 0, 0, 1);
   animation: snooze-pill-in 180ms $ease-out-editorial forwards;
 
   mat-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     flex-shrink: 0;
     width: 20px;
     height: 20px;
     font-size: 20px;
-    line-height: 20px;
+    line-height: 1;
     color: inherit;
   }
 

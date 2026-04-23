@@ -1510,6 +1510,14 @@
     mat-icon { color: rgba(28, 27, 31, 0.5); }
     &:hover { background: rgba(28, 27, 31, 0.1); }
   }
+
+  // Muted permanente: accento terracotta coerente con snooze-pill--danger
+  &--muted {
+    background: rgba(212, 116, 107, 0.08);
+    color: #A85A52;
+    border: 1px solid rgba(212, 116, 107, 0.24);
+    mat-icon { color: #A85A52; }
+  }
 }
 
 // Anchor per il snooze-sheet (positioning context su desktop)

@@ -34,7 +34,9 @@
           (click)="toggle()"
           [attr.aria-expanded]="open"
           [attr.aria-label]="(open ? 'FAB.CLOSE' : 'FAB.CREATE') | translate">
-    <mat-icon class="create-fab-trigger-icon create-fab-trigger-icon--add">add</mat-icon>
-    <mat-icon class="create-fab-trigger-icon create-fab-trigger-icon--close">close</mat-icon>
+    <span class="create-fab-trigger-icons">
+      <mat-icon class="create-fab-trigger-icon create-fab-trigger-icon--add">add</mat-icon>
+      <mat-icon class="create-fab-trigger-icon create-fab-trigger-icon--close">close</mat-icon>
+    </span>
   </button>
 </div>

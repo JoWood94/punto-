@@ -1,6 +1,6 @@
 <ng-container *ngIf="visible">
-  <!-- Scrim trasparente per click-away (coerente con create-fab) -->
-  <div class="snooze-scrim" (click)="dismiss()" aria-hidden="true"></div>
+  <!-- Click-away gestito via HostListener document:click (più robusto dello
+       scrim absolute, funziona dentro mat-sidenav-content transformed). -->
 
   <div
     class="snooze-stack"

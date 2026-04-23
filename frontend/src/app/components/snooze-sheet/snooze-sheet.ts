@@ -100,6 +100,25 @@ export class SnoozeSheetComponent implements OnChanges, AfterViewInit {
     this.dismiss();
   }
 
+  /**
+   * Click-away globale: chiude il menu se il click è fuori dallo stack/overlay.
+   * Preferito al scrim fisso perché funziona anche dentro mat-sidenav-content
+   * (transformed ancestor che rompe position:fixed). Ignora click sulla
+   * campanella trigger (.reminder-mini-fab) che è la stessa CTA di apertura.
+   */
+  @HostListener('document:click', ['$event'])
+  onDocumentClick(event: MouseEvent): void {
+    if (!this.visible) return;
+    const target = event.target as HTMLElement | null;
+    if (!target) return;
+    if (target.closest('.snooze-stack') ||
+        target.closest('.snooze-custom-overlay') ||
+        target.closest('.reminder-mini-fab')) {
+      return;
+    }
+    this.dismiss();
+  }
+
   private focusFirstInteractivePill(): void {
     const first = this.pillButtons?.first?.nativeElement;
     first?.focus();

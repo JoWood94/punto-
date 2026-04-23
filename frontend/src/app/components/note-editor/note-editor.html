@@ -130,8 +130,16 @@
     <mat-icon class="undo-icon">undo</mat-icon>
   </button>
 
-  <!-- Snooze/mute: gestiti esclusivamente dalla campanella (reminder-mini-fab).
-       Badge di stato e CTA rimossi dalla strip per evitare duplicazione. -->
+  <!-- Badge stato snooze/mute (solo visual, non cliccabile).
+       La gestione avviene via campanella (reminder-mini-fab); qui solo feedback. -->
+  <div class="strip-badge strip-badge--muted" *ngIf="reminderMuted()">
+    <mat-icon>notifications_off</mat-icon>
+    <span>{{ 'SNOOZE.STATUS_MUTED' | translate }}</span>
+  </div>
+  <div class="strip-badge strip-badge--snoozed" *ngIf="!reminderMuted() && isSnoozed">
+    <mat-icon>notifications_paused</mat-icon>
+    <span>{{ 'SNOOZE.STATUS_SNOOZED_UNTIL' | translate }} {{ snoozedUntil() | date:'HH:mm':'':dateLocale }}</span>
+  </div>
 
   <!-- CTA: evadi ricorrenza scaduta -->
   <button class="strip-cta" type="button"
