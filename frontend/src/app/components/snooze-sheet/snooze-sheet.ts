@@ -6,7 +6,6 @@ import { CommonModule } from '@angular/common';
 import { MatIconModule } from '@angular/material/icon';
 import { TranslateModule } from '@ngx-translate/core';
 import { TranslationService } from '../../services/translation';
-import { DatetimePickerComponent } from '../datetime-picker/datetime-picker.component';
 
 export interface SnoozePreset {
   labelKey: string;
@@ -26,12 +25,11 @@ export interface ReminderSubscriptionState {
  *  - role="menu" + aria-label
  *  - ESC → dismiss
  *  - Focus automatico sulla prima pill interattiva all'apertura
- *  - Confirm-on-second-tap su "Silenzia sempre" (azione distruttiva)
  */
 @Component({
   selector: 'app-snooze-sheet',
   standalone: true,
-  imports: [CommonModule, MatIconModule, TranslateModule, DatetimePickerComponent],
+  imports: [CommonModule, MatIconModule, TranslateModule],
   templateUrl: './snooze-sheet.html',
   styleUrls: ['./snooze-sheet.scss'],
 })
@@ -63,9 +61,6 @@ export class SnoozeSheetComponent implements OnChanges, AfterViewInit, OnDestroy
     },
   ];
 
-  showCustom = false;
-  customDate: Date | null = null;
-
   get isMuted(): boolean { return !!this.currentState?.muted; }
   get isSnoozedActive(): boolean {
     const until = this.currentState?.snoozedUntil ?? 0;
@@ -73,20 +68,15 @@ export class SnoozeSheetComponent implements OnChanges, AfterViewInit, OnDestroy
   }
   get canReactivate(): boolean { return this.isMuted || this.isSnoozedActive; }
 
-  get tomorrowMinDate(): Date { return new Date(); }
-
   /**
    * Click-away in CAPTURE phase: al click fuori dallo stack/bell, dismiss
-   * il menu. NON consuma l'evento: il click deve proseguire fino al target
-   * (es. bottone Elimina della dashboard, mat-dialog overlay). Altrimenti
-   * consumare il click blocca qualunque interazione mentre il menu è open.
+   * il menu. NON consuma l'evento: il click deve proseguire fino al target.
    */
   private readonly absorbOutsideClick = (ev: Event) => {
     if (!this.visible) return;
     const target = ev.target as HTMLElement | null;
     if (!target) return;
     if (target.closest('.snooze-stack') ||
-        target.closest('.snooze-custom-overlay') ||
         target.closest('.reminder-mini-fab')) {
       return;
     }
@@ -95,13 +85,9 @@ export class SnoozeSheetComponent implements OnChanges, AfterViewInit, OnDestroy
 
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['visible'] && !changes['visible'].currentValue) {
-      this.resetCustom();
       this.detachClickAway();
     } else if (changes['visible'] && changes['visible'].currentValue) {
-      // Auto-focus prima pill all'apertura (deferred fino al render)
       queueMicrotask(() => this.focusFirstInteractivePill());
-      // Il listener viene attaccato nel microtask successivo per evitare che
-      // catturi lo stesso click che ha aperto il menu (sulla campanella).
       queueMicrotask(() => this.attachClickAway());
     }
   }
@@ -146,44 +132,17 @@ export class SnoozeSheetComponent implements OnChanges, AfterViewInit, OnDestroy
 
   select(preset: SnoozePreset): void {
     this.presetSelected.emit(preset.getTime());
-    this.resetCustom();
   }
 
-  toggleCustom(): void {
-    this.showCustom = !this.showCustom;
-    if (!this.showCustom) this.customDate = null;
-  }
-
-  onCustomDateChange(d: Date | null): void {
-    this.customDate = d;
-  }
-
-  confirmCustom(): void {
-    if (!this.customDate) return;
-    const t = this.customDate.getTime();
-    if (t <= Date.now()) return;
-    this.presetSelected.emit(t);
-    this.resetCustom();
-  }
-
-  /** Silenzia sempre: azione immediata. Reversibile via "Riattiva". */
   mute(): void {
     this.muteSelected.emit();
-    this.resetCustom();
   }
 
   reactivateNow(): void {
     this.reactivate.emit();
-    this.resetCustom();
   }
 
   dismiss(): void {
     this.dismissed.emit();
-    this.resetCustom();
-  }
-
-  private resetCustom(): void {
-    this.showCustom = false;
-    this.customDate = null;
   }
 }

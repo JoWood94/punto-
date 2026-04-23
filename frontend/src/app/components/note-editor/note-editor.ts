@@ -814,6 +814,21 @@ export class NoteEditorComponent implements OnInit, OnChanges, DoCheck, AfterVie
     this.triggerAutoSave();
   }
 
+  /**
+   * Handler <input type="time">: aggiorna hour/minute nel reminderBlock e
+   * ricalcola time. Accetta ogni minuto (step=60s), non più solo multipli di 5.
+   */
+  onReminderTimeInput(val: string): void {
+    if (!val) return;
+    const parts = val.split(':');
+    if (parts.length < 2) return;
+    const rb = this.reminderBlock;
+    if (!rb) return;
+    rb.hour = parts[0].padStart(2, '0');
+    rb.minute = parts[1].padStart(2, '0');
+    this.onReminderChange();
+  }
+
   onRecurrenceEndDateChange(date: Date | null) {
     const rb = this.reminderBlock;
     if (!rb) return;

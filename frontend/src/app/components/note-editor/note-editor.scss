@@ -1270,14 +1270,14 @@ $rs-hover-bg: rgba(28, 27, 31, 0.05);
   // Overdue: l'hero diventa terracotta (sistema colore pre-esistente a #B3261E
   // sostituito col terracotta brand-coherent #D4746B)
   &--overdue .reminder-hero-date,
-  &--overdue .reminder-hero-time-select {
+  &--overdue .reminder-hero-time > span {
     color: $rs-danger;
   }
 
   // Completed / evaso: opacity leggera + strikethrough hero
   &--completed .reminder-hero {
     opacity: 0.55;
-    .reminder-hero-date, .reminder-hero-time-select { text-decoration: line-through; }
+    .reminder-hero-date, .reminder-hero-time > span { text-decoration: line-through; }
   }
 }
 
@@ -1340,7 +1340,7 @@ $rs-hover-bg: rgba(28, 27, 31, 0.05);
 }
 
 .reminder-hero-date,
-.reminder-hero-time-select,
+.reminder-hero-time > span,
 .reminder-hero-recurrence {
   font-family: inherit;
   font-size: 20px;
@@ -1401,32 +1401,29 @@ $rs-hover-bg: rgba(28, 27, 31, 0.05);
   padding: 0 2px;
 }
 
+// Timepicker nativo: label wrap + input type="time" stacked absolute opacity:0.
+// Il picker OS si apre sul tap; la label visibile usa lo stile hero.
 .reminder-hero-time {
+  position: relative;
   display: inline-flex;
   align-items: baseline;
+  cursor: pointer;
 }
 
-.reminder-hero-time-select {
-  // iOS auto-zoom fix: font-size >= 16px is required on focus. Usiamo 20px
-  // che è già sopra soglia.
+.reminder-hero-time-input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
   appearance: none;
   -webkit-appearance: none;
-  background-image: none;
-  text-align: center;
-  text-align-last: center;
-  min-width: 32px;
-}
+  font-size: 16px; // iOS anti-zoom
+  border: none;
+  background: transparent;
 
-.reminder-hero-time-colon {
-  font-family: inherit;
-  font-size: 20px;
-  font-weight: 600;
-  color: $rs-ink;
-  opacity: 0.5;
-  padding: 0 1px;
-  line-height: 1.25;
-
-  @media (max-width: 479px) { font-size: 18px; }
+  &:disabled { cursor: not-allowed; }
 }
 
 // Ricorrenza in hero: label come 3° token tipografico, stesso peso di data/ora.
@@ -1509,14 +1506,14 @@ $rs-hover-bg: rgba(28, 27, 31, 0.05);
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 4px 6px;
+  gap: 8px 10px;
   font-family: inherit;
-  font-size: 13px;
+  font-size: 14.5px;
   font-weight: 500;
   letter-spacing: -0.005em;
   color: $rs-muted;
   line-height: 1.5;
-  margin-top: 2px;
+  margin-top: 6px;
 }
 
 .reminder-meta-chunk {
@@ -1581,52 +1578,44 @@ $rs-hover-bg: rgba(28, 27, 31, 0.05);
   // Variant: ricorrenza = "once" (nessuna info utile → muted ulteriore)
   &--muted { opacity: 0.7; }
 
-  // ── Stati informativi come micro-pill ────────────────────────────────────
-  // Distinzione morfologica dai chunk editabili (che hanno dotted underline).
-  // Pill micro tinted: forma unificata col linguaggio pill-shaped dell'app,
-  // ma scala ridotta (22px) → no confusione con CTA o chunk modificabili.
+  // ── Stati informativi come pill scure tema app ───────────────────────────
+  // Distinzione morfologica dai chunk editabili (dotted underline): gli stati
+  // sono pill filled scure #26252A (leggermente più chiaro di $rs-ink) con
+  // label bianca. Forma coerente col linguaggio pill-shaped dell'app.
   &--muted-state,
   &--snoozed-state,
   &--evaded-state {
     text-decoration: none;
-    background: rgba(28, 27, 31, 0.04);
-    border: 1px solid rgba(28, 27, 31, 0.10);
+    background: #26252A;
+    color: $rs-paper;
+    border: none;
     border-radius: 999px;
-    height: 22px;
-    padding: 0 10px;
-    font-size: 12px;
+    height: 28px;
+    padding: 0 14px;
+    font-size: 13px;
     font-weight: 500;
     line-height: 1;
+    letter-spacing: -0.003em;
   }
 
-  // Variant: stato muted permanente — neutrale (non più terracotta pieno).
-  // Terracotta riservato a overdue e danger-pending.
   &--muted-state {
-    color: rgba(28, 27, 31, 0.72);
     cursor: default;
     pointer-events: none;
   }
-
-  // Variant: stato snoozed temporaneo — tono neutro discreto.
   &--snoozed-state {
-    color: rgba(28, 27, 31, 0.78);
     cursor: default;
     pointer-events: none;
   }
-
-  // Variant: evaso — più marcato (peso + ink pieno).
   &--evaded-state {
-    color: $rs-ink;
     font-weight: 600;
   }
 
-  // Mini-pill cliccabile (undo evasione): affordance via hover.
+  // Pill scura cliccabile (undo evasione): stesso styling + hover lift.
   &--clickable {
     cursor: pointer;
     pointer-events: auto;
     &:hover:not(:disabled) {
-      background: rgba(28, 27, 31, 0.08);
-      border-color: rgba(28, 27, 31, 0.18);
+      background: #34333A;
     }
   }
 }
@@ -1635,8 +1624,9 @@ $rs-hover-bg: rgba(28, 27, 31, 0.05);
   font-size: 14px !important;
   width: 14px !important;
   height: 14px !important;
-  opacity: 0.6;
-  margin-left: 2px;
+  opacity: 0.8;
+  margin-left: 4px;
+  color: inherit; // bianco su pill scura
 }
 
 .reminder-meta-sep {

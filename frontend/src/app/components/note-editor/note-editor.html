@@ -43,25 +43,19 @@
 
     <span class="reminder-hero-sep" aria-hidden="true">·</span>
 
-    <!-- Ora: due select nativi affiancati, styling che li fonde col hero -->
-    <span class="reminder-hero-time">
-      <select [(ngModel)]="reminderBlock.hour"
-              [disabled]="!guestCanEditReminders"
-              (change)="onReminderChange()"
-              (focus)="onNonTextFieldFocus()"
-              (blur)="onNonTextFieldBlur()"
-              class="reminder-hero-time-select">
-        <option *ngFor="let h of hours" [value]="h">{{ h }}</option>
-      </select><span class="reminder-hero-time-colon">:</span><select
-              [(ngModel)]="reminderBlock.minute"
-              [disabled]="!guestCanEditReminders"
-              (change)="onReminderChange()"
-              (focus)="onNonTextFieldFocus()"
-              (blur)="onNonTextFieldBlur()"
-              class="reminder-hero-time-select">
-        <option *ngFor="let m of minutes" [value]="m">{{ m }}</option>
-      </select>
-    </span>
+    <!-- Ora: timepicker nativo (ogni minuto, step=60s). Input stacked opacity:0
+         per aprire il picker OS su tap; label visibile sopra con stile editorial. -->
+    <label class="reminder-hero-time">
+      <input type="time"
+             step="60"
+             [value]="reminderBlock.hour + ':' + reminderBlock.minute"
+             [disabled]="!guestCanEditReminders"
+             (input)="onReminderTimeInput($any($event.target).value)"
+             (focus)="onNonTextFieldFocus()"
+             (blur)="onNonTextFieldBlur()"
+             class="reminder-hero-time-input">
+      <span>{{ reminderBlock.hour }}:{{ reminderBlock.minute }}</span>
+    </label>
 
     <span class="reminder-hero-sep" aria-hidden="true">·</span>
 
@@ -118,27 +112,20 @@
       </button>
     </ng-container>
 
-    <!-- Stato muted: micro-pill tinted neutra -->
-    <ng-container *ngIf="reminderMuted()">
-      <span class="reminder-meta-sep" *ngIf="reminderBlock.recurrence !== 'none'" aria-hidden="true">·</span>
-      <span class="reminder-meta-chunk reminder-meta-chunk--muted-state">
-        {{ 'SNOOZE.STATUS_MUTED' | translate }}
-      </span>
-    </ng-container>
-    <ng-container *ngIf="!reminderMuted() && isSnoozed">
-      <span class="reminder-meta-sep" *ngIf="reminderBlock.recurrence !== 'none'" aria-hidden="true">·</span>
-      <span class="reminder-meta-chunk reminder-meta-chunk--snoozed-state">
-        {{ 'SNOOZE.STATUS_SNOOZED_UNTIL' | translate }} {{ snoozedUntil() | date:'HH:mm':'':dateLocale }}
-      </span>
-    </ng-container>
+    <!-- Stati come pill scure tema app (bg #26252A, label bianca): distinti
+         morfologicamente dai chunk editabili (text-style dotted). Niente sep · -->
+    <span class="reminder-meta-chunk reminder-meta-chunk--muted-state" *ngIf="reminderMuted()">
+      {{ 'SNOOZE.STATUS_MUTED' | translate }}
+    </span>
+    <span class="reminder-meta-chunk reminder-meta-chunk--snoozed-state" *ngIf="!reminderMuted() && isSnoozed">
+      {{ 'SNOOZE.STATUS_SNOOZED_UNTIL' | translate }} {{ snoozedUntil() | date:'HH:mm':'':dateLocale }}
+    </span>
 
-    <!-- Stato evaso ricorrente: text inline (con undo se non overdue) -->
-    <ng-container *ngIf="note?.id && reminderBlock.recurrence !== 'none' && reminderBlock._evaded && reminderBlock._wasOverdue">
-      <span class="reminder-meta-sep" aria-hidden="true">·</span>
-      <span class="reminder-meta-chunk reminder-meta-chunk--evaded-state">
-        {{ 'EDITOR.EVADED_NEXT_PREFIX' | translate }} {{ reminderBlock.time | date:'d MMM':'':dateLocale }}
-      </span>
-    </ng-container>
+    <!-- Stato evaso ricorrente overdue (non cliccabile) -->
+    <span class="reminder-meta-chunk reminder-meta-chunk--evaded-state"
+          *ngIf="note?.id && reminderBlock.recurrence !== 'none' && reminderBlock._evaded && reminderBlock._wasOverdue">
+      {{ 'EDITOR.EVADED_NEXT_PREFIX' | translate }} {{ reminderBlock.time | date:'d MMM':'':dateLocale }}
+    </span>
     <button class="reminder-meta-chunk reminder-meta-chunk--evaded-state reminder-meta-chunk--clickable"
             type="button"
             *ngIf="note?.id && reminderBlock.recurrence !== 'none' && reminderBlock._evaded && !reminderBlock._wasOverdue"

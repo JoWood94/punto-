@@ -263,14 +263,21 @@ mat-list-item, a[mat-list-item] {
 /* ─── punto! pill menu — override MatMenu per coerenza col design system ────
    Ogni voce del menu diventa una pill dark separata, coerente col FAB
    speed-dial e col menu snooze. Applicato via panelClass="punto-pill-menu"
-   sul <mat-menu>. ─────────────────────────────────────────────────────── */
+   sul <mat-menu>. In Angular Material 21 il panelClass può finire sia sul
+   .mat-mdc-menu-panel, sia sul .cdk-overlay-pane wrapper: selettore neutro
+   + reset del panel interno così copre entrambi i casi. ─────────────── */
+.punto-pill-menu,
+.punto-pill-menu .mat-mdc-menu-panel,
 .mat-mdc-menu-panel.punto-pill-menu {
   background: transparent !important;
   box-shadow: none !important;
   padding: 0 !important;
   min-width: 0 !important;
   overflow: visible !important;
+  border: none !important;
+}
 
+.punto-pill-menu {
   .mat-mdc-menu-content {
     background: transparent !important;
     padding: 0 !important;

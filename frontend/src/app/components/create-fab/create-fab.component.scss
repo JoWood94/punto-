@@ -44,15 +44,12 @@
 }
 
 .create-fab-item {
-  // M3 extended pill: icona + label inline, centrati. Stesse distanze
-  // (icon↔bordo, icon↔label) della .unified-toolbar-seg--active: gap 6px,
-  // justify-content: center → icon e label sono un blocco unico al centro.
-  // Width fissa per ritmo uniforme; tipografia editorial (14.5px, letter-spacing
-  // negativo) coerente con snooze-pill.
+  // M3 extended pill: icona a sinistra + label dopo (left-aligned). Width fissa
+  // per ritmo uniforme; tipografia editorial (14.5px, letter-spacing negativo).
   display: inline-flex;
   align-items: center;
-  justify-content: center;
-  gap: 6px;
+  justify-content: flex-start;
+  gap: 10px;
   padding: 0 18px;
   width: 168px;
   height: 48px;
