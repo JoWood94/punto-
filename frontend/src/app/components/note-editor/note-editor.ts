@@ -494,6 +494,10 @@ export class NoteEditorComponent implements OnInit, OnChanges, DoCheck, AfterVie
           (this.note as any).id = result.id;
           this.noteCreated.emit(result.id);
           this.startSnoozeWatcher();
+          // watchNote deve partire anche sulle note appena create: quando più tardi
+          // il guest accetta l'invito, l'owner deve già essere iscritto per ricevere
+          // gli update live senza dover riaprire la nota.
+          this.startLiveSync();
         })
         .catch(err => console.error('[AutoSave] createNote error:', err));
     }
@@ -1258,6 +1262,7 @@ export class NoteEditorComponent implements OnInit, OnChanges, DoCheck, AfterVie
       // Firestore rules negano la lettura di notes/{noteId}. L'onSnapshot emette un
       // errore permission-denied invece della doc aggiornata — il data callback non
       // viene mai chiamato. Trattiamo l'errore come segnale di kick-out.
+      console.log('[watchNote] error — code:', err?.code, 'role:', this.note.myRole, 'noteId:', this.savedNoteId);
       if (this.note.myRole === 'guest') {
         if (err?.code === 'not-found') {
           this._handleKickout('deleted');
