@@ -49,6 +49,13 @@ service cloud.firestore {
         exists(/databases/$(database)/documents/calendars/$(noteData.calendarId)/subscribers/$(request.auth.uid));
     }
 
+    // Share-by-code: validator del LOOKUP (doc id di invites/{code}).
+    // 8 char dall'alfabeto unambiguous-base32 UPPERCASE (no 0/O/I/1/l).
+    // Il client DEVE normalizzare a uppercase prima di read/write.
+    function isValidLookup(lookup) {
+      return lookup.matches('^[ABCDEFGHJKMNPQRSTUVWXYZ23456789]{8}$');
+    }
+
     // ── Notes ──────────────────────────────────────────────────────────────────
     match /notes/{noteId} {
       // Owner + guest possono leggere.
@@ -177,6 +184,57 @@ service cloud.firestore {
           collabId == request.auth.uid
         );
       }
+
+      // ── SharedKeys subcollection (E2EE share-by-code) ───────────────────────
+      // Ogni nota condivisa ha una AES-256 key simmetrica usata per cifrare
+      // title/content/blocks. La AES key viene "wrappata" con la PGP public
+      // key di ciascun partecipante e salvata qui come doc id = uid.
+      //
+      // Schema doc:
+      //   {
+      //     wrappedKey: string (PGP-encrypted AES key, ASCII armored, max 2000 char),
+      //     wrappedAt:  timestamp (server timestamp alla write),
+      //     wrappedBy:  string (uid di chi ha scritto il wrap — owner al bootstrap,
+      //                         self al primo join via code)
+      //   }
+      //
+      // Questa subcollection risolve multi-device: ogni device dello stesso
+      // uid decifra il wrap con la propria encryptedPrivateKey utente.
+      //
+      // Multi-device note: il PGP public key per uid è unico (persistito su
+      // users/{uid}.publicKey), quindi il wrap è condiviso fra i device.
+      match /sharedKeys/{uid} {
+        // Read: SOLO self. Il wrap di altri utenti non deve mai essere letto —
+        // anche l'owner non deve poter leggere il wrap altrui (defence in depth:
+        // un owner compromesso non può copiare i wrap e replay-attaccare).
+        allow read: if request.auth != null && uid == request.auth.uid;
+
+        // Create/Update: due path consentiti.
+        //   a) Owner della nota → bootstrap iniziale di qualsiasi {uid}
+        //      (scrive il proprio wrap al primo share, e può pre-wrappare
+        //      per collaboratori aggiunti manualmente se esiste flusso out-of-band).
+        //   b) Self → auto-wrap al primo join (guest incolla code, decifra con
+        //      la KEY del code, ri-wrappa con la propria PGP pub, scrive qui).
+        // Validazione schema: wrappedKey string non vuota e max 2000 char
+        // (PGP ed25519 di AES-256 è ~600-800 char ASCII armored; 2000 è margine).
+        allow create, update: if request.auth != null &&
+          (
+            get(/databases/$(database)/documents/notes/$(noteId)).data.uid == request.auth.uid ||
+            uid == request.auth.uid
+          ) &&
+          request.resource.data.wrappedKey is string &&
+          request.resource.data.wrappedKey.size() > 0 &&
+          request.resource.data.wrappedKey.size() <= 2000 &&
+          request.resource.data.wrappedBy is string &&
+          request.resource.data.wrappedBy == request.auth.uid;
+
+        // Delete: owner della nota (cleanup al kickout di un collaborator o
+        // alla cancellazione nota) OPPURE self (quando si lascia la nota).
+        allow delete: if request.auth != null && (
+          get(/databases/$(database)/documents/notes/$(noteId)).data.uid == request.auth.uid ||
+          uid == request.auth.uid
+        );
+      }
     }
 
     // ── Users ──────────────────────────────────────────────────────────────────
@@ -195,33 +253,49 @@ service cloud.firestore {
       allow write: if request.auth != null && request.resource.data.uid == request.auth.uid;
     }
 
-    // ── Invites ────────────────────────────────────────────────────────────────
-    // Schema unificato (Fase 3):
-    //   { type: 'note'|'calendar', resourceId: string, createdBy, createdAt, expiresAt }
-    // Backcompat: gli invites note scrivono ANCHE `noteId` (legacy) per non
-    // rompere i consumer pre-Fase 3. Gli invites calendar NON hanno `noteId`.
+    // ── Invites (share-by-code) ────────────────────────────────────────────────
+    // Schema share-by-code (big-bang, no backcompat col vecchio token 20-char):
+    //   doc id = LOOKUP = 8 char dall'alfabeto [ABCDEFGHJKMNPQRSTUVWXYZ23456789]
+    //            (~40 bit entropia, no caratteri ambigui: no 0/O/I/1/l)
+    //   Il client normalizza a uppercase PRIMA della write/read.
+    //   La "KEY" (AES-256 in base64url) vive SOLO nel codice LOOKUP-KEY
+    //   che l'utente si scambia — NON è mai persistita in Firestore.
+    //
+    // Payload invariato rispetto a Fase 3:
+    //   { type: 'note'|'calendar', resourceId, createdBy, createdAt, expiresAt }
+    //
+    // TTL:
+    //   - note: 365 giorni (revoca manuale via delete, no cleanup cron)
+    //   - calendar: invariato rispetto a prima
+    //
+    // Vincolo "uno share code attivo per nota" NON è enforceable in rules
+    // (servirebbe una query). Il client garantisce il vincolo cancellando
+    // eventuali vecchi invite della stessa nota prima del create.
     match /invites/{inviteId} {
       // Chiunque autenticato può leggere (per acceptInvite, getActiveInvite,
-      // readCalendarInvite). Il token è la barriera di enumerazione (20 char).
+      // readCalendarInvite). Il LOOKUP è la barriera di enumerazione (~40 bit),
+      // il cipher E2EE impedisce leak del contenuto anche in caso di brute-force.
       allow read: if request.auth != null;
 
       // Owner crea il proprio invite con validazione schema minima.
-      // - `type` opzionale (legacy invites lo omettono) ma se presente deve essere in whitelist.
-      // - `expiresAt` deve essere nel futuro.
-      // - o `resourceId` o `noteId` deve essere presente (backcompat).
+      // Validiamo il LOOKUP con regex (helper top-level) — il client DEVE
+      // normalizzare a uppercase. Big-bang: no backcompat col vecchio 20-char.
+      // - doc id deve essere LOOKUP valido (8 char alfabeto unambiguous).
+      // - `type` obbligatorio in whitelist.
+      // - `resourceId` obbligatorio (noteId del legacy rimosso).
+      // - `expiresAt` nel futuro. Per type='note' consigliato +365gg (client-enforced).
       allow create: if request.auth != null &&
+        isValidLookup(inviteId) &&
         request.resource.data.createdBy == request.auth.uid &&
         request.resource.data.expiresAt is int &&
         request.resource.data.expiresAt > request.time.toMillis() &&
-        (
-          !('type' in request.resource.data) ||
-          request.resource.data.type in ['note', 'calendar']
-        ) &&
-        (
-          ('resourceId' in request.resource.data && request.resource.data.resourceId is string) ||
-          ('noteId' in request.resource.data && request.resource.data.noteId is string)
-        );
+        request.resource.data.type in ['note', 'calendar'] &&
+        'resourceId' in request.resource.data &&
+        request.resource.data.resourceId is string &&
+        request.resource.data.resourceId.size() > 0;
 
+      // Delete: solo l'owner → revoca dell'invite (nuovi join impossibili,
+      // chi è già dentro resta — kickout gestito separatamente su collaborators).
       allow delete: if request.auth != null &&
         resource.data.createdBy == request.auth.uid;
     }
