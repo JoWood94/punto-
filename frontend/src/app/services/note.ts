@@ -1241,9 +1241,9 @@ export class NoteService {
         // prima della write: meglio un errore esplicito che un 'resource-exhausted'
         // silenzioso o un write parziale.
         const encPayloadSize =
-          (encrypted.title  ? (encrypted.title  as string).length : 0) +
-          (encrypted.content ? (encrypted.content as string).length : 0) +
-          (encrypted.blocks ? (encrypted.blocks  as string).length : 0);
+          (encrypted.title   ? String(encrypted.title).length   : 0) +
+          (encrypted.content ? String(encrypted.content).length : 0) +
+          (encrypted.blocks  ? String(encrypted.blocks).length  : 0);
         if (encPayloadSize > 900_000) {
           throw new Error('share/note-too-large');
         }
