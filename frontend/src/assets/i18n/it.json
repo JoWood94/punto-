@@ -280,7 +280,9 @@
     "JOIN_EXPIRED": "Codice scaduto o revocato. Chiedi un nuovo codice all'owner.",
     "JOIN_ALREADY_COLLABORATOR": "Sei già collaboratore di questa nota.",
     "JOIN_OWN_NOTE": "Non puoi unirti a una nota che hai creato tu.",
-    "JOIN_ERROR": "Errore durante il join. Riprova."
+    "JOIN_ERROR": "Errore durante il join. Riprova.",
+    "NOTE_TOO_LARGE": "La nota contiene immagini troppo grandi per essere condivisa. Rimuovi alcune immagini e riprova.",
+    "GENERATE_ERROR": "Errore durante la generazione del codice. Riprova."
   },
   "USERNAME": {
     "LABEL": "Username",

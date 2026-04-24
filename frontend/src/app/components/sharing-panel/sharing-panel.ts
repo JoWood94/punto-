@@ -11,6 +11,7 @@ import { TranslateModule } from '@ngx-translate/core';
 import { NoteService, Collaborator, CollaboratorPermissions } from '../../services/note';
 import { TranslationService } from '../../services/translation';
 import { AuthService } from '../../services/auth';
+import { ToastService } from '../../services/toast';
 
 interface CollaboratorUI extends Collaborator {
   username: string;
@@ -33,6 +34,7 @@ export class SharingPanelComponent implements OnInit, OnDestroy {
   private noteService = inject(NoteService);
   private authService = inject(AuthService);
   translationService = inject(TranslationService);
+  private toastService = inject(ToastService);
   private dialogRef = inject(MatDialogRef<SharingPanelComponent>);
   data: { noteId: string; myRole?: 'owner' | 'guest'; ownerUid?: string } = inject(MAT_DIALOG_DATA);
 
@@ -106,6 +108,11 @@ export class SharingPanelComponent implements OnInit, OnDestroy {
     try {
       const code = await this.noteService.generateShareCode(this.data.noteId);
       this.shareCode.set(code);
+    } catch (err: any) {
+      const msg = err?.message === 'share/note-too-large'
+        ? this.translationService.instant('SHARING.NOTE_TOO_LARGE')
+        : this.translationService.instant('SHARING.GENERATE_ERROR');
+      this.toastService.show(msg, 5000);
     } finally {
       this.generatingCode.set(false);
     }

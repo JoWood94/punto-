@@ -377,9 +377,28 @@ export class NoteService {
           const unsub = onSnapshot(q, async snapshot => {
             const raws = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as any));
             const notes: Note[] = await Promise.all(raws.map(async raw => {
-              const decrypted = this.cryptoService.isEnabled
-                ? await this.cryptoService.decryptNote(raw)
-                : raw;
+              // Una nota owned può essere cifrata con AES se l'owner ha generato
+              // un share code (generateShareCode migra PGP→AES). Bisogna tentare
+              // AES prima di PGP: decryptNote salta i campi AES1: (non PGP),
+              // lasciando blocks come stringa → migrateToBlocks → ImageBlock persi.
+              const hasAESEncryption =
+                (typeof raw.title === 'string' && raw.title.startsWith(AES_MARKER)) ||
+                (typeof raw.blocks === 'string' && raw.blocks.startsWith(AES_MARKER));
+
+              let decrypted: any = raw;
+              if (hasAESEncryption) {
+                const aesKey = await this._getAESKeyForNote(raw.id, user.uid);
+                if (aesKey) {
+                  try {
+                    decrypted = await this.cryptoService.decryptNoteWithAESKey(raw, aesKey);
+                  } catch {
+                    // chiave non disponibile o corrotta — prosegue con il raw
+                  }
+                }
+              } else if (this.cryptoService.isEnabled) {
+                decrypted = await this.cryptoService.decryptNote(raw);
+              }
+
               // Usa Array.isArray: un blocks cifrato e una stringa, non un array —
               // il cast (as any[]) nascondeva il problema a compile time ma crashava a runtime.
               if (!Array.isArray(decrypted.blocks) || (decrypted.blocks as any[]).length === 0) {
@@ -1207,11 +1226,33 @@ export class NoteService {
       }
       plainTitle = (plainNote['title'] as string | undefined) ?? '';
 
-      // Cifra con AES (sia per PGP→AES che per plaintext→AES)
+      // Cifra con AES (sia per PGP→AES che per plaintext→AES).
+      // updateDoc scrive SOLO i campi cifrati (title, content, blocks) — mai
+      // image, uid, createdAt o altri campi non sensibili che non devono essere
+      // toccati. Questo previene qualsiasi perdita di dati anche in caso di bug
+      // nello spread di encryptNoteWithAESKey.
       if (hasPGPContent || hasPlaintextShared) {
         const skipFields: (keyof Note)[] = this.notifTitleEnabled ? ['title'] : [];
         const encrypted = await this.cryptoService.encryptNoteWithAESKey(plainNote, aesKey, skipFields);
-        await updateDoc(doc(this.db, `notes/${noteId}`), encrypted as any);
+
+        // Firestore hard limit: 1MB per documento. Il ciphertext AES di blocks
+        // può essere ~133% del plaintext. Se blocks + title + content cifrati
+        // superano 900KB (margine conservativo sul totale doc), blocchiamo
+        // prima della write: meglio un errore esplicito che un 'resource-exhausted'
+        // silenzioso o un write parziale.
+        const encPayloadSize =
+          (encrypted.title  ? (encrypted.title  as string).length : 0) +
+          (encrypted.content ? (encrypted.content as string).length : 0) +
+          (encrypted.blocks ? (encrypted.blocks  as string).length : 0);
+        if (encPayloadSize > 900_000) {
+          throw new Error('share/note-too-large');
+        }
+
+        await updateDoc(doc(this.db, `notes/${noteId}`), {
+          ...(encrypted.title !== undefined   ? { title:   encrypted.title   } : {}),
+          ...(encrypted.content !== undefined ? { content: encrypted.content } : {}),
+          ...(encrypted.blocks !== undefined  ? { blocks:  encrypted.blocks  } : {}),
+        });
       }
 
       // Aggiorna la cache

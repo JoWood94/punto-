@@ -280,7 +280,9 @@
     "JOIN_EXPIRED": "Code expired or revoked. Ask the owner for a new code.",
     "JOIN_ALREADY_COLLABORATOR": "You are already a collaborator on this note.",
     "JOIN_OWN_NOTE": "You cannot join a note you created.",
-    "JOIN_ERROR": "Failed to join. Please try again."
+    "JOIN_ERROR": "Failed to join. Please try again.",
+    "NOTE_TOO_LARGE": "This note contains images that are too large to share. Remove some images and try again.",
+    "GENERATE_ERROR": "Failed to generate code. Please try again."
   },
   "USERNAME": {
     "LABEL": "Username",
