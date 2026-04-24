@@ -641,7 +641,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
    * base64, fallback al legacy note.image.data (Fase 2 pre-block).
    */
   noteThumbUrl(n: Note): string | null {
-    const ib = n.blocks?.find((b: any) => b.type === 'image' && b.data);
+    const ib = (Array.isArray(n.blocks) ? n.blocks : []).find((b: any) => b.type === 'image' && b.data);
     if (ib) return (ib as any).data as string;
     const legacy = (n as any).image?.data;
     return typeof legacy === 'string' && legacy ? legacy : null;

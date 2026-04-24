@@ -247,14 +247,16 @@ export function migrateToBlocks(note: any): NoteBlock[] {
 
 /** Returns plain-text preview from the first text block (HTML tags stripped). */
 export function getNotePreview(note: Note): string {
-  const textBlock = note.blocks?.find(b => b.type === 'text') as TextBlock | undefined;
+  const blocks = Array.isArray(note.blocks) ? note.blocks : [];
+  const textBlock = blocks.find(b => b.type === 'text') as TextBlock | undefined;
   const html = textBlock?.html ?? note.content ?? '';
   return html.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
 }
 
 /** Returns checklist progress { done, total } or null if no checklist block. */
 export function getChecklistProgress(note: Note): { done: number; total: number } | null {
-  const cl = note.blocks?.find(b => b.type === 'checklist') as ChecklistBlock | undefined;
+  const blocks = Array.isArray(note.blocks) ? note.blocks : [];
+  const cl = blocks.find(b => b.type === 'checklist') as ChecklistBlock | undefined;
   if (!cl || cl.items.length === 0) return null;
   return { done: cl.items.filter(i => i.done).length, total: cl.items.length };
 }
