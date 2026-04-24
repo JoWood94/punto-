@@ -53,7 +53,8 @@ export class SnoozeSheetComponent implements OnChanges, AfterViewInit, OnDestroy
   rendering = false;
   leaving = false;
   private leaveTimer: ReturnType<typeof setTimeout> | null = null;
-  private readonly LEAVE_DURATION = 180;
+  // 180ms animation + (max 7 pill) * 35ms stagger = 425ms. Tengo margine.
+  private readonly LEAVE_DURATION = 460;
 
   readonly presets: SnoozePreset[] = [
     { labelKey: 'EDITOR.SNOOZE_15MIN', getTime: () => Date.now() + 15 * 60 * 1000 },
