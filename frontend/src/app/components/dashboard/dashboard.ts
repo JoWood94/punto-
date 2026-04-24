@@ -982,18 +982,15 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.settingsOpen = true;
   }
 
-  closeSettings() {
-    this.settingsOpen = false;
-    // Le preferenze possono essere cambiate nel pannello embedded: rileggile
-    // così il getter calendarNotes e il filtro del calendario riflettono subito
-    // lo stato aggiornato senza richiedere refresh pagina.
-    this.refreshUserPreferences();
-  }
+  closeSettings() { this.settingsOpen = false; }
 
-  private async refreshUserPreferences() {
-    try {
-      this.calendarShowAllNotes = await this.noteService.getUserPreference<boolean>('calendarShowAllNotes', false);
-    } catch { /* offline: mantiene valore in memoria */ }
+  /** Riceve le notifiche del settings embedded per tenere allineate le
+   *  preferenze osservabili (es. calendarShowAllNotes filtra calendarNotes).
+   *  Evita il re-read Firestore: update sincrono, nessuna race. */
+  onSettingsPreferenceChange(ev: { key: string; value: any }) {
+    if (ev.key === 'calendarShowAllNotes') {
+      this.calendarShowAllNotes = !!ev.value;
+    }
   }
 
   /** Naviga alla vista calendario (bottone header desktop). Chiude eventuali

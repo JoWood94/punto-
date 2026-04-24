@@ -349,7 +349,9 @@
 
     <!-- Settings embedded (opzione A): occupa l'area del contenuto, la sidenav
          a sinistra resta visibile su desktop, nascosta su mobile. -->
-    <app-settings *ngIf="settingsOpen" [embedded]="true" (backRequest)="closeSettings()"></app-settings>
+    <app-settings *ngIf="settingsOpen" [embedded]="true"
+                  (backRequest)="closeSettings()"
+                  (preferenceChange)="onSettingsPreferenceChange($event)"></app-settings>
 
     <!-- FAB desktop: speed-dial Nota/Memo/Evento (Fase 1) -->
     <div class="sidenav-fab-area" *ngIf="activeNote === undefined && !isMobile && !settingsOpen">

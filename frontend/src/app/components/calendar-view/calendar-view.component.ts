@@ -452,9 +452,24 @@ export class CalendarViewComponent implements OnChanges, OnInit, AfterViewInit {
     this.toolbarDragging = false;
     const endX = e.changedTouches[0]?.clientX ?? this.toolbarDragStartX;
     const dx = endX - this.toolbarDragStartX;
-    // Tap senza spostamento reale → lascia il (click) gestire, ripristina indicatore
+    // Tap senza spostamento reale: applica direttamente il segmento tappato.
+    // Con touch-action:none sul container iOS può sopprimere il click auto
+    // generato dal tap, quindi non possiamo affidarci a (click) per questo
+    // caso — lo risolviamo manualmente leggendo il target del touchend.
     if (Math.abs(dx) < 8) {
-      // Tap: ripristina posizione CSS e lascia il (click) gestire
+      const segEl = (e.target as HTMLElement).closest('.calendar-toolbar-seg');
+      if (segEl) {
+        const parent = segEl.parentElement;
+        const segs = parent
+          ? Array.from(parent.querySelectorAll<HTMLElement>('.calendar-toolbar-seg'))
+          : [];
+        const index = segs.indexOf(segEl as HTMLElement);
+        if (index >= 0 && index < this.VIEW_SEGMENTS.length) {
+          this.setView(this.VIEW_SEGMENTS[index]);
+          return;
+        }
+      }
+      // Tap fuori da un segmento (es. "Oggi" già gestita altrove): ripristina l'indicatore.
       this.toolbarIndicatorTransform = this.cssTransform(this.VIEW_SEGMENTS.indexOf(this.viewType));
       return;
     }

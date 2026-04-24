@@ -60,6 +60,10 @@ export class SettingsComponent implements OnInit {
    *  quello visibile) ed emette backRequest invece di router.navigate sul back. */
   @Input() embedded = false;
   @Output() backRequest = new EventEmitter<void>();
+  /** Notifica il parent (dashboard) che una preferenza osservabile è cambiata.
+   *  Evita di dover ri-leggere da Firestore al close: il parent aggiorna il
+   *  proprio stato sincrono ricevendo la coppia {key,value}. */
+  @Output() preferenceChange = new EventEmitter<{ key: string; value: any }>();
 
   @HostBinding('class.embedded') get _hostEmbedded() { return this.embedded; }
 
@@ -165,6 +169,8 @@ export class SettingsComponent implements OnInit {
   async onCalendarShowAllNotesToggle(enabled: boolean) {
     this.calendarShowAllNotes = enabled;
     await this.noteService.setUserPreference('calendarShowAllNotes', enabled);
+    // Propaga al parent embedded così il calendario aggiorna subito il filtro.
+    this.preferenceChange.emit({ key: 'calendarShowAllNotes', value: enabled });
   }
 
   startEditUsername() {
