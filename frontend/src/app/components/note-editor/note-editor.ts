@@ -88,6 +88,10 @@ export class NoteEditorComponent implements OnInit, OnChanges, DoCheck, AfterVie
   readonly isList = signal(false);
   readonly isOrderedList = signal(false);
   readonly activeTextBlockIndex = signal<number | null>(null);
+  /** true quando la tastiera virtuale è aperta (detection via visualViewport).
+   *  Usato per nascondere i floating button mobile mentre si digita. */
+  readonly keyboardOpen = signal(false);
+  private vvResizeListener: (() => void) | null = null;
 
   // Add-block speed dial state
   readonly addBlockMenuOpen = signal(false);
@@ -276,6 +280,24 @@ export class NoteEditorComponent implements OnInit, OnChanges, DoCheck, AfterVie
     // l'orario del reminder, isOverdueRecurring/isSingleOverdue sono valutati
     // in CD. CD non parte da solo a tempo: ogni 30s forziamo il check.
     this.overdueTicker = setInterval(() => this.cdr.markForCheck(), 30000);
+    this.installKeyboardDetector();
+  }
+
+  /** Rileva apertura/chiusura della tastiera virtuale via visualViewport.
+   *  Soglia 85%: l'altezza cala sotto di quella quando la keyboard compare
+   *  sia su iOS che Android. Fallback: nessun listener (desktop). */
+  private installKeyboardDetector(): void {
+    if (typeof window === 'undefined' || !window.visualViewport) return;
+    const vv = window.visualViewport;
+    const check = () => {
+      const open = vv.height < window.innerHeight * 0.85;
+      if (open !== this.keyboardOpen()) {
+        this.keyboardOpen.set(open);
+        this.cdr.markForCheck();
+      }
+    };
+    vv.addEventListener('resize', check);
+    this.vvResizeListener = () => vv.removeEventListener('resize', check);
   }
   ngOnChanges(changes: SimpleChanges) { if (changes['selectedNote']) this.initNote(); }
   ngDoCheck() { if (!this.guestCanEdit && this.addBlockMenuOpen()) this.addBlockMenuOpen.set(false); }
@@ -761,6 +783,25 @@ export class NoteEditorComponent implements OnInit, OnChanges, DoCheck, AfterVie
     input.value = '';
     // Su iOS il focus sincrono dopo clear non funziona — setTimeout necessario
     setTimeout(() => input.focus(), 30);
+  }
+
+  /** Invio da un item esistente: inserisce una NUOVA riga vuota subito dopo e
+   *  sposta il focus su di essa (comportamento Things/Apple Notes). Se l'item
+   *  corrente è vuoto, no-op — evita di creare righe a catena indesiderate. */
+  onChecklistItemEnter(event: Event, block: ChecklistBlock, index: number) {
+    event.preventDefault();
+    const current = block.items[index];
+    if (!current || !current.text.trim()) return;
+    block.items.splice(index + 1, 0, { text: '', done: false });
+    this.triggerAutoSave();
+    // Focus sul nuovo input appena il DOM è aggiornato: cerchiamo l'input
+    // alla posizione index+1 dentro lo stesso .checklist-items del target.
+    const fromEl = event.target as HTMLElement | null;
+    setTimeout(() => {
+      const wrap = fromEl?.closest('.checklist-items');
+      const inputs = wrap?.querySelectorAll<HTMLInputElement>('.checklist-input');
+      inputs?.[index + 1]?.focus();
+    }, 30);
   }
 
   removeChecklistItem(block: ChecklistBlock, index: number) {
@@ -1556,6 +1597,7 @@ export class NoteEditorComponent implements OnInit, OnChanges, DoCheck, AfterVie
   ngOnDestroy() {
     this.snoozeUnsub?.();
     this.stopLiveSync();
+    this.vvResizeListener?.();
     if (this.overdueTicker) { clearInterval(this.overdueTicker); this.overdueTicker = null; }
     // Forza sincronizzazione valore input titolo prima di salvare (fix: swipe-back senza blur)
     if (this.titleInputRef?.nativeElement) {
