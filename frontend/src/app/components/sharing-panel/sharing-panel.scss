@@ -58,42 +58,53 @@
   padding: 8px 4px 8px 12px;
 }
 
-.sharing-link-url {
-  flex: 1;
-  font-size: 12px;
-  word-break: break-all;
-  color: var(--mat-sys-on-surface);
-  font-family: monospace;
-  line-height: 1.4;
-}
+// ─── Share code block ─────────────────────────────────────────────────────────
 
-.sharing-link-footer {
+.sharing-code-block {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  flex-wrap: wrap;
+  gap: 4px;
+  background: var(--mat-sys-surface-container);
+  border-radius: 8px;
+  padding: 10px 4px 10px 12px;
 }
 
-.sharing-hint--inline {
-  margin: 0;
+.sharing-code-value {
   flex: 1;
-  min-width: 0;
+  font-family: 'Roboto Mono', 'Courier New', monospace;
+  font-size: 13px;
+  letter-spacing: 0.03em;
+  color: var(--mat-sys-on-surface);
+  word-break: break-all;
+  line-height: 1.5;
+  user-select: all;
 }
 
-.sharing-regenerate-btn {
+.sharing-hint--code {
+  margin: 8px 0 0;
+  line-height: 1.5;
+}
+
+.sharing-code-footer {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+  margin-top: 4px;
+}
+
+.sharing-action-btn {
   flex-shrink: 0;
   font-size: 12px;
-  height: 28px;
-  line-height: 28px;
+  height: 32px;
+  line-height: 32px;
   padding: 0 8px;
-  color: var(--mat-sys-on-surface-variant);
   gap: 4px;
 
   mat-icon {
-    font-size: 14px;
-    width: 14px;
-    height: 14px;
+    font-size: 16px;
+    width: 16px;
+    height: 16px;
   }
 }
 

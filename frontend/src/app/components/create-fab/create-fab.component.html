@@ -26,6 +26,14 @@
       <mat-icon>edit_note</mat-icon>
       <span class="create-fab-item-label">{{ 'FAB.NEW_NOTE' | translate }}</span>
     </button>
+
+    <button mat-fab extended class="create-fab-item create-fab-item--join"
+            (click)="pickJoin()"
+            [attr.tabindex]="open ? 0 : -1"
+            [attr.aria-label]="'FAB.JOIN_SHARED' | translate">
+      <mat-icon>group_add</mat-icon>
+      <span class="create-fab-item-label">{{ 'FAB.JOIN_SHARED' | translate }}</span>
+    </button>
   </div>
 
   <button mat-fab class="create-fab-trigger"

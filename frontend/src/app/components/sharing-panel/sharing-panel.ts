@@ -11,7 +11,6 @@ import { TranslateModule } from '@ngx-translate/core';
 import { NoteService, Collaborator, CollaboratorPermissions } from '../../services/note';
 import { TranslationService } from '../../services/translation';
 import { AuthService } from '../../services/auth';
-import { environment } from '../../../environments/environment';
 
 interface CollaboratorUI extends Collaborator {
   username: string;
@@ -38,11 +37,10 @@ export class SharingPanelComponent implements OnInit, OnDestroy {
   data: { noteId: string; myRole?: 'owner' | 'guest'; ownerUid?: string } = inject(MAT_DIALOG_DATA);
 
   loading = signal(true);
-  generatingLink = signal(false);
+  generatingCode = signal(false);
   copyDone = signal(false);
   leaving = signal(false);
-  inviteUrl: string | null = null;
-  inviteToken: string | null = null;   // token Firestore (id documento) dell'invite attivo
+  shareCode: string | null = null;      // codice LOOKUP-KEY visibile all'owner
   collaborators = signal<CollaboratorUI[]>([]);
   revoking = signal(false);
   ownerUsername: string | null = null;
@@ -56,11 +54,6 @@ export class SharingPanelComponent implements OnInit, OnDestroy {
     return this.authService.getCurrentUserId();
   }
 
-  private get appBaseUrl(): string {
-    // Usa l'origin dell'ambiente corrente: staging → staging, prod → prod.
-    return window.location.origin + '/';
-  }
-
   async ngOnInit() {
     if (this.isGuest) {
       await Promise.all([
@@ -69,9 +62,7 @@ export class SharingPanelComponent implements OnInit, OnDestroy {
       ]);
       this.loading.set(false);
     } else {
-      // Cleanup asincrono degli inviti scaduti — fire-and-forget, non blocca il caricamento
       this.noteService.cleanupExpiredInvites(this.data.noteId).catch(() => {});
-      await this.loadActiveInvite();
       // Live watcher: aggiorna la lista collaboratori in tempo reale
       this.collabUnsub = this.noteService.watchCollaborators(this.data.noteId, async (rawCollabs) => {
         const updated = await Promise.all(
@@ -99,14 +90,6 @@ export class SharingPanelComponent implements OnInit, OnDestroy {
     this.ownerUsername = await this.noteService.getUsernameByUid(this.data.ownerUid);
   }
 
-  private async loadActiveInvite() {
-    const token = await this.noteService.getActiveInvite(this.data.noteId);
-    if (token) {
-      this.inviteToken = token;
-      this.inviteUrl = `${this.appBaseUrl}dashboard?invite=${token}`;
-    }
-  }
-
   private async loadCollaborators() {
     const list = await this.noteService.getCollaborators(this.data.noteId);
     this.collaborators.set(await Promise.all(
@@ -118,28 +101,31 @@ export class SharingPanelComponent implements OnInit, OnDestroy {
     ));
   }
 
-  async generateLink() {
-    this.generatingLink.set(true);
+  async generateCode() {
+    this.generatingCode.set(true);
     try {
-      // Se esiste già un invite attivo, cancellalo prima (rigenera)
-      if (this.inviteToken) {
-        await this.noteService.deleteInvite(this.inviteToken);
-        this.inviteToken = null;
-        this.inviteUrl = null;
-      }
-      const token = await this.noteService.createInvite(this.data.noteId);
-      this.inviteToken = token;
-      this.inviteUrl = `${this.appBaseUrl}dashboard?invite=${token}`;
+      const code = await this.noteService.generateShareCode(this.data.noteId);
+      this.shareCode = code;
     } finally {
-      this.generatingLink.set(false);
+      this.generatingCode.set(false);
     }
   }
 
-  async copyLink() {
-    if (!this.inviteUrl) return;
-    await navigator.clipboard.writeText(this.inviteUrl);
+  async copyCode() {
+    if (!this.shareCode) return;
+    await navigator.clipboard.writeText(this.shareCode);
     this.copyDone.set(true);
     setTimeout(() => this.copyDone.set(false), 2000);
+  }
+
+  async revokeCode() {
+    this.generatingCode.set(true);
+    try {
+      await this.noteService.revokeShareCode(this.data.noteId);
+      this.shareCode = null;
+    } finally {
+      this.generatingCode.set(false);
+    }
   }
 
   async togglePermission(collab: CollaboratorUI, perm: keyof CollaboratorPermissions) {
@@ -162,7 +148,7 @@ export class SharingPanelComponent implements OnInit, OnDestroy {
     try {
       await this.noteService.revokeAllCollaborators(this.data.noteId);
       this.collaborators.set([]);
-      this.inviteUrl = null;
+      this.shareCode = null;
       this.dialogRef.close({ revoked: true });
     } finally {
       this.revoking.set(false);

@@ -8,7 +8,7 @@
 
   <ng-template #panelContent>
 
-    <!-- ══ Vista GUEST (read-only) ══ -->
+    <!-- Vista GUEST (read-only) -->
     <ng-container *ngIf="isGuest; else ownerView">
 
       <!-- Owner -->
@@ -46,44 +46,50 @@
 
     </ng-container>
 
-    <!-- ══ Vista OWNER ══ -->
+    <!-- Vista OWNER -->
     <ng-template #ownerView>
 
-      <!-- ── Invite link section ── -->
+      <!-- Codice di condivisione -->
       <section class="sharing-section">
         <div class="sharing-section-label">
-          <mat-icon>link</mat-icon>
-          <span>{{ 'SHARING.INVITE_LINK' | translate }}</span>
+          <mat-icon>key</mat-icon>
+          <span>{{ 'SHARING.SHARE_CODE_SECTION' | translate }}</span>
         </div>
 
-        <ng-container *ngIf="!inviteUrl; else linkGenerated">
+        <ng-container *ngIf="!shareCode; else codeGenerated">
           <button mat-stroked-button class="sharing-generate-btn"
-                  (click)="generateLink()"
-                  [disabled]="generatingLink()">
-            <mat-spinner *ngIf="generatingLink()" diameter="16" class="btn-spinner"></mat-spinner>
-            <mat-icon *ngIf="!generatingLink()">add_link</mat-icon>
-            {{ generatingLink() ? ('SHARING.GENERATING' | translate) : ('SHARING.GENERATE_LINK' | translate) }}
+                  (click)="generateCode()"
+                  [disabled]="generatingCode()">
+            <mat-spinner *ngIf="generatingCode()" diameter="16" class="btn-spinner"></mat-spinner>
+            <mat-icon *ngIf="!generatingCode()">add_circle_outline</mat-icon>
+            {{ generatingCode() ? ('SHARING.GENERATING' | translate) : ('SHARING.GENERATE_CODE' | translate) }}
           </button>
-          <p class="sharing-hint">{{ 'SHARING.LINK_HINT' | translate }}</p>
+          <p class="sharing-hint">{{ 'SHARING.CODE_HINT' | translate }}</p>
         </ng-container>
 
-        <ng-template #linkGenerated>
-          <div class="sharing-link-row">
-            <span class="sharing-link-url">{{ inviteUrl }}</span>
+        <ng-template #codeGenerated>
+          <div class="sharing-code-block">
+            <code class="sharing-code-value">{{ shareCode }}</code>
             <button mat-icon-button
-                    (click)="copyLink()"
-                    [matTooltip]="(copyDone() ? 'SHARING.COPIED' : 'SHARING.COPY') | translate">
+                    (click)="copyCode()"
+                    [matTooltip]="(copyDone() ? 'SHARING.COPIED' : 'SHARING.COPY_CODE') | translate">
               <mat-icon>{{ copyDone() ? 'check' : 'content_copy' }}</mat-icon>
             </button>
           </div>
-          <div class="sharing-link-footer">
-            <p class="sharing-hint sharing-hint--inline">{{ 'SHARING.LINK_EXPIRY' | translate }}</p>
-            <button mat-button class="sharing-regenerate-btn"
-                    (click)="generateLink()"
-                    [disabled]="generatingLink()">
-              <mat-spinner *ngIf="generatingLink()" diameter="14" class="btn-spinner"></mat-spinner>
-              <mat-icon *ngIf="!generatingLink()">refresh</mat-icon>
-              {{ generatingLink() ? ('SHARING.REGENERATING' | translate) : ('SHARING.REGENERATE_LINK' | translate) }}
+          <p class="sharing-hint sharing-hint--code">{{ 'SHARING.CODE_USAGE_HINT' | translate }}</p>
+          <div class="sharing-code-footer">
+            <button mat-button class="sharing-action-btn"
+                    (click)="generateCode()"
+                    [disabled]="generatingCode()">
+              <mat-spinner *ngIf="generatingCode()" diameter="14" class="btn-spinner"></mat-spinner>
+              <mat-icon *ngIf="!generatingCode()">refresh</mat-icon>
+              {{ generatingCode() ? ('SHARING.REGENERATING' | translate) : ('SHARING.REGENERATE_CODE' | translate) }}
+            </button>
+            <button mat-button color="warn" class="sharing-action-btn"
+                    (click)="revokeCode()"
+                    [disabled]="generatingCode()">
+              <mat-icon>block</mat-icon>
+              {{ 'SHARING.REVOKE_CODE' | translate }}
             </button>
           </div>
         </ng-template>
@@ -91,7 +97,7 @@
 
       <mat-divider class="sharing-divider"></mat-divider>
 
-      <!-- ── Collaborators list ── -->
+      <!-- Collaboratori -->
       <section class="sharing-section">
         <div class="sharing-section-label">
           <mat-icon>group</mat-icon>

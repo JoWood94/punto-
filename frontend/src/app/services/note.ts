@@ -8,8 +8,42 @@ import {
 } from 'firebase/firestore';
 import { Observable, of, switchMap, combineLatest, startWith, map } from 'rxjs';
 import { AuthService } from './auth';
-import { CryptoService } from './crypto';
+import { CryptoService, AES_MARKER } from './crypto';
 import { environment } from '../../environments/environment';
+
+// ─── Share Code ───────────────────────────────────────────────────────────────
+
+const SHARE_CODE_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+const SHARE_CODE_LOOKUP_LEN = 8;
+// base64url: 43 chars covers 256 bits
+const SHARE_CODE_KEY_REGEX = /^[A-Za-z0-9_-]{43}$/;
+const SHARE_CODE_REGEX = new RegExp(
+  `^[${SHARE_CODE_ALPHABET}]{${SHARE_CODE_LOOKUP_LEN}}-[A-Za-z0-9_-]{43}$`
+);
+
+class ShareCode {
+  constructor(
+    public readonly lookup: string,
+    public readonly key: string
+  ) {}
+
+  format(): string {
+    return `${this.lookup}-${this.key}`;
+  }
+
+  static parse(raw: string): ShareCode | null {
+    const normalized = raw.trim().toUpperCase();
+    const dashIdx = normalized.indexOf('-');
+    if (dashIdx === -1) return null;
+    const lookup = normalized.slice(0, dashIdx);
+    // Key is case-sensitive base64url — restore original casing from raw
+    const rawDashIdx = raw.indexOf('-');
+    const key = raw.slice(rawDashIdx + 1).trim();
+    const fullCode = `${lookup}-${key}`;
+    if (!SHARE_CODE_REGEX.test(fullCode)) return null;
+    return new ShareCode(lookup, key);
+  }
+}
 
 // ─── Block Types ─────────────────────────────────────────────────────────────
 
@@ -235,7 +269,14 @@ export class NoteService {
 
   notifTitleEnabled = false;
 
+  // In-memory AES key cache: noteId -> CryptoKey. Cleared on logout.
+  private _aesKeyCache = new Map<string, CryptoKey>();
+
   setNotifTitleEnabled(val: boolean) { this.notifTitleEnabled = val; }
+
+  clearAESKeyCache(): void {
+    this._aesKeyCache.clear();
+  }
 
   /**
    * Calcola se almeno un blocco nel documento è di tipo ReminderBlock.
@@ -289,7 +330,6 @@ export class NoteService {
     const hasReminderBlock = this.deriveHasReminderBlock(blocks);
     // ─────────────────────────────────────────────────────────────────────────
 
-    console.log('[NoteService] createNote for uid:', uid, 'type:', noteType);
     const notesRef = collection(this.db, 'notes');
     const skipFields: (keyof Note)[] = this.notifTitleEnabled ? ['title'] : [];
     const hasCollaborators = (noteData.collaboratorUids?.length ?? 0) > 0;
@@ -302,11 +342,22 @@ export class NoteService {
       uid,
       createdAt: Date.now(),
     };
-    const payload = this.cryptoService.isEnabled && !hasCollaborators
-      ? await this.cryptoService.encryptNote(base, skipFields)
-      : base;
+
+    let payload: any;
+    if (!this.cryptoService.isEnabled) {
+      payload = base;
+    } else if (hasCollaborators) {
+      // Per note gia condivise alla creazione (caso raro), cifra con AES se disponibile
+      const noteId = (noteData as any).id as string | undefined;
+      const aesKey = noteId ? this._aesKeyCache.get(noteId) : undefined;
+      payload = aesKey
+        ? await this.cryptoService.encryptNoteWithAESKey(base, aesKey, skipFields)
+        : base; // fallback plaintext (migrazione lazy)
+    } else {
+      payload = await this.cryptoService.encryptNote(base, skipFields);
+    }
+
     const result = await addDoc(notesRef, payload);
-    console.log('[NoteService] Note saved with ID:', result.id);
     return result;
   }
 
@@ -360,10 +411,28 @@ export class NoteService {
           const unsub = onSnapshot(q, async snapshot => {
             const notes: Note[] = await Promise.all(snapshot.docs.map(async d => {
               const raw = { id: d.id, ...d.data() } as any;
-              // Note condivise sono in chiaro — NO decrypt
-              if (!raw.blocks || (raw.blocks as any[]).length === 0) {
-                raw.blocks = migrateToBlocks(raw);
+
+              // Tenta decrypt AES se la nota ha campi cifrati con AES1:
+              const hasAESEncryption =
+                (typeof raw.title === 'string' && raw.title.startsWith(AES_MARKER)) ||
+                (typeof raw.blocks === 'string' && raw.blocks.startsWith(AES_MARKER));
+
+              let decrypted = raw;
+              if (hasAESEncryption) {
+                const aesKey = await this._getAESKeyForNote(d.id, user.uid);
+                if (aesKey) {
+                  try {
+                    decrypted = await this.cryptoService.decryptNoteWithAESKey(raw, aesKey);
+                  } catch {
+                    // chiave non disponibile o corrotta — mostra cifrato
+                  }
+                }
               }
+
+              if (!decrypted.blocks || (decrypted.blocks as any[]).length === 0) {
+                decrypted.blocks = migrateToBlocks(decrypted);
+              }
+
               // Leggi permessi dalla subcollection collaborators
               let permissions: CollaboratorPermissions = { editContent: false, editReminders: false };
               try {
@@ -373,13 +442,12 @@ export class NoteService {
                 }
               } catch { /* offline */ }
               return {
-                ...raw,
+                ...decrypted,
                 myRole: 'guest' as const,
                 myPermissions: permissions,
                 isShared: true,
               } as Note;
             }));
-            console.log('[NoteService] Shared notes:', notes.length);
             subscriber.next(notes);
           }, err => {
             // Index non ancora creato o altro errore — emetti array vuoto e logga
@@ -589,12 +657,21 @@ export class NoteService {
 
     const noteRef = doc(this.db, `notes/${id}`);
     const skipFields: (keyof Note)[] = this.notifTitleEnabled ? ['title'] : [];
-    // Note condivise non vengono cifrate (collaboratorUids non vuoto = in chiaro)
     const hasCollaborators = (noteSnap.data()?.['collaboratorUids']?.length ?? 0) > 0;
-    const shouldEncrypt = this.cryptoService.isEnabled && !hasCollaborators && !options?.skipEncryption;
-    const payload = shouldEncrypt
-      ? await this.cryptoService.encryptNote({ ...data, updatedAt: Date.now() }, skipFields)
-      : { ...data, updatedAt: Date.now() };
+
+    let payload: any;
+    if (!this.cryptoService.isEnabled || options?.skipEncryption) {
+      payload = { ...data, updatedAt: Date.now() };
+    } else if (hasCollaborators) {
+      // Nota condivisa: cifra con AES se la chiave e disponibile in cache
+      const aesKey = await this._getAESKeyForNote(id, uid);
+      payload = aesKey
+        ? await this.cryptoService.encryptNoteWithAESKey({ ...data, updatedAt: Date.now() }, aesKey, skipFields)
+        : { ...data, updatedAt: Date.now() }; // fallback plaintext (lazy migration)
+    } else {
+      payload = await this.cryptoService.encryptNote({ ...data, updatedAt: Date.now() }, skipFields);
+    }
+
     await updateDoc(noteRef, payload as any);
   }
 
@@ -985,17 +1062,16 @@ export class NoteService {
     return { noteId, createdBy: invite.createdBy };
   }
 
-  /** True se il contenuto della nota in Firestore è effettivamente cifrato con PGP. */
+  /** True se il contenuto della nota in Firestore è cifrato (PGP o AES). */
   async isNoteEncrypted(noteId: string): Promise<boolean> {
     try {
       const snap = await getDoc(doc(this.db, `notes/${noteId}`));
       if (!snap.exists()) return false;
       const d = snap.data();
-      const PGP_MARKER = '-----BEGIN PGP MESSAGE-----';
       return (
-        (typeof d?.['title'] === 'string' && d['title'].startsWith(PGP_MARKER)) ||
-        (typeof d?.['content'] === 'string' && d['content'].startsWith(PGP_MARKER)) ||
-        (typeof d?.['blocks'] === 'string' && d['blocks'].startsWith(PGP_MARKER))
+        (typeof d?.['title'] === 'string' && this.cryptoService.isEncryptedValue(d['title'])) ||
+        (typeof d?.['content'] === 'string' && this.cryptoService.isEncryptedValue(d['content'])) ||
+        (typeof d?.['blocks'] === 'string' && this.cryptoService.isEncryptedValue(d['blocks']))
       );
     } catch {
       return false;
@@ -1053,26 +1129,324 @@ export class NoteService {
     }
   }
 
-  /** Revoca tutti i collaboratori: cancella subdoc + inviti del noteId + svuota collaboratorUids. Se encryption attiva, ri-cifra la nota. */
+  // ─── AES key helpers ─────────────────────────────────────────────────────────
+
+  /**
+   * Carica e unwrappa la chiave AES di una nota per un dato utente.
+   * Prima controlla la cache in-memory, poi Firestore (sharedKeys/{uid}).
+   * Restituisce null se la chiave non e disponibile (nota pre-migrazione o offline).
+   */
+  private async _getAESKeyForNote(noteId: string, uid: string): Promise<CryptoKey | null> {
+    const cached = this._aesKeyCache.get(noteId);
+    if (cached) return cached;
+
+    try {
+      const keySnap = await getDoc(doc(this.db, `notes/${noteId}/sharedKeys/${uid}`));
+      if (!keySnap.exists()) return null;
+      const wrappedKey = keySnap.data()?.['wrappedKey'] as string | undefined;
+      if (!wrappedKey) return null;
+      const aesKey = await this.cryptoService.unwrapKeyForSelf(uid, wrappedKey);
+      this._aesKeyCache.set(noteId, aesKey);
+      return aesKey;
+    } catch {
+      return null;
+    }
+  }
+
+  // ─── Share-by-code ────────────────────────────────────────────────────────────
+
+  /**
+   * Genera un codice di condivisione per una nota nel formato LOOKUP-KEY.
+   * - Se esiste gia un codice attivo per la nota, lo elimina prima (policy: uno per nota).
+   * - Genera o riusa la chiave AES della nota.
+   * - Se la nota era PGP, decripta e ricifra con AES.
+   * - Se la nota era plaintext (condivisa legacy), cifra con la nuova chiave AES.
+   * - Scrive sharedKeys/{ownerUid} e invites/{lookup}.
+   * Ritorna il codice nel formato LOOKUP-KEY.
+   */
+  async generateShareCode(noteId: string): Promise<string> {
+    const uid = this.authService.getCurrentUserId();
+    if (!uid) throw new Error('Not authenticated');
+
+    // Cancella inviti attivi preesistenti per questa nota (policy: uno per nota)
+    await this.revokeShareCode(noteId);
+
+    // Carica il documento nota
+    const noteSnap = await this.freshOrCached(doc(this.db, `notes/${noteId}`));
+    if (!noteSnap.exists()) throw new Error('Nota non trovata');
+    const noteData = noteSnap.data() as any;
+
+    // Determina se esiste gia una chiave AES per questa nota
+    let aesKey: CryptoKey | null = await this._getAESKeyForNote(noteId, uid);
+    let isNewKey = false;
+
+    if (!aesKey) {
+      // Genera nuova chiave AES
+      aesKey = await this.cryptoService.generateNoteKey();
+      isNewKey = true;
+    }
+
+    // Migrazione del contenuto se necessario
+    if (isNewKey) {
+      const title = noteData['title'] as string | undefined;
+      const blocks = noteData['blocks'];
+      const hasPGPContent = (typeof title === 'string' && this.cryptoService.isPGPEncrypted(title)) ||
+                            (typeof blocks === 'string' && this.cryptoService.isPGPEncrypted(blocks));
+      const hasPlaintextShared = !hasPGPContent &&
+                                  !this.cryptoService.isAESEncrypted(title ?? '') &&
+                                  (noteData['collaboratorUids']?.length ?? 0) > 0;
+
+      // Decripta da PGP se necessario, poi ricifra con AES
+      let plainNote: any = noteData;
+      if (hasPGPContent && this.cryptoService.isEnabled) {
+        plainNote = await this.cryptoService.decryptNote(noteData);
+      }
+
+      // Cifra con AES (sia per PGP→AES che per plaintext→AES)
+      if (hasPGPContent || hasPlaintextShared) {
+        const skipFields: (keyof Note)[] = this.notifTitleEnabled ? ['title'] : [];
+        const encrypted = await this.cryptoService.encryptNoteWithAESKey(plainNote, aesKey, skipFields);
+        await updateDoc(doc(this.db, `notes/${noteId}`), encrypted as any);
+      }
+
+      // Aggiorna la cache
+      this._aesKeyCache.set(noteId, aesKey);
+    }
+
+    // Wrappa la chiave AES con la PGP public key dell'owner
+    const userSnap = await getDoc(doc(this.db, `users/${uid}`));
+    const ownerPublicKey = userSnap.data()?.['publicKey'] as string | undefined;
+    if (!ownerPublicKey) throw new Error('Chiave pubblica owner non trovata');
+
+    const wrappedKey = await this.cryptoService.wrapKeyForUser(aesKey, ownerPublicKey);
+    await setDoc(doc(this.db, `notes/${noteId}/sharedKeys/${uid}`), { wrappedKey, updatedAt: Date.now() });
+
+    // Genera lookup 8-char univoco
+    let lookup = '';
+    let attempts = 0;
+    while (attempts < 5) {
+      lookup = this._generateLookup();
+      const existing = await getDoc(doc(this.db, `invites/${lookup}`));
+      if (!existing.exists()) break;
+      attempts++;
+    }
+    if (attempts >= 5) throw new Error('Impossibile generare lookup univoco. Riprova.');
+
+    // Esporta la chiave AES in base64url (questo diventa il KEY del code)
+    const keyBase64url = await this.cryptoService.exportNoteKey(aesKey);
+
+    // Scrivi il documento invite
+    const now = Date.now();
+    await setDoc(doc(this.db, `invites/${lookup}`), {
+      type: 'note',
+      resourceId: noteId,
+      noteId,
+      createdBy: uid,
+      createdAt: now,
+      expiresAt: now + 365 * 24 * 60 * 60 * 1000,
+    });
+
+    return new ShareCode(lookup, keyBase64url).format();
+  }
+
+  /** Genera un lookup di SHARE_CODE_LOOKUP_LEN char dall'alfabeto condiviso. */
+  private _generateLookup(): string {
+    const bytes = crypto.getRandomValues(new Uint8Array(SHARE_CODE_LOOKUP_LEN));
+    return Array.from(bytes)
+      .map(b => SHARE_CODE_ALPHABET[b % SHARE_CODE_ALPHABET.length])
+      .join('');
+  }
+
+  /**
+   * Prima fase del join: valida il codice e recupera metadati per la preview.
+   * NON aggiunge il collaboratore. Chiamare confirmJoinByShareCode() dopo conferma.
+   */
+  async joinByShareCode(rawCode: string): Promise<{ noteId: string; ownerUsername: string; noteTitle: string; docType: string | null }> {
+    const code = ShareCode.parse(rawCode);
+    if (!code) throw new Error('join/invalid-code');
+
+    const uid = this.authService.getCurrentUserId();
+    if (!uid) throw new Error('Not authenticated');
+
+    // Leggi l'invite
+    const inviteSnap = await getDoc(doc(this.db, `invites/${code.lookup}`));
+    if (!inviteSnap.exists()) throw new Error('join/not-found');
+
+    const invite = inviteSnap.data() as {
+      noteId?: string;
+      resourceId?: string;
+      type?: string;
+      expiresAt: number;
+      createdBy: string;
+    };
+
+    if (Date.now() > invite.expiresAt) throw new Error('join/expired');
+    if (invite.type === 'calendar') throw new Error('join/wrong-type');
+
+    const noteId = invite.noteId ?? invite.resourceId;
+    if (!noteId) throw new Error('join/malformed');
+
+    if (uid === invite.createdBy) throw new Error('join/own-note');
+
+    // Controlla se gia collaboratore
+    const collabSnap = await getDoc(doc(this.db, `notes/${noteId}/collaborators/${uid}`));
+    if (collabSnap.exists()) throw new Error('join/already-collaborator');
+
+    // Recupera username owner
+    const ownerUsername = await this.getUsernameByUid(invite.createdBy) ?? invite.createdBy;
+
+    // Decripta il titolo usando la chiave dal code (per la preview)
+    let noteTitle = '';
+    let docType: string | null = null;
+    try {
+      const aesKey = await this.cryptoService.importNoteKey(code.key);
+      const noteSnap = await getDoc(doc(this.db, `notes/${noteId}`));
+      if (noteSnap.exists()) {
+        const nd = noteSnap.data() as any;
+        docType = nd['type'] ?? null;
+        const rawTitle = nd['title'] as string | undefined;
+        if (rawTitle && this.cryptoService.isAESEncrypted(rawTitle)) {
+          noteTitle = await this.cryptoService.decryptNoteAES(aesKey, rawTitle);
+        } else if (rawTitle && this.cryptoService.isPGPEncrypted(rawTitle)) {
+          // Nota non ancora migrata ad AES — usa placeholder
+          noteTitle = '';
+        } else {
+          noteTitle = rawTitle ?? '';
+        }
+      }
+    } catch {
+      noteTitle = '';
+    }
+
+    return { noteId, ownerUsername, noteTitle, docType };
+  }
+
+  /**
+   * Seconda fase del join: aggiunge il collaboratore e salva la chiave AES wrappata.
+   * Chiamare solo dopo che l'utente ha confermato la preview.
+   * Ritorna il noteId.
+   */
+  async confirmJoinByShareCode(rawCode: string, opts?: { notificationsEnabled?: boolean }): Promise<string> {
+    const code = ShareCode.parse(rawCode);
+    if (!code) throw new Error('join/invalid-code');
+
+    const uid = this.authService.getCurrentUserId();
+    if (!uid) throw new Error('Not authenticated');
+
+    const inviteSnap = await getDoc(doc(this.db, `invites/${code.lookup}`));
+    if (!inviteSnap.exists()) throw new Error('join/not-found');
+
+    const invite = inviteSnap.data() as { noteId?: string; resourceId?: string; expiresAt: number; type?: string };
+    if (Date.now() > invite.expiresAt) throw new Error('join/expired');
+
+    const noteId = invite.noteId ?? invite.resourceId;
+    if (!noteId) throw new Error('join/malformed');
+
+    // Accetta l'invito (aggiunge collaboratore)
+    await this.acceptInvite(code.lookup, opts);
+
+    // Importa la chiave AES dal code
+    const aesKey = await this.cryptoService.importNoteKey(code.key);
+
+    // Aggiorna la cache in-memory
+    this._aesKeyCache.set(noteId, aesKey);
+
+    // Wrappa la chiave con la propria PGP public key e salvala su Firestore
+    const userSnap = await getDoc(doc(this.db, `users/${uid}`));
+    const myPublicKey = userSnap.data()?.['publicKey'] as string | undefined;
+    if (myPublicKey) {
+      const wrappedKey = await this.cryptoService.wrapKeyForUser(aesKey, myPublicKey);
+      await setDoc(doc(this.db, `notes/${noteId}/sharedKeys/${uid}`), { wrappedKey, updatedAt: Date.now() });
+    }
+
+    return noteId;
+  }
+
+  /**
+   * Revoca tutti gli inviti attivi per una nota (per lookup, non per token URL).
+   * Usato sia dal pannello di condivisione sia internamente prima di rigenerare.
+   */
+  async revokeShareCode(noteId: string): Promise<void> {
+    const uid = this.authService.getCurrentUserId();
+    if (!uid) throw new Error('Not authenticated');
+
+    try {
+      const snap = await getDocs(query(
+        collection(this.db, 'invites'),
+        where('noteId', '==', noteId),
+        where('createdBy', '==', uid)
+      ));
+      if (snap.empty) return;
+      const batch = writeBatch(this.db);
+      snap.docs.forEach(d => batch.delete(d.ref));
+      await batch.commit();
+    } catch {
+      // Non blocca il flusso principale
+    }
+  }
+
+  /**
+   * Cerca un invite attivo (share-by-code) per una nota.
+   * Ritorna il codice completo LOOKUP-KEY se esiste, null altrimenti.
+   * Nota: la KEY non e ricostruibile da Firestore dopo la generazione — solo il LOOKUP.
+   * Questo metodo e usato dallo sharing panel per sapere se esiste un codice attivo,
+   * ma la KEY viene sempre rigenerata da generateShareCode().
+   */
+  async getActiveShareCode(noteId: string): Promise<{ lookup: string } | null> {
+    try {
+      const uid = this.authService.getCurrentUserId();
+      if (!uid) return null;
+      const snap = await getDocs(query(
+        collection(this.db, 'invites'),
+        where('noteId', '==', noteId),
+        where('createdBy', '==', uid)
+      ));
+      const now = Date.now();
+      const active = snap.docs.find(d => (d.data()['expiresAt'] as number) > now);
+      return active ? { lookup: active.id } : null;
+    } catch {
+      return null;
+    }
+  }
+
+  /** Revoca tutti i collaboratori: cancella subdoc + inviti + sharedKeys del noteId + svuota collaboratorUids. Ri-cifra con PGP. */
   async revokeAllCollaborators(noteId: string): Promise<void> {
-    const [collabsSnap, invitesSnap] = await Promise.all([
+    const uid = this.authService.getCurrentUserId();
+    const [collabsSnap, invitesSnap, sharedKeysSnap] = await Promise.all([
       getDocs(collection(this.db, `notes/${noteId}/collaborators`)),
       getDocs(query(collection(this.db, 'invites'), where('noteId', '==', noteId))),
+      getDocs(collection(this.db, `notes/${noteId}/sharedKeys`)),
     ]);
 
     const batch = writeBatch(this.db);
     collabsSnap.docs.forEach(d => batch.delete(d.ref));
     invitesSnap.docs.forEach(d => batch.delete(d.ref));
+    sharedKeysSnap.docs.forEach(d => batch.delete(d.ref));
     batch.update(doc(this.db, `notes/${noteId}`), { collaboratorUids: [] });
     await batch.commit();
 
-    // Ri-cifra se encryption attiva (la nota era in chiaro mentre condivisa)
-    if (this.cryptoService.isEnabled) {
+    // Rimuovi dalla cache AES (la nota torna PGP)
+    this._aesKeyCache.delete(noteId);
+
+    // Ri-cifra con PGP se encryption attiva (la nota era AES/plaintext mentre condivisa)
+    if (this.cryptoService.isEnabled && uid) {
       const noteSnap = await this.freshOrCached(doc(this.db, `notes/${noteId}`));
       if (noteSnap.exists()) {
         const raw = { id: noteSnap.id, ...noteSnap.data() } as any;
         const skipFields: (keyof Note)[] = this.notifTitleEnabled ? ['title'] : [];
-        const encrypted = await this.cryptoService.encryptNote(raw, skipFields);
+
+        // Decripta eventuale contenuto AES prima di ri-cifrare con PGP
+        const hasAES = (typeof raw.title === 'string' && this.cryptoService.isAESEncrypted(raw.title)) ||
+                       (typeof raw.blocks === 'string' && this.cryptoService.isAESEncrypted(raw.blocks));
+        let plainNote = raw;
+        if (hasAES) {
+          const aesKey = await this._getAESKeyForNote(noteId, uid);
+          if (aesKey) {
+            plainNote = await this.cryptoService.decryptNoteWithAESKey(raw, aesKey);
+          }
+        }
+
+        const encrypted = await this.cryptoService.encryptNote(plainNote, skipFields);
         await updateDoc(doc(this.db, `notes/${noteId}`), encrypted as any);
       }
     }
@@ -1219,8 +1593,9 @@ export class NoteService {
     });
     await Promise.all(snapshot.docs.map(async (d: any) => {
       const raw = d.data();
-      // Skip already encrypted notes (title starts with PGP marker)
-      if (raw.title && raw.title.startsWith('-----BEGIN PGP MESSAGE-----')) return;
+      // Skip gia cifrate (PGP o AES) e skip note condivise (gestite da generateShareCode)
+      if (raw.title && this.cryptoService.isEncryptedValue(raw.title)) return;
+      if ((raw.collaboratorUids?.length ?? 0) > 0) return;
       const encrypted = await this.cryptoService.encryptNote(raw);
       await updateDoc(doc(this.db, `notes/${d.id}`), encrypted as any);
     }));

@@ -345,7 +345,7 @@
 
     <!-- FAB desktop: speed-dial Nota/Memo/Evento (Fase 1) -->
     <div class="sidenav-fab-area" *ngIf="activeNote === undefined && !isMobile">
-      <app-create-fab variant="desktop" (create)="onCreateFab($event)"></app-create-fab>
+      <app-create-fab variant="desktop" (create)="onCreateFab($event)" (joinShared)="onJoinShared()"></app-create-fab>
     </div>
   </mat-sidenav-content>
 
@@ -353,7 +353,7 @@
 
 <!-- FAB mobile: speed-dial Nota/Memo/Evento (Fase 1) -->
 <div class="mobile-fab-overlay" *ngIf="isMobile && activeNote === undefined">
-  <app-create-fab variant="mobile" (create)="onCreateFab($event)"></app-create-fab>
+  <app-create-fab variant="mobile" (create)="onCreateFab($event)" (joinShared)="onJoinShared()"></app-create-fab>
 </div>
 
 <!-- Unified nav toolbar — mobile e tablet (<1280px): Note / Promemoria / Calendario -->

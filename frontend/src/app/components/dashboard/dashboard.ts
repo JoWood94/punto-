@@ -26,7 +26,7 @@ import { ConfirmDialogComponent } from '../confirm-dialog/confirm-dialog';
 import { PassphraseDialogComponent } from '../passphrase-dialog/passphrase-dialog';
 import { UpdateDialogComponent } from '../update-dialog/update-dialog';
 import { UsernameDialogComponent } from '../username-dialog/username-dialog';
-import { InviteAcceptDialogComponent } from '../invite-accept-dialog/invite-accept-dialog';
+import { JoinByCodeDialogComponent } from '../join-by-code-dialog/join-by-code-dialog';
 import { TranslateModule } from '@ngx-translate/core';
 import { TranslationService } from '../../services/translation';
 import { Observable, Subscription, firstValueFrom, skip } from 'rxjs';
@@ -128,7 +128,6 @@ export class DashboardComponent implements OnInit, OnDestroy {
   isReady = false;
   updatePending = false;
   private deepLinkNoteId: string | null = null;
-  private processedInviteToken: string | null = null;
   private updateDialogShown = false;
   private swMessageListener?: (event: MessageEvent) => void;
   private swControllerChangeListener?: () => void;
@@ -187,7 +186,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
     }
 
     // Reagisce a ?openNote= sia al caricamento iniziale sia a cambi URL successivi
-    // (es. app già aperta, SW chiama clients.openWindow con nuovo URL)
+    // (es. app gia aperta, SW chiama clients.openWindow con nuovo URL)
     this.routeSub = this.route.queryParams.subscribe(params => {
       const noteId = params['openNote'];
       if (noteId && noteId !== this.deepLinkNoteId) {
@@ -198,12 +197,6 @@ export class DashboardComponent implements OnInit, OnDestroy {
           this.deepLinkNoteId = noteId;
           this.armDeepLinkTimeout();
         }
-      }
-
-      const inviteToken = params['invite'];
-      if (inviteToken && inviteToken !== this.processedInviteToken) {
-        this.processedInviteToken = inviteToken;
-        this.handleInvite(inviteToken);
       }
     });
 
@@ -375,64 +368,6 @@ export class DashboardComponent implements OnInit, OnDestroy {
   private armDeepLinkTimeout() {
     clearTimeout(this.deepLinkTimeout);
     this.deepLinkTimeout = setTimeout(() => { this.deepLinkNoteId = null; }, 10000);
-  }
-
-  private async handleInvite(token: string) {
-    // Rimuovi il param dall'URL subito (evita re-processing al reload)
-    this.router.navigate([], { queryParams: {}, replaceUrl: true });
-
-    // Fase 1: valida il token (errori qui = invite non valido/scaduto)
-    let noteId: string;
-    let createdBy: string;
-    try {
-      ({ noteId, createdBy } = await this.noteService.readInvite(token));
-    } catch (e: any) {
-      console.error('[handleInvite] FASE 1 readInvite error:', e?.code ?? e?.message ?? e);
-      const msg = e?.message?.includes('expired')
-        ? this.translationService.instant('INVITE.EXPIRED_ERROR')
-        : this.translationService.instant('INVITE.INVALID_ERROR');
-      this.toast.show(msg);
-      return;
-    }
-
-    const uid = this.authService.getCurrentUserId();
-    if (!uid) return;
-
-    if (uid === createdBy) {
-      this.toast.show(this.translationService.instant('INVITE.OWN_INVITE_ERROR'));
-      return;
-    }
-
-    const [ownerUsername, noteMeta] = await Promise.all([
-      this.noteService.getUsernameByUid(createdBy),
-      this.noteService.readNoteMeta(noteId),
-    ]);
-
-    const result = await firstValueFrom(this.dialog.open(InviteAcceptDialogComponent, {
-      data: {
-        ownerUsername: ownerUsername ?? createdBy,
-        noteTitle: noteMeta.title ?? this.translationService.instant('NOTE.UNTITLED'),
-        docType: noteMeta.type as 'note' | 'memo' | 'event' | null,
-      },
-      width: '420px',
-      maxWidth: '95vw',
-    }).afterClosed());
-
-    if (!result?.accepted) return;
-
-    // Fase 2: accetta l'invito (errori qui = problema tecnico, non invite non valido)
-    try {
-      await this.noteService.acceptInvite(token, {
-        notificationsEnabled: result.notificationsEnabled,
-      });
-      this.toast.show(this.translationService.instant('INVITE.ACCEPTED'), 3000);
-    } catch (e: any) {
-      console.error('[handleInvite] FASE 2 acceptInvite error:', e?.code ?? e?.message ?? e);
-      const msg = e?.message?.includes('expired')
-        ? this.translationService.instant('INVITE.EXPIRED_ERROR')
-        : this.translationService.instant('INVITE.ACCEPT_ERROR');
-      this.toast.show(msg);
-    }
   }
 
   private async writeClientVersion() {
@@ -992,7 +927,11 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   openSettings() { this.closeSettingsDropdown(); this.router.navigate(['/settings']); }
   reloadApp() { this.closeSettingsDropdown(); document.location.reload(); }
-  logout() { this.closeSettingsDropdown(); this.authService.logout().then(() => this.router.navigate(['/login'])); }
+  logout() {
+    this.closeSettingsDropdown();
+    this.noteService.clearAESKeyCache();
+    this.authService.logout().then(() => this.router.navigate(['/login']));
+  }
   /**
    * Apre editor per creare nuova nota/memo/evento.
    * @param type se omesso, deduce dalla view attiva (back-compat pre-FAB speed-dial).
@@ -1011,9 +950,29 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.activeNote = null;
   }
 
-  /** Handler emit dal CreateFabComponent speed-dial. */
+  /** Handler emit dal CreateFabComponent speed-dial (creazione nota/memo/evento). */
   onCreateFab(type: NoteType) {
     this.openNoteEditor(type);
+  }
+
+  /** Handler emit dal CreateFabComponent quando l'utente vuole unirsi a una nota condivisa. */
+  async onJoinShared() {
+    const ref = this.dialog.open(JoinByCodeDialogComponent, {
+      width: '460px',
+      maxWidth: '95vw',
+    });
+    const result = await firstValueFrom(ref.afterClosed());
+    if (result?.joined && result.noteId) {
+      // La nota condivisa arrivera dal live listener getNotes().
+      // Tentiamo di selezionarla subito se e gia in lista, altrimenti
+      // aspettiamo la prossima emissione via pendingSelectNoteId.
+      const existing = this.allNotes.find(n => n.id === result.noteId);
+      if (existing) {
+        this.selectNote(existing);
+      } else {
+        this.pendingSelectNoteId = result.noteId;
+      }
+    }
   }
 
   private computeDefaultReminderDate(): Date {

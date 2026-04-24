@@ -15,9 +15,11 @@ import { NoteType } from '../../services/note';
 export class CreateFabComponent {
   @Input() variant: 'desktop' | 'mobile' = 'desktop';
   @Input() disabled = false;
-  /** In Fase 1 l'entità Event non è ancora implementata (arriva in Fase 3/4). */
+  /** In Fase 1 l'entita Event non e ancora implementata (arriva in Fase 3/4). */
   @Input() eventsEnabled = false;
   @Output() create = new EventEmitter<NoteType>();
+  /** Emesso quando l'utente tocca "Unisciti a una nota". */
+  @Output() joinShared = new EventEmitter<void>();
 
   open = false;
 
@@ -33,6 +35,11 @@ export class CreateFabComponent {
   pick(type: NoteType): void {
     this.close();
     this.create.emit(type);
+  }
+
+  pickJoin(): void {
+    this.close();
+    this.joinShared.emit();
   }
 
   @HostListener('document:keydown.escape')

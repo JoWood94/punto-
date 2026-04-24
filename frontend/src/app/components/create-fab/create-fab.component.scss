@@ -77,11 +77,12 @@
     pointer-events: auto;
   }
 
-  // Stagger: la voce più in basso (note) entra per prima, poi memo, poi event.
-  // In reverse dal rendering DOM (event è in cima nel template): event ultimo.
-  &--note   { .create-fab-root--open & { transition-delay: 0ms; } }
-  &--memo   { .create-fab-root--open & { transition-delay: 40ms; } }
-  &--event  { .create-fab-root--open & { transition-delay: 80ms; } }
+  // Stagger: la voce piu in basso entra per prima.
+  // Ordine DOM dal basso: join, note, memo, event.
+  &--join   { .create-fab-root--open & { transition-delay: 0ms; } }
+  &--note   { .create-fab-root--open & { transition-delay: 40ms; } }
+  &--memo   { .create-fab-root--open & { transition-delay: 80ms; } }
+  &--event  { .create-fab-root--open & { transition-delay: 120ms; } }
 
   mat-icon {
     display: inline-flex;

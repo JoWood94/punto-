@@ -1,0 +1,43 @@
+<h2 mat-dialog-title class="join-dialog-title">
+  <mat-icon class="join-dialog-icon">group_add</mat-icon>
+  {{ 'SHARING.JOIN_TITLE' | translate }}
+</h2>
+
+<mat-dialog-content class="join-dialog-content">
+  <p class="join-dialog-hint">{{ 'SHARING.JOIN_HINT' | translate }}</p>
+
+  <mat-form-field appearance="outline" class="join-code-field">
+    <mat-label>{{ 'SHARING.JOIN_CODE_LABEL' | translate }}</mat-label>
+    <input
+      #codeInput
+      matInput
+      [(ngModel)]="rawCode"
+      (input)="onCodeInput()"
+      (keydown.enter)="isValid && !loading() && onSubmit()"
+      placeholder="{{ 'SHARING.JOIN_CODE_PLACEHOLDER' | translate }}"
+      autocomplete="off"
+      autocorrect="off"
+      autocapitalize="characters"
+      spellcheck="false"
+      class="join-code-input"
+    />
+    <mat-icon matSuffix *ngIf="isValid">check_circle</mat-icon>
+    <mat-error *ngIf="errorKey()">{{ errorKey()! | translate }}</mat-error>
+  </mat-form-field>
+
+  <p class="join-format-hint">{{ 'SHARING.JOIN_FORMAT_HINT' | translate }}</p>
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <button mat-button (click)="cancel()" [disabled]="loading()">
+    {{ 'COMMON.CANCEL' | translate }}
+  </button>
+  <button mat-flat-button
+          class="join-submit-btn"
+          [disabled]="!isValid || loading()"
+          (click)="onSubmit()">
+    <mat-spinner *ngIf="loading()" diameter="18" class="btn-spinner"></mat-spinner>
+    <mat-icon *ngIf="!loading()">group_add</mat-icon>
+    {{ loading() ? ('SHARING.JOINING' | translate) : ('SHARING.JOIN_ACTION' | translate) }}
+  </button>
+</mat-dialog-actions>
