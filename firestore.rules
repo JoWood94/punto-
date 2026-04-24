@@ -121,11 +121,18 @@ service cloud.firestore {
           ('collaboratorUids' in get(/databases/$(database)/documents/notes/$(noteId)).data &&
            request.auth.uid in get(/databases/$(database)/documents/notes/$(noteId)).data.collaboratorUids)
         );
-        // Ognuno può scrivere/cancellare solo la propria presenza
-        allow write: if request.auth != null && userId == request.auth.uid && (
+        // Create/update: solo sul proprio doc, e solo se owner/collaborator della nota.
+        allow create, update: if request.auth != null && userId == request.auth.uid && (
           get(/databases/$(database)/documents/notes/$(noteId)).data.uid == request.auth.uid ||
           ('collaboratorUids' in get(/databases/$(database)/documents/notes/$(noteId)).data &&
            request.auth.uid in get(/databases/$(database)/documents/notes/$(noteId)).data.collaboratorUids)
+        );
+        // Delete: il diretto interessato, OPPURE l'owner della nota (cleanup su kick).
+        // Necessario per rimuovere subito la presence di un guest rimosso: il guest
+        // kickato non ha più accesso alla nota e non può cancellare il proprio doc.
+        allow delete: if request.auth != null && (
+          userId == request.auth.uid ||
+          get(/databases/$(database)/documents/notes/$(noteId)).data.uid == request.auth.uid
         );
       }
 
