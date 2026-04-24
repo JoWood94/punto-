@@ -304,5 +304,15 @@
     "SET": "Imposta",
     "SAVE": "Salva",
     "SAVE_SUCCESS": "Username aggiornato"
+  },
+  "JOIN": {
+    "PREVIEW_QUESTION": "Vuoi unirti a \"{{title}}\" di @{{owner}}?",
+    "PREVIEW_QUESTION_NO_TITLE": "Vuoi unirti a una nota di @{{owner}}?",
+    "LOADING_PREVIEW": "Caricamento anteprima...",
+    "ERROR_INVALID": "Codice non valido",
+    "ERROR_EXPIRED": "Codice scaduto o revocato",
+    "ERROR_ALREADY_IN": "Sei già collaboratore di questa nota",
+    "ERROR_OWN_NOTE": "Non puoi unirti alla tua stessa nota",
+    "ERROR_GENERIC": "Impossibile caricare l'anteprima. Riprova."
   }
 }

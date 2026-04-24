@@ -4,7 +4,6 @@
 </h2>
 
 <mat-dialog-content class="join-dialog-content">
-  <p class="join-dialog-hint">{{ 'SHARING.JOIN_HINT' | translate }}</p>
 
   <mat-form-field appearance="outline" class="join-code-field">
     <mat-label>{{ 'SHARING.JOIN_CODE_LABEL' | translate }}</mat-label>
@@ -13,7 +12,7 @@
       matInput
       [(ngModel)]="rawCode"
       (input)="onCodeInput()"
-      (keydown.enter)="isValid && !loading() && onSubmit()"
+      (keydown.enter)="onSubmit()"
       placeholder="{{ 'SHARING.JOIN_CODE_PLACEHOLDER' | translate }}"
       autocomplete="off"
       autocorrect="off"
@@ -21,23 +20,54 @@
       spellcheck="false"
       class="join-code-input"
     />
-    <mat-icon matSuffix *ngIf="isValid">check_circle</mat-icon>
-    <mat-error *ngIf="errorKey()">{{ errorKey()! | translate }}</mat-error>
+    <!-- Icone suffisso: spinner durante fetch, check quando pronta -->
+    <mat-spinner matSuffix *ngIf="previewState() === 'loading'" diameter="18" class="field-spinner"></mat-spinner>
+    <mat-icon matSuffix *ngIf="previewState() === 'ready'" class="field-icon--ok">check_circle</mat-icon>
+    <mat-icon matSuffix *ngIf="previewState() === 'error'" class="field-icon--err">error_outline</mat-icon>
+    <mat-error *ngIf="previewState() === 'error' && errorMessage()">{{ errorMessage() }}</mat-error>
   </mat-form-field>
 
+  <!-- Loading preview hint -->
+  <p *ngIf="previewState() === 'loading'" class="join-state-hint join-state-hint--loading">
+    {{ 'JOIN.LOADING_PREVIEW' | translate }}
+  </p>
+
+  <!-- Preview card: titolo + owner -->
+  <div *ngIf="previewState() === 'ready' && preview() as p" class="join-preview">
+    <p class="join-preview__question">
+      <ng-container *ngIf="p.noteTitle; else noTitle">
+        {{ 'JOIN.PREVIEW_QUESTION' | translate:{ title: p.noteTitle, owner: p.ownerUsername } }}
+      </ng-container>
+      <ng-template #noTitle>
+        {{ 'JOIN.PREVIEW_QUESTION_NO_TITLE' | translate:{ owner: p.ownerUsername } }}
+      </ng-template>
+    </p>
+
+    <!-- Consenso notifiche — solo per memo/event -->
+    <section *ngIf="needsNotificationConsent" class="join-notif-consent">
+      <h3 class="join-notif-consent__title">{{ 'INVITE.NOTIF_CONSENT_TITLE' | translate }}</h3>
+      <p class="join-notif-consent__hint">{{ 'INVITE.NOTIF_CONSENT_HINT' | translate }}</p>
+      <mat-radio-group [(ngModel)]="notificationsEnabled" class="join-notif-consent__group" aria-label="Notifiche">
+        <mat-radio-button [value]="true">{{ 'INVITE.NOTIF_CONSENT_YES' | translate }}</mat-radio-button>
+        <mat-radio-button [value]="false">{{ 'INVITE.NOTIF_CONSENT_NO' | translate }}</mat-radio-button>
+      </mat-radio-group>
+    </section>
+  </div>
+
   <p class="join-format-hint">{{ 'SHARING.JOIN_FORMAT_HINT' | translate }}</p>
+
 </mat-dialog-content>
 
 <mat-dialog-actions align="end">
-  <button mat-button (click)="cancel()" [disabled]="loading()">
+  <button mat-button (click)="cancel()" [disabled]="joining()">
     {{ 'COMMON.CANCEL' | translate }}
   </button>
   <button mat-flat-button
           class="join-submit-btn"
-          [disabled]="!isValid || loading()"
+          [disabled]="!canSubmit"
           (click)="onSubmit()">
-    <mat-spinner *ngIf="loading()" diameter="18" class="btn-spinner"></mat-spinner>
-    <mat-icon *ngIf="!loading()">group_add</mat-icon>
-    {{ loading() ? ('SHARING.JOINING' | translate) : ('SHARING.JOIN_ACTION' | translate) }}
+    <mat-spinner *ngIf="joining()" diameter="18" class="btn-spinner"></mat-spinner>
+    <mat-icon *ngIf="!joining()">group_add</mat-icon>
+    {{ joining() ? ('SHARING.JOINING' | translate) : ('SHARING.JOIN_ACTION' | translate) }}
   </button>
 </mat-dialog-actions>

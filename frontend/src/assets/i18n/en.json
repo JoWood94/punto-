@@ -304,5 +304,15 @@
     "SET": "Set",
     "SAVE": "Save",
     "SAVE_SUCCESS": "Username updated"
+  },
+  "JOIN": {
+    "PREVIEW_QUESTION": "Do you want to join \"{{title}}\" by @{{owner}}?",
+    "PREVIEW_QUESTION_NO_TITLE": "Do you want to join a note by @{{owner}}?",
+    "LOADING_PREVIEW": "Loading preview...",
+    "ERROR_INVALID": "Invalid code",
+    "ERROR_EXPIRED": "Code expired or revoked",
+    "ERROR_ALREADY_IN": "You are already a collaborator on this note",
+    "ERROR_OWN_NOTE": "You cannot join your own note",
+    "ERROR_GENERIC": "Could not load preview. Please try again."
   }
 }

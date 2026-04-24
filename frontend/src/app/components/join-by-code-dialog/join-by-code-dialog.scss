@@ -1,3 +1,6 @@
+// join-by-code-dialog — single-step join: codice + preview inline + conferma.
+// Aesthetic: editorial minimalism, near-black/off-white, M3 structure.
+
 .join-dialog-title {
   display: flex;
   align-items: center;
@@ -14,18 +17,14 @@
 
 .join-dialog-content {
   padding: 8px 24px 16px;
-  min-width: min(320px, 90vw);
+  min-width: min(340px, 90vw);
 }
 
-.join-dialog-hint {
-  font-size: 14px;
-  color: var(--mat-sys-on-surface-variant);
-  margin: 0 0 20px;
-  line-height: 1.5;
-}
+// ── Input ──────────────────────────────────────────────────────────────────────
 
 .join-code-field {
   width: 100%;
+  margin-top: 4px;
 }
 
 .join-code-input {
@@ -34,13 +33,98 @@
   letter-spacing: 0.02em;
 }
 
+.field-spinner {
+  display: flex;
+  align-items: center;
+}
+
+.field-icon--ok {
+  color: var(--mat-sys-primary);
+}
+
+.field-icon--err {
+  color: var(--mat-sys-error);
+}
+
+// ── State hints ────────────────────────────────────────────────────────────────
+
+.join-state-hint {
+  font-size: 13px;
+  margin: 6px 0 0;
+  line-height: 1.4;
+
+  &--loading {
+    color: var(--mat-sys-on-surface-variant);
+    opacity: 0.75;
+  }
+}
+
+// ── Preview card ───────────────────────────────────────────────────────────────
+
+.join-preview {
+  margin-top: 12px;
+  padding: 14px 16px;
+  background: var(--mat-sys-surface-variant, #E7E0EC);
+  border-radius: 12px;
+  opacity: 0;
+  transform: translateY(4px);
+  animation: preview-in 200ms cubic-bezier(0.2, 0, 0, 1) forwards;
+}
+
+@keyframes preview-in {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.join-preview__question {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 500;
+  color: #1C1B1F;
+  line-height: 1.5;
+}
+
+// ── Notification consent (memo/event only) ─────────────────────────────────────
+
+.join-notif-consent {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--mat-sys-outline-variant);
+
+  &__title {
+    margin: 0 0 4px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #1C1B1F;
+  }
+
+  &__hint {
+    margin: 0 0 10px;
+    font-size: 13px;
+    color: rgba(28, 27, 31, 0.7);
+    line-height: 1.4;
+  }
+
+  &__group {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+}
+
+// ── Format hint ────────────────────────────────────────────────────────────────
+
 .join-format-hint {
   font-size: 12px;
   color: var(--mat-sys-on-surface-variant);
-  margin: 4px 0 0;
+  margin: 8px 0 0;
   line-height: 1.4;
   opacity: 0.75;
 }
+
+// ── Actions ────────────────────────────────────────────────────────────────────
 
 .join-submit-btn {
   background: #1C1B1F;
