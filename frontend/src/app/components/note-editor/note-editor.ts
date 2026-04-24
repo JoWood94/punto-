@@ -1215,19 +1215,31 @@ export class NoteEditorComponent implements OnInit, OnChanges, DoCheck, AfterVie
     this.liveNoteUnsub = this.noteService.watchNote(this.savedNoteId, async (rawData) => {
       // Aggiungi id al payload raw per decryptNoteDoc (watchNote non lo include di default)
       const data = { ...rawData, id: this.savedNoteId };
+      const remoteAt = data['updatedAt'] as number | undefined;
+      console.log('[watchNote] snapshot — noteId:', this.savedNoteId,
+        'remoteAt:', remoteAt, 'lastSavedAt:', this.lastSavedAt,
+        'role:', this.note.myRole, 'autoSaveTimer:', this.autoSaveTimer !== null,
+        'pendingOwnWrite:', this.pendingOwnWrite,
+        'collaboratorUids:', data['collaboratorUids']);
 
       // Guest kick (data path): controlla sul raw prima del decrypt — collaboratorUids non è cifrato.
       if (this.note.myRole === 'guest') {
         const uid = this.authService.getCurrentUserId();
         const collabs: string[] = data['collaboratorUids'] ?? [];
         if (uid && !collabs.includes(uid)) {
+          console.log('[watchNote] guest kick — uid not in collaboratorUids');
           this._handleKickout();
           return;
         }
       }
-      if (this.autoSaveTimer !== null || this.pendingOwnWrite) return; // utente sta modificando o scrittura in volo
-      const remoteAt = data['updatedAt'] as number | undefined;
-      if (!remoteAt || remoteAt <= this.lastSavedAt) return;
+      if (this.autoSaveTimer !== null || this.pendingOwnWrite) {
+        console.log('[watchNote] skip — user editing or own write in flight');
+        return; // utente sta modificando o scrittura in volo
+      }
+      if (!remoteAt || remoteAt <= this.lastSavedAt) {
+        console.log('[watchNote] skip — remoteAt', remoteAt, '<= lastSavedAt', this.lastSavedAt, '(own echo or stale)');
+        return;
+      }
 
       // Decifra il doc raw prima di applicarlo all'editor.
       // watchNote riceve il doc direttamente da Firestore (non passato per lo stream getNotes()),
@@ -1493,12 +1505,18 @@ export class NoteEditorComponent implements OnInit, OnChanges, DoCheck, AfterVie
     }
     this.prevCompletedBy = newCB;
 
+    console.log('[applyRemoteUpdate] applying — noteId:', this.savedNoteId,
+      'remoteAt:', data['updatedAt'], 'lastSavedAt (unchanged):', this.lastSavedAt,
+      'blocks count:', blocks.length);
     this.note = {
       ...this.note,
       title: data['title'] ?? this.note.title,
       blocks,
     };
-    this.lastSavedAt = data['updatedAt'];
+    // NOTE: lastSavedAt is intentionally NOT updated here.
+    // It tracks the timestamp of our OWN writes (set in performAutoSave) to filter
+    // Firestore echo-back. Updating it from remote snapshots would block subsequent
+    // remote updates when T_remote2 <= T_remote1 (BUG 28 root cause).
     this.textBlocksNeedInit = true;
     // Indicatore sync: sync-spinner (600ms) → spunta (1.5s) → nascosto
     clearTimeout(this.syncStateTimer);
