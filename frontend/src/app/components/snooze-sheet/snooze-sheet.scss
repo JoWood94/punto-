@@ -275,13 +275,18 @@ $ease-out-editorial: cubic-bezier(0.2, 0, 0, 1);
 // column-reverse) esce per prima → la pill più vicina al FAB esce per ultima.
 // Così la durata percepita totale è identica all'entrata (180ms + N*35ms di
 // stagger), evitando la sensazione "tutte insieme = più veloce".
-// NOTE: !important è necessario per sovrascrivere l'animation set dalle
-// varianti (es. snooze-pill--danger-pending) che hanno animation shorthand,
-// e per superare gli animation-delay dell'entrata (specificity :nth-child).
+//
+// fill-mode: both è CRITICO — con forwards le pill col delay > 0 tornano
+// immediatamente alle proprietà base del .snooze-pill (opacity:0 ecc.) durante
+// il delay, producendo lo "snap" fuori vista percepito come glitch. Con both
+// il keyframe `from` (opacity:1) viene mantenuto anche durante il delay.
+//
+// !important è necessario per sovrascrivere l'animation shorthand delle
+// varianti (es. snooze-pill--danger-pending) e gli animation-delay d'entrata.
 .snooze-stack--leaving .snooze-pill,
 .snooze-stack--leaving .snooze-chip,
 .snooze-stack--leaving .snooze-custom-overlay {
-  animation: snooze-pill-out 180ms $ease-out-editorial forwards !important;
+  animation: snooze-pill-out 180ms $ease-out-editorial both !important;
 }
 
 .snooze-stack--leaving .snooze-pill {
