@@ -1188,7 +1188,9 @@ export class NoteService {
       isNewKey = true;
     }
 
-    // Migrazione del contenuto se necessario
+    // Migrazione del contenuto se necessario.
+    // plainTitle viene estratto qui una volta sola per poi cifrarlo nell'invite.
+    let plainTitle = '';
     if (isNewKey) {
       const title = noteData['title'] as string | undefined;
       const blocks = noteData['blocks'];
@@ -1203,6 +1205,7 @@ export class NoteService {
       if (hasPGPContent && this.cryptoService.isEnabled) {
         plainNote = await this.cryptoService.decryptNote(noteData);
       }
+      plainTitle = (plainNote['title'] as string | undefined) ?? '';
 
       // Cifra con AES (sia per PGP→AES che per plaintext→AES)
       if (hasPGPContent || hasPlaintextShared) {
@@ -1213,6 +1216,14 @@ export class NoteService {
 
       // Aggiorna la cache
       this._aesKeyCache.set(noteId, aesKey);
+    } else {
+      // Chiave preesistente: decifra il titolo attuale per ottenerlo in chiaro
+      const rawTitle = noteData['title'] as string | undefined;
+      if (rawTitle && this.cryptoService.isAESEncrypted(rawTitle)) {
+        try { plainTitle = await this.cryptoService.decryptNoteAES(aesKey, rawTitle); } catch { plainTitle = ''; }
+      } else {
+        plainTitle = rawTitle ?? '';
+      }
     }
 
     // Wrappa la chiave AES con la PGP public key dell'owner
@@ -1241,6 +1252,10 @@ export class NoteService {
     // Esporta la chiave AES in base64url (questo diventa il KEY del code)
     const keyBase64url = await this.cryptoService.exportNoteKey(aesKey);
 
+    // Cifra il titolo con la AES key per includerlo nell'invite (E2EE preview lato guest).
+    // Il guest decifra localmente — il server non vede mai il plaintext.
+    const encryptedTitle = await this.cryptoService.encryptNoteAES(aesKey, plainTitle);
+
     // Scrivi il documento invite
     const now = Date.now();
     await setDoc(doc(this.db, `invites/${lookup}`), {
@@ -1250,6 +1265,7 @@ export class NoteService {
       createdBy: uid,
       createdAt: now,
       expiresAt: now + 365 * 24 * 60 * 60 * 1000,
+      encryptedTitle,
     });
 
     return new ShareCode(lookup, keyBase64url).format();
@@ -1294,31 +1310,18 @@ export class NoteService {
 
     if (uid === invite.createdBy) throw new Error('join/own-note');
 
-    // Controlla se gia collaboratore
-    const collabSnap = await getDoc(doc(this.db, `notes/${noteId}/collaborators/${uid}`));
-    if (collabSnap.exists()) throw new Error('join/already-collaborator');
-
     // Recupera username owner
     const ownerUsername = await this.getUsernameByUid(invite.createdBy) ?? invite.createdBy;
 
-    // Decripta il titolo usando la chiave dal code (per la preview)
+    // Decifra il titolo di preview dall'invite stesso (E2EE: nessuna read su notes/{noteId}).
+    // La KEY è embedded nel codice → il guest può decifrarla prima di diventare collaboratore.
     let noteTitle = '';
-    let docType: string | null = null;
+    const docType: string | null = invite.type ?? null;
     try {
       const aesKey = await this.cryptoService.importNoteKey(code.key);
-      const noteSnap = await getDoc(doc(this.db, `notes/${noteId}`));
-      if (noteSnap.exists()) {
-        const nd = noteSnap.data() as any;
-        docType = nd['type'] ?? null;
-        const rawTitle = nd['title'] as string | undefined;
-        if (rawTitle && this.cryptoService.isAESEncrypted(rawTitle)) {
-          noteTitle = await this.cryptoService.decryptNoteAES(aesKey, rawTitle);
-        } else if (rawTitle && this.cryptoService.isPGPEncrypted(rawTitle)) {
-          // Nota non ancora migrata ad AES — usa placeholder
-          noteTitle = '';
-        } else {
-          noteTitle = rawTitle ?? '';
-        }
+      const rawEncrypted = (invite as any)['encryptedTitle'] as string | undefined;
+      if (rawEncrypted && this.cryptoService.isAESEncrypted(rawEncrypted)) {
+        noteTitle = await this.cryptoService.decryptNoteAES(aesKey, rawEncrypted);
       }
     } catch {
       noteTitle = '';
