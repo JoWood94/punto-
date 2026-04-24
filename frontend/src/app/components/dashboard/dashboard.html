@@ -72,7 +72,7 @@
   (touchstart)="isMobile && onTouchStart($event)"
   (touchend)="isMobile && onTouchEnd($event)">
 
-  <mat-sidenav mode="side" [opened]="(!isMobile && !settingsOpen) || (isMobile && isReady && activeNote === undefined && currentMainView === 'list' && !settingsOpen)" class="notes-sidenav"
+  <mat-sidenav mode="side" [opened]="!isMobile || (isReady && activeNote === undefined && currentMainView === 'list' && !settingsOpen)" class="notes-sidenav"
     [class.mobile-full]="isMobile">
     <div style="display: flex; flex-direction: column; height: 100%; position: relative;">
 
