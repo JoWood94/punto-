@@ -52,7 +52,10 @@
 
 <!-- Dropdown settings custom: pill stack. FUORI dal <mat-toolbar> così le
      mat-icon non ereditano color: var(--punto-primary) da .app-header. -->
-<div class="punto-settings-dropdown" *ngIf="showSettingsDropdown" role="menu">
+<div class="punto-settings-dropdown"
+     *ngIf="showSettingsDropdown || settingsDropdownLeaving"
+     [class.punto-settings-dropdown--leaving]="settingsDropdownLeaving"
+     role="menu">
   <button class="punto-settings-pill" *ngIf="updatePending" (click)="reloadApp()" role="menuitem" type="button">
     <mat-icon>system_update</mat-icon>
     <span>{{ 'MENU.UPDATE' | translate }}</span>

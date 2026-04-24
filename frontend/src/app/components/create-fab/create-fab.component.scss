@@ -67,8 +67,11 @@
 
   opacity: 0;
   transform: translateY(8px) scale(0.92);
-  transition: opacity 180ms ease-out, transform 180ms cubic-bezier(0.2, 0, 0, 1);
-  transition-delay: 0ms;
+  // Stesso easing (cubic-bezier 0.2,0,0,1) per entrambe le proprietà così
+  // entrata e uscita hanno durata/curva coerenti con snooze-sheet + settings.
+  transition:
+    opacity 180ms cubic-bezier(0.2, 0, 0, 1),
+    transform 180ms cubic-bezier(0.2, 0, 0, 1);
   pointer-events: none;
 
   .create-fab-root--open & {
@@ -77,12 +80,15 @@
     pointer-events: auto;
   }
 
-  // Stagger: la voce piu in basso entra per prima.
+  // Stagger ENTRATA: la voce più in basso entra per prima.
   // Ordine DOM dal basso: join, note, memo, event.
-  &--join   { .create-fab-root--open & { transition-delay: 0ms; } }
-  &--note   { .create-fab-root--open & { transition-delay: 40ms; } }
-  &--memo   { .create-fab-root--open & { transition-delay: 80ms; } }
-  &--event  { .create-fab-root--open & { transition-delay: 120ms; } }
+  // Stagger USCITA (default, senza .create-fab-root--open): speculare —
+  // la voce più in alto (event) esce per prima, quella più vicina al FAB
+  // (join) esce per ultima. Così la durata percepita out == durata in.
+  &--join  { transition-delay: 120ms; .create-fab-root--open & { transition-delay: 0ms; } }
+  &--note  { transition-delay: 80ms;  .create-fab-root--open & { transition-delay: 40ms; } }
+  &--memo  { transition-delay: 40ms;  .create-fab-root--open & { transition-delay: 80ms; } }
+  &--event { transition-delay: 0ms;   .create-fab-root--open & { transition-delay: 120ms; } }
 
   mat-icon {
     display: inline-flex;

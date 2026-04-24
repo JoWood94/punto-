@@ -943,19 +943,33 @@ export class DashboardComponent implements OnInit, OnDestroy {
   // Settings dropdown custom (pill stack coerente col resto app). Sostituisce
   // mat-menu il cui panelClass non veniva ereditato dagli override CSS globali.
   showSettingsDropdown = false;
+  // Stato di uscita animata: il DOM resta montato durante la leave animation.
+  // Pattern simmetrico a snooze-sheet → rendering coerente fra i tre menu.
+  settingsDropdownLeaving = false;
+  private settingsDropdownLeaveTimer: ReturnType<typeof setTimeout> | null = null;
+  private readonly SETTINGS_DROPDOWN_LEAVE_MS = 260; // 180ms + 2*35ms stagger + margine
+
   toggleSettingsDropdown(ev?: Event) {
     ev?.stopPropagation();
-    this.showSettingsDropdown = !this.showSettingsDropdown;
     if (this.showSettingsDropdown) {
-      queueMicrotask(() => this.attachSettingsClickAway());
+      this.closeSettingsDropdown();
     } else {
-      this.detachSettingsClickAway();
+      if (this.settingsDropdownLeaveTimer) { clearTimeout(this.settingsDropdownLeaveTimer); this.settingsDropdownLeaveTimer = null; }
+      this.settingsDropdownLeaving = false;
+      this.showSettingsDropdown = true;
+      queueMicrotask(() => this.attachSettingsClickAway());
     }
   }
   closeSettingsDropdown() {
     if (!this.showSettingsDropdown) return;
     this.showSettingsDropdown = false;
     this.detachSettingsClickAway();
+    this.settingsDropdownLeaving = true;
+    if (this.settingsDropdownLeaveTimer) clearTimeout(this.settingsDropdownLeaveTimer);
+    this.settingsDropdownLeaveTimer = setTimeout(() => {
+      this.settingsDropdownLeaving = false;
+      this.settingsDropdownLeaveTimer = null;
+    }, this.SETTINGS_DROPDOWN_LEAVE_MS);
   }
   private settingsClickAwayAttached = false;
   private readonly settingsClickAway = (ev: Event) => {
