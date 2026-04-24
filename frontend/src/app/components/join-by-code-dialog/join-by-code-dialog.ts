@@ -1,5 +1,6 @@
 import {
   Component, inject, signal, computed, AfterViewInit, ViewChild, ElementRef, OnDestroy,
+  ChangeDetectionStrategy, ChangeDetectorRef,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -31,6 +32,7 @@ type PreviewState = 'idle' | 'loading' | 'ready' | 'error';
 @Component({
   selector: 'app-join-by-code-dialog',
   standalone: true,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     CommonModule,
     FormsModule,
@@ -52,6 +54,7 @@ export class JoinByCodeDialogComponent implements AfterViewInit, OnDestroy {
   private noteService = inject(NoteService);
   private toastService = inject(ToastService);
   private translationService = inject(TranslationService);
+  private cdr = inject(ChangeDetectorRef);
   private dialogRef = inject(MatDialogRef<JoinByCodeDialogComponent, JoinByCodeResult | null>);
 
   rawCode = '';

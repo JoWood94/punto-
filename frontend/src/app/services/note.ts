@@ -1251,6 +1251,49 @@ export class NoteService {
     }
   }
 
+  /**
+   * Decifra un doc raw di Firestore (come arriva da watchNote) per l'utente corrente.
+   * Usato dall'editor per decifrare gli update live prima di applicarli alla UI.
+   *
+   * Strategia:
+   *   1. Se il doc ha campi AES1: → tenta _getAESKeyForNote (cache o Firestore)
+   *      → decryptNoteWithAESKey
+   *   2. Se la nota è PGP → decryptNote (solo se isEnabled)
+   *   3. Plaintext → restituisce il raw invariato
+   *
+   * Ritorna null se la chiave non è disponibile (skip-emit, l'editor mantiene
+   * lo stato precedente). Non lancia mai.
+   */
+  async decryptNoteDoc(rawData: any): Promise<any | null> {
+    const uid = this.authService.getCurrentUserId();
+    if (!uid) return rawData;
+
+    const noteId = rawData['id'] as string | undefined;
+    if (!noteId) return rawData;
+
+    const hasAES =
+      (typeof rawData['title'] === 'string' && rawData['title'].startsWith(AES_MARKER)) ||
+      (typeof rawData['blocks'] === 'string' && rawData['blocks'].startsWith(AES_MARKER)) ||
+      (typeof rawData['content'] === 'string' && rawData['content'].startsWith(AES_MARKER));
+
+    try {
+      if (hasAES) {
+        const aesKey = await this._getAESKeyForNote(noteId, uid);
+        if (!aesKey) {
+          console.warn('[decryptNoteDoc] skip — key not ready for noteId:', noteId);
+          return null;
+        }
+        return await this.cryptoService.decryptNoteWithAESKey(rawData, aesKey);
+      } else if (this.cryptoService.isEnabled) {
+        return await this.cryptoService.decryptNote(rawData);
+      }
+    } catch (e) {
+      console.warn('[decryptNoteDoc] decrypt failed for noteId:', noteId, e);
+      return null;
+    }
+    return rawData;
+  }
+
   // ─── Share-by-code ────────────────────────────────────────────────────────────
 
   /**

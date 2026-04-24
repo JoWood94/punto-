@@ -629,6 +629,7 @@ export class NoteEditorComponent implements OnInit, OnChanges, DoCheck, AfterVie
     ];
     this.textBlocksNeedInit = true;
     this.scrollEditorToBottom();
+    this.triggerAutoSave();
   }
 
   /** Riapre il dialog per modificare un LinkBlock esistente. */
@@ -1154,10 +1155,13 @@ export class NoteEditorComponent implements OnInit, OnChanges, DoCheck, AfterVie
     this.autoSaveTimer = null;
     if (!this.savedNoteId) return;
     this.pendingOwnWrite = true;
-    const willNotifyCompletion = this.completionNotifyPendingFlag;
+    const payload = this.buildPayload();
+    console.log('[AutoSave] updateNote — noteId:', this.savedNoteId,
+      'blocks:', payload.blocks?.length, 'title:', payload.title?.slice?.(0, 30));
     try {
-      await this.noteService.updateNote(this.savedNoteId, this.buildPayload());
+      await this.noteService.updateNote(this.savedNoteId, payload);
       this.lastSavedAt = Date.now();
+      console.log('[AutoSave] updateNote OK — lastSavedAt:', this.lastSavedAt);
     } catch (err) {
       console.error('[AutoSave] updateNote error:', err);
     } finally {
@@ -1208,10 +1212,11 @@ export class NoteEditorComponent implements OnInit, OnChanges, DoCheck, AfterVie
 
     // watchNote sempre attivo — necessario per ricevere update dal guest anche su note
     // che non erano ancora shared al momento dell'apertura (BF-GG fix).
-    this.liveNoteUnsub = this.noteService.watchNote(this.savedNoteId, (data) => {
-      // Guest kick (data path): se siamo stati rimossi dai collaboratori, chiudi l'editor.
-      // Usa il titolo già decifrato in memoria (this.note.title) prima che
-      // la nota scompaia dalla vista del guest.
+    this.liveNoteUnsub = this.noteService.watchNote(this.savedNoteId, async (rawData) => {
+      // Aggiungi id al payload raw per decryptNoteDoc (watchNote non lo include di default)
+      const data = { ...rawData, id: this.savedNoteId };
+
+      // Guest kick (data path): controlla sul raw prima del decrypt — collaboratorUids non è cifrato.
       if (this.note.myRole === 'guest') {
         const uid = this.authService.getCurrentUserId();
         const collabs: string[] = data['collaboratorUids'] ?? [];
@@ -1223,7 +1228,19 @@ export class NoteEditorComponent implements OnInit, OnChanges, DoCheck, AfterVie
       if (this.autoSaveTimer !== null || this.pendingOwnWrite) return; // utente sta modificando o scrittura in volo
       const remoteAt = data['updatedAt'] as number | undefined;
       if (!remoteAt || remoteAt <= this.lastSavedAt) return;
-      this.applyRemoteUpdate(data);
+
+      // Decifra il doc raw prima di applicarlo all'editor.
+      // watchNote riceve il doc direttamente da Firestore (non passato per lo stream getNotes()),
+      // quindi title/blocks sono ancora AES1: ciphertext per le note condivise.
+      const decrypted = await this.noteService.decryptNoteDoc(data);
+      if (!decrypted) {
+        // Chiave non disponibile (race transitoria) — mantieni lo stato UI corrente.
+        console.warn('[editor] watchNote: skip apply — decrypt not ready for noteId:', this.savedNoteId);
+        return;
+      }
+      console.log('[editor] watchNote: apply remote update — noteId:', this.savedNoteId,
+        'remoteAt:', remoteAt, 'blocks:', decrypted['blocks']?.length ?? '(string)');
+      this.applyRemoteUpdate(decrypted);
     }, (err) => {
       // Guest kick (error path): quando il guest viene rimosso dai collaboratorUids,
       // Firestore rules negano la lettura di notes/{noteId}. L'onSnapshot emette un
