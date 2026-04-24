@@ -399,10 +399,16 @@ export class NoteService {
                 decrypted = await this.cryptoService.decryptNote(raw);
               }
 
-              // Usa Array.isArray: un blocks cifrato e una stringa, non un array —
-              // il cast (as any[]) nascondeva il problema a compile time ma crashava a runtime.
+              // Usa Array.isArray: un blocks cifrato è una stringa, non un array.
+              // Se il campo è ancora cifrato (decrypt fallito/transitorio), emetti []
+              // invece di passare la stringa a migrateToBlocks che la distruggerebbe.
               if (!Array.isArray(decrypted.blocks) || (decrypted.blocks as any[]).length === 0) {
-                (decrypted as any).blocks = migrateToBlocks(decrypted);
+                const bs = (decrypted as any).blocks;
+                if (typeof bs === 'string' && (bs.startsWith(AES_MARKER) || bs.startsWith('-----BEGIN PGP MESSAGE-----'))) {
+                  (decrypted as any).blocks = [];
+                } else {
+                  (decrypted as any).blocks = migrateToBlocks(decrypted);
+                }
               }
               const blocksArr = decrypted.blocks as NoteBlock[];
               return {
@@ -451,7 +457,12 @@ export class NoteService {
               }
 
               if (!Array.isArray(decrypted.blocks) || (decrypted.blocks as any[]).length === 0) {
-                decrypted.blocks = migrateToBlocks(decrypted);
+                const bs = (decrypted as any).blocks;
+                if (typeof bs === 'string' && (bs.startsWith(AES_MARKER) || bs.startsWith('-----BEGIN PGP MESSAGE-----'))) {
+                  (decrypted as any).blocks = [];
+                } else {
+                  (decrypted as any).blocks = migrateToBlocks(decrypted);
+                }
               }
 
               // Leggi permessi dalla subcollection collaborators
@@ -546,7 +557,12 @@ export class NoteService {
                   const events: Note[] = snap.docs.map(d => {
                     const raw = { id: d.id, ...d.data() } as any;
                     if (!Array.isArray(raw.blocks) || (raw.blocks as any[]).length === 0) {
-                      raw.blocks = migrateToBlocks(raw);
+                      const bs = raw.blocks;
+                      if (typeof bs === 'string' && (bs.startsWith(AES_MARKER) || bs.startsWith('-----BEGIN PGP MESSAGE-----'))) {
+                        raw.blocks = [];
+                      } else {
+                        raw.blocks = migrateToBlocks(raw);
+                      }
                     }
                     // myRole qui è sempre 'owner' se raw.uid==currentUid, altrimenti
                     // semanticamente "subscriber" (lettura-only). Riusiamo il campo

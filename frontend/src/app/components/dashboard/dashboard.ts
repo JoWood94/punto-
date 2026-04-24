@@ -1,4 +1,4 @@
-import { Component, inject, OnInit, OnDestroy, ViewChild } from '@angular/core';
+import { Component, inject, NgZone, OnInit, OnDestroy, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, ActivatedRoute } from '@angular/router';
@@ -136,6 +136,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
   private readonly onOffline = () => { this.isOffline = true; };
 
   private swUpdate = inject(SwUpdate);
+  private ngZone = inject(NgZone);
 
   constructor(
     private noteService: NoteService,
@@ -155,9 +156,11 @@ export class DashboardComponent implements OnInit, OnDestroy {
       this.swUpdate.versionUpdates.subscribe(event => {
         if (event.type === 'VERSION_READY' && !this.updateDialogShown) {
           this.updateDialogShown = true;
-          const ref = this.dialog.open(UpdateDialogComponent);
-          ref.afterClosed().subscribe(() => {
-            this.updatePending = true;
+          this.ngZone.run(() => {
+            const ref = this.dialog.open(UpdateDialogComponent);
+            ref.afterClosed().subscribe(() => {
+              this.updatePending = true;
+            });
           });
         }
       });
@@ -402,8 +405,10 @@ export class DashboardComponent implements OnInit, OnDestroy {
         }
         if (!this.updateDialogShown) {
           this.updateDialogShown = true;
-          const ref = this.dialog.open(UpdateDialogComponent);
-          ref.afterClosed().subscribe(() => { this.updatePending = true; });
+          this.ngZone.run(() => {
+            const ref = this.dialog.open(UpdateDialogComponent);
+            ref.afterClosed().subscribe(() => { this.updatePending = true; });
+          });
         }
       }
     } catch (e) {
