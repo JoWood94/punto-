@@ -1516,13 +1516,18 @@ export class NoteEditorComponent implements OnInit, OnChanges, DoCheck, AfterVie
     }
     this.prevCompletedBy = newCB;
 
+    const remoteCollabUids: string[] = Array.isArray(data['collaboratorUids']) ? data['collaboratorUids'] : [];
     console.log('[applyRemoteUpdate] applying — noteId:', this.savedNoteId,
       'remoteAt:', data['updatedAt'], 'lastSavedAt (unchanged):', this.lastSavedAt,
-      'blocks count:', blocks.length);
+      'blocks count:', blocks.length, 'collaboratorUids:', remoteCollabUids.length);
     this.note = {
       ...this.note,
       title: data['title'] ?? this.note.title,
       blocks,
+      // Sincronizza anche lo stato di sharing: l'icona share-mini-fab deve diventare
+      // "group" non appena un guest accetta l'invito (collaboratorUids cresce remoto).
+      collaboratorUids: remoteCollabUids,
+      isShared: remoteCollabUids.length > 0,
     };
     // NOTE: lastSavedAt is intentionally NOT updated here.
     // It tracks the timestamp of our OWN writes (set in performAutoSave) to filter
