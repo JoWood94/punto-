@@ -27,6 +27,7 @@ import { PassphraseDialogComponent } from '../passphrase-dialog/passphrase-dialo
 import { UpdateDialogComponent } from '../update-dialog/update-dialog';
 import { UsernameDialogComponent } from '../username-dialog/username-dialog';
 import { JoinByCodeDialogComponent } from '../join-by-code-dialog/join-by-code-dialog';
+import { SettingsComponent } from '../settings/settings.component';
 import { TranslateModule } from '@ngx-translate/core';
 import { TranslationService } from '../../services/translation';
 import { Observable, Subscription, firstValueFrom, skip } from 'rxjs';
@@ -58,6 +59,7 @@ import { environment } from '../../../environments/environment';
     NoteEditorComponent,
     CalendarViewComponent,
     CreateFabComponent,
+    SettingsComponent,
     TranslateModule,
   ],
   templateUrl: './dashboard.html',
@@ -82,6 +84,9 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   activeNote?: Note | null = undefined;
   editorLeaving = false;   // trigger animazione uscita editor mobile
+  // Opzione A: settings embedded dentro la shell del dashboard — niente pagina
+  // dedicata. L'header dell'app resta visibile con il tasto back che chiude.
+  settingsOpen = false;
   isMobile = false;
   isWideDesktop = false;  // >=1280px: sidenav sempre aperta, no unified-toolbar
   currentMainView: 'list' | 'calendar' = 'calendar';
@@ -969,7 +974,15 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.settingsClickAwayAttached = false;
   }
 
-  openSettings() { this.closeSettingsDropdown(); this.router.navigate(['/settings']); }
+  openSettings() {
+    this.closeSettingsDropdown();
+    // Se è aperto l'editor, chiudilo pulitamente prima di mostrare settings
+    // (altrimenti lo stato misto confonde header + contenuto).
+    if (this.activeNote !== undefined) this.deactivateNote();
+    this.settingsOpen = true;
+  }
+
+  closeSettings() { this.settingsOpen = false; }
   reloadApp() { this.closeSettingsDropdown(); document.location.reload(); }
   logout() {
     this.closeSettingsDropdown();
@@ -1061,6 +1074,10 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.deactivateNote();
   }
   handleBackButton() {
+    if (this.settingsOpen) {
+      this.closeSettings();
+      return;
+    }
     if (this.activeNote !== undefined) {
       const hasReminder = this.noteEditorComp?.note?.blocks?.some(b => b.type === 'reminder') ?? false;
       this.syncViewToNoteType(hasReminder);

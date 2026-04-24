@@ -6,6 +6,12 @@
   // --app-header-h è definito globalmente in styles.scss (:root)
 }
 
+// Embedded dentro il DashboardComponent: l'header dashboard resta visibile,
+// il settings content occupa l'altezza residua (come .dashboard-container).
+:host(.embedded) {
+  height: calc(var(--vh, 100vh) - var(--app-header-h, 80px));
+}
+
 // .app-header — stilato globalmente in styles.scss
 
 .settings-title {

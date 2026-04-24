@@ -1,9 +1,9 @@
 <!-- Header unico globale — fuori dal sidenav container -->
 <mat-toolbar class="app-header">
 
-  <!-- Mobile: editor → indietro -->
+  <!-- Back: editor (mobile) oppure settings embedded (sempre) -->
   <button mat-icon-button [disableRipple]="true"
-          *ngIf="isMobile && activeNote !== undefined"
+          *ngIf="settingsOpen || (isMobile && activeNote !== undefined)"
           (click)="handleBackButton()"
           aria-label="Torna indietro"
           class="back-button header-btn-animated">
@@ -18,7 +18,7 @@
 
   <!-- Mobile: elimina nota (owner) o esci (guest) nell'editor -->
   <button mat-icon-button [disableRipple]="true"
-          *ngIf="isMobile && activeNote?.id"
+          *ngIf="isMobile && activeNote?.id && !settingsOpen"
           (click)="deleteOrLeaveActiveNote()"
           [attr.aria-label]="(activeNote?.myRole === 'guest' ? 'NOTE.LEAVE' : 'NOTE.DELETE_TITLE') | translate"
           class="header-btn-animated">
@@ -27,7 +27,7 @@
 
   <!-- Desktop: bottone calendario -->
   <button mat-icon-button [disableRipple]="true"
-          *ngIf="!isMobile"
+          *ngIf="!isMobile && !settingsOpen"
           (click)="currentMainView = 'calendar'; activeNote = undefined"
           [class.calendar-btn-active]="currentMainView === 'calendar' && activeNote === undefined"
           [matTooltip]="'MENU.CALENDAR_VIEW' | translate"
@@ -38,7 +38,7 @@
 
   <!-- Menu impostazioni — nascosto nell'editor su mobile, sempre visibile su desktop -->
   <button mat-icon-button [disableRipple]="true" (click)="toggleSettingsDropdown($event)" aria-label="Menu"
-          *ngIf="!isMobile || activeNote === undefined" [disabled]="!settingsMenuEnabled"
+          *ngIf="!settingsOpen && (!isMobile || activeNote === undefined)" [disabled]="!settingsMenuEnabled"
           class="settings-menu-btn" [class.settings-menu-btn--open]="showSettingsDropdown">
     <div class="settings-icon-wrapper">
       <mat-icon>more_vert</mat-icon>
@@ -67,6 +67,7 @@
 </div>
 
 <mat-sidenav-container class="dashboard-container"
+  [hidden]="settingsOpen"
   style="touch-action: pan-y"
   (touchstart)="isMobile && onTouchStart($event)"
   (touchend)="isMobile && onTouchEnd($event)">
@@ -355,13 +356,17 @@
 </mat-sidenav-container>
 
 <!-- FAB mobile: speed-dial Nota/Memo/Evento (Fase 1) -->
-<div class="mobile-fab-overlay" *ngIf="isMobile && activeNote === undefined">
+<div class="mobile-fab-overlay" *ngIf="isMobile && activeNote === undefined && !settingsOpen">
   <app-create-fab variant="mobile" (create)="onCreateFab($event)" (joinShared)="onJoinShared()"></app-create-fab>
 </div>
 
+<!-- Settings embedded (opzione A): condivide la stessa shell del dashboard.
+     Il back button nell'app-header chiama handleBackButton → closeSettings(). -->
+<app-settings *ngIf="settingsOpen" [embedded]="true" (backRequest)="closeSettings()"></app-settings>
+
 <!-- Unified nav toolbar — mobile e tablet (<1280px): Note / Promemoria / Calendario -->
 <div class="unified-toolbar"
-     *ngIf="!isWideDesktop && activeNote === undefined"
+     *ngIf="!isWideDesktop && activeNote === undefined && !settingsOpen"
      (touchstart)="onNavTouchStart($event)"
      (touchmove)="onNavTouchMove($event)"
      (touchend)="onNavTouchEnd($event)">

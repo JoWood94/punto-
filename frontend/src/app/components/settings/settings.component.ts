@@ -1,4 +1,4 @@
-import { Component, inject, OnInit } from '@angular/core';
+import { Component, EventEmitter, HostBinding, inject, Input, OnInit, Output } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule, ReactiveFormsModule, FormControl, Validators, AbstractControl, ValidationErrors } from '@angular/forms';
 import { Router } from '@angular/router';
@@ -54,6 +54,14 @@ export class SettingsComponent implements OnInit {
   private toast = inject(ToastService);
   private swUpdate = inject(SwUpdate);
   private translationService = inject(TranslationService);
+
+  /** Quando true il componente è renderizzato dentro la shell del dashboard:
+   *  nasconde la mat-toolbar interna (l'header applicativo del dashboard resta
+   *  quello visibile) ed emette backRequest invece di router.navigate sul back. */
+  @Input() embedded = false;
+  @Output() backRequest = new EventEmitter<void>();
+
+  @HostBinding('class.embedded') get _hostEmbedded() { return this.embedded; }
 
   defaultView: 'list' | 'calendar' | 'reminders' = 'list';
   notifTitleEnabled = false;
@@ -111,7 +119,11 @@ export class SettingsComponent implements OnInit {
   }
 
   goBack() {
-    this.router.navigate(['/dashboard']);
+    if (this.embedded) {
+      this.backRequest.emit();
+    } else {
+      this.router.navigate(['/dashboard']);
+    }
   }
 
   reloadApp() {
