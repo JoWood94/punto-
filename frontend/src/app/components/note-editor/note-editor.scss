@@ -37,9 +37,11 @@
   @keyframes image-spin { to { transform: rotate(360deg); } }
   .image-error { font-size: 12.5px; color: #D4746B; }
   // Preview: aspect-ratio naturale + max-height fissa per consistenza.
+  // justify-content: center centra le immagini portrait senza letterbox grigio.
+  // Background transparent: il parent della nota (bianco) fa da sfondo, non un grigio artificiale.
   .image-preview {
-    width: 100%; max-height: 420px; display: flex;
-    border-radius: 10px; overflow: hidden; background: rgba(28,27,31,0.04);
+    width: 100%; max-height: 420px; display: flex; justify-content: center;
+    border-radius: 10px; overflow: hidden; background: transparent;
   }
   .image-preview-img {
     display: block; max-width: 100%; max-height: 420px; width: auto; height: auto;
@@ -1473,6 +1475,17 @@ $rs-hover-bg: rgba(28, 27, 31, 0.05);
   display: inline-flex;
   align-items: baseline;
   cursor: pointer;
+
+  // Quando l'input time sottostante è disabled (guest senza editReminders),
+  // applica lo stesso stile disabled del recurrence select.
+  &:has(input:disabled) {
+    cursor: default;
+    > span {
+      opacity: 0.5;
+      cursor: default;
+      text-decoration: none;
+    }
+  }
 }
 
 .reminder-hero-time-input {
