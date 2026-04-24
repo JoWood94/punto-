@@ -49,7 +49,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: flex-start;
-  gap: 2px;
+  gap: 0;
   padding: 0 18px 0 22px;
   width: 210px;
   height: 48px;
@@ -94,6 +94,7 @@
     line-height: 1;
     color: #FFFBFE;
     flex-shrink: 0;
+    margin-right: 9px;
   }
 
   &:hover { filter: brightness(1.08); }

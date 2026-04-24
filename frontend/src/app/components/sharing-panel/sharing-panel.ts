@@ -47,7 +47,11 @@ export class SharingPanelComponent implements OnInit, OnDestroy {
   collaborators = signal<CollaboratorUI[]>([]);
   revoking = signal(false);
   ownerUsername: string | null = null;
+  // Presenza live: mostra chi sta attivamente editando la nota mentre il panel è aperto.
+  // Necessario perché il backdrop del dialog copre la presence-chip del note-editor.
+  presenceUsers = signal<{ uid: string; displayName: string }[]>([]);
   private collabUnsub: (() => void) | null = null;
+  private presenceUnsub: (() => void) | null = null;
 
   // Toggle editReminders è rilevante solo per memo/event.
   // Fallback permissivo (true) se docType non è fornito (inviti legacy).
@@ -65,6 +69,7 @@ export class SharingPanelComponent implements OnInit, OnDestroy {
   }
 
   async ngOnInit() {
+    this.startPresenceWatcher();
     if (this.isGuest) {
       await Promise.all([
         this.loadCollaborators(),
@@ -100,6 +105,20 @@ export class SharingPanelComponent implements OnInit, OnDestroy {
 
   ngOnDestroy() {
     this.collabUnsub?.();
+    this.presenceUnsub?.();
+  }
+
+  private startPresenceWatcher() {
+    const selfUid = this.authService.getCurrentUserId();
+    if (!selfUid) return;
+    this.presenceUnsub = this.noteService.watchPresence(
+      this.data.noteId,
+      selfUid,
+      (entries) => {
+        // presenceUsers espone solo uid + displayName; altri campi non servono al template.
+        this.presenceUsers.set(entries.map(e => ({ uid: e.uid, displayName: e.displayName })));
+      }
+    );
   }
 
   private async loadOwnerUsername() {

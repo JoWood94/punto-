@@ -1290,12 +1290,20 @@ export class NoteEditorComponent implements OnInit, OnChanges, DoCheck, AfterVie
   }
 
   /** Kick-out handler condiviso tra data-path (collaboratorUids / not-found) e error-path (permission-denied). */
-  private _handleKickout(reason: 'removed' | 'deleted' = 'removed') {
+  private async _handleKickout(reason: 'removed' | 'deleted' = 'removed') {
     this.stopLiveSync();
     const title = (this.note?.title ?? '').trim();
+    const ownerUid = (this.note as any)?.uid ?? '';
+    let username = ownerUid ? ownerUid.slice(0, 8) : '';
+    if (ownerUid) {
+      try {
+        const resolved = await this.noteService.getUsernameByUid(ownerUid);
+        if (resolved) username = resolved;
+      } catch { /* fallback sul prefisso uid */ }
+    }
     const keyBase = reason === 'deleted' ? 'NOTE.DELETED_BY_OWNER' : 'NOTE.REMOVED_BY_OWNER';
     const key = title ? keyBase : `${keyBase}_NO_TITLE`;
-    const msg = this.translationService.instant(key, { title });
+    const msg = this.translationService.instant(key, { title, username });
     this.ngZone.run(() => {
       this.toast.show(msg, 5000);
       this.closeEditor.emit(this.note?.blocks?.some(b => b.type === 'reminder') ?? false);
