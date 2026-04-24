@@ -496,6 +496,7 @@ export class NoteService {
         const shared$ = new Observable<Note[]>(subscriber => {
           const q = query(notesRef, where('collaboratorUids', 'array-contains', user.uid));
           const unsub = onSnapshot(q, async snapshot => {
+            console.log('[shared$] snapshot — docs:', snapshot.docs.length, 'changes:', snapshot.docChanges().map(c => `${c.type}:${c.doc.id}`).join(','));
             const maybeNotes: (Note | null)[] = await Promise.all(snapshot.docs.map(async d => {
               const raw = { id: d.id, ...d.data() } as any;
 
@@ -546,6 +547,7 @@ export class NoteService {
           }, err => {
             // Index non ancora creato o altro errore — emetti array vuoto e logga
             console.warn('[NoteService] Shared query error (index missing?):', err.code, err.message);
+            console.log('[shared$] error — emitting []');
             subscriber.next([]);
           });
           return () => unsub();

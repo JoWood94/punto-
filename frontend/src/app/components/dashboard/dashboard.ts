@@ -351,11 +351,14 @@ export class DashboardComponent implements OnInit, OnDestroy {
             currentSharedSnapshot.set(n.id, { title: n.title ?? '', ownerUid: n.uid ?? '' });
           }
         }
+        console.log('[diff-shared] prev:', this.prevSharedSnapshot ? [...this.prevSharedSnapshot.keys()] : null,
+          'current:', [...currentSharedSnapshot.keys()]);
         if (this.prevSharedSnapshot !== null) {
           for (const [id, snap] of this.prevSharedSnapshot) {
             if (currentSharedSnapshot.has(id)) continue;
             if (this.voluntaryLeaves.has(id)) { this.voluntaryLeaves.delete(id); continue; }
             if (this.activeNote?.id === id) continue;
+            console.log('[diff-shared] kicked-out detected for note:', id, 'title:', snap.title);
             this._notifyKickedOut(snap.title, snap.ownerUid);
           }
         }
