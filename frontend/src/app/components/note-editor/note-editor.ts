@@ -254,6 +254,7 @@ export class NoteEditorComponent implements OnInit, OnChanges, DoCheck, AfterVie
         noteId: this.savedNoteId,
         myRole: this.note.myRole,
         ownerUid: this.note.uid,
+        docType: this.note.type,
       },
       width: '480px',
       maxWidth: '95vw',

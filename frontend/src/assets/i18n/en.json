@@ -282,7 +282,8 @@
     "JOIN_OWN_NOTE": "You cannot join a note you created.",
     "JOIN_ERROR": "Failed to join. Please try again.",
     "NOTE_TOO_LARGE": "This note contains images that are too large to share. Remove some images and try again.",
-    "GENERATE_ERROR": "Failed to generate code. Please try again."
+    "GENERATE_ERROR": "Failed to generate code. Please try again.",
+    "REVOKE_ALL_ERROR": "Could not remove all collaborators. Please try again."
   },
   "USERNAME": {
     "LABEL": "Username",

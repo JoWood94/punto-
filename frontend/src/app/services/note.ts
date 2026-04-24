@@ -1109,7 +1109,7 @@ export class NoteService {
     try {
       const snap = await getDocs(query(
         collection(this.db, 'invites'),
-        where('noteId', '==', noteId)
+        where('resourceId', '==', noteId)
       ));
       const now = Date.now();
       const expired = snap.docs.filter(d => (d.data()['expiresAt'] as number) <= now);
@@ -1125,10 +1125,10 @@ export class NoteService {
   /** Cerca un invito attivo (non scaduto) per una nota. Ritorna il token se esiste, null altrimenti. */
   async getActiveInvite(noteId: string): Promise<string | null> {
     try {
-      // Filtro expiresAt client-side per evitare l'indice composito (noteId + expiresAt)
+      // Filtro expiresAt client-side per evitare l'indice composito (resourceId + expiresAt)
       const snap = await getDocs(query(
         collection(this.db, 'invites'),
-        where('noteId', '==', noteId)
+        where('resourceId', '==', noteId)
       ));
       const now = Date.now();
       const active = snap.docs.find(d => (d.data()['expiresAt'] as number) > now);
@@ -1427,7 +1427,7 @@ export class NoteService {
     try {
       const snap = await getDocs(query(
         collection(this.db, 'invites'),
-        where('noteId', '==', noteId),
+        where('resourceId', '==', noteId),
         where('createdBy', '==', uid)
       ));
       if (snap.empty) return;
@@ -1452,7 +1452,7 @@ export class NoteService {
       if (!uid) return null;
       const snap = await getDocs(query(
         collection(this.db, 'invites'),
-        where('noteId', '==', noteId),
+        where('resourceId', '==', noteId),
         where('createdBy', '==', uid)
       ));
       const now = Date.now();
@@ -1463,12 +1463,45 @@ export class NoteService {
     }
   }
 
+  /**
+   * Ricostruisce il codice completo LOOKUP-KEY per il pannello di condivisione.
+   * Cerca il documento invite attivo, poi ri-deriva la KEY decifrando sharedKeys/{uid}
+   * (la AES key non è mai salvata in chiaro su Firestore — solo wrappata con PGP).
+   * Funziona anche dopo un refresh completo: se la cache AES è vuota,
+   * _getAESKeyForNote() carica e unwrappa da sharedKeys/{uid} automaticamente.
+   * Ritorna null se non esiste un invite attivo o se la chiave non è recuperabile.
+   */
+  async loadFullShareCode(noteId: string): Promise<string | null> {
+    try {
+      const uid = this.authService.getCurrentUserId();
+      if (!uid) return null;
+
+      const snap = await getDocs(query(
+        collection(this.db, 'invites'),
+        where('resourceId', '==', noteId),
+        where('createdBy', '==', uid)
+      ));
+      const now = Date.now();
+      const active = snap.docs.find(d => (d.data()['expiresAt'] as number) > now);
+      if (!active) return null;
+
+      const lookup = active.id;
+      const aesKey = await this._getAESKeyForNote(noteId, uid);
+      if (!aesKey) return null;
+
+      const keyBase64url = await this.cryptoService.exportNoteKey(aesKey);
+      return `${lookup}-${keyBase64url}`;
+    } catch {
+      return null;
+    }
+  }
+
   /** Revoca tutti i collaboratori: cancella subdoc + inviti + sharedKeys del noteId + svuota collaboratorUids. Ri-cifra con PGP. */
   async revokeAllCollaborators(noteId: string): Promise<void> {
     const uid = this.authService.getCurrentUserId();
     const [collabsSnap, invitesSnap, sharedKeysSnap] = await Promise.all([
       getDocs(collection(this.db, `notes/${noteId}/collaborators`)),
-      getDocs(query(collection(this.db, 'invites'), where('noteId', '==', noteId))),
+      getDocs(query(collection(this.db, 'invites'), where('resourceId', '==', noteId))),
       getDocs(collection(this.db, `notes/${noteId}/sharedKeys`)),
     ]);
 

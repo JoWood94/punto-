@@ -1,4 +1,4 @@
-import { Component, inject, OnInit, OnDestroy, signal } from '@angular/core';
+import { Component, inject, OnInit, OnDestroy, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatDialogModule, MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { MatButtonModule } from '@angular/material/button';
@@ -8,7 +8,7 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatDividerModule } from '@angular/material/divider';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { TranslateModule } from '@ngx-translate/core';
-import { NoteService, Collaborator, CollaboratorPermissions } from '../../services/note';
+import { NoteService, Collaborator, CollaboratorPermissions, NoteType } from '../../services/note';
 import { TranslationService } from '../../services/translation';
 import { AuthService } from '../../services/auth';
 import { ToastService } from '../../services/toast';
@@ -36,7 +36,8 @@ export class SharingPanelComponent implements OnInit, OnDestroy {
   translationService = inject(TranslationService);
   private toastService = inject(ToastService);
   private dialogRef = inject(MatDialogRef<SharingPanelComponent>);
-  data: { noteId: string; myRole?: 'owner' | 'guest'; ownerUid?: string } = inject(MAT_DIALOG_DATA);
+  data: { noteId: string; myRole?: 'owner' | 'guest'; ownerUid?: string; docType?: NoteType } =
+    inject(MAT_DIALOG_DATA);
 
   loading = signal(true);
   generatingCode = signal(false);
@@ -47,6 +48,13 @@ export class SharingPanelComponent implements OnInit, OnDestroy {
   revoking = signal(false);
   ownerUsername: string | null = null;
   private collabUnsub: (() => void) | null = null;
+
+  // Toggle editReminders è rilevante solo per memo/event.
+  // Fallback permissivo (true) se docType non è fornito (inviti legacy).
+  readonly hasReminderSupport = computed(() => {
+    const dt = this.data.docType;
+    return !dt || dt === 'memo' || dt === 'event';
+  });
 
   get isGuest(): boolean {
     return this.data.myRole === 'guest';
@@ -65,6 +73,13 @@ export class SharingPanelComponent implements OnInit, OnDestroy {
       this.loading.set(false);
     } else {
       this.noteService.cleanupExpiredInvites(this.data.noteId).catch(() => {});
+
+      // Carica il codice già esistente senza rigenerarlo (BUG 14).
+      // loadFullShareCode ricostruisce LOOKUP-KEY da Firestore + sharedKeys.
+      this.noteService.loadFullShareCode(this.data.noteId)
+        .then(code => { if (code) this.shareCode.set(code); })
+        .catch(() => {});
+
       // Live watcher: aggiorna la lista collaboratori in tempo reale
       this.collabUnsub = this.noteService.watchCollaborators(this.data.noteId, async (rawCollabs) => {
         const updated = await Promise.all(
@@ -158,6 +173,12 @@ export class SharingPanelComponent implements OnInit, OnDestroy {
       this.collaborators.set([]);
       this.shareCode.set(null);
       this.dialogRef.close({ revoked: true });
+    } catch (err: any) {
+      console.error('[SharingPanel] revokeAllCollaborators error:', err);
+      this.toastService.show(
+        this.translationService.instant('SHARING.REVOKE_ALL_ERROR'),
+        5000
+      );
     } finally {
       this.revoking.set(false);
     }

@@ -120,7 +120,7 @@
                   [disabled]="c.removing">
                 </mat-slide-toggle>
               </div>
-              <div class="collab-toggle-row">
+              <div *ngIf="hasReminderSupport()" class="collab-toggle-row">
                 <span class="collab-toggle-label">{{ 'SHARING.EDIT_REMINDERS' | translate }}</span>
                 <mat-slide-toggle
                   [checked]="c.permissions.editReminders"

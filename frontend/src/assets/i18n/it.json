@@ -282,7 +282,8 @@
     "JOIN_OWN_NOTE": "Non puoi unirti a una nota che hai creato tu.",
     "JOIN_ERROR": "Errore durante il join. Riprova.",
     "NOTE_TOO_LARGE": "La nota contiene immagini troppo grandi per essere condivisa. Rimuovi alcune immagini e riprova.",
-    "GENERATE_ERROR": "Errore durante la generazione del codice. Riprova."
+    "GENERATE_ERROR": "Errore durante la generazione del codice. Riprova.",
+    "REVOKE_ALL_ERROR": "Impossibile revocare tutti i collaboratori. Riprova."
   },
   "USERNAME": {
     "LABEL": "Username",
