@@ -854,21 +854,49 @@ export class NoteEditorComponent implements OnInit, OnChanges, DoCheck, AfterVie
     this.triggerAutoSave();
   }
 
+  /** Apre coordinate nell'app di navigazione nativa del device.
+   *  - iOS: maps.apple.com → Apple Maps anche in PWA standalone
+   *  - Android: geo: URI fa aprire il picker app (Google Maps se installato)
+   *  - Desktop / fallback: google.com/maps in nuova tab
+   *  Usiamo window.open invece di <a target="_blank"> perché iOS PWA
+   *  standalone ignora target="_blank" (ricarica la PWA). */
   openMaps(block: LocationBlock) {
     if (!this.guestCanEdit) return;
-    if (block.lat && block.lon) {
-      window.open(
-        `https://www.openstreetmap.org/?mlat=${block.lat}&mlon=${block.lon}#map=16/${block.lat}/${block.lon}`,
-        '_blank'
-      );
+    if (!block.lat || !block.lon) return;
+    const query = `${block.lat},${block.lon}`;
+    const label = encodeURIComponent(block.address ?? '');
+    const ua = typeof navigator !== 'undefined' ? navigator.userAgent : '';
+    const isIOS = /iPad|iPhone|iPod/.test(ua);
+    const isAndroid = /Android/i.test(ua);
+    let url: string;
+    if (isIOS) {
+      url = `https://maps.apple.com/?q=${label || query}&ll=${query}`;
+    } else if (isAndroid) {
+      url = `geo:${query}?q=${query}${label ? '(' + label + ')' : ''}`;
+    } else {
+      url = `https://www.google.com/maps/search/?api=1&query=${query}`;
     }
+    window.open(url, '_blank', 'noopener,noreferrer');
+  }
+
+  /** Apre URL esterna in nuova tab/scheda del browser. Necessario per
+   *  bypassare il comportamento iOS PWA standalone che ignora target="_blank"
+   *  negli <a> e ricarica la PWA invece di delegare al browser. */
+  openExternalUrl(url: string, ev: MouseEvent) {
+    if (!url) return;
+    ev.preventDefault();
+    ev.stopPropagation();
+    window.open(url, '_blank', 'noopener,noreferrer');
   }
 
   private generateMapUrl(lat: number, lon: number): SafeResourceUrl {
-    const offset = 0.003;
+    // Layer "mapnik" (standard OSM) invece di "hot": rimuove l'overlay
+    // informativo pesante del layer Humanitarian. Offset 0.001 = zoom ~18
+    // (≈220m diagonale), molto più leggibile per preview urbana.
+    const offset = 0.001;
     const bbox = `${lon - offset},${lat - offset},${lon + offset},${lat + offset}`;
     return this.sanitizer.bypassSecurityTrustResourceUrl(
-      `https://www.openstreetmap.org/export/embed.html?bbox=${bbox}&layer=hot&marker=${lat},${lon}`
+      `https://www.openstreetmap.org/export/embed.html?bbox=${bbox}&layer=mapnik&marker=${lat},${lon}`
     );
   }
 

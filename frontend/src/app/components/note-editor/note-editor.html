@@ -283,11 +283,14 @@
             </mat-autocomplete>
           </mat-form-field>
 
-          <!-- Address confirmed view -->
+          <!-- Address confirmed view. Tap sull'indirizzo apre l'app di navigazione
+               nativa (Apple Maps su iOS, Google Maps / picker su Android). -->
           <div *ngIf="$any(block).address && !$any(block).editing" class="selected-address-view">
             <div class="address-label-row">
-              <span class="address-text">{{ $any(block).address }}</span>
-              <button mat-icon-button [disabled]="!guestCanEdit" (click)="openMaps($any(block))" matTooltip="Apri mappa">
+              <button type="button" class="address-text address-text--tappable"
+                      [disabled]="!guestCanEdit"
+                      (click)="openMaps($any(block))">{{ $any(block).address }}</button>
+              <button mat-icon-button [disabled]="!guestCanEdit" (click)="openMaps($any(block))" matTooltip="Apri nell'app mappe">
                 <mat-icon>open_in_new</mat-icon>
               </button>
               <button mat-icon-button [disabled]="!guestCanEdit" (click)="$any(block).editing = true" matTooltip="Modifica">
@@ -350,12 +353,15 @@
             </button>
           </div>
 
-          <!-- Link valorizzato: anchor + edit button inline -->
+          <!-- Link valorizzato: anchor + edit button inline. Il click è intercettato
+               e apre via window.open: su iOS PWA standalone target="_blank" sul tag
+               anchor riavvia la PWA invece di delegare al browser. -->
           <div class="link-row" *ngIf="$any(block).url">
             <a [attr.href]="guestCanEdit ? $any(block).url : null"
                [class.link-anchor--disabled]="!guestCanEdit"
                target="_blank"
                rel="noopener noreferrer"
+               (click)="openExternalUrl($any(block).url, $event)"
                class="link-anchor">
               <mat-icon class="link-anchor-icon">open_in_new</mat-icon>
               <span class="link-anchor-text">{{ $any(block).label || $any(block).url }}</span>

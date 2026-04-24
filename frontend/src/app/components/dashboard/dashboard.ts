@@ -592,6 +592,27 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.navDragging = false;
     const endX = e.changedTouches[0]?.clientX ?? this.navDragStartX;
     const dx = endX - this.navDragStartX;
+    // Tap (no drag significativo): leggiamo il segmento target dall'evento.
+    // preventDefault nel touchmove + touch-action del container possono
+    // sopprimere il click nativo da tap su iOS, lasciando il bottone senza
+    // reazione. Risolviamo qui leggendo data-nav-index sul segment.
+    if (Math.abs(dx) < 8) {
+      const segEl = (e.target as HTMLElement).closest<HTMLElement>('.unified-toolbar-seg');
+      if (segEl) {
+        const parent = segEl.parentElement;
+        const segs = parent
+          ? Array.from(parent.querySelectorAll<HTMLElement>('.unified-toolbar-seg'))
+          : [];
+        const index = segs.indexOf(segEl);
+        if (index >= 0 && index < this.NAV_SEGMENTS.length) {
+          this.setMobileNav(this.NAV_SEGMENTS[index]);
+          return;
+        }
+      }
+      // Tap fuori dai segmenti: ripristina la posizione dell'indicatore.
+      this.navIndicatorTransform = `translateX(${this.NAV_SEGMENTS.indexOf(this.mobileNav) * this.NAV_SEG_WIDTH}px)`;
+      return;
+    }
     const rawOffset = this.navDragStartIndex * this.NAV_SEG_WIDTH + dx;
     const snapIndex = Math.max(0, Math.min(
       this.NAV_SEGMENTS.length - 1,
