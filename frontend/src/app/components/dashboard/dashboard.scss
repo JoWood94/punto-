@@ -1093,8 +1093,10 @@
 }
 
 // ─── Animazione icone contestuali header ─────────────────────
+// Durata/easing coerenti con i mini-FAB (reminder/share) del note-editor
+// e con la format toolbar: 280ms cubic-bezier(0.4, 0, 0.2, 1).
 .header-btn-animated {
-  animation: headerBtnIn 180ms var(--_e) both;
+  animation: headerBtnIn 280ms cubic-bezier(0.4, 0, 0.2, 1) both;
 }
 
 @keyframes headerBtnIn {

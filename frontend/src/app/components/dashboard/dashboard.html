@@ -40,7 +40,7 @@
   <!-- Menu impostazioni — nascosto nell'editor/settings su mobile, sempre visibile su desktop -->
   <button mat-icon-button [disableRipple]="true" (click)="toggleSettingsDropdown($event)" aria-label="Menu"
           *ngIf="!isMobile || (activeNote === undefined && !settingsOpen)" [disabled]="!settingsMenuEnabled"
-          class="settings-menu-btn" [class.settings-menu-btn--open]="showSettingsDropdown">
+          class="settings-menu-btn header-btn-animated" [class.settings-menu-btn--open]="showSettingsDropdown">
     <div class="settings-icon-wrapper">
       <mat-icon>more_vert</mat-icon>
       <span class="update-badge" *ngIf="updatePending"></span>
