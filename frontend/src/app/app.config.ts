@@ -32,7 +32,7 @@ export const appConfig: ApplicationConfig = {
     { provide: LOCALE_ID, useValue: 'it-IT' },
     { provide: MAT_DATE_LOCALE, useValue: 'it-IT' },
     provideNativeDateAdapter(),
-    provideTranslateService({ defaultLanguage: 'it' }),
+    provideTranslateService({ lang: 'it', fallbackLang: 'en' }),
     provideTranslateHttpLoader({ prefix: 'assets/i18n/', suffix: '.json' }),
   ],
 };

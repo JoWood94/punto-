@@ -178,7 +178,7 @@ export interface Note {
 // restano come fallback per note legacy (pre-RF-01b).
 
 function findReminderBlock(n: any): any {
-  return (n.blocks as any[] | undefined)?.find((b: any) => b.type === 'reminder') ?? null;
+  return Array.isArray(n.blocks) ? (n.blocks.find((b: any) => b.type === 'reminder') ?? null) : null;
 }
 
 export function getReminderTime(n: Note | any): number | null {
@@ -380,15 +380,17 @@ export class NoteService {
               const decrypted = this.cryptoService.isEnabled
                 ? await this.cryptoService.decryptNote(raw)
                 : raw;
-              if (!decrypted.blocks || (decrypted.blocks as any[]).length === 0) {
+              // Usa Array.isArray: un blocks cifrato e una stringa, non un array —
+              // il cast (as any[]) nascondeva il problema a compile time ma crashava a runtime.
+              if (!Array.isArray(decrypted.blocks) || (decrypted.blocks as any[]).length === 0) {
                 (decrypted as any).blocks = migrateToBlocks(decrypted);
               }
+              const blocksArr = decrypted.blocks as NoteBlock[];
               return {
                 ...decrypted,
                 // Graceful default per doc legacy pre-migrazione Fase 0 (senza campo `type`).
-                // Se `type` manca ma c'è `reminderTime` o un ReminderBlock → memo, altrimenti note.
                 type: (decrypted.type
-                  ?? ((decrypted.reminderTime || (decrypted.blocks as NoteBlock[] | undefined)?.some(b => b?.type === 'reminder'))
+                  ?? ((decrypted.reminderTime || blocksArr?.some((b: any) => b?.type === 'reminder'))
                         ? 'memo'
                         : 'note')) as NoteType,
                 myRole: 'owner' as const,
@@ -429,7 +431,7 @@ export class NoteService {
                 }
               }
 
-              if (!decrypted.blocks || (decrypted.blocks as any[]).length === 0) {
+              if (!Array.isArray(decrypted.blocks) || (decrypted.blocks as any[]).length === 0) {
                 decrypted.blocks = migrateToBlocks(decrypted);
               }
 
@@ -524,7 +526,7 @@ export class NoteService {
                 const unsub = onSnapshot(q, snap => {
                   const events: Note[] = snap.docs.map(d => {
                     const raw = { id: d.id, ...d.data() } as any;
-                    if (!raw.blocks || (raw.blocks as any[]).length === 0) {
+                    if (!Array.isArray(raw.blocks) || (raw.blocks as any[]).length === 0) {
                       raw.blocks = migrateToBlocks(raw);
                     }
                     // myRole qui è sempre 'owner' se raw.uid==currentUid, altrimenti

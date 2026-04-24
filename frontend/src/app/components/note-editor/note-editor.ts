@@ -29,7 +29,6 @@ import {
 import { AuthService } from '../../services/auth';
 import { LinkDialogComponent } from '../link-dialog/link-dialog';
 import { SharingPanelComponent } from '../sharing-panel/sharing-panel';
-import { ConfirmDialogComponent } from '../confirm-dialog/confirm-dialog';
 import { TranslateModule } from '@ngx-translate/core';
 import { TranslationService } from '../../services/translation';
 import { CryptoService } from '../../services/crypto';
@@ -246,29 +245,9 @@ export class NoteEditorComponent implements OnInit, OnChanges, DoCheck, AfterVie
   async openSharePanel() {
     if (!this.savedNoteId) return;
 
-    // Owner only: avvisa se encryption attiva e contenuto cifrato
-    if (!this.isGuest) {
-      const hasCollaborators = !!((this.note as any).collaboratorUids?.length);
-      const isEncrypted = !hasCollaborators
-        && this.cryptoService.isEnabled
-        && await this.noteService.isNoteEncrypted(this.savedNoteId);
-      if (isEncrypted) {
-        const confirmed = await this.dialog.open(ConfirmDialogComponent, {
-          data: {
-            title: this.translationService.instant('SHARING.ENCRYPT_WARN_TITLE'),
-            message: this.translationService.instant('SHARING.ENCRYPT_WARN_MSG'),
-            confirmLabel: this.translationService.instant('SHARING.ENCRYPT_WARN_CONFIRM'),
-          }
-        }).afterClosed().toPromise();
-        if (!confirmed) return;
-        this.pendingOwnWrite = true;
-        try {
-          await this.noteService.updateNote(this.savedNoteId, this.buildPayload(), { skipEncryption: true });
-        } finally {
-          this.pendingOwnWrite = false;
-        }
-      }
-    }
+    // Il nuovo flusso share-by-code usa E2EE AES per-nota:
+    // la nota viene ricifrata con AES (non in plaintext) al momento della generazione
+    // del codice di condivisione. Nessun warning necessario.
 
     const ref = this.dialog.open(SharingPanelComponent, {
       data: {
