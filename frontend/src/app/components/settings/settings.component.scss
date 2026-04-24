@@ -6,10 +6,11 @@
   // --app-header-h è definito globalmente in styles.scss (:root)
 }
 
-// Embedded dentro il DashboardComponent: l'header dashboard resta visibile,
-// il settings content occupa l'altezza residua (come .dashboard-container).
+// Embedded dentro il DashboardComponent: occupa tutto lo spazio del
+// mat-sidenav-content, che gestisce già il posizionamento sotto l'header.
 :host(.embedded) {
-  height: calc(var(--vh, 100vh) - var(--app-header-h, 80px));
+  height: 100%;
+  width: 100%;
 }
 
 // .app-header — stilato globalmente in styles.scss

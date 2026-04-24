@@ -983,6 +983,14 @@ export class DashboardComponent implements OnInit, OnDestroy {
   }
 
   closeSettings() { this.settingsOpen = false; }
+
+  /** Naviga alla vista calendario (bottone header desktop). Chiude eventuali
+   *  modi secondari (settings embedded, editor) per tornare allo stato base. */
+  goToCalendar() {
+    this.settingsOpen = false;
+    this.activeNote = undefined;
+    this.currentMainView = 'calendar';
+  }
   reloadApp() { this.closeSettingsDropdown(); document.location.reload(); }
   logout() {
     this.closeSettingsDropdown();
@@ -1057,6 +1065,9 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.activeNote = null;
   }
   selectNote(note: Note) {
+    // Se settings era aperto, chiudilo: il click su una nota dalla sidenav
+    // esprime l'intenzione di lasciare settings e tornare al flusso note.
+    if (this.settingsOpen) this.settingsOpen = false;
     if (!this.isMobile && this.activeNote?.id === note.id) {
       this.activeNote = undefined;
     } else {
