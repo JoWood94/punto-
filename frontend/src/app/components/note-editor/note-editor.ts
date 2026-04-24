@@ -1228,7 +1228,7 @@ export class NoteEditorComponent implements OnInit, OnChanges, DoCheck, AfterVie
         const collabs: string[] = data['collaboratorUids'] ?? [];
         if (uid && !collabs.includes(uid)) {
           console.log('[watchNote] guest kick — uid not in collaboratorUids');
-          this._handleKickout();
+          this._handleKickout('removed');
           return;
         }
       }
@@ -1258,8 +1258,14 @@ export class NoteEditorComponent implements OnInit, OnChanges, DoCheck, AfterVie
       // Firestore rules negano la lettura di notes/{noteId}. L'onSnapshot emette un
       // errore permission-denied invece della doc aggiornata — il data callback non
       // viene mai chiamato. Trattiamo l'errore come segnale di kick-out.
-      if (this.note.myRole === 'guest' && err?.code === 'permission-denied') {
-        this._handleKickout();
+      if (this.note.myRole === 'guest') {
+        if (err?.code === 'not-found') {
+          this._handleKickout('deleted');
+        } else if (err?.code === 'permission-denied') {
+          // permission-denied = rimosso da collaboratorUids (regole Firestore).
+          // Non distinguiamo doc-deleted qui perché watchNote già lo gestisce via not-found.
+          this._handleKickout('removed');
+        }
       }
     });
 
@@ -1278,13 +1284,13 @@ export class NoteEditorComponent implements OnInit, OnChanges, DoCheck, AfterVie
     this.stopPresence();
   }
 
-  /** Kick-out handler condiviso tra data-path (collaboratorUids check) e error-path (permission-denied). */
-  private _handleKickout() {
+  /** Kick-out handler condiviso tra data-path (collaboratorUids / not-found) e error-path (permission-denied). */
+  private _handleKickout(reason: 'removed' | 'deleted' = 'removed') {
     this.stopLiveSync();
     const title = (this.note?.title ?? '').trim();
-    const msg = title
-      ? this.translationService.instant('NOTE.REMOVED_BY_OWNER', { title })
-      : this.translationService.instant('NOTE.REMOVED_BY_OWNER_NO_TITLE');
+    const keyBase = reason === 'deleted' ? 'NOTE.DELETED_BY_OWNER' : 'NOTE.REMOVED_BY_OWNER';
+    const key = title ? keyBase : `${keyBase}_NO_TITLE`;
+    const msg = this.translationService.instant(key, { title });
     this.ngZone.run(() => {
       this.toast.show(msg, 5000);
       this.closeEditor.emit(this.note?.blocks?.some(b => b.type === 'reminder') ?? false);

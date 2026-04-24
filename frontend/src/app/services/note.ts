@@ -872,7 +872,15 @@ export class NoteService {
   ): () => void {
     const noteRef = doc(this.db, `notes/${noteId}`);
     return onSnapshot(noteRef,
-      snap => { if (snap.exists()) callback(snap.data()); },
+      snap => {
+        if (snap.exists()) {
+          callback(snap.data());
+        } else {
+          // Doc eliminata (owner ha cancellato la nota): segnala come not-found.
+          // onSnapshot non emette un errore in questo caso — dobbiamo rilevarlo noi.
+          if (onError) onError({ code: 'not-found' });
+        }
+      },
       err => { if (onError) onError(err); }
     );
   }

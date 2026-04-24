@@ -91,7 +91,9 @@
     "UNPIN": "Unpin",
     "EVADE": "Complete",
     "REMOVED_BY_OWNER": "The owner removed you from \"{{title}}\"",
-    "REMOVED_BY_OWNER_NO_TITLE": "The owner removed you from this note"
+    "REMOVED_BY_OWNER_NO_TITLE": "The owner removed you from this note",
+    "DELETED_BY_OWNER": "The owner deleted the note \"{{title}}\"",
+    "DELETED_BY_OWNER_NO_TITLE": "The owner deleted this note"
   },
   "LOGIN": {
     "RECOVER_PASSWORD": "Recover Password",

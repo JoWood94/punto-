@@ -91,7 +91,9 @@
     "UNPIN": "Rimuovi pin",
     "EVADE": "Evadi",
     "REMOVED_BY_OWNER": "L'owner ti ha rimosso dalla nota \"{{title}}\"",
-    "REMOVED_BY_OWNER_NO_TITLE": "L'owner ti ha rimosso da questa nota"
+    "REMOVED_BY_OWNER_NO_TITLE": "L'owner ti ha rimosso da questa nota",
+    "DELETED_BY_OWNER": "L'owner ha eliminato la nota \"{{title}}\"",
+    "DELETED_BY_OWNER_NO_TITLE": "L'owner ha eliminato questa nota"
   },
   "LOGIN": {
     "RECOVER_PASSWORD": "Recupera Password",
