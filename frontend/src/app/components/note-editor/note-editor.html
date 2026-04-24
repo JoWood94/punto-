@@ -38,13 +38,16 @@
       <mat-icon>{{ (reminderBlock.status === 'completed' || (reminderBlock.recurrence !== 'none' && reminderBlock._evaded)) ? 'check_circle' : 'radio_button_unchecked' }}</mat-icon>
     </button>
 
-    <!-- Data: button text-style che apre mat-datepicker -->
+    <!-- Data: button text-style che apre mat-datepicker.
+         Formato responsive: "Sat 25 Apr" su mobile stretto, "Saturday 25 April" altrimenti,
+         così data+ora+ricorrenza stanno su una riga sola anche su schermi piccoli. -->
     <button class="reminder-hero-date" type="button"
             [disabled]="!guestCanEditReminders"
             (click)="guestCanEditReminders && reminderDatepicker.open()"
             (focus)="onNonTextFieldFocus()"
             (blur)="onNonTextFieldBlur()">
-      {{ (reminderBlock.date | date:'EEEE d MMMM':'':dateLocale) ?? ('EDITOR.SELECT_DATE' | translate) }}
+      <span class="reminder-hero-date-short">{{ (reminderBlock.date | date:'EEE d MMM':'':dateLocale) ?? ('EDITOR.SELECT_DATE' | translate) }}</span>
+      <span class="reminder-hero-date-long">{{ (reminderBlock.date | date:'EEEE d MMMM':'':dateLocale) ?? ('EDITOR.SELECT_DATE' | translate) }}</span>
       <input [matDatepicker]="reminderDatepicker"
              [(ngModel)]="reminderBlock.date"
              (ngModelChange)="onReminderChange()"
@@ -108,7 +111,9 @@
               (click)="guestCanEditReminders && recurrenceEndDatepicker.open()"
               (focus)="onNonTextFieldFocus()"
               (blur)="onNonTextFieldBlur()">
-        {{ reminderBlock._endDate ? (reminderBlock._endDate | date:'d MMM yyyy':'':dateLocale) : ('EDITOR.RECURRENCE_END' | translate) }}
+        {{ reminderBlock._endDate
+             ? ('EDITOR.RECURRENCE_END_WITH' | translate:{ date: (reminderBlock._endDate | date:'d MMM yyyy':'':dateLocale) })
+             : ('EDITOR.RECURRENCE_END' | translate) }}
         <input [matDatepicker]="recurrenceEndDatepicker"
                [(ngModel)]="reminderBlock._endDate"
                (ngModelChange)="onRecurrenceEndDateChange($event)"
