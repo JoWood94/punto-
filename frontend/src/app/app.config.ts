@@ -34,13 +34,19 @@ export const appConfig: ApplicationConfig = {
     { provide: MAT_DATE_LOCALE, useValue: 'it-IT' },
     provideNativeDateAdapter(),
     provideTranslateService({ fallbackLang: 'en' }),
-    provideTranslateHttpLoader({ prefix: 'assets/i18n/', suffix: '.json' }),
+    // Prefix assoluto: HttpClient non lo combina con baseHref, evita 404 su
+    // deploy con base-href diverso da '/'.
+    provideTranslateHttpLoader({ prefix: '/assets/i18n/', suffix: '.json' }),
     // Blocca il bootstrap finché it.json non è caricato: nessun componente
     // viene montato prima che TranslateService abbia le traduzioni italiane.
     provideAppInitializer(() => {
       const translate = inject(TranslateService);
       translate.setDefaultLang('it');
-      return firstValueFrom(translate.use('it'));
+      return firstValueFrom(translate.use('it')).catch(err => {
+        // Safety net: logga l'errore (es. 404 su assets) ma non blocca il boot.
+        console.error('[i18n] Failed to load it.json:', err);
+        return null;
+      });
     }),
   ],
 };

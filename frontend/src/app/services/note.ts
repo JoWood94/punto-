@@ -3,7 +3,7 @@ import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import {
   getFirestore, initializeFirestore, persistentLocalCache, persistentMultipleTabManager,
-  collection, collectionGroup, doc, addDoc, updateDoc, deleteDoc, deleteField, query, where, onSnapshot, getDoc, getDocFromServer, setDoc, writeBatch, arrayUnion, arrayRemove, getDocs, Firestore as RawFirestore,
+  collection, collectionGroup, doc, addDoc, updateDoc, deleteDoc, deleteField, query, where, onSnapshot, getDoc, getDocFromServer, setDoc, writeBatch, arrayUnion, arrayRemove, getDocs, serverTimestamp, Firestore as RawFirestore,
   DocumentReference, DocumentSnapshot
 } from 'firebase/firestore';
 import { Observable, of, switchMap, combineLatest, startWith, map } from 'rxjs';
@@ -1221,7 +1221,11 @@ export class NoteService {
     if (!ownerPublicKey) throw new Error('Chiave pubblica owner non trovata');
 
     const wrappedKey = await this.cryptoService.wrapKeyForUser(aesKey, ownerPublicKey);
-    await setDoc(doc(this.db, `notes/${noteId}/sharedKeys/${uid}`), { wrappedKey, updatedAt: Date.now() });
+    await setDoc(doc(this.db, `notes/${noteId}/sharedKeys/${uid}`), {
+      wrappedKey,
+      wrappedAt: serverTimestamp(),
+      wrappedBy: uid,
+    });
 
     // Genera lookup 8-char univoco
     let lookup = '';
@@ -1358,7 +1362,11 @@ export class NoteService {
     const myPublicKey = userSnap.data()?.['publicKey'] as string | undefined;
     if (myPublicKey) {
       const wrappedKey = await this.cryptoService.wrapKeyForUser(aesKey, myPublicKey);
-      await setDoc(doc(this.db, `notes/${noteId}/sharedKeys/${uid}`), { wrappedKey, updatedAt: Date.now() });
+      await setDoc(doc(this.db, `notes/${noteId}/sharedKeys/${uid}`), {
+        wrappedKey,
+        wrappedAt: serverTimestamp(),
+        wrappedBy: uid,
+      });
     }
 
     return noteId;
