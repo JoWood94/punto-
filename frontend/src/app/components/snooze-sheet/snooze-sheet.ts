@@ -46,6 +46,15 @@ export class SnoozeSheetComponent implements OnChanges, AfterViewInit, OnDestroy
 
   translationService = inject(TranslationService);
 
+  // Rendering state: il DOM resta montato anche durante l'animazione di
+  // chiusura. visible=false → leaving=true per 180ms → rendering=false.
+  // Così .snooze-pill.leaving applica l'animazione inversa senza che il
+  // template venga distrutto prima del tempo.
+  rendering = false;
+  leaving = false;
+  private leaveTimer: ReturnType<typeof setTimeout> | null = null;
+  private readonly LEAVE_DURATION = 180;
+
   readonly presets: SnoozePreset[] = [
     { labelKey: 'EDITOR.SNOOZE_15MIN', getTime: () => Date.now() + 15 * 60 * 1000 },
     { labelKey: 'EDITOR.SNOOZE_1H',    getTime: () => Date.now() + 60 * 60 * 1000 },
@@ -86,23 +95,46 @@ export class SnoozeSheetComponent implements OnChanges, AfterViewInit, OnDestroy
   };
 
   ngOnChanges(changes: SimpleChanges): void {
-    if (changes['visible'] && !changes['visible'].currentValue) {
-      this.detachClickAway();
-    } else if (changes['visible'] && changes['visible'].currentValue) {
-      queueMicrotask(() => this.focusFirstInteractivePill());
-      queueMicrotask(() => this.attachClickAway());
+    if (changes['visible']) {
+      if (changes['visible'].currentValue) {
+        this.openEnter();
+      } else {
+        this.closeExit();
+      }
     }
   }
 
   ngAfterViewInit(): void {
-    if (this.visible) {
-      queueMicrotask(() => this.focusFirstInteractivePill());
-      queueMicrotask(() => this.attachClickAway());
-    }
+    if (this.visible) this.openEnter();
   }
 
   ngOnDestroy(): void {
     this.detachClickAway();
+    if (this.leaveTimer) clearTimeout(this.leaveTimer);
+  }
+
+  /** Entry: abort eventuale animazione di uscita in corso, monta il template,
+   *  attacca listener e focus. */
+  private openEnter(): void {
+    if (this.leaveTimer) { clearTimeout(this.leaveTimer); this.leaveTimer = null; }
+    this.leaving = false;
+    this.rendering = true;
+    queueMicrotask(() => this.focusFirstInteractivePill());
+    queueMicrotask(() => this.attachClickAway());
+  }
+
+  /** Exit: setta leaving=true per triggerare l'animazione CSS speculare,
+   *  poi rimuove il template dopo LEAVE_DURATION. */
+  private closeExit(): void {
+    this.detachClickAway();
+    if (!this.rendering) return;
+    this.leaving = true;
+    if (this.leaveTimer) clearTimeout(this.leaveTimer);
+    this.leaveTimer = setTimeout(() => {
+      this.rendering = false;
+      this.leaving = false;
+      this.leaveTimer = null;
+    }, this.LEAVE_DURATION);
   }
 
   private clickAwayAttached = false;

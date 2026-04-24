@@ -1,9 +1,10 @@
-<ng-container *ngIf="visible">
+<ng-container *ngIf="rendering">
   <!-- Click-away gestito via capture-phase document listener (no scrim, robusto
        dentro mat-sidenav-content transformed). -->
 
   <div
     class="snooze-stack"
+    [class.snooze-stack--leaving]="leaving"
     role="menu"
     [attr.aria-label]="'SNOOZE.OPEN_LABEL' | translate">
 

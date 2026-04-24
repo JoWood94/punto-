@@ -258,3 +258,25 @@ $ease-out-editorial: cubic-bezier(0.2, 0, 0, 1);
     transform: translateY(0) scale(1);
   }
 }
+
+@keyframes snooze-pill-out {
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(8px) scale(0.92);
+  }
+}
+
+// Chiusura: animazione speculare all'entrata (180ms stesso ease). Lo stagger
+// si inverte — l'ultima pill entrata (max delay) è anche l'ultima ad uscire,
+// quindi la pill più vicina al FAB rimane visibile più a lungo.
+// NOTE: !important è necessario per sovrascrivere l'animation set dalle
+// varianti (es. snooze-pill--danger-pending) che hanno animation shorthand.
+.snooze-stack--leaving .snooze-pill,
+.snooze-stack--leaving .snooze-chip,
+.snooze-stack--leaving .snooze-custom-overlay {
+  animation: snooze-pill-out 180ms $ease-out-editorial forwards !important;
+}

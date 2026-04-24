@@ -1368,11 +1368,12 @@ export class NoteEditorComponent implements OnInit, OnChanges, DoCheck, AfterVie
 
   // ─── Snooze (FE-01) ─────────────────────────────────────────────────────────
 
-  /** Apre lo snooze-mute sheet (Fase 1 campanella). Disponibile solo per memo/event. */
+  /** Toggle dello snooze-mute sheet (Fase 1 campanella). Disponibile solo per memo/event.
+   *  Click con sheet già aperto → chiude, per parità col create-fab + settings dropdown. */
   openSnoozeSheet() {
     if (!this.savedNoteId) return;
     if (this.note.type === 'note') return;
-    this.showSnoozeSheet.set(true);
+    this.showSnoozeSheet.update(v => !v);
   }
 
   async snoozeReminder(timestamp: number) {
