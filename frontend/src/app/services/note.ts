@@ -394,17 +394,30 @@ export class NoteService {
                   } catch {
                     // chiave non disponibile o corrotta — prosegue con il raw
                   }
+                } else {
+                  // Cache miss sulla nota owned: snapshot arrivato prima che sharedKeys/{uid}
+                  // fosse scritto (race durante generateShareCode). Il prossimo snapshot
+                  // recupererà. I guard sotto evitano di esporre il ciphertext raw nell'UI.
+                  console.warn('[crypto] cache miss for owned note during emit — noteId:', raw.id,
+                    '— next snapshot should recover');
                 }
               } else if (this.cryptoService.isEnabled) {
                 decrypted = await this.cryptoService.decryptNote(raw);
               }
 
-              // Usa Array.isArray: un blocks cifrato è una stringa, non un array.
-              // Se il campo è ancora cifrato (decrypt fallito/transitorio), emetti []
-              // invece di passare la stringa a migrateToBlocks che la distruggerebbe.
+              // Guard difensiva: se decrypt è fallito transitoriamente (cache miss su
+              // sharedKeys, PGP non ancora sbloccata, ecc.) alcuni campi possono essere
+              // ancora ciphertext. Non mostrare MAI raw ciphertext nell'UI — emetti
+              // stringa vuota / [] e attendi il prossimo snapshot per recuperare.
+              const PGP_PREFIX = '-----BEGIN PGP MESSAGE-----';
+              const isCipher = (v: unknown) =>
+                typeof v === 'string' && (v.startsWith(AES_MARKER) || v.startsWith(PGP_PREFIX));
+
+              if (isCipher(decrypted.title))   { (decrypted as any).title = ''; }
+              if (isCipher(decrypted.content)) { (decrypted as any).content = ''; }
+
               if (!Array.isArray(decrypted.blocks) || (decrypted.blocks as any[]).length === 0) {
-                const bs = (decrypted as any).blocks;
-                if (typeof bs === 'string' && (bs.startsWith(AES_MARKER) || bs.startsWith('-----BEGIN PGP MESSAGE-----'))) {
+                if (isCipher((decrypted as any).blocks)) {
                   (decrypted as any).blocks = [];
                 } else {
                   (decrypted as any).blocks = migrateToBlocks(decrypted);
@@ -456,9 +469,15 @@ export class NoteService {
                 }
               }
 
+              const PGP_PREFIX_SH = '-----BEGIN PGP MESSAGE-----';
+              const isCipherSh = (v: unknown) =>
+                typeof v === 'string' && (v.startsWith(AES_MARKER) || v.startsWith(PGP_PREFIX_SH));
+
+              if (isCipherSh(decrypted.title))   { (decrypted as any).title = ''; }
+              if (isCipherSh(decrypted.content)) { (decrypted as any).content = ''; }
+
               if (!Array.isArray(decrypted.blocks) || (decrypted.blocks as any[]).length === 0) {
-                const bs = (decrypted as any).blocks;
-                if (typeof bs === 'string' && (bs.startsWith(AES_MARKER) || bs.startsWith('-----BEGIN PGP MESSAGE-----'))) {
+                if (isCipherSh((decrypted as any).blocks)) {
                   (decrypted as any).blocks = [];
                 } else {
                   (decrypted as any).blocks = migrateToBlocks(decrypted);
@@ -556,9 +575,15 @@ export class NoteService {
                 const unsub = onSnapshot(q, snap => {
                   const events: Note[] = snap.docs.map(d => {
                     const raw = { id: d.id, ...d.data() } as any;
+                    const PGP_PREFIX_EV = '-----BEGIN PGP MESSAGE-----';
+                    const isCipherEv = (v: unknown) =>
+                      typeof v === 'string' && (v.startsWith(AES_MARKER) || v.startsWith(PGP_PREFIX_EV));
+
+                    if (isCipherEv(raw.title))   { raw.title = ''; }
+                    if (isCipherEv(raw.content)) { raw.content = ''; }
+
                     if (!Array.isArray(raw.blocks) || (raw.blocks as any[]).length === 0) {
-                      const bs = raw.blocks;
-                      if (typeof bs === 'string' && (bs.startsWith(AES_MARKER) || bs.startsWith('-----BEGIN PGP MESSAGE-----'))) {
+                      if (isCipherEv(raw.blocks)) {
                         raw.blocks = [];
                       } else {
                         raw.blocks = migrateToBlocks(raw);
@@ -1264,17 +1289,22 @@ export class NoteService {
           throw new Error('share/note-too-large');
         }
 
+        // Popola la cache PRIMA di updateDoc: il Firestore snapshot sull'owned stream
+        // può arrivare prima del return dell'await, e _getAESKeyForNote troverebbe
+        // la chiave null (sharedKeys/{uid} non ancora scritto). Con la cache già
+        // popolata il decrypt del snapshot intermedio riesce senza toccare Firestore.
+        this._aesKeyCache.set(noteId, aesKey);
+
         await updateDoc(doc(this.db, `notes/${noteId}`), {
           ...(encrypted.title !== undefined   ? { title:   encrypted.title   } : {}),
           ...(encrypted.content !== undefined ? { content: encrypted.content } : {}),
           ...(encrypted.blocks !== undefined  ? { blocks:  encrypted.blocks  } : {}),
         });
       }
-
-      // Aggiorna la cache
-      this._aesKeyCache.set(noteId, aesKey);
     } else {
-      // Chiave preesistente: decifra il titolo attuale per ottenerlo in chiaro
+      // Chiave preesistente: decifra il titolo attuale per ottenerlo in chiaro.
+      // Metti in cache subito così i snapshot intermedi non fanno fetch Firestore.
+      this._aesKeyCache.set(noteId, aesKey);
       const rawTitle = noteData['title'] as string | undefined;
       if (rawTitle && this.cryptoService.isAESEncrypted(rawTitle)) {
         try { plainTitle = await this.cryptoService.decryptNoteAES(aesKey, rawTitle); } catch { plainTitle = ''; }
