@@ -279,6 +279,63 @@ export class NoteService {
   }
 
   /**
+   * Pre-warming della cache AES al login.
+   *
+   * Carica in parallelo le sharedKeys/{uid} di tutte le note shared/owned AES-cifrate,
+   * le unwrappa con la PGP private key (già unlockkata da initEncryption) e popola
+   * _aesKeyCache. Dopo questa chiamata il rendering delle note non produce mai cache miss
+   * né skip-emit.
+   *
+   * Strategia query:
+   *   1. note dove uid==self (owned) — potrebbero essere AES se condivise
+   *   2. note dove collaboratorUids array-contains self (guest)
+   *   Per ciascuna che ha title/blocks AES-cifrati: getDoc(sharedKeys/{uid}).
+   *   Tutto in Promise.all → ~N Firestore reads in parallelo.
+   *
+   * Errori per singola nota: silenziati (key mancante o offline). Non blocca il resto.
+   * Chiamata solo se cryptoService.isEnabled (PGP key disponibile).
+   */
+  async preloadSharedKeys(uid: string): Promise<void> {
+    if (!this.cryptoService.isEnabled) return;
+
+    try {
+      const notesRef = collection(this.db, 'notes');
+
+      // Fetch note owned AES-cifrate + note condivise con me in parallelo
+      const [ownedSnap, sharedSnap] = await Promise.all([
+        getDocs(query(notesRef, where('uid', '==', uid))),
+        getDocs(query(notesRef, where('collaboratorUids', 'array-contains', uid))),
+      ]);
+
+      // Dedup per noteId (non dovrebbe sovrapporsi, ma per sicurezza)
+      const aesNoteIds = new Set<string>();
+      for (const d of [...ownedSnap.docs, ...sharedSnap.docs]) {
+        const data = d.data() as any;
+        const isAES =
+          (typeof data['title'] === 'string' && data['title'].startsWith(AES_MARKER)) ||
+          (typeof data['blocks'] === 'string' && data['blocks'].startsWith(AES_MARKER)) ||
+          (typeof data['content'] === 'string' && data['content'].startsWith(AES_MARKER));
+        if (isAES && !this._aesKeyCache.has(d.id)) {
+          aesNoteIds.add(d.id);
+        }
+      }
+
+      if (aesNoteIds.size === 0) return;
+
+      // Carica e unwrappa le chiavi in parallelo — un singolo reject non cancella gli altri
+      await Promise.all(Array.from(aesNoteIds).map(async noteId => {
+        try {
+          await this._getAESKeyForNote(noteId, uid); // popola cache internamente
+        } catch {
+          // chiave mancante o corrotta per questa nota — skip silenzioso
+        }
+      }));
+    } catch {
+      // errore Firestore (offline, rules) — non blocchiamo il mount
+    }
+  }
+
+  /**
    * Calcola se almeno un blocco nel documento è di tipo ReminderBlock.
    * Centralizzato per garantire coerenza tra createNote e updateNote.
    * Non esposto pubblicamente: i consumer usano `hasReminder()` o `isMemoType()`.
@@ -376,52 +433,40 @@ export class NoteService {
           const q = query(notesRef, where('uid', '==', user.uid));
           const unsub = onSnapshot(q, async snapshot => {
             const raws = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as any));
-            const notes: Note[] = await Promise.all(raws.map(async raw => {
+            const maybeNotes: (Note | null)[] = await Promise.all(raws.map(async raw => {
               // Una nota owned può essere cifrata con AES se l'owner ha generato
               // un share code (generateShareCode migra PGP→AES). Bisogna tentare
               // AES prima di PGP: decryptNote salta i campi AES1: (non PGP),
               // lasciando blocks come stringa → migrateToBlocks → ImageBlock persi.
               const hasAESEncryption =
                 (typeof raw.title === 'string' && raw.title.startsWith(AES_MARKER)) ||
-                (typeof raw.blocks === 'string' && raw.blocks.startsWith(AES_MARKER));
+                (typeof raw.blocks === 'string' && raw.blocks.startsWith(AES_MARKER)) ||
+                (typeof raw.content === 'string' && raw.content.startsWith(AES_MARKER));
 
               let decrypted: any = raw;
               if (hasAESEncryption) {
                 const aesKey = await this._getAESKeyForNote(raw.id, user.uid);
-                if (aesKey) {
-                  try {
-                    decrypted = await this.cryptoService.decryptNoteWithAESKey(raw, aesKey);
-                  } catch {
-                    // chiave non disponibile o corrotta — prosegue con il raw
-                  }
-                } else {
-                  // Cache miss sulla nota owned: snapshot arrivato prima che sharedKeys/{uid}
-                  // fosse scritto (race durante generateShareCode). Il prossimo snapshot
-                  // recupererà. I guard sotto evitano di esporre il ciphertext raw nell'UI.
-                  console.warn('[crypto] cache miss for owned note during emit — noteId:', raw.id,
-                    '— next snapshot should recover');
+                if (!aesKey) {
+                  // Cache miss: la chiave non è ancora disponibile (race post-generateShareCode
+                  // o pre-warm non ancora completato). Skip-emit questa nota — la UI resta
+                  // con il valore precedente. Il prossimo snapshot la porterà decifrata.
+                  // Mai emettere ciphertext raw: rischierebbe di sovrascrivere l'auto-save.
+                  console.warn('[crypto] owned: skip emit — key not ready for noteId:', raw.id);
+                  return null;
+                }
+                try {
+                  decrypted = await this.cryptoService.decryptNoteWithAESKey(raw, aesKey);
+                } catch {
+                  // Chiave corrotta o IV manomesso — skip per lo stesso motivo.
+                  console.warn('[crypto] owned: skip emit — decryptNoteWithAESKey failed for noteId:', raw.id);
+                  return null;
                 }
               } else if (this.cryptoService.isEnabled) {
                 decrypted = await this.cryptoService.decryptNote(raw);
               }
 
-              // Guard difensiva: se decrypt è fallito transitoriamente (cache miss su
-              // sharedKeys, PGP non ancora sbloccata, ecc.) alcuni campi possono essere
-              // ancora ciphertext. Non mostrare MAI raw ciphertext nell'UI — emetti
-              // stringa vuota / [] e attendi il prossimo snapshot per recuperare.
-              const PGP_PREFIX = '-----BEGIN PGP MESSAGE-----';
-              const isCipher = (v: unknown) =>
-                typeof v === 'string' && (v.startsWith(AES_MARKER) || v.startsWith(PGP_PREFIX));
-
-              if (isCipher(decrypted.title))   { (decrypted as any).title = ''; }
-              if (isCipher(decrypted.content)) { (decrypted as any).content = ''; }
-
               if (!Array.isArray(decrypted.blocks) || (decrypted.blocks as any[]).length === 0) {
-                if (isCipher((decrypted as any).blocks)) {
-                  (decrypted as any).blocks = [];
-                } else {
-                  (decrypted as any).blocks = migrateToBlocks(decrypted);
-                }
+                (decrypted as any).blocks = migrateToBlocks(decrypted);
               }
               const blocksArr = decrypted.blocks as NoteBlock[];
               return {
@@ -435,7 +480,7 @@ export class NoteService {
                 isShared: (decrypted.collaboratorUids?.length ?? 0) > 0,
               } as Note;
             }));
-            console.log('[NoteService] Owned notes:', notes.length, 'fromCache:', snapshot.metadata.fromCache);
+            const notes = maybeNotes.filter((n): n is Note => n !== null);
             subscriber.next(notes);
           }, err => {
             console.error('[NoteService] Owned query error:', err.code, err.message);
@@ -449,39 +494,34 @@ export class NoteService {
         const shared$ = new Observable<Note[]>(subscriber => {
           const q = query(notesRef, where('collaboratorUids', 'array-contains', user.uid));
           const unsub = onSnapshot(q, async snapshot => {
-            const notes: Note[] = await Promise.all(snapshot.docs.map(async d => {
+            const maybeNotes: (Note | null)[] = await Promise.all(snapshot.docs.map(async d => {
               const raw = { id: d.id, ...d.data() } as any;
 
-              // Tenta decrypt AES se la nota ha campi cifrati con AES1:
+              // Tutte le note condivise sono sempre AES-cifrate (generateShareCode migra PGP→AES).
               const hasAESEncryption =
                 (typeof raw.title === 'string' && raw.title.startsWith(AES_MARKER)) ||
-                (typeof raw.blocks === 'string' && raw.blocks.startsWith(AES_MARKER));
+                (typeof raw.blocks === 'string' && raw.blocks.startsWith(AES_MARKER)) ||
+                (typeof raw.content === 'string' && raw.content.startsWith(AES_MARKER));
 
-              let decrypted = raw;
+              let decrypted: any = raw;
               if (hasAESEncryption) {
                 const aesKey = await this._getAESKeyForNote(d.id, user.uid);
-                if (aesKey) {
-                  try {
-                    decrypted = await this.cryptoService.decryptNoteWithAESKey(raw, aesKey);
-                  } catch {
-                    // chiave non disponibile o corrotta — mostra cifrato
-                  }
+                if (!aesKey) {
+                  // Cache miss: sharedKeys/{uid} non ancora scritto o pre-warm non completato.
+                  // Skip-emit — la UI mantiene il valore precedente.
+                  console.warn('[crypto] shared: skip emit — key not ready for noteId:', d.id);
+                  return null;
+                }
+                try {
+                  decrypted = await this.cryptoService.decryptNoteWithAESKey(raw, aesKey);
+                } catch {
+                  console.warn('[crypto] shared: skip emit — decryptNoteWithAESKey failed for noteId:', d.id);
+                  return null;
                 }
               }
 
-              const PGP_PREFIX_SH = '-----BEGIN PGP MESSAGE-----';
-              const isCipherSh = (v: unknown) =>
-                typeof v === 'string' && (v.startsWith(AES_MARKER) || v.startsWith(PGP_PREFIX_SH));
-
-              if (isCipherSh(decrypted.title))   { (decrypted as any).title = ''; }
-              if (isCipherSh(decrypted.content)) { (decrypted as any).content = ''; }
-
               if (!Array.isArray(decrypted.blocks) || (decrypted.blocks as any[]).length === 0) {
-                if (isCipherSh((decrypted as any).blocks)) {
-                  (decrypted as any).blocks = [];
-                } else {
-                  (decrypted as any).blocks = migrateToBlocks(decrypted);
-                }
+                (decrypted as any).blocks = migrateToBlocks(decrypted);
               }
 
               // Leggi permessi dalla subcollection collaborators
@@ -499,6 +539,7 @@ export class NoteService {
                 isShared: true,
               } as Note;
             }));
+            const notes = maybeNotes.filter((n): n is Note => n !== null);
             subscriber.next(notes);
           }, err => {
             // Index non ancora creato o altro errore — emetti array vuoto e logga
@@ -575,19 +616,9 @@ export class NoteService {
                 const unsub = onSnapshot(q, snap => {
                   const events: Note[] = snap.docs.map(d => {
                     const raw = { id: d.id, ...d.data() } as any;
-                    const PGP_PREFIX_EV = '-----BEGIN PGP MESSAGE-----';
-                    const isCipherEv = (v: unknown) =>
-                      typeof v === 'string' && (v.startsWith(AES_MARKER) || v.startsWith(PGP_PREFIX_EV));
-
-                    if (isCipherEv(raw.title))   { raw.title = ''; }
-                    if (isCipherEv(raw.content)) { raw.content = ''; }
-
+                    // Gli eventi non sono cifrati con AES (non passano per generateShareCode).
                     if (!Array.isArray(raw.blocks) || (raw.blocks as any[]).length === 0) {
-                      if (isCipherEv(raw.blocks)) {
-                        raw.blocks = [];
-                      } else {
-                        raw.blocks = migrateToBlocks(raw);
-                      }
+                      raw.blocks = migrateToBlocks(raw);
                     }
                     // myRole qui è sempre 'owner' se raw.uid==currentUid, altrimenti
                     // semanticamente "subscriber" (lettura-only). Riusiamo il campo

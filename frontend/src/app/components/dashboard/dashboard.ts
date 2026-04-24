@@ -223,6 +223,17 @@ export class DashboardComponent implements OnInit, OnDestroy {
     // Inizializza cifratura E2E
     await this.initEncryption();
 
+    // Pre-warm cache AES: carica in parallelo le sharedKeys di tutte le note
+    // AES-cifrate (owned post-share + guest). Deve avvenire DOPO initEncryption
+    // (la PGP private key deve essere unlockkata) e PRIMA di isReady=true
+    // (i listener Firestore partono al mount e richiedono la cache popolata).
+    // Se offline o errore, il preload è silenzioso: lo skip-emit nei stream
+    // gestisce eventuali miss residui.
+    const currentUid = this.authService.getCurrentUserId();
+    if (currentUid) {
+      await this.noteService.preloadSharedKeys(currentUid);
+    }
+
     // Richiede username agli utenti esistenti che non ne hanno ancora uno
     this.checkAndPromptUsername();
 
