@@ -16,13 +16,13 @@
 
   <span class="spacer"></span>
 
-  <!-- Mobile: elimina nota nell'editor -->
+  <!-- Mobile: elimina nota (owner) o esci (guest) nell'editor -->
   <button mat-icon-button [disableRipple]="true"
           *ngIf="isMobile && activeNote?.id"
-          (click)="deleteActiveNote()"
-          aria-label="Elimina nota"
+          (click)="deleteOrLeaveActiveNote()"
+          [attr.aria-label]="(activeNote?.myRole === 'guest' ? 'NOTE.LEAVE' : 'NOTE.DELETE_TITLE') | translate"
           class="header-btn-animated">
-    <mat-icon>delete_outline</mat-icon>
+    <mat-icon>{{ activeNote?.myRole === 'guest' ? 'exit_to_app' : 'delete_outline' }}</mat-icon>
   </button>
 
   <!-- Desktop: bottone calendario -->
@@ -312,8 +312,11 @@
                     [class.pin-active]="note.pinned">
               <mat-icon>push_pin</mat-icon>
             </button>
-            <button mat-icon-button (click)="deleteNote(note, $event)" matTooltip="Elimina" class="delete-btn">
-              <mat-icon>delete_outline</mat-icon>
+            <button mat-icon-button
+                    (click)="deleteOrLeaveNote(note, $event)"
+                    [matTooltip]="(note.myRole === 'guest' ? 'NOTE.LEAVE' : 'NOTE.DELETE_TITLE') | translate"
+                    class="delete-btn">
+              <mat-icon>{{ note.myRole === 'guest' ? 'exit_to_app' : 'delete_outline' }}</mat-icon>
             </button>
           </div>
         </div>

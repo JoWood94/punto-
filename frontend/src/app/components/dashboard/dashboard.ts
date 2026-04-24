@@ -1173,6 +1173,49 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   // ─── Delete ─────────────────────────────────────────────────────────────────
 
+  /** Dispatcher header mobile: delega a delete o leave in base al ruolo. */
+  async deleteOrLeaveActiveNote() {
+    if (!this.activeNote?.id) return;
+    if (this.activeNote.myRole === 'guest') {
+      await this._leaveNote(this.activeNote as Note, true);
+    } else {
+      await this.deleteActiveNote();
+    }
+  }
+
+  /** Dispatcher card: delega a delete o leave in base al ruolo. */
+  async deleteOrLeaveNote(note: Note, event: Event) {
+    event.stopPropagation();
+    if (note.myRole === 'guest') {
+      await this._leaveNote(note, false);
+    } else {
+      await this.deleteNote(note, event);
+    }
+  }
+
+  private async _leaveNote(note: Note, isActiveInEditor: boolean) {
+    if (!note.id) return;
+    const displayTitle = note.title || this.translationService.instant('NOTE.UNTITLED');
+    const ref = this.ngZone.run(() => this.dialog.open(ConfirmDialogComponent, {
+      data: {
+        title: this.translationService.instant('NOTE.LEAVE_CONFIRM_TITLE'),
+        message: this.translationService.instant('NOTE.LEAVE_CONFIRM_MSG', { title: displayTitle }),
+        confirmLabel: this.translationService.instant('NOTE.LEAVE')
+      }
+    }));
+    const confirmed = await firstValueFrom(ref.afterClosed());
+    if (!confirmed) return;
+    try {
+      if (isActiveInEditor) this.activeNote = undefined;
+      await this.noteService.leaveSharedNote(note.id);
+      this.ngZone.run(() =>
+        this.toast.show(this.translationService.instant('NOTE.LEAVE_SUCCESS'), 3500)
+      );
+    } catch (e: any) {
+      console.error('Errore uscita nota condivisa:', e.message);
+    }
+  }
+
   async deleteActiveNote() {
     if (!this.activeNote?.id) return;
     const note = this.activeNote as Note;

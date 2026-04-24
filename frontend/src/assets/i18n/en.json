@@ -93,7 +93,11 @@
     "REMOVED_BY_OWNER": "The owner removed you from \"{{title}}\"",
     "REMOVED_BY_OWNER_NO_TITLE": "The owner removed you from this note",
     "DELETED_BY_OWNER": "The owner deleted the note \"{{title}}\"",
-    "DELETED_BY_OWNER_NO_TITLE": "The owner deleted this note"
+    "DELETED_BY_OWNER_NO_TITLE": "The owner deleted this note",
+    "LEAVE": "Leave note",
+    "LEAVE_CONFIRM_TITLE": "Leave this note?",
+    "LEAVE_CONFIRM_MSG": "Leave \"{{title}}\"? You can only rejoin with a new share code.",
+    "LEAVE_SUCCESS": "You have left the shared note"
   },
   "LOGIN": {
     "RECOVER_PASSWORD": "Recover Password",

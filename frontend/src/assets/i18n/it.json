@@ -93,7 +93,11 @@
     "REMOVED_BY_OWNER": "L'owner ti ha rimosso dalla nota \"{{title}}\"",
     "REMOVED_BY_OWNER_NO_TITLE": "L'owner ti ha rimosso da questa nota",
     "DELETED_BY_OWNER": "L'owner ha eliminato la nota \"{{title}}\"",
-    "DELETED_BY_OWNER_NO_TITLE": "L'owner ha eliminato questa nota"
+    "DELETED_BY_OWNER_NO_TITLE": "L'owner ha eliminato questa nota",
+    "LEAVE": "Esci dalla nota",
+    "LEAVE_CONFIRM_TITLE": "Uscire dalla nota?",
+    "LEAVE_CONFIRM_MSG": "Vuoi uscire dalla nota \"{{title}}\"? Potrai rientrare solo con un nuovo codice di condivisione.",
+    "LEAVE_SUCCESS": "Hai lasciato la nota condivisa"
   },
   "LOGIN": {
     "RECOVER_PASSWORD": "Recupera Password",
