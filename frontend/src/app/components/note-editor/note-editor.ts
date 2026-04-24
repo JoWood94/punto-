@@ -494,6 +494,10 @@ export class NoteEditorComponent implements OnInit, OnChanges, DoCheck, AfterVie
           (this.note as any).id = result.id;
           this.noteCreated.emit(result.id);
           this.startSnoozeWatcher();
+          // watchNote deve partire anche sulle note appena create: quando più tardi
+          // il guest accetta l'invito, l'owner deve già essere iscritto per ricevere
+          // gli update live senza dover riaprire la nota.
+          this.startLiveSync();
         })
         .catch(err => console.error('[AutoSave] createNote error:', err));
     }
@@ -1258,6 +1262,7 @@ export class NoteEditorComponent implements OnInit, OnChanges, DoCheck, AfterVie
       // Firestore rules negano la lettura di notes/{noteId}. L'onSnapshot emette un
       // errore permission-denied invece della doc aggiornata — il data callback non
       // viene mai chiamato. Trattiamo l'errore come segnale di kick-out.
+      console.log('[watchNote] error — code:', err?.code, 'role:', this.note.myRole, 'noteId:', this.savedNoteId);
       if (this.note.myRole === 'guest') {
         if (err?.code === 'not-found') {
           this._handleKickout('deleted');
@@ -1285,12 +1290,20 @@ export class NoteEditorComponent implements OnInit, OnChanges, DoCheck, AfterVie
   }
 
   /** Kick-out handler condiviso tra data-path (collaboratorUids / not-found) e error-path (permission-denied). */
-  private _handleKickout(reason: 'removed' | 'deleted' = 'removed') {
+  private async _handleKickout(reason: 'removed' | 'deleted' = 'removed') {
     this.stopLiveSync();
     const title = (this.note?.title ?? '').trim();
+    const ownerUid = (this.note as any)?.uid ?? '';
+    let username = ownerUid ? ownerUid.slice(0, 8) : '';
+    if (ownerUid) {
+      try {
+        const resolved = await this.noteService.getUsernameByUid(ownerUid);
+        if (resolved) username = resolved;
+      } catch { /* fallback sul prefisso uid */ }
+    }
     const keyBase = reason === 'deleted' ? 'NOTE.DELETED_BY_OWNER' : 'NOTE.REMOVED_BY_OWNER';
     const key = title ? keyBase : `${keyBase}_NO_TITLE`;
-    const msg = this.translationService.instant(key, { title });
+    const msg = this.translationService.instant(key, { title, username });
     this.ngZone.run(() => {
       this.toast.show(msg, 5000);
       this.closeEditor.emit(this.note?.blocks?.some(b => b.type === 'reminder') ?? false);
@@ -1511,13 +1524,18 @@ export class NoteEditorComponent implements OnInit, OnChanges, DoCheck, AfterVie
     }
     this.prevCompletedBy = newCB;
 
+    const remoteCollabUids: string[] = Array.isArray(data['collaboratorUids']) ? data['collaboratorUids'] : [];
     console.log('[applyRemoteUpdate] applying — noteId:', this.savedNoteId,
       'remoteAt:', data['updatedAt'], 'lastSavedAt (unchanged):', this.lastSavedAt,
-      'blocks count:', blocks.length);
+      'blocks count:', blocks.length, 'collaboratorUids:', remoteCollabUids.length);
     this.note = {
       ...this.note,
       title: data['title'] ?? this.note.title,
       blocks,
+      // Sincronizza anche lo stato di sharing: l'icona share-mini-fab deve diventare
+      // "group" non appena un guest accetta l'invito (collaboratorUids cresce remoto).
+      collaboratorUids: remoteCollabUids,
+      isShared: remoteCollabUids.length > 0,
     };
     // NOTE: lastSavedAt is intentionally NOT updated here.
     // It tracks the timestamp of our OWN writes (set in performAutoSave) to filter

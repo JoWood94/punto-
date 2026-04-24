@@ -4,6 +4,46 @@
   max-width: 480px;
 }
 
+.sharing-presence-banner {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: -6px 24px 8px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: rgba(28, 27, 31, 0.04);
+  color: #1C1B1F;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.3;
+  max-width: calc(100% - 48px);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sharing-presence-dot {
+  flex-shrink: 0;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #4caf50;
+  box-shadow: 0 0 0 0 rgba(76, 175, 80, 0.55);
+  animation: sharing-presence-pulse 1.6s ease-out infinite;
+}
+
+@keyframes sharing-presence-pulse {
+  0%   { box-shadow: 0 0 0 0 rgba(76, 175, 80, 0.55); }
+  70%  { box-shadow: 0 0 0 6px rgba(76, 175, 80, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(76, 175, 80, 0); }
+}
+
+.sharing-presence-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .sharing-loading {
   display: flex;
   justify-content: center;

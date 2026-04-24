@@ -120,6 +120,15 @@ export class DashboardComponent implements OnInit, OnDestroy {
   private notesSub?: Subscription;
   private authSub?: Subscription;
   private routeSub?: Subscription;
+  // Snapshot delle note dove sono guest, mantenuto tra emissioni di notes$.
+  // null = lista non ancora inizializzata (prima emissione: no diff).
+  // Usato per rilevare quando una nota condivisa sparisce (owner l'ha eliminata
+  // o mi ha rimosso dai collaboratori) e mostrare un toast all'utente.
+  // Teniamo anche ownerUid per risolvere l'username dell'owner nel toast.
+  private prevSharedSnapshot: Map<string, { title: string; ownerUid: string }> | null = null;
+  // Marcatori per escludere dal toast i casi di uscita volontaria del guest
+  // (altrimenti il diff-detector tratterebbe la propria leave come kickout).
+  private voluntaryLeaves = new Set<string>();
   private sessionCheckInterval?: ReturnType<typeof setInterval>;
   private userDocUnsub?: () => void;
   private settingsMenuTimer?: ReturnType<typeof setTimeout>;
@@ -327,6 +336,25 @@ export class DashboardComponent implements OnInit, OnDestroy {
         this.notesLoaded = true;
         this.hasFirestoreError = false;
         this.allNotes = notes;
+        // Diff-detector sulle note dove sono guest: se una scompare tra un'emissione
+        // e l'altra e non ho fatto una leave volontaria (né è aperta nell'editor,
+        // caso gestito da _handleKickout in note-editor), mostro un toast che avvisa
+        // l'utente che non ha più accesso (owner ha rimosso o eliminato la nota).
+        const currentSharedSnapshot = new Map<string, { title: string; ownerUid: string }>();
+        for (const n of notes) {
+          if (n.myRole === 'guest' && n.id) {
+            currentSharedSnapshot.set(n.id, { title: n.title ?? '', ownerUid: n.uid ?? '' });
+          }
+        }
+        if (this.prevSharedSnapshot !== null) {
+          for (const [id, snap] of this.prevSharedSnapshot) {
+            if (currentSharedSnapshot.has(id)) continue;
+            if (this.voluntaryLeaves.has(id)) { this.voluntaryLeaves.delete(id); continue; }
+            if (this.activeNote?.id === id) continue;
+            this._notifyKickedOut(snap.title, snap.ownerUid);
+          }
+        }
+        this.prevSharedSnapshot = currentSharedSnapshot;
         // this.updateAllTags(); // TODO: tags disabilitati temporaneamente
         this.applyFilter();
         this.autoSelectView();
@@ -1193,6 +1221,19 @@ export class DashboardComponent implements OnInit, OnDestroy {
     }
   }
 
+  private async _notifyKickedOut(title: string, ownerUid: string): Promise<void> {
+    let username = ownerUid.slice(0, 8);
+    if (ownerUid) {
+      try {
+        const resolved = await this.noteService.getUsernameByUid(ownerUid);
+        if (resolved) username = resolved;
+      } catch { /* fallback su slice dell'uid */ }
+    }
+    const key = title ? 'NOTE.REMOVED_BY_OWNER' : 'NOTE.REMOVED_BY_OWNER_NO_TITLE';
+    const msg = this.translationService.instant(key, { title, username });
+    this.ngZone.run(() => this.toast.show(msg, 5000));
+  }
+
   private async _leaveNote(note: Note, isActiveInEditor: boolean) {
     if (!note.id) return;
     const displayTitle = note.title || this.translationService.instant('NOTE.UNTITLED');
@@ -1207,12 +1248,16 @@ export class DashboardComponent implements OnInit, OnDestroy {
     if (!confirmed) return;
     try {
       if (isActiveInEditor) this.activeNote = undefined;
+      // Segnala al diff-detector che questa scomparsa è volontaria, così non
+      // triggera il toast "rimosso dalla nota" oltre a LEAVE_SUCCESS.
+      this.voluntaryLeaves.add(note.id);
       await this.noteService.leaveSharedNote(note.id);
       this.ngZone.run(() =>
         this.toast.show(this.translationService.instant('NOTE.LEAVE_SUCCESS'), 3500)
       );
     } catch (e: any) {
       console.error('Errore uscita nota condivisa:', e.message);
+      this.voluntaryLeaves.delete(note.id);
     }
   }
 

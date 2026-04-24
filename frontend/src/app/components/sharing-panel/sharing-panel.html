@@ -1,5 +1,17 @@
 <h2 mat-dialog-title>{{ (isGuest ? 'SHARING.GUEST_TITLE' : 'SHARING.TITLE') | translate }}</h2>
 
+<div class="sharing-presence-banner" *ngIf="presenceUsers().length > 0">
+  <span class="sharing-presence-dot"></span>
+  <span class="sharing-presence-text">
+    <ng-container *ngIf="presenceUsers().length === 1">
+      {{ 'SHARING.PRESENCE_EDITING_ONE' | translate:{ name: presenceUsers()[0].displayName } }}
+    </ng-container>
+    <ng-container *ngIf="presenceUsers().length > 1">
+      {{ 'SHARING.PRESENCE_EDITING_MANY' | translate:{ name: presenceUsers()[0].displayName, extra: presenceUsers().length - 1 } }}
+    </ng-container>
+  </span>
+</div>
+
 <mat-dialog-content class="sharing-dialog-content">
 
   <div *ngIf="loading(); else panelContent" class="sharing-loading">

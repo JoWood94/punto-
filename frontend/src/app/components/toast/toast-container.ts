@@ -22,13 +22,15 @@ import { ToastService } from '../../services/toast';
   styles: [`
     .toast-stack {
       position: fixed;
-      bottom: max(28px, calc(env(safe-area-inset-bottom, 0px) + 16px));
-      left: 50%;
-      transform: translateX(-50%);
+      top: max(14px, calc(env(safe-area-inset-top, 0px) + 14px));
+      left: max(16px, env(safe-area-inset-left, 0px));
+      right: auto;
+      bottom: auto;
+      transform: none;
       z-index: 9999;
       display: flex;
-      flex-direction: column-reverse;
-      align-items: center;
+      flex-direction: column;
+      align-items: flex-start;
       gap: 8px;
       pointer-events: none;
     }
@@ -72,13 +74,13 @@ import { ToastService } from '../../services/toast';
     }
 
     @keyframes toastIn {
-      from { opacity: 0; transform: translateY(10px) scale(0.94); }
+      from { opacity: 0; transform: translateY(-10px) scale(0.94); }
       to   { opacity: 1; transform: translateY(0) scale(1); }
     }
 
     @keyframes toastOut {
       from { opacity: 1; transform: translateY(0) scale(1); }
-      to   { opacity: 0; transform: translateY(6px) scale(0.97); }
+      to   { opacity: 0; transform: translateY(-6px) scale(0.97); }
     }
   `]
 })

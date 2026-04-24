@@ -1022,6 +1022,10 @@ export class NoteService {
   async removeCollaborator(noteId: string, guestUid: string): Promise<void> {
     const batch = writeBatch(this.db);
     batch.delete(doc(this.db, `notes/${noteId}/collaborators/${guestUid}`));
+    // Cleanup presence del guest kickato: il guest non potrà più cancellarla
+    // da sé (perde accesso alla nota), quindi la rimuove l'owner nello stesso
+    // batch per evitare che resti stantia fino al TTL 60s.
+    batch.delete(doc(this.db, `notes/${noteId}/presence/${guestUid}`));
     batch.update(doc(this.db, `notes/${noteId}`), {
       collaboratorUids: arrayRemove(guestUid),
       updatedAt: Date.now(),
@@ -1675,6 +1679,8 @@ export class NoteService {
     batch.delete(doc(this.db, `notes/${noteId}/sharedKeys/${uid}`));
     for (const cu of collabUids) {
       batch.delete(doc(this.db, `notes/${noteId}/sharedKeys/${cu}`));
+      // Cleanup presence dei guest rimossi: stesso razionale di removeCollaborator.
+      batch.delete(doc(this.db, `notes/${noteId}/presence/${cu}`));
     }
     batch.update(doc(this.db, `notes/${noteId}`), { collaboratorUids: [] });
     await batch.commit();
