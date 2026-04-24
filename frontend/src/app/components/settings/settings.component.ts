@@ -65,7 +65,7 @@ export class SettingsComponent implements OnInit {
 
   defaultView: 'list' | 'calendar' | 'reminders' = 'list';
   notifTitleEnabled = false;
-  calendarShowAllNotes = true;
+  calendarShowAllNotes = false;
   resetInProgress = false;
   updateAvailable = false;
 
@@ -113,7 +113,7 @@ export class SettingsComponent implements OnInit {
     this.defaultView = await this.noteService.getUserPreference<'list' | 'calendar' | 'reminders'>('defaultView', 'list');
     this.notifTitleEnabled = await this.noteService.getUserPreference<boolean>('notifTitleEnabled', false);
     this.noteService.setNotifTitleEnabled(this.notifTitleEnabled);
-    this.calendarShowAllNotes = await this.noteService.getUserPreference<boolean>('calendarShowAllNotes', true);
+    this.calendarShowAllNotes = await this.noteService.getUserPreference<boolean>('calendarShowAllNotes', false);
     this.currentUsername = await this.noteService.getUsername();
     this.settingsLoaded = true;
   }

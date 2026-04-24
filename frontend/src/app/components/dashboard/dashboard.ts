@@ -108,7 +108,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
   hasFirestoreError = false;
   private defaultViewKey = 'defaultView';
 
-  calendarShowAllNotes = true;
+  calendarShowAllNotes = false;
   allNotes: Note[] = [];
   filteredNotes: Note[] = [];
   searchQuery = '';
@@ -287,7 +287,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.noteService.setNotifTitleEnabled(notifTitle);
 
     // Carica preferenza visibilità calendario
-    this.calendarShowAllNotes = await this.noteService.getUserPreference<boolean>('calendarShowAllNotes', true);
+    this.calendarShowAllNotes = await this.noteService.getUserPreference<boolean>('calendarShowAllNotes', false);
 
     // Tutti gli init async completati — mostra il contenuto
     this.isReady = true;
@@ -982,7 +982,19 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.settingsOpen = true;
   }
 
-  closeSettings() { this.settingsOpen = false; }
+  closeSettings() {
+    this.settingsOpen = false;
+    // Le preferenze possono essere cambiate nel pannello embedded: rileggile
+    // così il getter calendarNotes e il filtro del calendario riflettono subito
+    // lo stato aggiornato senza richiedere refresh pagina.
+    this.refreshUserPreferences();
+  }
+
+  private async refreshUserPreferences() {
+    try {
+      this.calendarShowAllNotes = await this.noteService.getUserPreference<boolean>('calendarShowAllNotes', false);
+    } catch { /* offline: mantiene valore in memoria */ }
+  }
 
   /** Naviga alla vista calendario (bottone header desktop). Chiude eventuali
    *  modi secondari (settings embedded, editor) per tornare allo stato base. */
