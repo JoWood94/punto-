@@ -50,12 +50,13 @@ ABCDEFGH-k7J3pQ9rT2vW_X4yZbN8mM0oLsHfGdEa
 | `resourceId` | string non vuota | noteId o calId del resource condiviso. |
 | `createdBy` | string | UID dell'owner che ha generato il codice. Deve uguagliare `request.auth.uid` al create. |
 | `createdAt` | int (ms) / timestamp | Timestamp creazione (client-side `Date.now()` o serverTimestamp). |
-| `expiresAt` | int (ms) | Timestamp scadenza. Deve essere nel futuro al create. Per type=`note` il client setta +365 giorni. |
+| `expiresAt` | int (ms) | Timestamp scadenza. Deve essere nel futuro al create. Per type=`note` il client setta +365 giorni; per `calendar` +30 giorni. Cap hard enforceato da rules: max +366 giorni. |
 
 **Vincoli enforceati da rules**:
 - Doc id matches `^[ABCDEFGHJKMNPQRSTUVWXYZ23456789]{8}$`
 - `createdBy == request.auth.uid`
 - `expiresAt is int && expiresAt > now`
+- `expiresAt <= now + 366 * 86400 * 1000` (cap hard universale, 1 giorno di margine sopra i 365 canonici)
 - `type in ['note','calendar']`
 - `resourceId` presente, stringa, non vuota
 
@@ -64,7 +65,6 @@ ABCDEFGH-k7J3pQ9rT2vW_X4yZbN8mM0oLsHfGdEa
   1. Prima di `createInvite(noteId)`, query `invites` dove `resourceId == noteId && createdBy == self`
   2. Eliminare eventuali vecchi invite della stessa nota
   3. Poi creare il nuovo invite
-- TTL effettivo di 365 giorni per note (rules verificano solo `expiresAt > now`, non il massimo).
 
 ### 2.2 `notes/{noteId}/sharedKeys/{uid}`
 
@@ -74,7 +74,7 @@ Nuova subcollection. Risolve il caso multi-device e il bootstrap E2EE.
 |---|---|---|
 | (doc id) | string | UID del partecipante (owner o collaborator). |
 | `wrappedKey` | string | La AES key della nota cifrata con la PGP public key di `{uid}`. ASCII-armored. Non vuota, max 2000 char. |
-| `wrappedAt` | timestamp | Quando è stato scritto il wrap (server/client timestamp, non enforced da rules). |
+| `wrappedAt` | timestamp | Quando è stato scritto il wrap. **Enforceato da rules**: deve essere Firestore `Timestamp` (non `int` ms, non stringa). Client DEVE usare `serverTimestamp()` o `Timestamp.now()`. |
 | `wrappedBy` | string | UID di chi ha scritto il wrap. Deve uguagliare `request.auth.uid` al write. |
 
 **Perché `wrappedBy` == `request.auth.uid`**:
@@ -108,18 +108,26 @@ Nuova subcollection. Risolve il caso multi-device e il bootstrap E2EE.
 | Operazione | Chi | Condizione |
 |---|---|---|
 | read | qualsiasi authenticated | LOOKUP ~40bit è barriera di enumerazione. Cipher E2EE impedisce leak contenuto. |
-| create | authenticated | `isValidLookup(id)` + `createdBy == self` + `expiresAt > now` + `type in whitelist` + `resourceId` presente |
+| create | authenticated | `isValidLookup(id)` + `createdBy == self` + `expiresAt > now` + **`expiresAt <= now + 366d`** (cap hard universale) + `type in whitelist` + `resourceId` presente |
 | update | nessuno | Non permesso. Per "rinnovare" un codice: delete + create nuovo. |
 | delete | `createdBy` | Revoca: nuovi join impossibili, chi dentro resta. |
+
+> **Cap TTL**: 366 giorni (un giorno di margine sopra i 365 canonici per
+> tollerare il lag client/server). Universale per tutti i `type`: il
+> `calendar` usa 30gg quindi è ampiamente sotto il cap.
 
 ### 3.2 `notes/{noteId}/sharedKeys/{uid}`
 
 | Operazione | Chi | Condizione |
 |---|---|---|
 | read | self (`uid == request.auth.uid`) | Nessun altro — nemmeno l'owner — legge il wrap di un altro uid. Defence in depth. |
-| create | owner nota OR self | + `wrappedKey` string non vuota, ≤2000 char + `wrappedBy == self` |
+| create | owner nota OR self | + `wrappedKey` string non vuota, ≤2000 char + `wrappedBy == self` + **`wrappedAt is timestamp`** |
 | update | owner nota OR self | + stessi vincoli della create |
 | delete | owner nota OR self | Owner: cleanup al kickout o al delete nota. Self: leave. |
+
+> **`wrappedAt`**: deve essere un Firestore `Timestamp` (non `int` ms, non
+> stringa). Il client DEVE usare `serverTimestamp()` o `Timestamp.now()`.
+> Previene payload malformati da client bacati.
 
 ### 3.3 `notes/{noteId}` (invariata)
 
@@ -376,7 +384,9 @@ await assertFails(guest.firestore().doc('notes/note-1/sharedKeys/owner-uid').get
 
 ## 7. File modificati
 
-- `firestore.rules` — sezione `invites` riscritta, nuova subcollection `sharedKeys`, nuovo helper `isValidLookup()`.
-- `docs/refactor/share-by-code-schema.md` — questo documento (nuovo).
+- `firestore.rules` — sezione `invites` riscritta (cap TTL 366 gg + `isValidLookup`), nuova subcollection `sharedKeys` (con validatore `wrappedAt is timestamp`), nuovo helper top-level `isValidLookup()`.
+- `docs/refactor/share-by-code-schema.md` — questo documento.
+- `server/scripts/cleanup-legacy-invites.js` — script one-shot per eliminare invites legacy (doc id non conforme al nuovo formato LOOKUP). Supporta `--dry-run` (default) e `--apply`.
+- `server/scripts/README.md` — documentazione dello script di cleanup.
 
 Nessuna modifica a: frontend, server cron, firebase.json, firestore.indexes.json, hosting config.

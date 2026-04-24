@@ -226,7 +226,8 @@ service cloud.firestore {
           request.resource.data.wrappedKey.size() > 0 &&
           request.resource.data.wrappedKey.size() <= 2000 &&
           request.resource.data.wrappedBy is string &&
-          request.resource.data.wrappedBy == request.auth.uid;
+          request.resource.data.wrappedBy == request.auth.uid &&
+          request.resource.data.wrappedAt is timestamp;
 
         // Delete: owner della nota (cleanup al kickout di un collaborator o
         // alla cancellazione nota) OPPURE self (quando si lascia la nota).
@@ -266,7 +267,9 @@ service cloud.firestore {
     //
     // TTL:
     //   - note: 365 giorni (revoca manuale via delete, no cleanup cron)
-    //   - calendar: invariato rispetto a prima
+    //   - calendar: 30 giorni (sotto il cap universale, OK)
+    //   Cap hard universale enforceato da rules: expiresAt <= now + 366 giorni.
+    //   Margine di 1 giorno sopra i 365 per tollerare lag client/server.
     //
     // Vincolo "uno share code attivo per nota" NON è enforceable in rules
     // (servirebbe una query). Il client garantisce il vincolo cancellando
@@ -283,12 +286,14 @@ service cloud.firestore {
       // - doc id deve essere LOOKUP valido (8 char alfabeto unambiguous).
       // - `type` obbligatorio in whitelist.
       // - `resourceId` obbligatorio (noteId del legacy rimosso).
-      // - `expiresAt` nel futuro. Per type='note' consigliato +365gg (client-enforced).
+      // - `expiresAt` nel futuro, e MAX +366 giorni (cap hard lato rules, universale
+      //   per tutti i type; note usa 365, calendar 30 — entrambi sotto il cap).
       allow create: if request.auth != null &&
         isValidLookup(inviteId) &&
         request.resource.data.createdBy == request.auth.uid &&
         request.resource.data.expiresAt is int &&
         request.resource.data.expiresAt > request.time.toMillis() &&
+        request.resource.data.expiresAt <= request.time.toMillis() + 366 * 86400 * 1000 &&
         request.resource.data.type in ['note', 'calendar'] &&
         'resourceId' in request.resource.data &&
         request.resource.data.resourceId is string &&
