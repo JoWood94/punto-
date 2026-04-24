@@ -1499,16 +1499,29 @@ export class NoteService {
   /** Revoca tutti i collaboratori: cancella subdoc + inviti + sharedKeys del noteId + svuota collaboratorUids. Ri-cifra con PGP. */
   async revokeAllCollaborators(noteId: string): Promise<void> {
     const uid = this.authService.getCurrentUserId();
-    const [collabsSnap, invitesSnap, sharedKeysSnap] = await Promise.all([
+    if (!uid) throw new Error('Not authenticated');
+
+    // NON fare getDocs su sharedKeys: le rules consentono read solo su self uid.
+    // L'owner conosce già gli uid da collaboratorUids nel doc nota.
+    const [collabsSnap, invitesSnap, noteSnap] = await Promise.all([
       getDocs(collection(this.db, `notes/${noteId}/collaborators`)),
       getDocs(query(collection(this.db, 'invites'), where('resourceId', '==', noteId))),
-      getDocs(collection(this.db, `notes/${noteId}/sharedKeys`)),
+      this.freshOrCached(doc(this.db, `notes/${noteId}`)),
     ]);
+
+    const collabUids = noteSnap.exists()
+      ? ((noteSnap.data() as any)['collaboratorUids'] as string[] ?? [])
+      : [];
 
     const batch = writeBatch(this.db);
     collabsSnap.docs.forEach(d => batch.delete(d.ref));
     invitesSnap.docs.forEach(d => batch.delete(d.ref));
-    sharedKeysSnap.docs.forEach(d => batch.delete(d.ref));
+    // Delete sharedKeys per uid noti: owner + tutti i collaboratori.
+    // batch.delete su un doc inesistente è no-op in Firestore SDK (non genera errore).
+    batch.delete(doc(this.db, `notes/${noteId}/sharedKeys/${uid}`));
+    for (const cu of collabUids) {
+      batch.delete(doc(this.db, `notes/${noteId}/sharedKeys/${cu}`));
+    }
     batch.update(doc(this.db, `notes/${noteId}`), { collaboratorUids: [] });
     await batch.commit();
 

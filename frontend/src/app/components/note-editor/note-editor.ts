@@ -1209,14 +1209,20 @@ export class NoteEditorComponent implements OnInit, OnChanges, DoCheck, AfterVie
     // watchNote sempre attivo — necessario per ricevere update dal guest anche su note
     // che non erano ancora shared al momento dell'apertura (BF-GG fix).
     this.liveNoteUnsub = this.noteService.watchNote(this.savedNoteId, (data) => {
-      // Guest kick: se siamo stati rimossi dai collaboratori, chiudi l'editor
+      // Guest kick: se siamo stati rimossi dai collaboratori, chiudi l'editor.
+      // Usa il titolo già decifrato in memoria (this.note.title) prima che
+      // la nota scompaia dalla vista del guest.
       if (this.note.myRole === 'guest') {
         const uid = this.authService.getCurrentUserId();
         const collabs: string[] = data['collaboratorUids'] ?? [];
         if (uid && !collabs.includes(uid)) {
           this.stopLiveSync();
+          const title = (this.note.title ?? '').trim();
+          const msg = title
+            ? this.translationService.instant('NOTE.REMOVED_BY_OWNER', { title })
+            : this.translationService.instant('NOTE.REMOVED_BY_OWNER_NO_TITLE');
           this.ngZone.run(() => {
-            this.toast.show(this.translationService.instant('SHARING.REMOVED_FROM_NOTE'));
+            this.toast.show(msg, 5000);
             this.closeEditor.emit(this.note?.blocks?.some(b => b.type === 'reminder') ?? false);
           });
           return;

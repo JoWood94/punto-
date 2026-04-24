@@ -89,7 +89,9 @@
     "DELETE_MSG": "Delete \"{{ title }}\"? This cannot be undone.",
     "PIN": "Pin note",
     "UNPIN": "Unpin",
-    "EVADE": "Complete"
+    "EVADE": "Complete",
+    "REMOVED_BY_OWNER": "The owner removed you from \"{{title}}\"",
+    "REMOVED_BY_OWNER_NO_TITLE": "The owner removed you from this note"
   },
   "LOGIN": {
     "RECOVER_PASSWORD": "Recover Password",

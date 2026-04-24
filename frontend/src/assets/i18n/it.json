@@ -89,7 +89,9 @@
     "DELETE_MSG": "Vuoi eliminare \"{{ title }}\"? L'operazione non è reversibile.",
     "PIN": "Fissa nota",
     "UNPIN": "Rimuovi pin",
-    "EVADE": "Evadi"
+    "EVADE": "Evadi",
+    "REMOVED_BY_OWNER": "L'owner ti ha rimosso dalla nota \"{{title}}\"",
+    "REMOVED_BY_OWNER_NO_TITLE": "L'owner ti ha rimosso da questa nota"
   },
   "LOGIN": {
     "RECOVER_PASSWORD": "Recupera Password",
