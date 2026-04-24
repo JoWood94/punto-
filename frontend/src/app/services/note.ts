@@ -832,11 +832,16 @@ export class NoteService {
   }
 
   /** Real-time listener sul documento nota. Ritorna la funzione di unsubscribe. */
-  watchNote(noteId: string, callback: (data: any) => void): () => void {
+  watchNote(
+    noteId: string,
+    callback: (data: any) => void,
+    onError?: (err: any) => void
+  ): () => void {
     const noteRef = doc(this.db, `notes/${noteId}`);
-    return onSnapshot(noteRef, snap => {
-      if (snap.exists()) callback(snap.data());
-    }, () => {});
+    return onSnapshot(noteRef,
+      snap => { if (snap.exists()) callback(snap.data()); },
+      err => { if (onError) onError(err); }
+    );
   }
 
   /** Legge updatedAt dal server per il check anti-overwrite. */
@@ -1260,12 +1265,27 @@ export class NoteService {
                                   !this.cryptoService.isAESEncrypted(title ?? '') &&
                                   (noteData['collaboratorUids']?.length ?? 0) > 0;
 
-      // Decripta da PGP se necessario, poi ricifra con AES
+      // Decripta da PGP se necessario, poi ricifra con AES.
+      // Se il titolo è già AES-cifrato (nota già condivisa in sessione precedente),
+      // decifra con la nuova aesKey prima di estrarre plainTitle — altrimenti
+      // plainTitle conterrebbe il ciphertext raw che verrebbe poi ri-cifrato
+      // e l'invite mostrerebbe AES1:... come titolo di preview.
       let plainNote: any = noteData;
       if (hasPGPContent && this.cryptoService.isEnabled) {
         plainNote = await this.cryptoService.decryptNote(noteData);
       }
-      plainTitle = (plainNote['title'] as string | undefined) ?? '';
+      const rawTitle = plainNote['title'] as string | undefined;
+      if (rawTitle && this.cryptoService.isAESEncrypted(rawTitle)) {
+        // Titolo già cifrato con AES (es. dopo una condivisione precedente revocata):
+        // decifra con la chiave corrente per ottenere il plaintext.
+        try {
+          plainTitle = await this.cryptoService.decryptNoteAES(aesKey, rawTitle);
+        } catch {
+          plainTitle = '';
+        }
+      } else {
+        plainTitle = rawTitle ?? '';
+      }
 
       // Cifra con AES (sia per PGP→AES che per plaintext→AES).
       // updateDoc scrive SOLO i campi cifrati (title, content, blocks) — mai
@@ -1408,7 +1428,10 @@ export class NoteService {
       const aesKey = await this.cryptoService.importNoteKey(code.key);
       const rawEncrypted = (invite as any)['encryptedTitle'] as string | undefined;
       if (rawEncrypted && this.cryptoService.isAESEncrypted(rawEncrypted)) {
-        noteTitle = await this.cryptoService.decryptNoteAES(aesKey, rawEncrypted);
+        const decrypted = await this.cryptoService.decryptNoteAES(aesKey, rawEncrypted);
+        // Sanity check: se il decrypted è ancora un ciphertext (invite stale con
+        // doppia cifratura da bug BUG-22), non mostrarlo.
+        noteTitle = this.cryptoService.isAESEncrypted(decrypted) ? '' : decrypted;
       }
     } catch {
       noteTitle = '';
@@ -1438,14 +1461,15 @@ export class NoteService {
     const noteId = invite.noteId ?? invite.resourceId;
     if (!noteId) throw new Error('join/malformed');
 
+    // Importa la chiave AES dal code e la mette in cache PRIMA di acceptInvite.
+    // acceptInvite scrive collaboratorUids su Firestore → il shared stream riceve lo
+    // snapshot e chiama _getAESKeyForNote. Se la cache fosse vuota a quel punto,
+    // il decrypt fallirebbe e il guest vedrebbe la nota vuota (TOCTOU BUG 23).
+    const aesKey = await this.cryptoService.importNoteKey(code.key);
+    this._aesKeyCache.set(noteId, aesKey);
+
     // Accetta l'invito (aggiunge collaboratore)
     await this.acceptInvite(code.lookup, opts);
-
-    // Importa la chiave AES dal code
-    const aesKey = await this.cryptoService.importNoteKey(code.key);
-
-    // Aggiorna la cache in-memory
-    this._aesKeyCache.set(noteId, aesKey);
 
     // Wrappa la chiave con la propria PGP public key e salvala su Firestore
     const userSnap = await getDoc(doc(this.db, `users/${uid}`));

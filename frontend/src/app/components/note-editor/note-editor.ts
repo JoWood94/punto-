@@ -1209,22 +1209,14 @@ export class NoteEditorComponent implements OnInit, OnChanges, DoCheck, AfterVie
     // watchNote sempre attivo — necessario per ricevere update dal guest anche su note
     // che non erano ancora shared al momento dell'apertura (BF-GG fix).
     this.liveNoteUnsub = this.noteService.watchNote(this.savedNoteId, (data) => {
-      // Guest kick: se siamo stati rimossi dai collaboratori, chiudi l'editor.
+      // Guest kick (data path): se siamo stati rimossi dai collaboratori, chiudi l'editor.
       // Usa il titolo già decifrato in memoria (this.note.title) prima che
       // la nota scompaia dalla vista del guest.
       if (this.note.myRole === 'guest') {
         const uid = this.authService.getCurrentUserId();
         const collabs: string[] = data['collaboratorUids'] ?? [];
         if (uid && !collabs.includes(uid)) {
-          this.stopLiveSync();
-          const title = (this.note.title ?? '').trim();
-          const msg = title
-            ? this.translationService.instant('NOTE.REMOVED_BY_OWNER', { title })
-            : this.translationService.instant('NOTE.REMOVED_BY_OWNER_NO_TITLE');
-          this.ngZone.run(() => {
-            this.toast.show(msg, 5000);
-            this.closeEditor.emit(this.note?.blocks?.some(b => b.type === 'reminder') ?? false);
-          });
+          this._handleKickout();
           return;
         }
       }
@@ -1232,6 +1224,14 @@ export class NoteEditorComponent implements OnInit, OnChanges, DoCheck, AfterVie
       const remoteAt = data['updatedAt'] as number | undefined;
       if (!remoteAt || remoteAt <= this.lastSavedAt) return;
       this.applyRemoteUpdate(data);
+    }, (err) => {
+      // Guest kick (error path): quando il guest viene rimosso dai collaboratorUids,
+      // Firestore rules negano la lettura di notes/{noteId}. L'onSnapshot emette un
+      // errore permission-denied invece della doc aggiornata — il data callback non
+      // viene mai chiamato. Trattiamo l'errore come segnale di kick-out.
+      if (this.note.myRole === 'guest' && err?.code === 'permission-denied') {
+        this._handleKickout();
+      }
     });
 
     // Presence e permessi: solo per note condivise (ha senso solo in presenza di collaboratori)
@@ -1247,6 +1247,19 @@ export class NoteEditorComponent implements OnInit, OnChanges, DoCheck, AfterVie
     clearTimeout(this.syncStateTimer);
     this.syncState.set('idle');
     this.stopPresence();
+  }
+
+  /** Kick-out handler condiviso tra data-path (collaboratorUids check) e error-path (permission-denied). */
+  private _handleKickout() {
+    this.stopLiveSync();
+    const title = (this.note?.title ?? '').trim();
+    const msg = title
+      ? this.translationService.instant('NOTE.REMOVED_BY_OWNER', { title })
+      : this.translationService.instant('NOTE.REMOVED_BY_OWNER_NO_TITLE');
+    this.ngZone.run(() => {
+      this.toast.show(msg, 5000);
+      this.closeEditor.emit(this.note?.blocks?.some(b => b.type === 'reminder') ?? false);
+    });
   }
 
   // ─── Presence ─────────────────────────────────────────────────────────────
