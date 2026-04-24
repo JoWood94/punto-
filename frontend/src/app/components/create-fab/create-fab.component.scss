@@ -44,13 +44,14 @@
 }
 
 .create-fab-item {
-  // M3 extended pill: icona a sinistra + label dopo (left-aligned).
-  // Nessuna width fissa: segue il contenuto come da spec M3 extended FAB.
+  // M3 extended pill: larghezza fissa uniforme calibrata sulla voce più lunga
+  // ("Unisciti a una nota"). Tutte le pill hanno la stessa dimensione.
   display: inline-flex;
   align-items: center;
   justify-content: flex-start;
   gap: 6px;
   padding: 0 18px;
+  width: 210px;
   height: 48px;
   border-radius: 24px;
   background: #1C1B1F;
