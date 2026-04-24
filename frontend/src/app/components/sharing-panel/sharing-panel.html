@@ -56,7 +56,7 @@
           <span>{{ 'SHARING.SHARE_CODE_SECTION' | translate }}</span>
         </div>
 
-        <ng-container *ngIf="!shareCode; else codeGenerated">
+        <ng-container *ngIf="!shareCode(); else codeGenerated">
           <button mat-stroked-button class="sharing-generate-btn"
                   (click)="generateCode()"
                   [disabled]="generatingCode()">
@@ -69,7 +69,7 @@
 
         <ng-template #codeGenerated>
           <div class="sharing-code-block">
-            <code class="sharing-code-value">{{ shareCode }}</code>
+            <code class="sharing-code-value">{{ shareCode() }}</code>
             <button mat-icon-button
                     (click)="copyCode()"
                     [matTooltip]="(copyDone() ? 'SHARING.COPIED' : 'SHARING.COPY_CODE') | translate">

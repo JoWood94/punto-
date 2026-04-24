@@ -40,7 +40,7 @@ export class SharingPanelComponent implements OnInit, OnDestroy {
   generatingCode = signal(false);
   copyDone = signal(false);
   leaving = signal(false);
-  shareCode: string | null = null;      // codice LOOKUP-KEY visibile all'owner
+  shareCode = signal<string | null>(null);
   collaborators = signal<CollaboratorUI[]>([]);
   revoking = signal(false);
   ownerUsername: string | null = null;
@@ -105,15 +105,16 @@ export class SharingPanelComponent implements OnInit, OnDestroy {
     this.generatingCode.set(true);
     try {
       const code = await this.noteService.generateShareCode(this.data.noteId);
-      this.shareCode = code;
+      this.shareCode.set(code);
     } finally {
       this.generatingCode.set(false);
     }
   }
 
   async copyCode() {
-    if (!this.shareCode) return;
-    await navigator.clipboard.writeText(this.shareCode);
+    const code = this.shareCode();
+    if (!code) return;
+    await navigator.clipboard.writeText(code);
     this.copyDone.set(true);
     setTimeout(() => this.copyDone.set(false), 2000);
   }
@@ -122,7 +123,7 @@ export class SharingPanelComponent implements OnInit, OnDestroy {
     this.generatingCode.set(true);
     try {
       await this.noteService.revokeShareCode(this.data.noteId);
-      this.shareCode = null;
+      this.shareCode.set(null);
     } finally {
       this.generatingCode.set(false);
     }
@@ -148,7 +149,7 @@ export class SharingPanelComponent implements OnInit, OnDestroy {
     try {
       await this.noteService.revokeAllCollaborators(this.data.noteId);
       this.collaborators.set([]);
-      this.shareCode = null;
+      this.shareCode.set(null);
       this.dialogRef.close({ revoked: true });
     } finally {
       this.revoking.set(false);
