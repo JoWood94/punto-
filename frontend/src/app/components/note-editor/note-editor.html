@@ -432,7 +432,7 @@
 <!-- ── Floating toolbars (M3 Expressive) ── -->
 <!-- toolbar-hidden via CSS class (non *ngIf): su iOS il focus event su input[type=time]
      può non propagarsi correttamente con *ngIf, visibility:hidden è più affidabile -->
-<div class="floating-toolbar-area" [class.toolbar-hidden]="nonTextFieldFocused()">
+<div class="floating-toolbar-area" [class.toolbar-hidden]="nonTextFieldFocused() || keyboardOpen()">
 
   <!-- Backdrop per chiudere la toolbar add-block -->
   <div class="add-block-backdrop" *ngIf="addBlockMenuOpen()" (click)="closeAddBlockMenu()"></div>

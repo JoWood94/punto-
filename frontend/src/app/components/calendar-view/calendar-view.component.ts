@@ -1,7 +1,7 @@
 import {
   Component, Input, Output, EventEmitter,
   OnChanges, OnInit, SimpleChanges, AfterViewInit, ViewChild, ElementRef,
-  HostListener
+  OnDestroy
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatButtonModule } from '@angular/material/button';
@@ -35,7 +35,7 @@ export interface CalendarMonth {
   templateUrl: './calendar-view.component.html',
   styleUrls: ['./calendar-view.component.scss']
 })
-export class CalendarViewComponent implements OnChanges, OnInit, AfterViewInit {
+export class CalendarViewComponent implements OnChanges, OnInit, AfterViewInit, OnDestroy {
   @Input() notes: Note[] = [];
   @Input() isMobile = false;
   @Input() initialViewType: CalendarViewType = 'month';
@@ -77,6 +77,7 @@ export class CalendarViewComponent implements OnChanges, OnInit, AfterViewInit {
   months: CalendarMonth[] = [];
 
   translationService = inject(TranslationService);
+  private host = inject(ElementRef<HTMLElement>);
 
   get weekHeaders(): string[] {
     const locale = this.translationService.locale;
@@ -100,6 +101,19 @@ export class CalendarViewComponent implements OnChanges, OnInit, AfterViewInit {
     this.viewType = this.initialViewType;
     this.toolbarIndicatorTransform = this.cssTransform(this.VIEW_SEGMENTS.indexOf(this.viewType));
     this.refresh();
+    // Listener nativi capture-phase: garantiscono cattura dei touch anche
+    // sopra scroll container interni (regressione mobile iOS PWA).
+    const el = this.host.nativeElement as HTMLElement;
+    el.addEventListener('touchstart', this.hostTouchStart, { capture: true, passive: true });
+    el.addEventListener('touchend', this.hostTouchEnd, { capture: true, passive: true });
+    el.addEventListener('touchcancel', this.hostTouchCancel, { capture: true, passive: true });
+  }
+
+  ngOnDestroy(): void {
+    const el = this.host.nativeElement as HTMLElement;
+    el.removeEventListener('touchstart', this.hostTouchStart, { capture: true } as any);
+    el.removeEventListener('touchend', this.hostTouchEnd, { capture: true } as any);
+    el.removeEventListener('touchcancel', this.hostTouchCancel, { capture: true } as any);
   }
 
   ngAfterViewInit(): void {
@@ -192,10 +206,12 @@ export class CalendarViewComponent implements OnChanges, OnInit, AfterViewInit {
 
   buildScrollableMonths(centerDate: Date): void {
     const result: CalendarMonth[] = [];
-    // Pre-render esteso (-6..+6) per ridurre la frequenza dei prepend/append
-    // durante lo scroll inertiale iOS — la causa principale del glitch
-    // "scrolla decine di anni alla velocità della luce".
-    for (let offset = -6; offset <= 6; offset++) {
+    // Range fisso 3 anni avanti/indietro (37 mesi, -18..+18). NIENTE prepend/append
+    // dinamico durante lo scroll: era la causa root del glitch "scrolla
+    // decine di anni" (regressione introdotta in v5.0.0 con il calcolo
+    // currentDate dal mese al 25% del viewport che si combinava col
+    // setTimeout-based scrollTop adjust in un loop di prepend a catena).
+    for (let offset = -18; offset <= 18; offset++) {
       const d = new Date(centerDate.getFullYear(), centerDate.getMonth() + offset, 1);
       result.push(this.buildMonth(d.getFullYear(), d.getMonth()));
     }
@@ -203,10 +219,6 @@ export class CalendarViewComponent implements OnChanges, OnInit, AfterViewInit {
   }
 
   private isProgrammaticScroll = false;
-  /** Lock contro prepend/append rientranti durante l'inertia iOS. Senza
-   *  questo, ogni scroll event reentra mentre il rAF non ha ancora applicato
-   *  scrollTop, aggiungendo mesi a catena (scroll "impazzito"). */
-  private isAdjustingMonths = false;
 
   private scrollToCurrentMonth(): void {
     if (this.viewType !== 'month') return;
@@ -228,38 +240,6 @@ export class CalendarViewComponent implements OnChanges, OnInit, AfterViewInit {
 
   onMonthsScroll(event: Event): void {
     const container = event.target as HTMLElement;
-    // Threshold ristretta: prepend/append solo quando l'utente è davvero
-    // al boundary, mai in anticipo durante l'inertia.
-    const threshold = 80;
-
-    // Skip durante scroll programmatici e durante un adjust in corso.
-    // Il lock isAdjustingMonths viene rilasciato 250ms dopo per assorbire
-    // l'inertia iOS che continua a sparare scroll events oltre il rAF
-    // (senza questo, ogni step di inertia rientrava aggiungendo mesi a catena).
-    if (!this.isProgrammaticScroll && !this.isAdjustingMonths) {
-      if (container.scrollTop < threshold && this.months.length > 0) {
-        this.isAdjustingMonths = true;
-        const first = this.months[0];
-        const d = new Date(first.year, first.month - 1, 1);
-        const newMonth = this.buildMonth(d.getFullYear(), d.getMonth());
-        const prevScrollHeight = container.scrollHeight;
-        this.months = [newMonth, ...this.months];
-        requestAnimationFrame(() => {
-          container.scrollTop += container.scrollHeight - prevScrollHeight;
-          // Rilascio differito: dà tempo all'inertia di calmarsi prima di
-          // permettere un nuovo prepend.
-          setTimeout(() => { this.isAdjustingMonths = false; }, 250);
-        });
-      } else if (container.scrollTop + container.clientHeight > container.scrollHeight - threshold && this.months.length > 0) {
-        this.isAdjustingMonths = true;
-        const last = this.months[this.months.length - 1];
-        const d = new Date(last.year, last.month + 1, 1);
-        this.months = [...this.months, this.buildMonth(d.getFullYear(), d.getMonth())];
-        // Append non richiede scrollTop adjust ma applichiamo lo stesso lock
-        // per evitare append a catena durante l'inertia.
-        setTimeout(() => { this.isAdjustingMonths = false; }, 250);
-      }
-    }
 
     // Aggiorna currentDate solo se lo scroll è manuale (non programmatico)
     if (this.isProgrammaticScroll) return;
@@ -438,19 +418,18 @@ export class CalendarViewComponent implements OnChanges, OnInit, AfterViewInit {
   }
 
   // ── Swipe orizzontale sul body del calendario ──
-  // Registriamo i listener via HostListener (host element) invece di lasciare
-  // bubbling al mat-sidenav-container del dashboard: su iOS il bubbling viene
-  // soppresso dallo scroll container interno (.months-scroll-container) quando
-  // il gesto inizia con una piccola componente verticale.
+  // Registrati via addEventListener nativo con capture: true: HostListener
+  // di Angular non garantisce di intercettare quando lo scroll container
+  // interno mangia il gesto su iOS PWA. Capture phase scende dall'host ai
+  // children, quindi il touchstart viene osservato anche se internamente
+  // qualcuno fa stopPropagation (cosa che cdk e mat-sidenav non fanno ma
+  // assicuriamoci).
   private hostTouchStartX = 0;
   private hostTouchStartY = 0;
   private hostTouchActive = false;
-
-  @HostListener('touchstart', ['$event'])
-  onHostTouchStart(e: TouchEvent): void {
+  private hostTouchStart = (e: TouchEvent): void => {
     if (!this.isMobile) return;
     const t = e.target as HTMLElement;
-    // Esclude toolbar (gestita da onToolbarTouch*) e pillola "Oggi"
     if (t.closest('.calendar-toolbar') || t.closest('.calendar-today-pill')) {
       this.hostTouchActive = false;
       return;
@@ -458,10 +437,8 @@ export class CalendarViewComponent implements OnChanges, OnInit, AfterViewInit {
     this.hostTouchActive = true;
     this.hostTouchStartX = e.touches[0].clientX;
     this.hostTouchStartY = e.touches[0].clientY;
-  }
-
-  @HostListener('touchend', ['$event'])
-  onHostTouchEnd(e: TouchEvent): void {
+  };
+  private hostTouchEnd = (e: TouchEvent): void => {
     if (!this.isMobile || !this.hostTouchActive) return;
     this.hostTouchActive = false;
     const dx = e.changedTouches[0].clientX - this.hostTouchStartX;
@@ -469,7 +446,8 @@ export class CalendarViewComponent implements OnChanges, OnInit, AfterViewInit {
     if (Math.abs(dy) > Math.abs(dx)) return;
     if (Math.abs(dx) < 60) return;
     this.horizontalSwipe.emit(dx > 0 ? 'right' : 'left');
-  }
+  };
+  private hostTouchCancel = (): void => { this.hostTouchActive = false; };
 
   // ── Toolbar drag handlers (mirrors unified-toolbar in dashboard) ──
   private measureToolbarSegWidth(e: TouchEvent): void {
@@ -506,16 +484,39 @@ export class CalendarViewComponent implements OnChanges, OnInit, AfterViewInit {
   }
 
   onToolbarTouchEnd(e: TouchEvent): void {
-    if (!this.toolbarDragging) return;
+    const wasDragging = this.toolbarDragging;
     this.toolbarDragging = false;
+    const target = e.target as HTMLElement;
+
+    // Tap detection (anche senza drag iniziato): touch-action:none sul
+    // container sopprime il click iOS auto-generato per i tap rapidi.
+    // Il pill "Oggi" e i segmenti partono FUORI da .calendar-toolbar-segments
+    // (per Oggi) o non avviano drag se il dito non si è mosso, quindi
+    // rischiavano di essere "muti". Risolviamo qui leggendo il target.
+    if (!wasDragging) {
+      if (target.closest('.calendar-today-pill')) {
+        this.goToToday();
+        return;
+      }
+      const segEl = target.closest('.calendar-toolbar-seg');
+      if (segEl) {
+        const parent = segEl.parentElement;
+        const segs = parent
+          ? Array.from(parent.querySelectorAll<HTMLElement>('.calendar-toolbar-seg'))
+          : [];
+        const index = segs.indexOf(segEl as HTMLElement);
+        if (index >= 0 && index < this.VIEW_SEGMENTS.length) {
+          this.setView(this.VIEW_SEGMENTS[index]);
+        }
+      }
+      return;
+    }
+
     const endX = e.changedTouches[0]?.clientX ?? this.toolbarDragStartX;
     const dx = endX - this.toolbarDragStartX;
-    // Tap senza spostamento reale: applica direttamente il segmento tappato.
-    // Con touch-action:none sul container iOS può sopprimere il click auto
-    // generato dal tap, quindi non possiamo affidarci a (click) per questo
-    // caso — lo risolviamo manualmente leggendo il target del touchend.
+    // Drag iniziato ma chiuso senza spostamento reale: tap su un segmento.
     if (Math.abs(dx) < 8) {
-      const segEl = (e.target as HTMLElement).closest('.calendar-toolbar-seg');
+      const segEl = target.closest('.calendar-toolbar-seg');
       if (segEl) {
         const parent = segEl.parentElement;
         const segs = parent
@@ -527,7 +528,6 @@ export class CalendarViewComponent implements OnChanges, OnInit, AfterViewInit {
           return;
         }
       }
-      // Tap fuori da un segmento (es. "Oggi" già gestita altrove): ripristina l'indicatore.
       this.toolbarIndicatorTransform = this.cssTransform(this.VIEW_SEGMENTS.indexOf(this.viewType));
       return;
     }

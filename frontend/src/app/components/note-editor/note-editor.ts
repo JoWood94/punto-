@@ -283,27 +283,64 @@ export class NoteEditorComponent implements OnInit, OnChanges, DoCheck, AfterVie
     this.installKeyboardDetector();
   }
 
-  /** Rileva apertura/chiusura della tastiera virtuale via visualViewport.
-   *  In PWA standalone iOS window.innerHeight si riduce con la tastiera
-   *  (allineandosi a vv.height), quindi un confronto vv.height vs innerHeight
-   *  corrente non rileva l'apertura. Usiamo il massimo storico di innerHeight
-   *  come baseline: cresce solo quando la tastiera è chiusa, mai diminuisce.
-   *  Soglia 85%: l'altezza cala sotto di quella quando compare la keyboard. */
+  /** Rileva apertura/chiusura della tastiera virtuale.
+   *  Strategia primaria: focus/blur su campi text (input/textarea/contenteditable).
+   *  Affidabile in PWA iOS dove visualViewport heuristic non scatta perché
+   *  innerHeight si riduce parimenti con la tastiera.
+   *  Fallback: visualViewport con baseline = max storico di innerHeight,
+   *  utile quando la tastiera viene chiusa via gesto (focus rimane sull'input).  */
   private installKeyboardDetector(): void {
-    if (typeof window === 'undefined' || !window.visualViewport) return;
-    const vv = window.visualViewport;
-    let baseHeight = window.innerHeight;
-    const check = () => {
-      if (window.innerHeight > baseHeight) baseHeight = window.innerHeight;
-      const open = vv.height < baseHeight * 0.85;
+    if (typeof window === 'undefined') return;
+
+    const isTextInput = (el: Element | null): boolean => {
+      if (!el) return false;
+      if (el.tagName === 'TEXTAREA') return true;
+      if (el.tagName === 'INPUT') {
+        const type = (el as HTMLInputElement).type;
+        return ['text', 'search', 'email', 'url', 'tel', 'password', 'number', ''].includes(type);
+      }
+      return (el as HTMLElement).isContentEditable === true;
+    };
+
+    const updateFromFocus = () => {
+      const open = isTextInput(document.activeElement);
       if (open !== this.keyboardOpen()) {
         this.keyboardOpen.set(open);
         this.cdr.markForCheck();
       }
     };
-    vv.addEventListener('resize', check);
-    this.vvResizeListener = () => vv.removeEventListener('resize', check);
-    check();
+
+    const onFocusIn = () => updateFromFocus();
+    const onFocusOut = () => setTimeout(updateFromFocus, 50);
+    document.addEventListener('focusin', onFocusIn);
+    document.addEventListener('focusout', onFocusOut);
+
+    let baseHeight = window.innerHeight;
+    const onVvResize = () => {
+      if (window.innerHeight > baseHeight) baseHeight = window.innerHeight;
+      // Se vv.height è quasi pari alla baseline, tastiera certamente chiusa:
+      // forza false (caso "focus rimasto ma tastiera dismessa via gesto").
+      if (window.visualViewport && window.visualViewport.height >= baseHeight * 0.95) {
+        if (this.keyboardOpen()) {
+          this.keyboardOpen.set(false);
+          this.cdr.markForCheck();
+        }
+      } else {
+        updateFromFocus();
+      }
+    };
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener('resize', onVvResize);
+    }
+
+    this.vvResizeListener = () => {
+      document.removeEventListener('focusin', onFocusIn);
+      document.removeEventListener('focusout', onFocusOut);
+      if (window.visualViewport) {
+        window.visualViewport.removeEventListener('resize', onVvResize);
+      }
+    };
+    updateFromFocus();
   }
   ngOnChanges(changes: SimpleChanges) { if (changes['selectedNote']) this.initNote(); }
   ngDoCheck() { if (!this.guestCanEdit && this.addBlockMenuOpen()) this.addBlockMenuOpen.set(false); }
