@@ -466,10 +466,12 @@
 
   // Tastiera virtuale aperta: i FAB e la floating-toolbar sono già nascosti
   // via keyboardOpen(), quindi il padding-bottom riservato a loro produce
-  // solo una fascia bianca sotto l'ultimo blocco. Lo riduciamo a un margine
-  // minimo per il caret.
+  // solo una fascia bianca sotto l'ultimo blocco. Lo azzeriamo ed usiamo
+  // scroll-padding per garantire che scrollIntoView dell'input attivo
+  // lasci comunque qualche pixel di respiro.
   &.keyboard-open {
-    padding-bottom: 16px;
+    padding-bottom: 0;
+    scroll-padding-bottom: 24px;
   }
 
   // Mobile: allineato ai margini x della reminder-strip (16px).

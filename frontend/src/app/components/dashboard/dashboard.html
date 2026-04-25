@@ -346,7 +346,8 @@
         [initialViewType]="lastCalendarView"
         (viewTypeChange)="lastCalendarView = $event"
         (noteSelected)="onCalendarNoteSelected($event)"
-        (currentDateChange)="onCalendarCurrentDateChange($event)">
+        (currentDateChange)="onCalendarCurrentDateChange($event)"
+        (horizontalSwipe)="onCalendarHorizontalSwipe($event)">
       </app-calendar-view>
     </div>
 

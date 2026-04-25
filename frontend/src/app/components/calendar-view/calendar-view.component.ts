@@ -1,6 +1,7 @@
 import {
   Component, Input, Output, EventEmitter,
-  OnChanges, OnInit, SimpleChanges, AfterViewInit, ViewChild, ElementRef
+  OnChanges, OnInit, SimpleChanges, AfterViewInit, ViewChild, ElementRef,
+  HostListener
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatButtonModule } from '@angular/material/button';
@@ -41,6 +42,10 @@ export class CalendarViewComponent implements OnChanges, OnInit, AfterViewInit {
   @Output() noteSelected = new EventEmitter<Note>();
   @Output() viewTypeChange = new EventEmitter<CalendarViewType>();
   @Output() currentDateChange = new EventEmitter<Date>();
+  /** Emette 'left' o 'right' su swipe orizzontale > 60px sul body del calendario.
+   *  Risolve il bug iOS in cui i touch event sul mat-sidenav-container vengono
+   *  catturati dallo scroll container interno e non bubbling al parent. */
+  @Output() horizontalSwipe = new EventEmitter<'left' | 'right'>();
 
   @ViewChild('monthsContainer') monthsContainerRef?: ElementRef<HTMLElement>;
   @ViewChild('toolbarSegments') toolbarSegmentsRef?: ElementRef<HTMLElement>;
@@ -187,7 +192,10 @@ export class CalendarViewComponent implements OnChanges, OnInit, AfterViewInit {
 
   buildScrollableMonths(centerDate: Date): void {
     const result: CalendarMonth[] = [];
-    for (let offset = -3; offset <= 3; offset++) {
+    // Pre-render esteso (-6..+6) per ridurre la frequenza dei prepend/append
+    // durante lo scroll inertiale iOS — la causa principale del glitch
+    // "scrolla decine di anni alla velocità della luce".
+    for (let offset = -6; offset <= 6; offset++) {
       const d = new Date(centerDate.getFullYear(), centerDate.getMonth() + offset, 1);
       result.push(this.buildMonth(d.getFullYear(), d.getMonth()));
     }
@@ -220,13 +228,15 @@ export class CalendarViewComponent implements OnChanges, OnInit, AfterViewInit {
 
   onMonthsScroll(event: Event): void {
     const container = event.target as HTMLElement;
-    const threshold = 200;
+    // Threshold ristretta: prepend/append solo quando l'utente è davvero
+    // al boundary, mai in anticipo durante l'inertia.
+    const threshold = 80;
 
-    // Skip prepend/append durante scroll programmatici e durante un adjust
-    // in corso: senza questo, l'inertia iOS reentra prima che lo scrollTop
-    // sia stato ricompensato, glitchando di "decine di anni".
+    // Skip durante scroll programmatici e durante un adjust in corso.
+    // Il lock isAdjustingMonths viene rilasciato 250ms dopo per assorbire
+    // l'inertia iOS che continua a sparare scroll events oltre il rAF
+    // (senza questo, ogni step di inertia rientrava aggiungendo mesi a catena).
     if (!this.isProgrammaticScroll && !this.isAdjustingMonths) {
-      // Vicino all'inizio: prepend mese precedente
       if (container.scrollTop < threshold && this.months.length > 0) {
         this.isAdjustingMonths = true;
         const first = this.months[0];
@@ -234,17 +244,20 @@ export class CalendarViewComponent implements OnChanges, OnInit, AfterViewInit {
         const newMonth = this.buildMonth(d.getFullYear(), d.getMonth());
         const prevScrollHeight = container.scrollHeight;
         this.months = [newMonth, ...this.months];
-        // rAF: il browser applica il layout del mese aggiunto entro lo
-        // stesso frame, evitando il flash di scrollTop visibile con setTimeout.
         requestAnimationFrame(() => {
           container.scrollTop += container.scrollHeight - prevScrollHeight;
-          this.isAdjustingMonths = false;
+          // Rilascio differito: dà tempo all'inertia di calmarsi prima di
+          // permettere un nuovo prepend.
+          setTimeout(() => { this.isAdjustingMonths = false; }, 250);
         });
       } else if (container.scrollTop + container.clientHeight > container.scrollHeight - threshold && this.months.length > 0) {
-        // Vicino alla fine: append mese successivo (no scrollTop adjust necessario)
+        this.isAdjustingMonths = true;
         const last = this.months[this.months.length - 1];
         const d = new Date(last.year, last.month + 1, 1);
         this.months = [...this.months, this.buildMonth(d.getFullYear(), d.getMonth())];
+        // Append non richiede scrollTop adjust ma applichiamo lo stesso lock
+        // per evitare append a catena durante l'inertia.
+        setTimeout(() => { this.isAdjustingMonths = false; }, 250);
       }
     }
 
@@ -422,6 +435,40 @@ export class CalendarViewComponent implements OnChanges, OnInit, AfterViewInit {
   selectNote(note: Note, event: Event): void {
     event.stopPropagation();
     this.noteSelected.emit(note);
+  }
+
+  // ── Swipe orizzontale sul body del calendario ──
+  // Registriamo i listener via HostListener (host element) invece di lasciare
+  // bubbling al mat-sidenav-container del dashboard: su iOS il bubbling viene
+  // soppresso dallo scroll container interno (.months-scroll-container) quando
+  // il gesto inizia con una piccola componente verticale.
+  private hostTouchStartX = 0;
+  private hostTouchStartY = 0;
+  private hostTouchActive = false;
+
+  @HostListener('touchstart', ['$event'])
+  onHostTouchStart(e: TouchEvent): void {
+    if (!this.isMobile) return;
+    const t = e.target as HTMLElement;
+    // Esclude toolbar (gestita da onToolbarTouch*) e pillola "Oggi"
+    if (t.closest('.calendar-toolbar') || t.closest('.calendar-today-pill')) {
+      this.hostTouchActive = false;
+      return;
+    }
+    this.hostTouchActive = true;
+    this.hostTouchStartX = e.touches[0].clientX;
+    this.hostTouchStartY = e.touches[0].clientY;
+  }
+
+  @HostListener('touchend', ['$event'])
+  onHostTouchEnd(e: TouchEvent): void {
+    if (!this.isMobile || !this.hostTouchActive) return;
+    this.hostTouchActive = false;
+    const dx = e.changedTouches[0].clientX - this.hostTouchStartX;
+    const dy = e.changedTouches[0].clientY - this.hostTouchStartY;
+    if (Math.abs(dy) > Math.abs(dx)) return;
+    if (Math.abs(dx) < 60) return;
+    this.horizontalSwipe.emit(dx > 0 ? 'right' : 'left');
   }
 
   // ── Toolbar drag handlers (mirrors unified-toolbar in dashboard) ──

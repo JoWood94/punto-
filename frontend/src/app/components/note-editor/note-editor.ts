@@ -284,13 +284,18 @@ export class NoteEditorComponent implements OnInit, OnChanges, DoCheck, AfterVie
   }
 
   /** Rileva apertura/chiusura della tastiera virtuale via visualViewport.
-   *  Soglia 85%: l'altezza cala sotto di quella quando la keyboard compare
-   *  sia su iOS che Android. Fallback: nessun listener (desktop). */
+   *  In PWA standalone iOS window.innerHeight si riduce con la tastiera
+   *  (allineandosi a vv.height), quindi un confronto vv.height vs innerHeight
+   *  corrente non rileva l'apertura. Usiamo il massimo storico di innerHeight
+   *  come baseline: cresce solo quando la tastiera è chiusa, mai diminuisce.
+   *  Soglia 85%: l'altezza cala sotto di quella quando compare la keyboard. */
   private installKeyboardDetector(): void {
     if (typeof window === 'undefined' || !window.visualViewport) return;
     const vv = window.visualViewport;
+    let baseHeight = window.innerHeight;
     const check = () => {
-      const open = vv.height < window.innerHeight * 0.85;
+      if (window.innerHeight > baseHeight) baseHeight = window.innerHeight;
+      const open = vv.height < baseHeight * 0.85;
       if (open !== this.keyboardOpen()) {
         this.keyboardOpen.set(open);
         this.cdr.markForCheck();
@@ -298,6 +303,7 @@ export class NoteEditorComponent implements OnInit, OnChanges, DoCheck, AfterVie
     };
     vv.addEventListener('resize', check);
     this.vvResizeListener = () => vv.removeEventListener('resize', check);
+    check();
   }
   ngOnChanges(changes: SimpleChanges) { if (changes['selectedNote']) this.initNote(); }
   ngDoCheck() { if (!this.guestCanEdit && this.addBlockMenuOpen()) this.addBlockMenuOpen.set(false); }
