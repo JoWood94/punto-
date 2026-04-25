@@ -181,7 +181,7 @@
   </div>
 </div>
 
-<div class="editor-content" #editorContent>
+<div class="editor-content" #editorContent [class.keyboard-open]="keyboardOpen()">
 
   <!-- ── Block list with drag-and-drop ── -->
   <div cdkDropList (cdkDropListDropped)="onBlockDrop($event)" class="blocks-container">

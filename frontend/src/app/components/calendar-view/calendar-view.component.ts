@@ -195,6 +195,10 @@ export class CalendarViewComponent implements OnChanges, OnInit, AfterViewInit {
   }
 
   private isProgrammaticScroll = false;
+  /** Lock contro prepend/append rientranti durante l'inertia iOS. Senza
+   *  questo, ogni scroll event reentra mentre il rAF non ha ancora applicato
+   *  scrollTop, aggiungendo mesi a catena (scroll "impazzito"). */
+  private isAdjustingMonths = false;
 
   private scrollToCurrentMonth(): void {
     if (this.viewType !== 'month') return;
@@ -218,23 +222,30 @@ export class CalendarViewComponent implements OnChanges, OnInit, AfterViewInit {
     const container = event.target as HTMLElement;
     const threshold = 200;
 
-    // Vicino all'inizio: prepend mese precedente
-    if (container.scrollTop < threshold && this.months.length > 0) {
-      const first = this.months[0];
-      const d = new Date(first.year, first.month - 1, 1);
-      const newMonth = this.buildMonth(d.getFullYear(), d.getMonth());
-      const prevScrollHeight = container.scrollHeight;
-      this.months = [newMonth, ...this.months];
-      setTimeout(() => {
-        container.scrollTop += container.scrollHeight - prevScrollHeight;
-      });
-    }
-
-    // Vicino alla fine: append mese successivo
-    if (container.scrollTop + container.clientHeight > container.scrollHeight - threshold && this.months.length > 0) {
-      const last = this.months[this.months.length - 1];
-      const d = new Date(last.year, last.month + 1, 1);
-      this.months = [...this.months, this.buildMonth(d.getFullYear(), d.getMonth())];
+    // Skip prepend/append durante scroll programmatici e durante un adjust
+    // in corso: senza questo, l'inertia iOS reentra prima che lo scrollTop
+    // sia stato ricompensato, glitchando di "decine di anni".
+    if (!this.isProgrammaticScroll && !this.isAdjustingMonths) {
+      // Vicino all'inizio: prepend mese precedente
+      if (container.scrollTop < threshold && this.months.length > 0) {
+        this.isAdjustingMonths = true;
+        const first = this.months[0];
+        const d = new Date(first.year, first.month - 1, 1);
+        const newMonth = this.buildMonth(d.getFullYear(), d.getMonth());
+        const prevScrollHeight = container.scrollHeight;
+        this.months = [newMonth, ...this.months];
+        // rAF: il browser applica il layout del mese aggiunto entro lo
+        // stesso frame, evitando il flash di scrollTop visibile con setTimeout.
+        requestAnimationFrame(() => {
+          container.scrollTop += container.scrollHeight - prevScrollHeight;
+          this.isAdjustingMonths = false;
+        });
+      } else if (container.scrollTop + container.clientHeight > container.scrollHeight - threshold && this.months.length > 0) {
+        // Vicino alla fine: append mese successivo (no scrollTop adjust necessario)
+        const last = this.months[this.months.length - 1];
+        const d = new Date(last.year, last.month + 1, 1);
+        this.months = [...this.months, this.buildMonth(d.getFullYear(), d.getMonth())];
+      }
     }
 
     // Aggiorna currentDate solo se lo scroll è manuale (non programmatico)

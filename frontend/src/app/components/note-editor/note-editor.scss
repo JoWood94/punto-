@@ -464,6 +464,14 @@
   // --vh cambia e il layer composited non si invalida finché l'utente non scrolla.
   transform: translateZ(0);
 
+  // Tastiera virtuale aperta: i FAB e la floating-toolbar sono già nascosti
+  // via keyboardOpen(), quindi il padding-bottom riservato a loro produce
+  // solo una fascia bianca sotto l'ultimo blocco. Lo riduciamo a un margine
+  // minimo per il caret.
+  &.keyboard-open {
+    padding-bottom: 16px;
+  }
+
   // Mobile: allineato ai margini x della reminder-strip (16px).
   @media (max-width: 479px) {
     padding-left: 16px;
