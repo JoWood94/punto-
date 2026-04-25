@@ -1201,19 +1201,6 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   onCalendarCurrentDateChange(date: Date) { this.calendarCurrentDate = date; }
 
-  /** Gestione swipe orizzontale emesso dal calendar-view (HostListener interno).
-   *  Replica la logica di onTouchEnd ma senza dipendere dal bubbling iOS che,
-   *  sul .months-scroll-container, perdeva i gesti con piccola componente verticale. */
-  onCalendarHorizontalSwipe(dir: 'left' | 'right') {
-    if (this.activeNote !== undefined) return;
-    const currentIdx = this.NAV_SEGMENTS.indexOf(this.mobileNav);
-    if (dir === 'left' && currentIdx < this.NAV_SEGMENTS.length - 1) {
-      this.setMobileNav(this.NAV_SEGMENTS[currentIdx + 1] as any);
-    } else if (dir === 'right' && currentIdx > 0) {
-      this.setMobileNav(this.NAV_SEGMENTS[currentIdx - 1] as any);
-    }
-  }
-
   async setDefaultView(view: 'list' | 'calendar') {
     this.currentMainView = view;
     localStorage.setItem('punto_defaultView', view);

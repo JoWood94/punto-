@@ -1,13 +1,12 @@
 import {
   Component, Input, Output, EventEmitter,
-  OnChanges, OnInit, SimpleChanges, AfterViewInit, ViewChild, ElementRef,
-  OnDestroy
+  OnChanges, OnInit, SimpleChanges, AfterViewInit, ViewChild, ElementRef
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
-import { Note, getNotePreview, getReminderTime, hasReminder as noteHasReminder, getNoteRecurrence, getRecurrenceEndDate } from '../../services/note';
+import { Note } from '../../services/note';
 import { inject } from '@angular/core';
 import { TranslateModule } from '@ngx-translate/core';
 import { TranslationService } from '../../services/translation';
@@ -35,17 +34,13 @@ export interface CalendarMonth {
   templateUrl: './calendar-view.component.html',
   styleUrls: ['./calendar-view.component.scss']
 })
-export class CalendarViewComponent implements OnChanges, OnInit, AfterViewInit, OnDestroy {
+export class CalendarViewComponent implements OnChanges, OnInit, AfterViewInit {
   @Input() notes: Note[] = [];
   @Input() isMobile = false;
   @Input() initialViewType: CalendarViewType = 'month';
   @Output() noteSelected = new EventEmitter<Note>();
   @Output() viewTypeChange = new EventEmitter<CalendarViewType>();
   @Output() currentDateChange = new EventEmitter<Date>();
-  /** Emette 'left' o 'right' su swipe orizzontale > 60px sul body del calendario.
-   *  Risolve il bug iOS in cui i touch event sul mat-sidenav-container vengono
-   *  catturati dallo scroll container interno e non bubbling al parent. */
-  @Output() horizontalSwipe = new EventEmitter<'left' | 'right'>();
 
   @ViewChild('monthsContainer') monthsContainerRef?: ElementRef<HTMLElement>;
   @ViewChild('toolbarSegments') toolbarSegmentsRef?: ElementRef<HTMLElement>;
@@ -77,7 +72,6 @@ export class CalendarViewComponent implements OnChanges, OnInit, AfterViewInit, 
   months: CalendarMonth[] = [];
 
   translationService = inject(TranslationService);
-  private host = inject(ElementRef<HTMLElement>);
 
   get weekHeaders(): string[] {
     const locale = this.translationService.locale;
@@ -101,19 +95,6 @@ export class CalendarViewComponent implements OnChanges, OnInit, AfterViewInit, 
     this.viewType = this.initialViewType;
     this.toolbarIndicatorTransform = this.cssTransform(this.VIEW_SEGMENTS.indexOf(this.viewType));
     this.refresh();
-    // Listener nativi capture-phase: garantiscono cattura dei touch anche
-    // sopra scroll container interni (regressione mobile iOS PWA).
-    const el = this.host.nativeElement as HTMLElement;
-    el.addEventListener('touchstart', this.hostTouchStart, { capture: true, passive: true });
-    el.addEventListener('touchend', this.hostTouchEnd, { capture: true, passive: true });
-    el.addEventListener('touchcancel', this.hostTouchCancel, { capture: true, passive: true });
-  }
-
-  ngOnDestroy(): void {
-    const el = this.host.nativeElement as HTMLElement;
-    el.removeEventListener('touchstart', this.hostTouchStart, { capture: true } as any);
-    el.removeEventListener('touchend', this.hostTouchEnd, { capture: true } as any);
-    el.removeEventListener('touchcancel', this.hostTouchCancel, { capture: true } as any);
   }
 
   ngAfterViewInit(): void {
@@ -206,12 +187,7 @@ export class CalendarViewComponent implements OnChanges, OnInit, AfterViewInit, 
 
   buildScrollableMonths(centerDate: Date): void {
     const result: CalendarMonth[] = [];
-    // Range fisso 3 anni avanti/indietro (37 mesi, -18..+18). NIENTE prepend/append
-    // dinamico durante lo scroll: era la causa root del glitch "scrolla
-    // decine di anni" (regressione introdotta in v5.0.0 con il calcolo
-    // currentDate dal mese al 25% del viewport che si combinava col
-    // setTimeout-based scrollTop adjust in un loop di prepend a catena).
-    for (let offset = -18; offset <= 18; offset++) {
+    for (let offset = -3; offset <= 3; offset++) {
       const d = new Date(centerDate.getFullYear(), centerDate.getMonth() + offset, 1);
       result.push(this.buildMonth(d.getFullYear(), d.getMonth()));
     }
@@ -240,6 +216,26 @@ export class CalendarViewComponent implements OnChanges, OnInit, AfterViewInit, 
 
   onMonthsScroll(event: Event): void {
     const container = event.target as HTMLElement;
+    const threshold = 200;
+
+    // Vicino all'inizio: prepend mese precedente
+    if (container.scrollTop < threshold && this.months.length > 0) {
+      const first = this.months[0];
+      const d = new Date(first.year, first.month - 1, 1);
+      const newMonth = this.buildMonth(d.getFullYear(), d.getMonth());
+      const prevScrollHeight = container.scrollHeight;
+      this.months = [newMonth, ...this.months];
+      setTimeout(() => {
+        container.scrollTop += container.scrollHeight - prevScrollHeight;
+      });
+    }
+
+    // Vicino alla fine: append mese successivo
+    if (container.scrollTop + container.clientHeight > container.scrollHeight - threshold && this.months.length > 0) {
+      const last = this.months[this.months.length - 1];
+      const d = new Date(last.year, last.month + 1, 1);
+      this.months = [...this.months, this.buildMonth(d.getFullYear(), d.getMonth())];
+    }
 
     // Aggiorna currentDate solo se lo scroll è manuale (non programmatico)
     if (this.isProgrammaticScroll) return;
@@ -293,48 +289,41 @@ export class CalendarViewComponent implements OnChanges, OnInit, AfterViewInit, 
   }
 
   hasReminder(note: Note): boolean {
-    return noteHasReminder(note);
+    return !!note.reminderTime;
   }
 
   dayHasReminder(day: CalendarDay): boolean {
-    return day.notes.some(n => noteHasReminder(n));
+    return day.notes.some(n => !!n.reminderTime);
   }
 
   hasReminderRepeat(note: Note): boolean {
     return !!note.reminderRepeat;
   }
 
-  getNotePreview(note: Note): string { return getNotePreview(note); }
-
-  getNoteReminderTime(note: Note): number | null { return getReminderTime(note); }
-
   private getNoteDate(note: Note): Date | null {
-    const rt = getReminderTime(note);
-    if (rt) return new Date(rt);
-    if (note.createdAt) return new Date(note.createdAt);
+    if (note.reminderTime) return new Date(note.reminderTime);
+    if (note.createdAt)    return new Date(note.createdAt);
     return null;
   }
 
-  /** Restituisce il valore di ricorrenza effettivo: preferisce blocks (RF-01b),
-   *  cade su reminderRepeat, poi su recurrence (legacy). */
+  /** Restituisce il valore di ricorrenza effettivo: preferisce reminderRepeat (nuovo),
+   *  cade su recurrence (legacy) se presente e diverso da 'none'. */
   private getEffectiveRepeat(note: Note): 'daily' | 'weekly' | 'monthly' | 'yearly' | null {
-    const rec = getNoteRecurrence(note);
-    if (rec && rec !== 'none') return rec as 'daily' | 'weekly' | 'monthly' | 'yearly';
+    if (note.reminderRepeat) return note.reminderRepeat;
+    if (note.recurrence && note.recurrence !== 'none') return note.recurrence as 'daily' | 'weekly' | 'monthly' | 'yearly';
     return null;
   }
 
   private isRecurringOnDate(note: Note, date: Date): boolean {
     const repeat = this.getEffectiveRepeat(note);
-    const rt = getReminderTime(note);
-    if (!repeat || !rt) return false;
-    const origin = new Date(rt);
+    if (!repeat || !note.reminderTime) return false;
+    const origin = new Date(note.reminderTime);
     // La data richiesta deve essere successiva all'origin (o uguale)
     if (date < origin && !this.isSameDay(date, origin)) return false;
     // Rispetta la data di fine ripetizione (confronto a livello di giorno:
     // la data di fine è mezzanotte, ma date può avere ore > 0 nelle viste settimana/giorno)
-    const endDate = getRecurrenceEndDate(note);
-    if (endDate) {
-      const endDay = new Date(endDate);
+    if (note.recurrenceEndDate) {
+      const endDay = new Date(note.recurrenceEndDate);
       const dateDay = new Date(date.getFullYear(), date.getMonth(), date.getDate());
       const endDayMidnight = new Date(endDay.getFullYear(), endDay.getMonth(), endDay.getDate());
       if (dateDay.getTime() > endDayMidnight.getTime()) return false;
@@ -359,8 +348,7 @@ export class CalendarViewComponent implements OnChanges, OnInit, AfterViewInit, 
       if (d && this.isSameDay(d, date)) return true;
       // Includi note ricorrenti (la nota originale, non una copia)
       const repeat = this.getEffectiveRepeat(n);
-      const rt = getReminderTime(n);
-      if (repeat && rt && !this.isSameDay(new Date(rt), date)) {
+      if (repeat && n.reminderTime && !this.isSameDay(new Date(n.reminderTime), date)) {
         return this.isRecurringOnDate(n, date);
       }
       return false;
@@ -417,38 +405,6 @@ export class CalendarViewComponent implements OnChanges, OnInit, AfterViewInit, 
     this.noteSelected.emit(note);
   }
 
-  // ── Swipe orizzontale sul body del calendario ──
-  // Registrati via addEventListener nativo con capture: true: HostListener
-  // di Angular non garantisce di intercettare quando lo scroll container
-  // interno mangia il gesto su iOS PWA. Capture phase scende dall'host ai
-  // children, quindi il touchstart viene osservato anche se internamente
-  // qualcuno fa stopPropagation (cosa che cdk e mat-sidenav non fanno ma
-  // assicuriamoci).
-  private hostTouchStartX = 0;
-  private hostTouchStartY = 0;
-  private hostTouchActive = false;
-  private hostTouchStart = (e: TouchEvent): void => {
-    if (!this.isMobile) return;
-    const t = e.target as HTMLElement;
-    if (t.closest('.calendar-toolbar') || t.closest('.calendar-today-pill')) {
-      this.hostTouchActive = false;
-      return;
-    }
-    this.hostTouchActive = true;
-    this.hostTouchStartX = e.touches[0].clientX;
-    this.hostTouchStartY = e.touches[0].clientY;
-  };
-  private hostTouchEnd = (e: TouchEvent): void => {
-    if (!this.isMobile || !this.hostTouchActive) return;
-    this.hostTouchActive = false;
-    const dx = e.changedTouches[0].clientX - this.hostTouchStartX;
-    const dy = e.changedTouches[0].clientY - this.hostTouchStartY;
-    if (Math.abs(dy) > Math.abs(dx)) return;
-    if (Math.abs(dx) < 60) return;
-    this.horizontalSwipe.emit(dx > 0 ? 'right' : 'left');
-  };
-  private hostTouchCancel = (): void => { this.hostTouchActive = false; };
-
   // ── Toolbar drag handlers (mirrors unified-toolbar in dashboard) ──
   private measureToolbarSegWidth(e: TouchEvent): void {
     const seg = (e.target as HTMLElement).closest('.calendar-toolbar-segments');
@@ -484,39 +440,19 @@ export class CalendarViewComponent implements OnChanges, OnInit, AfterViewInit, 
   }
 
   onToolbarTouchEnd(e: TouchEvent): void {
-    const wasDragging = this.toolbarDragging;
+    if (!this.toolbarDragging) return;
     this.toolbarDragging = false;
-    const target = e.target as HTMLElement;
-
-    // Tap detection (anche senza drag iniziato): touch-action:none sul
-    // container sopprime il click iOS auto-generato per i tap rapidi.
-    // Il pill "Oggi" e i segmenti partono FUORI da .calendar-toolbar-segments
-    // (per Oggi) o non avviano drag se il dito non si è mosso, quindi
-    // rischiavano di essere "muti". Risolviamo qui leggendo il target.
-    if (!wasDragging) {
-      if (target.closest('.calendar-today-pill')) {
-        this.goToToday();
-        return;
-      }
-      const segEl = target.closest('.calendar-toolbar-seg');
-      if (segEl) {
-        const parent = segEl.parentElement;
-        const segs = parent
-          ? Array.from(parent.querySelectorAll<HTMLElement>('.calendar-toolbar-seg'))
-          : [];
-        const index = segs.indexOf(segEl as HTMLElement);
-        if (index >= 0 && index < this.VIEW_SEGMENTS.length) {
-          this.setView(this.VIEW_SEGMENTS[index]);
-        }
-      }
-      return;
-    }
-
     const endX = e.changedTouches[0]?.clientX ?? this.toolbarDragStartX;
     const dx = endX - this.toolbarDragStartX;
-    // Drag iniziato ma chiuso senza spostamento reale: tap su un segmento.
+    // Tap senza spostamento reale: applica direttamente il segmento tappato.
+    // Con touch-action:none sul container iOS può sopprimere il click auto
+    // generato dal tap (specialmente se il dito si è mosso anche di 1-2px e
+    // touchmove ha chiamato preventDefault). Risolviamo manualmente leggendo
+    // il target del touchend. NB: il pill "Oggi" NON entra qui perché il suo
+    // touchstart non avvia drag (è fuori da .calendar-toolbar-segments) →
+    // il (click) nativo arriva normalmente.
     if (Math.abs(dx) < 8) {
-      const segEl = target.closest('.calendar-toolbar-seg');
+      const segEl = (e.target as HTMLElement).closest('.calendar-toolbar-seg');
       if (segEl) {
         const parent = segEl.parentElement;
         const segs = parent

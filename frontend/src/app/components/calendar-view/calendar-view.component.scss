@@ -163,14 +163,7 @@
 .months-scroll-container {
   flex: 1;
   overflow-y: auto;
-  // touch-action esplicito: il browser gestisce SOLO il pan verticale.
-  // Lo swipe orizzontale resta disponibile al mat-sidenav-container del
-  // dashboard per cambiare segmento (notes/promemoria/calendario).
-  touch-action: pan-y;
-  // Evita chain-scroll col body quando si raggiunge la fine del calendario:
-  // su iOS chain-scroll del body può catturare il gesto e impedire al
-  // touchend orizzontale di arrivare al parent.
-  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
   padding-bottom: 32px;
 }
 
