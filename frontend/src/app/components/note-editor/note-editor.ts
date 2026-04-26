@@ -88,6 +88,10 @@ export class NoteEditorComponent implements OnInit, OnChanges, DoCheck, AfterVie
   readonly isList = signal(false);
   readonly isOrderedList = signal(false);
   readonly activeTextBlockIndex = signal<number | null>(null);
+  /** true quando la tastiera virtuale è aperta (detection via visualViewport).
+   *  Usato per nascondere i floating button mobile mentre si digita. */
+  readonly keyboardOpen = signal(false);
+  private vvResizeListener: (() => void) | null = null;
 
   // Add-block speed dial state
   readonly addBlockMenuOpen = signal(false);
@@ -276,6 +280,67 @@ export class NoteEditorComponent implements OnInit, OnChanges, DoCheck, AfterVie
     // l'orario del reminder, isOverdueRecurring/isSingleOverdue sono valutati
     // in CD. CD non parte da solo a tempo: ogni 30s forziamo il check.
     this.overdueTicker = setInterval(() => this.cdr.markForCheck(), 30000);
+    this.installKeyboardDetector();
+  }
+
+  /** Rileva apertura/chiusura della tastiera virtuale.
+   *  Strategia primaria: focus/blur su campi text (input/textarea/contenteditable).
+   *  Affidabile in PWA iOS dove visualViewport heuristic non scatta perché
+   *  innerHeight si riduce parimenti con la tastiera.
+   *  Fallback: visualViewport con baseline = max storico di innerHeight,
+   *  utile quando la tastiera viene chiusa via gesto (focus rimane sull'input).  */
+  private installKeyboardDetector(): void {
+    if (typeof window === 'undefined') return;
+
+    const isTextInput = (el: Element | null): boolean => {
+      if (!el) return false;
+      if (el.tagName === 'TEXTAREA') return true;
+      if (el.tagName === 'INPUT') {
+        const type = (el as HTMLInputElement).type;
+        return ['text', 'search', 'email', 'url', 'tel', 'password', 'number', ''].includes(type);
+      }
+      return (el as HTMLElement).isContentEditable === true;
+    };
+
+    const updateFromFocus = () => {
+      const open = isTextInput(document.activeElement);
+      if (open !== this.keyboardOpen()) {
+        this.keyboardOpen.set(open);
+        this.cdr.markForCheck();
+      }
+    };
+
+    const onFocusIn = () => updateFromFocus();
+    const onFocusOut = () => setTimeout(updateFromFocus, 50);
+    document.addEventListener('focusin', onFocusIn);
+    document.addEventListener('focusout', onFocusOut);
+
+    let baseHeight = window.innerHeight;
+    const onVvResize = () => {
+      if (window.innerHeight > baseHeight) baseHeight = window.innerHeight;
+      // Se vv.height è quasi pari alla baseline, tastiera certamente chiusa:
+      // forza false (caso "focus rimasto ma tastiera dismessa via gesto").
+      if (window.visualViewport && window.visualViewport.height >= baseHeight * 0.95) {
+        if (this.keyboardOpen()) {
+          this.keyboardOpen.set(false);
+          this.cdr.markForCheck();
+        }
+      } else {
+        updateFromFocus();
+      }
+    };
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener('resize', onVvResize);
+    }
+
+    this.vvResizeListener = () => {
+      document.removeEventListener('focusin', onFocusIn);
+      document.removeEventListener('focusout', onFocusOut);
+      if (window.visualViewport) {
+        window.visualViewport.removeEventListener('resize', onVvResize);
+      }
+    };
+    updateFromFocus();
   }
   ngOnChanges(changes: SimpleChanges) { if (changes['selectedNote']) this.initNote(); }
   ngDoCheck() { if (!this.guestCanEdit && this.addBlockMenuOpen()) this.addBlockMenuOpen.set(false); }
@@ -763,6 +828,25 @@ export class NoteEditorComponent implements OnInit, OnChanges, DoCheck, AfterVie
     setTimeout(() => input.focus(), 30);
   }
 
+  /** Invio da un item esistente: inserisce una NUOVA riga vuota subito dopo e
+   *  sposta il focus su di essa (comportamento Things/Apple Notes). Se l'item
+   *  corrente è vuoto, no-op — evita di creare righe a catena indesiderate. */
+  onChecklistItemEnter(event: Event, block: ChecklistBlock, index: number) {
+    event.preventDefault();
+    const current = block.items[index];
+    if (!current || !current.text.trim()) return;
+    block.items.splice(index + 1, 0, { text: '', done: false });
+    this.triggerAutoSave();
+    // Focus sul nuovo input appena il DOM è aggiornato: cerchiamo l'input
+    // alla posizione index+1 dentro lo stesso .checklist-items del target.
+    const fromEl = event.target as HTMLElement | null;
+    setTimeout(() => {
+      const wrap = fromEl?.closest('.checklist-items');
+      const inputs = wrap?.querySelectorAll<HTMLInputElement>('.checklist-input');
+      inputs?.[index + 1]?.focus();
+    }, 30);
+  }
+
   removeChecklistItem(block: ChecklistBlock, index: number) {
     block.items.splice(index, 1);
     this.triggerAutoSave();
@@ -813,21 +897,49 @@ export class NoteEditorComponent implements OnInit, OnChanges, DoCheck, AfterVie
     this.triggerAutoSave();
   }
 
+  /** Apre coordinate nell'app di navigazione nativa del device.
+   *  - iOS: maps.apple.com → Apple Maps anche in PWA standalone
+   *  - Android: geo: URI fa aprire il picker app (Google Maps se installato)
+   *  - Desktop / fallback: google.com/maps in nuova tab
+   *  Usiamo window.open invece di <a target="_blank"> perché iOS PWA
+   *  standalone ignora target="_blank" (ricarica la PWA). */
   openMaps(block: LocationBlock) {
     if (!this.guestCanEdit) return;
-    if (block.lat && block.lon) {
-      window.open(
-        `https://www.openstreetmap.org/?mlat=${block.lat}&mlon=${block.lon}#map=16/${block.lat}/${block.lon}`,
-        '_blank'
-      );
+    if (!block.lat || !block.lon) return;
+    const query = `${block.lat},${block.lon}`;
+    const label = encodeURIComponent(block.address ?? '');
+    const ua = typeof navigator !== 'undefined' ? navigator.userAgent : '';
+    const isIOS = /iPad|iPhone|iPod/.test(ua);
+    const isAndroid = /Android/i.test(ua);
+    let url: string;
+    if (isIOS) {
+      url = `https://maps.apple.com/?q=${label || query}&ll=${query}`;
+    } else if (isAndroid) {
+      url = `geo:${query}?q=${query}${label ? '(' + label + ')' : ''}`;
+    } else {
+      url = `https://www.google.com/maps/search/?api=1&query=${query}`;
     }
+    window.open(url, '_blank', 'noopener,noreferrer');
+  }
+
+  /** Apre URL esterna in nuova tab/scheda del browser. Necessario per
+   *  bypassare il comportamento iOS PWA standalone che ignora target="_blank"
+   *  negli <a> e ricarica la PWA invece di delegare al browser. */
+  openExternalUrl(url: string, ev: MouseEvent) {
+    if (!url) return;
+    ev.preventDefault();
+    ev.stopPropagation();
+    window.open(url, '_blank', 'noopener,noreferrer');
   }
 
   private generateMapUrl(lat: number, lon: number): SafeResourceUrl {
-    const offset = 0.003;
+    // Layer "mapnik" (standard OSM) invece di "hot": rimuove l'overlay
+    // informativo pesante del layer Humanitarian. Offset 0.001 = zoom ~18
+    // (≈220m diagonale), molto più leggibile per preview urbana.
+    const offset = 0.001;
     const bbox = `${lon - offset},${lat - offset},${lon + offset},${lat + offset}`;
     return this.sanitizer.bypassSecurityTrustResourceUrl(
-      `https://www.openstreetmap.org/export/embed.html?bbox=${bbox}&layer=hot&marker=${lat},${lon}`
+      `https://www.openstreetmap.org/export/embed.html?bbox=${bbox}&layer=mapnik&marker=${lat},${lon}`
     );
   }
 
@@ -1368,11 +1480,12 @@ export class NoteEditorComponent implements OnInit, OnChanges, DoCheck, AfterVie
 
   // ─── Snooze (FE-01) ─────────────────────────────────────────────────────────
 
-  /** Apre lo snooze-mute sheet (Fase 1 campanella). Disponibile solo per memo/event. */
+  /** Toggle dello snooze-mute sheet (Fase 1 campanella). Disponibile solo per memo/event.
+   *  Click con sheet già aperto → chiude, per parità col create-fab + settings dropdown. */
   openSnoozeSheet() {
     if (!this.savedNoteId) return;
     if (this.note.type === 'note') return;
-    this.showSnoozeSheet.set(true);
+    this.showSnoozeSheet.update(v => !v);
   }
 
   async snoozeReminder(timestamp: number) {
@@ -1555,6 +1668,7 @@ export class NoteEditorComponent implements OnInit, OnChanges, DoCheck, AfterVie
   ngOnDestroy() {
     this.snoozeUnsub?.();
     this.stopLiveSync();
+    this.vvResizeListener?.();
     if (this.overdueTicker) { clearInterval(this.overdueTicker); this.overdueTicker = null; }
     // Forza sincronizzazione valore input titolo prima di salvare (fix: swipe-back senza blur)
     if (this.titleInputRef?.nativeElement) {

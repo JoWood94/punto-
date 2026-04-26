@@ -258,3 +258,39 @@ $ease-out-editorial: cubic-bezier(0.2, 0, 0, 1);
     transform: translateY(0) scale(1);
   }
 }
+
+@keyframes snooze-pill-out {
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(8px) scale(0.92);
+  }
+}
+
+// Chiusura: animazione speculare all'entrata (180ms stesso ease).
+// Stagger INVERSO: la pill visivamente in alto (last-child nel DOM per via del
+// column-reverse) esce per prima → la pill più vicina al FAB esce per ultima.
+// Così la durata percepita totale è identica all'entrata (180ms + N*35ms di
+// stagger), evitando la sensazione "tutte insieme = più veloce".
+//
+// fill-mode: both è CRITICO — con forwards le pill col delay > 0 tornano
+// immediatamente alle proprietà base del .snooze-pill (opacity:0 ecc.) durante
+// il delay, producendo lo "snap" fuori vista percepito come glitch. Con both
+// il keyframe `from` (opacity:1) viene mantenuto anche durante il delay.
+//
+// !important è necessario per sovrascrivere l'animation shorthand delle
+// varianti (es. snooze-pill--danger-pending) e gli animation-delay d'entrata.
+.snooze-stack--leaving .snooze-pill,
+.snooze-stack--leaving .snooze-chip,
+.snooze-stack--leaving .snooze-custom-overlay {
+  animation: snooze-pill-out 180ms $ease-out-editorial both !important;
+}
+
+.snooze-stack--leaving .snooze-pill {
+  @for $i from 1 through 8 {
+    &:nth-last-child(#{$i}) { animation-delay: #{($i - 1) * 35}ms !important; }
+  }
+}

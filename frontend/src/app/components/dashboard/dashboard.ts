@@ -27,6 +27,7 @@ import { PassphraseDialogComponent } from '../passphrase-dialog/passphrase-dialo
 import { UpdateDialogComponent } from '../update-dialog/update-dialog';
 import { UsernameDialogComponent } from '../username-dialog/username-dialog';
 import { JoinByCodeDialogComponent } from '../join-by-code-dialog/join-by-code-dialog';
+import { SettingsComponent } from '../settings/settings.component';
 import { TranslateModule } from '@ngx-translate/core';
 import { TranslationService } from '../../services/translation';
 import { Observable, Subscription, firstValueFrom, skip } from 'rxjs';
@@ -58,6 +59,7 @@ import { environment } from '../../../environments/environment';
     NoteEditorComponent,
     CalendarViewComponent,
     CreateFabComponent,
+    SettingsComponent,
     TranslateModule,
   ],
   templateUrl: './dashboard.html',
@@ -82,6 +84,9 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   activeNote?: Note | null = undefined;
   editorLeaving = false;   // trigger animazione uscita editor mobile
+  // Opzione A: settings embedded dentro la shell del dashboard — niente pagina
+  // dedicata. L'header dell'app resta visibile con il tasto back che chiude.
+  settingsOpen = false;
   isMobile = false;
   isWideDesktop = false;  // >=1280px: sidenav sempre aperta, no unified-toolbar
   currentMainView: 'list' | 'calendar' = 'calendar';
@@ -103,7 +108,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
   hasFirestoreError = false;
   private defaultViewKey = 'defaultView';
 
-  calendarShowAllNotes = true;
+  calendarShowAllNotes = false;
   allNotes: Note[] = [];
   filteredNotes: Note[] = [];
   searchQuery = '';
@@ -282,7 +287,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.noteService.setNotifTitleEnabled(notifTitle);
 
     // Carica preferenza visibilità calendario
-    this.calendarShowAllNotes = await this.noteService.getUserPreference<boolean>('calendarShowAllNotes', true);
+    this.calendarShowAllNotes = await this.noteService.getUserPreference<boolean>('calendarShowAllNotes', false);
 
     // Tutti gli init async completati — mostra il contenuto
     this.isReady = true;
@@ -346,11 +351,14 @@ export class DashboardComponent implements OnInit, OnDestroy {
             currentSharedSnapshot.set(n.id, { title: n.title ?? '', ownerUid: n.uid ?? '' });
           }
         }
+        console.log('[diff-shared] prev:', this.prevSharedSnapshot ? [...this.prevSharedSnapshot.keys()] : null,
+          'current:', [...currentSharedSnapshot.keys()]);
         if (this.prevSharedSnapshot !== null) {
           for (const [id, snap] of this.prevSharedSnapshot) {
             if (currentSharedSnapshot.has(id)) continue;
             if (this.voluntaryLeaves.has(id)) { this.voluntaryLeaves.delete(id); continue; }
             if (this.activeNote?.id === id) continue;
+            console.log('[diff-shared] kicked-out detected for note:', id, 'title:', snap.title);
             this._notifyKickedOut(snap.title, snap.ownerUid);
           }
         }
@@ -490,10 +498,17 @@ export class DashboardComponent implements OnInit, OnDestroy {
   isEvadedSectionExpanded = true;
   isSharedWithMeSectionExpanded = true;
 
+  private _calendarNotesCache: Note[] = [];
+  private _calendarNotesCacheKey: { src: Note[] | null; showAll: boolean } = { src: null, showAll: false };
+
   get calendarNotes(): Note[] {
-    return this.calendarShowAllNotes
-      ? this.allNotes
-      : this.allNotes.filter(n => hasReminder(n));
+    const showAll = this.calendarShowAllNotes;
+    if (this._calendarNotesCacheKey.src === this.allNotes && this._calendarNotesCacheKey.showAll === showAll) {
+      return this._calendarNotesCache;
+    }
+    this._calendarNotesCache = showAll ? this.allNotes : this.allNotes.filter(n => hasReminder(n));
+    this._calendarNotesCacheKey = { src: this.allNotes, showAll };
+    return this._calendarNotesCache;
   }
 
   get searchPlaceholder(): string {
@@ -584,6 +599,27 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.navDragging = false;
     const endX = e.changedTouches[0]?.clientX ?? this.navDragStartX;
     const dx = endX - this.navDragStartX;
+    // Tap (no drag significativo): leggiamo il segmento target dall'evento.
+    // preventDefault nel touchmove + touch-action del container possono
+    // sopprimere il click nativo da tap su iOS, lasciando il bottone senza
+    // reazione. Risolviamo qui leggendo data-nav-index sul segment.
+    if (Math.abs(dx) < 8) {
+      const segEl = (e.target as HTMLElement).closest<HTMLElement>('.unified-toolbar-seg');
+      if (segEl) {
+        const parent = segEl.parentElement;
+        const segs = parent
+          ? Array.from(parent.querySelectorAll<HTMLElement>('.unified-toolbar-seg'))
+          : [];
+        const index = segs.indexOf(segEl);
+        if (index >= 0 && index < this.NAV_SEGMENTS.length) {
+          this.setMobileNav(this.NAV_SEGMENTS[index]);
+          return;
+        }
+      }
+      // Tap fuori dai segmenti: ripristina la posizione dell'indicatore.
+      this.navIndicatorTransform = `translateX(${this.NAV_SEGMENTS.indexOf(this.mobileNav) * this.NAV_SEG_WIDTH}px)`;
+      return;
+    }
     const rawOffset = this.navDragStartIndex * this.NAV_SEG_WIDTH + dx;
     const snapIndex = Math.max(0, Math.min(
       this.NAV_SEGMENTS.length - 1,
@@ -935,19 +971,33 @@ export class DashboardComponent implements OnInit, OnDestroy {
   // Settings dropdown custom (pill stack coerente col resto app). Sostituisce
   // mat-menu il cui panelClass non veniva ereditato dagli override CSS globali.
   showSettingsDropdown = false;
+  // Stato di uscita animata: il DOM resta montato durante la leave animation.
+  // Pattern simmetrico a snooze-sheet → rendering coerente fra i tre menu.
+  settingsDropdownLeaving = false;
+  private settingsDropdownLeaveTimer: ReturnType<typeof setTimeout> | null = null;
+  private readonly SETTINGS_DROPDOWN_LEAVE_MS = 260; // 180ms + 2*35ms stagger + margine
+
   toggleSettingsDropdown(ev?: Event) {
     ev?.stopPropagation();
-    this.showSettingsDropdown = !this.showSettingsDropdown;
     if (this.showSettingsDropdown) {
-      queueMicrotask(() => this.attachSettingsClickAway());
+      this.closeSettingsDropdown();
     } else {
-      this.detachSettingsClickAway();
+      if (this.settingsDropdownLeaveTimer) { clearTimeout(this.settingsDropdownLeaveTimer); this.settingsDropdownLeaveTimer = null; }
+      this.settingsDropdownLeaving = false;
+      this.showSettingsDropdown = true;
+      queueMicrotask(() => this.attachSettingsClickAway());
     }
   }
   closeSettingsDropdown() {
     if (!this.showSettingsDropdown) return;
     this.showSettingsDropdown = false;
     this.detachSettingsClickAway();
+    this.settingsDropdownLeaving = true;
+    if (this.settingsDropdownLeaveTimer) clearTimeout(this.settingsDropdownLeaveTimer);
+    this.settingsDropdownLeaveTimer = setTimeout(() => {
+      this.settingsDropdownLeaving = false;
+      this.settingsDropdownLeaveTimer = null;
+    }, this.SETTINGS_DROPDOWN_LEAVE_MS);
   }
   private settingsClickAwayAttached = false;
   private readonly settingsClickAway = (ev: Event) => {
@@ -969,7 +1019,32 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.settingsClickAwayAttached = false;
   }
 
-  openSettings() { this.closeSettingsDropdown(); this.router.navigate(['/settings']); }
+  openSettings() {
+    this.closeSettingsDropdown();
+    // Se è aperto l'editor, chiudilo pulitamente prima di mostrare settings
+    // (altrimenti lo stato misto confonde header + contenuto).
+    if (this.activeNote !== undefined) this.deactivateNote();
+    this.settingsOpen = true;
+  }
+
+  closeSettings() { this.settingsOpen = false; }
+
+  /** Riceve le notifiche del settings embedded per tenere allineate le
+   *  preferenze osservabili (es. calendarShowAllNotes filtra calendarNotes).
+   *  Evita il re-read Firestore: update sincrono, nessuna race. */
+  onSettingsPreferenceChange(ev: { key: string; value: any }) {
+    if (ev.key === 'calendarShowAllNotes') {
+      this.calendarShowAllNotes = !!ev.value;
+    }
+  }
+
+  /** Naviga alla vista calendario (bottone header desktop). Chiude eventuali
+   *  modi secondari (settings embedded, editor) per tornare allo stato base. */
+  goToCalendar() {
+    this.settingsOpen = false;
+    this.activeNote = undefined;
+    this.currentMainView = 'calendar';
+  }
   reloadApp() { this.closeSettingsDropdown(); document.location.reload(); }
   logout() {
     this.closeSettingsDropdown();
@@ -1044,6 +1119,9 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.activeNote = null;
   }
   selectNote(note: Note) {
+    // Se settings era aperto, chiudilo: il click su una nota dalla sidenav
+    // esprime l'intenzione di lasciare settings e tornare al flusso note.
+    if (this.settingsOpen) this.settingsOpen = false;
     if (!this.isMobile && this.activeNote?.id === note.id) {
       this.activeNote = undefined;
     } else {
@@ -1061,6 +1139,10 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.deactivateNote();
   }
   handleBackButton() {
+    if (this.settingsOpen) {
+      this.closeSettings();
+      return;
+    }
     if (this.activeNote !== undefined) {
       const hasReminder = this.noteEditorComp?.note?.blocks?.some(b => b.type === 'reminder') ?? false;
       this.syncViewToNoteType(hasReminder);
@@ -1175,10 +1257,8 @@ export class DashboardComponent implements OnInit, OnDestroy {
     if (this.activeNote === undefined) {
       const currentIdx = this.NAV_SEGMENTS.indexOf(this.mobileNav);
       if (deltaX < 0 && currentIdx < this.NAV_SEGMENTS.length - 1) {
-        // Swipe sinistra → avanza
         this.setMobileNav(this.NAV_SEGMENTS[currentIdx + 1] as any);
       } else if (deltaX > 0 && currentIdx > 0) {
-        // Swipe destra → indietro
         this.setMobileNav(this.NAV_SEGMENTS[currentIdx - 1] as any);
       }
     }

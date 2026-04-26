@@ -24,7 +24,7 @@ import { ToastService } from '../../services/toast';
       position: fixed;
       top: max(14px, calc(env(safe-area-inset-top, 0px) + 14px));
       left: max(16px, env(safe-area-inset-left, 0px));
-      right: auto;
+      right: max(16px, env(safe-area-inset-right, 0px));
       bottom: auto;
       transform: none;
       z-index: 9999;
@@ -36,6 +36,7 @@ import { ToastService } from '../../services/toast';
     }
 
     .toast-pill {
+      box-sizing: border-box;
       background: #1C1B1F;
       color: #FFFBFE;
       font-family: 'Plus Jakarta Sans', sans-serif;
@@ -46,7 +47,7 @@ import { ToastService } from '../../services/toast';
       padding: 11px 20px;
       border-radius: 999px;
       white-space: nowrap;
-      max-width: min(360px, calc(100vw - 32px));
+      max-width: 100%;
       overflow: hidden;
       text-overflow: ellipsis;
       pointer-events: auto;

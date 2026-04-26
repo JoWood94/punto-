@@ -1,11 +1,11 @@
-<mat-toolbar class="app-header">
+<mat-toolbar class="app-header" *ngIf="!embedded">
   <button mat-icon-button [disableRipple]="true" (click)="goBack()" aria-label="Torna indietro">
     <mat-icon>arrow_back</mat-icon>
   </button>
   <span class="settings-title">{{ 'MENU.SETTINGS' | translate }}</span>
 </mat-toolbar>
 
-<div class="settings-content" [style.visibility]="settingsLoaded ? 'visible' : 'hidden'">
+<div class="settings-content" [class.settings-content--embedded]="embedded" [style.visibility]="settingsLoaded ? 'visible' : 'hidden'">
 
   <!-- Sezione Username -->
   <section class="settings-section">

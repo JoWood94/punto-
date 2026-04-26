@@ -464,6 +464,16 @@
   // --vh cambia e il layer composited non si invalida finché l'utente non scrolla.
   transform: translateZ(0);
 
+  // Tastiera virtuale aperta: i FAB e la floating-toolbar sono già nascosti
+  // via keyboardOpen(), quindi il padding-bottom riservato a loro produce
+  // solo una fascia bianca sotto l'ultimo blocco. Lo azzeriamo ed usiamo
+  // scroll-padding per garantire che scrollIntoView dell'input attivo
+  // lasci comunque qualche pixel di respiro.
+  &.keyboard-open {
+    padding-bottom: 0;
+    scroll-padding-bottom: 24px;
+  }
+
   // Mobile: allineato ai margini x della reminder-strip (16px).
   @media (max-width: 479px) {
     padding-left: 16px;
@@ -1355,6 +1365,22 @@ $rs-hover-bg: rgba(28, 27, 31, 0.05);
   flex-wrap: wrap;
   gap: 8px;
   font-family: inherit;
+
+  // Su mobile stretto forziamo la riga unica: la ricorrenza non deve andare a capo.
+  // Gap ridotto + data abbreviata (vedi .reminder-hero-date-short) permettono
+  // di stare dentro 360-400px anche con font 16-17px.
+  @media (max-width: 479px) {
+    flex-wrap: nowrap;
+    gap: 4px;
+  }
+}
+
+// Switch responsive della data: corto sotto 480px, lungo sopra.
+.reminder-hero-date-short { display: none; }
+.reminder-hero-date-long { display: inline; }
+@media (max-width: 479px) {
+  .reminder-hero-date-short { display: inline; }
+  .reminder-hero-date-long { display: none; }
 }
 
 // Checkbox round inline (Things 3 pattern). Affordance universale da todo-app.
@@ -1431,7 +1457,8 @@ $rs-hover-bg: rgba(28, 27, 31, 0.05);
     text-decoration-color 180ms cubic-bezier(0.2, 0, 0, 1);
 
   @media (max-width: 479px) {
-    font-size: 18px;
+    font-size: 17px;
+    padding: 0 2px;
   }
 
   &:hover:not(:disabled) {

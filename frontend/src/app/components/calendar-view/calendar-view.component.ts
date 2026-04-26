@@ -6,7 +6,7 @@ import { CommonModule } from '@angular/common';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
-import { Note, getNotePreview, getReminderTime, hasReminder as noteHasReminder, getNoteRecurrence, getRecurrenceEndDate } from '../../services/note';
+import { Note } from '../../services/note';
 import { inject } from '@angular/core';
 import { TranslateModule } from '@ngx-translate/core';
 import { TranslationService } from '../../services/translation';
@@ -110,7 +110,18 @@ export class CalendarViewComponent implements OnChanges, OnInit, AfterViewInit {
 
   private refresh(): void {
     if (this.viewType === 'month') {
-      this.buildScrollableMonths(this.currentDate);
+      if (this.months.length === 0) {
+        this.buildScrollableMonths(this.currentDate);
+      } else {
+        // Aggiorna solo le note nei giorni dei mesi esistenti — NON shiftare la finestra.
+        // Evita il loop runaway in cui un cambio di [notes] (getter calendarNotes nel parent)
+        // ricostruirebbe i mesi centrati sul nuovo currentDate, shiftando i data-month sotto
+        // lo scrollTop e auto-alimentando lo scroll.
+        this.months = this.months.map(m => ({
+          ...m,
+          days: m.days.map(d => ({ ...d, notes: this.getNotesForDay(d.date) }))
+        }));
+      }
     } else {
       this.buildView();
     }
@@ -125,7 +136,9 @@ export class CalendarViewComponent implements OnChanges, OnInit, AfterViewInit {
     if (view === 'month') {
       this.isProgrammaticScroll = true;
       this.buildScrollableMonths(this.currentDate);
-      requestAnimationFrame(() => requestAnimationFrame(() => this.scrollToCurrentMonth()));
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        this.scrollToCurrentMonth();
+      }));
     } else {
       this.buildView();
     }
@@ -289,48 +302,41 @@ export class CalendarViewComponent implements OnChanges, OnInit, AfterViewInit {
   }
 
   hasReminder(note: Note): boolean {
-    return noteHasReminder(note);
+    return !!note.reminderTime;
   }
 
   dayHasReminder(day: CalendarDay): boolean {
-    return day.notes.some(n => noteHasReminder(n));
+    return day.notes.some(n => !!n.reminderTime);
   }
 
   hasReminderRepeat(note: Note): boolean {
     return !!note.reminderRepeat;
   }
 
-  getNotePreview(note: Note): string { return getNotePreview(note); }
-
-  getNoteReminderTime(note: Note): number | null { return getReminderTime(note); }
-
   private getNoteDate(note: Note): Date | null {
-    const rt = getReminderTime(note);
-    if (rt) return new Date(rt);
-    if (note.createdAt) return new Date(note.createdAt);
+    if (note.reminderTime) return new Date(note.reminderTime);
+    if (note.createdAt)    return new Date(note.createdAt);
     return null;
   }
 
-  /** Restituisce il valore di ricorrenza effettivo: preferisce blocks (RF-01b),
-   *  cade su reminderRepeat, poi su recurrence (legacy). */
+  /** Restituisce il valore di ricorrenza effettivo: preferisce reminderRepeat (nuovo),
+   *  cade su recurrence (legacy) se presente e diverso da 'none'. */
   private getEffectiveRepeat(note: Note): 'daily' | 'weekly' | 'monthly' | 'yearly' | null {
-    const rec = getNoteRecurrence(note);
-    if (rec && rec !== 'none') return rec as 'daily' | 'weekly' | 'monthly' | 'yearly';
+    if (note.reminderRepeat) return note.reminderRepeat;
+    if (note.recurrence && note.recurrence !== 'none') return note.recurrence as 'daily' | 'weekly' | 'monthly' | 'yearly';
     return null;
   }
 
   private isRecurringOnDate(note: Note, date: Date): boolean {
     const repeat = this.getEffectiveRepeat(note);
-    const rt = getReminderTime(note);
-    if (!repeat || !rt) return false;
-    const origin = new Date(rt);
+    if (!repeat || !note.reminderTime) return false;
+    const origin = new Date(note.reminderTime);
     // La data richiesta deve essere successiva all'origin (o uguale)
     if (date < origin && !this.isSameDay(date, origin)) return false;
     // Rispetta la data di fine ripetizione (confronto a livello di giorno:
     // la data di fine è mezzanotte, ma date può avere ore > 0 nelle viste settimana/giorno)
-    const endDate = getRecurrenceEndDate(note);
-    if (endDate) {
-      const endDay = new Date(endDate);
+    if (note.recurrenceEndDate) {
+      const endDay = new Date(note.recurrenceEndDate);
       const dateDay = new Date(date.getFullYear(), date.getMonth(), date.getDate());
       const endDayMidnight = new Date(endDay.getFullYear(), endDay.getMonth(), endDay.getDate());
       if (dateDay.getTime() > endDayMidnight.getTime()) return false;
@@ -355,8 +361,7 @@ export class CalendarViewComponent implements OnChanges, OnInit, AfterViewInit {
       if (d && this.isSameDay(d, date)) return true;
       // Includi note ricorrenti (la nota originale, non una copia)
       const repeat = this.getEffectiveRepeat(n);
-      const rt = getReminderTime(n);
-      if (repeat && rt && !this.isSameDay(new Date(rt), date)) {
+      if (repeat && n.reminderTime && !this.isSameDay(new Date(n.reminderTime), date)) {
         return this.isRecurringOnDate(n, date);
       }
       return false;
@@ -452,9 +457,26 @@ export class CalendarViewComponent implements OnChanges, OnInit, AfterViewInit {
     this.toolbarDragging = false;
     const endX = e.changedTouches[0]?.clientX ?? this.toolbarDragStartX;
     const dx = endX - this.toolbarDragStartX;
-    // Tap senza spostamento reale → lascia il (click) gestire, ripristina indicatore
+    // Tap senza spostamento reale: applica direttamente il segmento tappato.
+    // Con touch-action:none sul container iOS può sopprimere il click auto
+    // generato dal tap (specialmente se il dito si è mosso anche di 1-2px e
+    // touchmove ha chiamato preventDefault). Risolviamo manualmente leggendo
+    // il target del touchend. NB: il pill "Oggi" NON entra qui perché il suo
+    // touchstart non avvia drag (è fuori da .calendar-toolbar-segments) →
+    // il (click) nativo arriva normalmente.
     if (Math.abs(dx) < 8) {
-      // Tap: ripristina posizione CSS e lascia il (click) gestire
+      const segEl = (e.target as HTMLElement).closest('.calendar-toolbar-seg');
+      if (segEl) {
+        const parent = segEl.parentElement;
+        const segs = parent
+          ? Array.from(parent.querySelectorAll<HTMLElement>('.calendar-toolbar-seg'))
+          : [];
+        const index = segs.indexOf(segEl as HTMLElement);
+        if (index >= 0 && index < this.VIEW_SEGMENTS.length) {
+          this.setView(this.VIEW_SEGMENTS[index]);
+          return;
+        }
+      }
       this.toolbarIndicatorTransform = this.cssTransform(this.VIEW_SEGMENTS.indexOf(this.viewType));
       return;
     }

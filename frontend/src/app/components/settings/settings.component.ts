@@ -1,4 +1,4 @@
-import { Component, inject, OnInit } from '@angular/core';
+import { Component, EventEmitter, HostBinding, inject, Input, OnInit, Output } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule, ReactiveFormsModule, FormControl, Validators, AbstractControl, ValidationErrors } from '@angular/forms';
 import { Router } from '@angular/router';
@@ -55,9 +55,21 @@ export class SettingsComponent implements OnInit {
   private swUpdate = inject(SwUpdate);
   private translationService = inject(TranslationService);
 
+  /** Quando true il componente è renderizzato dentro la shell del dashboard:
+   *  nasconde la mat-toolbar interna (l'header applicativo del dashboard resta
+   *  quello visibile) ed emette backRequest invece di router.navigate sul back. */
+  @Input() embedded = false;
+  @Output() backRequest = new EventEmitter<void>();
+  /** Notifica il parent (dashboard) che una preferenza osservabile è cambiata.
+   *  Evita di dover ri-leggere da Firestore al close: il parent aggiorna il
+   *  proprio stato sincrono ricevendo la coppia {key,value}. */
+  @Output() preferenceChange = new EventEmitter<{ key: string; value: any }>();
+
+  @HostBinding('class.embedded') get _hostEmbedded() { return this.embedded; }
+
   defaultView: 'list' | 'calendar' | 'reminders' = 'list';
   notifTitleEnabled = false;
-  calendarShowAllNotes = true;
+  calendarShowAllNotes = false;
   resetInProgress = false;
   updateAvailable = false;
 
@@ -105,13 +117,17 @@ export class SettingsComponent implements OnInit {
     this.defaultView = await this.noteService.getUserPreference<'list' | 'calendar' | 'reminders'>('defaultView', 'list');
     this.notifTitleEnabled = await this.noteService.getUserPreference<boolean>('notifTitleEnabled', false);
     this.noteService.setNotifTitleEnabled(this.notifTitleEnabled);
-    this.calendarShowAllNotes = await this.noteService.getUserPreference<boolean>('calendarShowAllNotes', true);
+    this.calendarShowAllNotes = await this.noteService.getUserPreference<boolean>('calendarShowAllNotes', false);
     this.currentUsername = await this.noteService.getUsername();
     this.settingsLoaded = true;
   }
 
   goBack() {
-    this.router.navigate(['/dashboard']);
+    if (this.embedded) {
+      this.backRequest.emit();
+    } else {
+      this.router.navigate(['/dashboard']);
+    }
   }
 
   reloadApp() {
@@ -153,6 +169,8 @@ export class SettingsComponent implements OnInit {
   async onCalendarShowAllNotesToggle(enabled: boolean) {
     this.calendarShowAllNotes = enabled;
     await this.noteService.setUserPreference('calendarShowAllNotes', enabled);
+    // Propaga al parent embedded così il calendario aggiorna subito il filtro.
+    this.preferenceChange.emit({ key: 'calendarShowAllNotes', value: enabled });
   }
 
   startEditUsername() {

@@ -1,9 +1,10 @@
 <!-- Header unico globale — fuori dal sidenav container -->
 <mat-toolbar class="app-header">
 
-  <!-- Mobile: editor → indietro -->
+  <!-- Back: editor (mobile) oppure settings embedded su mobile.
+       Su desktop l'header non cambia: niente back, settings chiuso navigando altrove. -->
   <button mat-icon-button [disableRipple]="true"
-          *ngIf="isMobile && activeNote !== undefined"
+          *ngIf="isMobile && (activeNote !== undefined || settingsOpen)"
           (click)="handleBackButton()"
           aria-label="Torna indietro"
           class="back-button header-btn-animated">
@@ -25,21 +26,21 @@
     <mat-icon>{{ activeNote?.myRole === 'guest' ? 'exit_to_app' : 'delete_outline' }}</mat-icon>
   </button>
 
-  <!-- Desktop: bottone calendario -->
+  <!-- Desktop: bottone calendario — sempre visibile, chiude settings se aperto -->
   <button mat-icon-button [disableRipple]="true"
           *ngIf="!isMobile"
-          (click)="currentMainView = 'calendar'; activeNote = undefined"
-          [class.calendar-btn-active]="currentMainView === 'calendar' && activeNote === undefined"
+          (click)="goToCalendar()"
+          [class.calendar-btn-active]="currentMainView === 'calendar' && activeNote === undefined && !settingsOpen"
           [matTooltip]="'MENU.CALENDAR_VIEW' | translate"
           [attr.aria-label]="'MENU.CALENDAR_VIEW' | translate"
           class="header-btn-animated">
     <mat-icon>calendar_month</mat-icon>
   </button>
 
-  <!-- Menu impostazioni — nascosto nell'editor su mobile, sempre visibile su desktop -->
+  <!-- Menu impostazioni — nascosto nell'editor/settings su mobile, sempre visibile su desktop -->
   <button mat-icon-button [disableRipple]="true" (click)="toggleSettingsDropdown($event)" aria-label="Menu"
-          *ngIf="!isMobile || activeNote === undefined" [disabled]="!settingsMenuEnabled"
-          class="settings-menu-btn" [class.settings-menu-btn--open]="showSettingsDropdown">
+          *ngIf="!isMobile || (activeNote === undefined && !settingsOpen)" [disabled]="!settingsMenuEnabled"
+          class="settings-menu-btn header-btn-animated" [class.settings-menu-btn--open]="showSettingsDropdown">
     <div class="settings-icon-wrapper">
       <mat-icon>more_vert</mat-icon>
       <span class="update-badge" *ngIf="updatePending"></span>
@@ -51,7 +52,10 @@
 
 <!-- Dropdown settings custom: pill stack. FUORI dal <mat-toolbar> così le
      mat-icon non ereditano color: var(--punto-primary) da .app-header. -->
-<div class="punto-settings-dropdown" *ngIf="showSettingsDropdown" role="menu">
+<div class="punto-settings-dropdown"
+     *ngIf="showSettingsDropdown || settingsDropdownLeaving"
+     [class.punto-settings-dropdown--leaving]="settingsDropdownLeaving"
+     role="menu">
   <button class="punto-settings-pill" *ngIf="updatePending" (click)="reloadApp()" role="menuitem" type="button">
     <mat-icon>system_update</mat-icon>
     <span>{{ 'MENU.UPDATE' | translate }}</span>
@@ -71,7 +75,7 @@
   (touchstart)="isMobile && onTouchStart($event)"
   (touchend)="isMobile && onTouchEnd($event)">
 
-  <mat-sidenav mode="side" [opened]="!isMobile || (isReady && activeNote === undefined && currentMainView === 'list')" class="notes-sidenav"
+  <mat-sidenav mode="side" [opened]="!isMobile || (isReady && activeNote === undefined && currentMainView === 'list' && !settingsOpen)" class="notes-sidenav"
     [class.mobile-full]="isMobile">
     <div style="display: flex; flex-direction: column; height: 100%; position: relative;">
 
@@ -325,9 +329,9 @@
     </div>
   </mat-sidenav>
 
-  <mat-sidenav-content class="dashboard-content" *ngIf="!isMobile || activeNote !== undefined || (isReady && currentMainView === 'calendar')">
+  <mat-sidenav-content class="dashboard-content" *ngIf="!isMobile || activeNote !== undefined || (isReady && currentMainView === 'calendar') || settingsOpen">
 
-    <div class="editor-wrapper editor-enter" *ngIf="activeNote !== undefined"
+    <div class="editor-wrapper editor-enter" *ngIf="activeNote !== undefined && !settingsOpen"
          [class.editor-leaving]="editorLeaving">
       <app-note-editor #noteEditor [selectedNote]="activeNote" [initialReminderDate]="newNoteCalendarDate"
                        [initialNoteType]="newNoteType"
@@ -337,7 +341,7 @@
       </app-note-editor>
     </div>
 
-    <div class="calendar-wrapper" *ngIf="isReady && (currentMainView === 'calendar' || (!isMobile && currentMainView === 'list')) && activeNote === undefined">
+    <div class="calendar-wrapper" *ngIf="isReady && (currentMainView === 'calendar' || (!isMobile && currentMainView === 'list')) && activeNote === undefined && !settingsOpen">
       <app-calendar-view [notes]="calendarNotes" [isMobile]="isMobile"
         [initialViewType]="lastCalendarView"
         (viewTypeChange)="lastCalendarView = $event"
@@ -346,8 +350,14 @@
       </app-calendar-view>
     </div>
 
+    <!-- Settings embedded (opzione A): occupa l'area del contenuto, la sidenav
+         a sinistra resta visibile su desktop, nascosta su mobile. -->
+    <app-settings *ngIf="settingsOpen" [embedded]="true"
+                  (backRequest)="closeSettings()"
+                  (preferenceChange)="onSettingsPreferenceChange($event)"></app-settings>
+
     <!-- FAB desktop: speed-dial Nota/Memo/Evento (Fase 1) -->
-    <div class="sidenav-fab-area" *ngIf="activeNote === undefined && !isMobile">
+    <div class="sidenav-fab-area" *ngIf="activeNote === undefined && !isMobile && !settingsOpen">
       <app-create-fab variant="desktop" (create)="onCreateFab($event)" (joinShared)="onJoinShared()"></app-create-fab>
     </div>
   </mat-sidenav-content>
@@ -355,13 +365,13 @@
 </mat-sidenav-container>
 
 <!-- FAB mobile: speed-dial Nota/Memo/Evento (Fase 1) -->
-<div class="mobile-fab-overlay" *ngIf="isMobile && activeNote === undefined">
+<div class="mobile-fab-overlay" *ngIf="isMobile && activeNote === undefined && !settingsOpen">
   <app-create-fab variant="mobile" (create)="onCreateFab($event)" (joinShared)="onJoinShared()"></app-create-fab>
 </div>
 
 <!-- Unified nav toolbar — mobile e tablet (<1280px): Note / Promemoria / Calendario -->
 <div class="unified-toolbar"
-     *ngIf="!isWideDesktop && activeNote === undefined"
+     *ngIf="!isWideDesktop && activeNote === undefined && !settingsOpen"
      (touchstart)="onNavTouchStart($event)"
      (touchmove)="onNavTouchMove($event)"
      (touchend)="onNavTouchEnd($event)">

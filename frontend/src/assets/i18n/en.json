@@ -134,6 +134,7 @@
       "YEARLY": "Every year"
     },
     "RECURRENCE_END": "Ends on",
+    "RECURRENCE_END_WITH": "until {{date}}",
     "OVERDUE_PREFIX": "Overdue:",
     "OVERDUE": "Overdue",
     "EVADED_NEXT_PREFIX": "Done — next",
