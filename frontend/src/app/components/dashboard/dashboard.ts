@@ -498,10 +498,17 @@ export class DashboardComponent implements OnInit, OnDestroy {
   isEvadedSectionExpanded = true;
   isSharedWithMeSectionExpanded = true;
 
+  private _calendarNotesCache: Note[] = [];
+  private _calendarNotesCacheKey: { src: Note[] | null; showAll: boolean } = { src: null, showAll: false };
+
   get calendarNotes(): Note[] {
-    return this.calendarShowAllNotes
-      ? this.allNotes
-      : this.allNotes.filter(n => hasReminder(n));
+    const showAll = this.calendarShowAllNotes;
+    if (this._calendarNotesCacheKey.src === this.allNotes && this._calendarNotesCacheKey.showAll === showAll) {
+      return this._calendarNotesCache;
+    }
+    this._calendarNotesCache = showAll ? this.allNotes : this.allNotes.filter(n => hasReminder(n));
+    this._calendarNotesCacheKey = { src: this.allNotes, showAll };
+    return this._calendarNotesCache;
   }
 
   get searchPlaceholder(): string {
@@ -1250,10 +1257,8 @@ export class DashboardComponent implements OnInit, OnDestroy {
     if (this.activeNote === undefined) {
       const currentIdx = this.NAV_SEGMENTS.indexOf(this.mobileNav);
       if (deltaX < 0 && currentIdx < this.NAV_SEGMENTS.length - 1) {
-        // Swipe sinistra → avanza
         this.setMobileNav(this.NAV_SEGMENTS[currentIdx + 1] as any);
       } else if (deltaX > 0 && currentIdx > 0) {
-        // Swipe destra → indietro
         this.setMobileNav(this.NAV_SEGMENTS[currentIdx - 1] as any);
       }
     }

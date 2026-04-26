@@ -110,7 +110,18 @@ export class CalendarViewComponent implements OnChanges, OnInit, AfterViewInit {
 
   private refresh(): void {
     if (this.viewType === 'month') {
-      this.buildScrollableMonths(this.currentDate);
+      if (this.months.length === 0) {
+        this.buildScrollableMonths(this.currentDate);
+      } else {
+        // Aggiorna solo le note nei giorni dei mesi esistenti — NON shiftare la finestra.
+        // Evita il loop runaway in cui un cambio di [notes] (getter calendarNotes nel parent)
+        // ricostruirebbe i mesi centrati sul nuovo currentDate, shiftando i data-month sotto
+        // lo scrollTop e auto-alimentando lo scroll.
+        this.months = this.months.map(m => ({
+          ...m,
+          days: m.days.map(d => ({ ...d, notes: this.getNotesForDay(d.date) }))
+        }));
+      }
     } else {
       this.buildView();
     }
@@ -125,7 +136,9 @@ export class CalendarViewComponent implements OnChanges, OnInit, AfterViewInit {
     if (view === 'month') {
       this.isProgrammaticScroll = true;
       this.buildScrollableMonths(this.currentDate);
-      requestAnimationFrame(() => requestAnimationFrame(() => this.scrollToCurrentMonth()));
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        this.scrollToCurrentMonth();
+      }));
     } else {
       this.buildView();
     }
