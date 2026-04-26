@@ -7,6 +7,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { Note } from '../../services/note';
+import { Calendar } from '../../services/calendar';
 import { inject } from '@angular/core';
 import { TranslateModule } from '@ngx-translate/core';
 import { TranslationService } from '../../services/translation';
@@ -38,6 +39,7 @@ export class CalendarViewComponent implements OnChanges, OnInit, AfterViewInit {
   @Input() notes: Note[] = [];
   @Input() isMobile = false;
   @Input() initialViewType: CalendarViewType = 'month';
+  @Input() calendars: Calendar[] = [];
   @Output() noteSelected = new EventEmitter<Note>();
   @Output() viewTypeChange = new EventEmitter<CalendarViewType>();
   @Output() currentDateChange = new EventEmitter<Date>();
@@ -497,6 +499,21 @@ export class CalendarViewComponent implements OnChanges, OnInit, AfterViewInit {
       ));
       this.setView(this.VIEW_SEGMENTS[newIndex]);
     }
+  }
+
+  /**
+   * Colore di accent per il chip nel calendario.
+   * - type='event' con calendarId noto → colore del Calendar
+   * - tutti gli altri → note.color (comportamento esistente)
+   */
+  getNoteAccentColor(note: Note): string {
+    if (note.type === 'event' && note.calendarId) {
+      const cal = this.calendars.find(c => c.id === note.calendarId);
+      if (cal?.color) {
+        return cal.color;
+      }
+    }
+    return (note.color && note.color !== 'default') ? note.color : 'var(--punto-primary, #1C1B1F)';
   }
 
   formatTime(reminderTime: number | null | undefined): string {

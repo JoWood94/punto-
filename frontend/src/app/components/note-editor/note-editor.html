@@ -4,7 +4,7 @@
      solo per end-date + stati. CTA ghost solo per azioni non-checkbox
      (evadi ricorrenza overdue). Select nativi nascosti sotto label visibili
      per preservare il picker OS su mobile. -->
-<div class="reminder-strip" *ngIf="!!reminderBlock"
+<div class="reminder-strip" *ngIf="!!reminderBlock && note.type !== 'event'"
      [class.reminder-strip--overdue]="isSingleOverdue(reminderBlock) || isOverdueRecurring(reminderBlock)"
      [class.reminder-strip--completed]="reminderBlock.status === 'completed' || (reminderBlock.recurrence !== 'none' && reminderBlock._evaded)">
 
@@ -159,6 +159,7 @@
 
 </div><!-- /reminder-strip -->
 
+
 <div class="editor-header">
   <!-- Badge "Shared with you" — guest -->
   <div class="shared-with-you-badge" *ngIf="isGuest">
@@ -180,6 +181,94 @@
     <mat-icon>{{ syncState() === 'syncing' ? 'sync' : 'done' }}</mat-icon>
   </div>
 </div>
+
+<!-- ══════════ Event sections: Quando + Promemoria (Slice H) ══════════
+     Visibili SOLO se note.type === 'event'. Non interferisce col flusso memo.
+     Posizionate DOPO il titolo e PRIMA dei blocchi corpo. -->
+<ng-container *ngIf="note.type === 'event'">
+
+  <!-- ═══ QUANDO ═══ — Start + freccia + End inline, niente icone calendar -->
+  <section class="event-section event-section--when">
+    <div class="event-when-stack">
+
+      <!-- Start: data + ora, no icona. Click apre datepicker + time input nascosti. -->
+      <button class="event-dt-row" type="button"
+              [disabled]="isReadOnlyEvent"
+              (click)="openEventStartPicker()">
+        <span class="event-dt-date">{{ note.eventStart | date:'EEE d MMM':'':dateLocale }}</span>
+        <span class="event-dt-time">{{ note.eventStart | date:'HH:mm' }}</span>
+        <!-- Datepicker e time input nascosti per event start -->
+        <input [matDatepicker]="eventStartDp"
+               [value]="eventStartAsDate"
+               (dateChange)="onEventStartDateChange($event.value)"
+               class="event-dt-hidden-input">
+        <mat-datepicker #eventStartDp></mat-datepicker>
+      </button>
+      <!-- Time input nascosto per event start -->
+      <input type="time" step="300"
+             class="event-dt-hidden-time"
+             [value]="note.eventStart | date:'HH:mm'"
+             [disabled]="isReadOnlyEvent"
+             (change)="onEventStartTimeChange($any($event.target).value)">
+
+      <!-- Freccia separatrice (visibile solo se duration ON) -->
+      <span class="event-dt-arrow" *ngIf="hasDuration" aria-hidden="true">→</span>
+
+      <!-- End: sempre data + ora (entrambi tappabili → affordance esplicita) -->
+      <button *ngIf="hasDuration" class="event-dt-row" type="button"
+              [disabled]="isReadOnlyEvent"
+              (click)="openEventEndPicker()">
+        <span class="event-dt-date">{{ note.eventEnd | date:'EEE d MMM':'':dateLocale }}</span>
+        <span class="event-dt-time">{{ note.eventEnd | date:'HH:mm' }}</span>
+        <!-- Datepicker e time input nascosti per event end -->
+        <input [matDatepicker]="eventEndDp"
+               [value]="eventEndAsDate"
+               (dateChange)="onEventEndDateChange($event.value)"
+               class="event-dt-hidden-input">
+        <mat-datepicker #eventEndDp></mat-datepicker>
+      </button>
+      <!-- Time input nascosto per event end -->
+      <input *ngIf="hasDuration" type="time" step="300"
+             class="event-dt-hidden-time"
+             [value]="note.eventEnd | date:'HH:mm'"
+             [disabled]="isReadOnlyEvent"
+             (change)="onEventEndTimeChange($any($event.target).value)">
+
+      <!-- Clear duration -->
+      <button *ngIf="hasDuration" class="event-dt-clear" type="button"
+              [disabled]="isReadOnlyEvent"
+              (click)="removeDuration($event)"
+              [attr.aria-label]="'EVENT.REMOVE_DURATION' | translate">
+        <mat-icon>close</mat-icon>
+      </button>
+
+      <!-- Add duration (se nessun end) -->
+      <button *ngIf="!hasDuration" class="event-dt-add" type="button"
+              [disabled]="isReadOnlyEvent"
+              (click)="enableDuration()">
+        <mat-icon>add</mat-icon>
+        <span>{{ 'EVENT.ADD_DURATION' | translate }}</span>
+      </button>
+
+    </div>
+  </section>
+
+  <!-- ═══ PROMEMORIA (pill attiva) — full-width ═══ -->
+  <div *ngIf="note.type === 'event' && reminderEnabled"
+       class="event-reminder-active-wrapper">
+    <button type="button"
+            class="event-reminder-active-pill"
+            (click)="openReminderPresetSheet()"
+            [attr.aria-label]="reminderPresetLabel | translate">
+      <mat-icon class="event-reminder-active-icon">notifications</mat-icon>
+      <span class="event-reminder-active-label">{{ reminderPresetLabel | translate }}</span>
+      <span class="event-reminder-active-when" *ngIf="note.reminderTime">
+        {{ note.reminderTime | date:'EEE d MMM · HH:mm':'':dateLocale }}
+      </span>
+    </button>
+  </div>
+
+</ng-container><!-- /event sections -->
 
 <div class="editor-content" #editorContent [class.keyboard-open]="keyboardOpen()">
 
@@ -529,12 +618,16 @@
 <button class="reminder-mini-fab"
         type="button"
         *ngIf="note.type && note.type !== 'note'"
-        (click)="openSnoozeSheet()"
-        [class.reminder-mini-fab--active]="!!reminderBlock && !hasActiveSuppression"
+        (click)="onBellTap()"
+        [class.reminder-mini-fab--active]="(note.type === 'event' ? reminderEnabled : !!reminderBlock) && !hasActiveSuppression"
         [class.reminder-mini-fab--suppressed]="hasActiveSuppression"
         [class.reminder-mini-fab--hidden]="activeTextBlockIndex() !== null || addBlockMenuOpen() || keyboardOpen()"
         [attr.aria-label]="('SNOOZE.OPEN_LABEL' | translate)">
-  <mat-icon>{{ reminderMuted() ? 'notifications_off' : (hasActiveSuppression ? 'notifications_paused' : (reminderBlock ? 'notifications' : 'notifications_none')) }}</mat-icon>
+  <mat-icon>{{
+    note.type === 'event'
+      ? (reminderEnabled ? 'notifications' : 'notifications_none')
+      : (reminderMuted() ? 'notifications_off' : (hasActiveSuppression ? 'notifications_paused' : (reminderBlock ? 'notifications' : 'notifications_none')))
+  }}</mat-icon>
 </button>
 
 <!-- Mini-FAB condivisione: absolute bottom-left, affiancato al reminder-mini-fab.
@@ -554,6 +647,17 @@
   <span class="presence-chip" *ngIf="presenceUsers().length > 0">
     @{{ presenceUsers()[0].displayName }}{{ presenceUsers().length > 1 ? ' +' + (presenceUsers().length - 1) : '' }}
   </span>
+</button>
+
+<!-- Mini-FAB calendar: visibile solo per type='event' con >1 calendar owned.
+     Apre uno sheet con tutti i calendari owned come pille selezionabili. -->
+<button class="calendar-mini-fab"
+        type="button"
+        *ngIf="note.type === 'event' && ownedCalendars.length > 1"
+        (click)="openCalendarPickerSheet()"
+        [class.calendar-mini-fab--hidden]="activeTextBlockIndex() !== null || addBlockMenuOpen() || keyboardOpen()"
+        [attr.aria-label]="'EVENT.PICK_CALENDAR' | translate">
+  <span class="calendar-mini-fab-dot" [style.background-color]="selectedCalendarColor"></span>
 </button>
 
 <!-- Snooze/mute sheet (Fase 1): si apre dal click sulla campanella (reminder-mini-fab).

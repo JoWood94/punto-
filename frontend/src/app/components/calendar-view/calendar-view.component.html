@@ -68,9 +68,10 @@
             <div class="note-chip"
                  *ngFor="let note of day.notes.slice(0, 1)"
                  [class.note-chip-reminder]="hasReminder(note)"
-                 [style.background-color]="(note.color && note.color !== 'default' ? note.color : null) || 'var(--punto-primary, #1C1B1F)'"
+                 [style.background-color]="getNoteAccentColor(note)"
                  (click)="selectNote(note, $event)">
               <mat-icon class="chip-bell" *ngIf="hasReminder(note)">notifications</mat-icon>
+              <mat-icon class="chip-event-icon" *ngIf="note.type === 'event'" [attr.aria-label]="'Evento'">event</mat-icon>
               <span class="chip-title">{{ (note.title || 'Senza titolo') | slice:0:12 }}{{ (note.title || '').length > 12 ? '…' : '' }}</span>
             </div>
             <div class="more-notes" *ngIf="day.notes.length > 1">+{{ day.notes.length - 1 }}</div>
@@ -97,11 +98,12 @@
           <div class="note-chip"
                *ngFor="let note of day.notes.slice(0, isMobile ? 2 : day.notes.length)"
                [class.note-chip-reminder]="hasReminder(note)"
-               [style.background-color]="(note.color && note.color !== 'default' ? note.color : null) || 'var(--punto-primary, #1C1B1F)'"
+               [style.background-color]="getNoteAccentColor(note)"
                (click)="selectNote(note, $event)"
                [matTooltip]="!isMobile ? ((note.title || 'Nota senza titolo') + (hasReminder(note) ? ' 🔔' : '')) : ''">
             <div class="chip-row">
               <mat-icon class="chip-bell" *ngIf="hasReminder(note)">notifications</mat-icon>
+              <mat-icon class="chip-event-icon" *ngIf="note.type === 'event'" [attr.aria-label]="'Evento'">event</mat-icon>
               <mat-icon class="chip-repeat" *ngIf="!hasReminder(note) && hasReminderRepeat(note)">repeat</mat-icon>
               <span class="chip-title">{{ (note.title || 'Senza titolo') | slice:0:10 }}{{ (note.title || 'Senza titolo').length > 10 ? '…' : '' }}</span>
             </div>
@@ -119,10 +121,11 @@
       <div class="day-note-item"
            *ngFor="let note of dayNotes"
            [class.day-note-reminder]="hasReminder(note)"
-           [style.background-color]="(note.color && note.color !== 'default' ? note.color : null) || 'var(--punto-primary, #1C1B1F)'"
+           [style.background-color]="getNoteAccentColor(note)"
            (click)="selectNote(note, $event)">
         <div class="day-note-time">
           <mat-icon class="day-bell" *ngIf="hasReminder(note)">notifications</mat-icon>
+          <mat-icon class="chip-event-icon" *ngIf="note.type === 'event'" [attr.aria-label]="'Evento'">event</mat-icon>
           <mat-icon class="chip-repeat" *ngIf="hasReminderRepeat(note)">repeat</mat-icon>
           <span>{{ formatTime(note.reminderTime) }}</span>
         </div>

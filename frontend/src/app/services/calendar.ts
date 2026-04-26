@@ -88,9 +88,11 @@ export class CalendarService {
   // ─── Create / Update / Delete ──────────────────────────────────────────────
 
   /**
-   * Crea un nuovo calendario posseduto dall'utente corrente e auto-iscrive
-   * l'owner nella subcollection `subscribers/{ownerUid}` con notifiche ON
-   * per default (cfr. decisione 5 del piano).
+   * Crea un nuovo calendario + auto-iscrive l'owner.
+   * Due step sequenziali (non batch atomico): la rule sui subscribers richiede
+   * che il calendar parent esista già al momento della valutazione → batch
+   * atomico fallirebbe permission-denied. Trade-off: se step 2 fallisce, calendar
+   * orfano (recuperabile manualmente / al prossimo setup).
    *
    * @returns id del calendario appena creato
    */
@@ -114,7 +116,6 @@ export class CalendarService {
     if (data.description !== undefined) calDoc.description = data.description;
     if (data.isDefault !== undefined) calDoc.isDefault = data.isDefault;
 
-    // Batch: doc calendario + auto-iscrizione owner.
     // Il subdoc subscribers/{ownerUid} è necessario perché:
     //   a) getSubscribedCalendars() unifica owned+subscribed via collectionGroup(subscribers)
     //   b) il cron (Fase 6) itera subscribers per sapere a chi inviare push
@@ -127,10 +128,19 @@ export class CalendarService {
       role: 'owner',
     };
 
-    const batch = writeBatch(this.db);
-    batch.set(calRef, calDoc);
-    batch.set(subRef, ownerSub);
-    await batch.commit();
+    await setDoc(calRef, calDoc);
+    console.log('[CalendarService] createCalendar step 1: calendar created', calRef.id);
+    try {
+      await setDoc(subRef, ownerSub);
+      console.log('[CalendarService] createCalendar step 2: owner subscriber created');
+    } catch (err) {
+      // Step 2 fallito → calendar orfano (senza subscriber owner). Loggo e propago,
+      // così il chiamante (ensurePersonalCalendar in dashboard) può fallback.
+      // Non facciamo cleanup del calendar perché la delete potrebbe a sua volta fallire
+      // (rules che richiedono cascade su subscribers che non esistono).
+      console.error('[CalendarService] createCalendar step 2 FAILED — calendar orphaned', { calId: calRef.id, err });
+      throw err;
+    }
 
     console.log('[CalendarService] createCalendar id:', calRef.id, 'uid:', uid);
     return calRef.id;

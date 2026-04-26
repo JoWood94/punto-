@@ -625,3 +625,15 @@
     }
   }
 }
+
+// ─── Icona evento nei chip calendario ────────────────────────
+.chip-event-icon {
+  font-size: 14px;
+  width: 14px;
+  height: 14px;
+  line-height: 14px;
+  margin-right: 2px;
+  vertical-align: middle;
+  color: inherit;
+  opacity: 0.9;
+}
