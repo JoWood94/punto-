@@ -23,6 +23,22 @@
         { "fieldPath": "calendarId", "order": "ASCENDING" },
         { "fieldPath": "type", "order": "ASCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "notes",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "calendarId", "order": "ASCENDING" },
+        { "fieldPath": "uid", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "notes",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "type", "order": "ASCENDING" },
+        { "fieldPath": "eventStart", "order": "ASCENDING" }
+      ]
     }
   ],
   "fieldOverrides": [

@@ -186,18 +186,6 @@ async function checkAndSendReminders() {
         console.log(`Nota ${doc.id}: snoozed uids=${[...snoozedUids].join(',')}, recipients=${allTokens.length}`);
       }
 
-      const NOTIF_STRINGS = {
-        it: {
-          defaultTitle: 'punto! — Promemoria',
-          bodyWithDate: (d) => `Hai un promemoria per il ${d}`,
-          bodyNoDate: 'Hai un promemoria in scadenza!',
-        },
-        en: {
-          defaultTitle: 'punto! — Reminder',
-          bodyWithDate: (d) => `You have a reminder for ${d}`,
-          bodyNoDate: 'You have an upcoming reminder!',
-        },
-      };
       const strings = NOTIF_STRINGS[language] ?? NOTIF_STRINGS['it'];
 
       if (allTokens.length > 0) {
@@ -468,8 +456,197 @@ async function checkAndSendCompletions() {
   }
 }
 
+// ─── Event reminders (per-user, sub-collection) ─────────────────────────────
+// Modello: ogni utente ha il proprio sub-doc notes/{eventId}/eventReminders/{uid}
+// con `offsetsMinutes: number[]`. Il cron calcola targetTime = eventStart - offset*60s
+// (no time storato: se l'owner sposta l'evento, l'offset segue automaticamente).
+// `sentOffsets` evita doppi invii. `lastFiredEventStart` resetta sentOffsets quando
+// l'owner sposta l'eventStart (così un evento "rinviato" rispara i reminder).
+async function checkAndSendEventReminders() {
+  const now = Date.now();
+  console.log(`[${new Date().toISOString()}] Controllo event reminders per-user...`);
+
+  // Finestra eventi: da [now - 1h] a [now + 1day + 1h]. L'offset massimo supportato
+  // dall'editor è DAY_1 (1440min = 1 giorno). 1h di grace prima/dopo gestisce
+  // skew di scheduling cron.
+  const windowStart = now - 60 * 60 * 1000;
+  const windowEnd = now + (24 + 1) * 60 * 60 * 1000;
+
+  let eventsSnap;
+  try {
+    eventsSnap = await db.collection('notes')
+      .where('type', '==', 'event')
+      .where('eventStart', '>=', windowStart)
+      .where('eventStart', '<=', windowEnd)
+      .get();
+  } catch (e) {
+    console.error('[event-reminders] events query failed:', e.message);
+    return;
+  }
+
+  if (eventsSnap.empty) {
+    console.log('Nessun evento nella finestra di check.');
+    return;
+  }
+
+  const tokensCache = {};
+  const updates = [];
+  let sentCount = 0;
+
+  for (const eventDoc of eventsSnap.docs) {
+    const event = eventDoc.data();
+    if (event.cancelled === true) continue;
+    const eventStart = event.eventStart && event.eventStart.toMillis
+      ? event.eventStart.toMillis()
+      : Number(event.eventStart);
+    if (!eventStart) continue;
+    const calendarId = event.calendarId;
+    if (!calendarId) continue;
+
+    let remSnap;
+    try {
+      remSnap = await db.collection('notes').doc(eventDoc.id).collection('eventReminders').get();
+    } catch (e) {
+      console.warn(`[event ${eventDoc.id}] eventReminders fetch failed:`, e.message);
+      continue;
+    }
+    if (remSnap.empty) continue;
+
+    let subsSnap;
+    try {
+      subsSnap = await db.collection('calendars').doc(calendarId).collection('subscribers').get();
+    } catch (e) {
+      console.warn(`[event ${eventDoc.id}] subscribers fetch failed:`, e.message);
+      continue;
+    }
+    const subsByUid = new Map();
+    for (const s of subsSnap.docs) {
+      subsByUid.set(s.id, s.data() || {});
+    }
+
+    for (const remDoc of remSnap.docs) {
+      const uid = remDoc.id;
+      const remData = remDoc.data() || {};
+      const offsets = Array.isArray(remData.offsetsMinutes) ? remData.offsetsMinutes : [];
+      const lastFired = typeof remData.lastFiredEventStart === 'number' ? remData.lastFiredEventStart : null;
+      // Reset sentOffsets se l'owner ha spostato eventStart dopo l'ultimo fire.
+      const sentOffsets = (lastFired === eventStart && Array.isArray(remData.sentOffsets))
+        ? remData.sentOffsets
+        : [];
+
+      const subInfo = subsByUid.get(uid);
+      if (!subInfo) continue; // utente non più subscriber del calendario
+      if (subInfo.notificationsEnabled === false) continue;
+
+      const newSent = [...sentOffsets];
+      let triggered = false;
+
+      for (const offset of offsets) {
+        if (typeof offset !== 'number' || offset < 0) continue;
+        if (newSent.includes(offset)) continue;
+        const targetTime = eventStart - offset * 60_000;
+        if (targetTime > now) continue;            // troppo presto
+        if (targetTime < now - 60 * 60 * 1000) continue;  // grace 1h scaduta
+
+        if (!tokensCache[uid]) {
+          const userDoc = await db.collection('users').doc(uid).get();
+          const userData = userDoc.exists ? userDoc.data() : {};
+          tokensCache[uid] = {
+            tokens: userData.fcmTokens ?? [],
+            language: userData.language ?? 'it',
+            notifTitleEnabled: userData.notifTitleEnabled === true,
+          };
+        }
+        const { tokens, language, notifTitleEnabled } = tokensCache[uid];
+        if (!tokens || tokens.length === 0) continue;
+
+        const PGP_MARKER = '-----BEGIN PGP MESSAGE-----';
+        const isEncrypted = (val) => typeof val === 'string' && val.startsWith(PGP_MARKER);
+        const strings = NOTIF_STRINGS[language] ?? NOTIF_STRINGS.it;
+        const eventDateStr = new Date(eventStart).toLocaleString('it-IT', {
+          day: '2-digit', month: '2-digit', year: 'numeric',
+          hour: '2-digit', minute: '2-digit',
+          timeZone: 'Europe/Rome'
+        });
+        const rawTitle = event.title;
+        const msgTitle = (notifTitleEnabled && rawTitle && !isEncrypted(rawTitle))
+          ? rawTitle
+          : strings.defaultTitle;
+        const bodyText = strings.bodyWithDate(eventDateStr);
+
+        try {
+          const resp = await messaging.sendEachForMulticast({
+            tokens,
+            webpush: {
+              notification: {
+                title: msgTitle,
+                body: bodyText,
+                icon: '/icons/icon-192x192.png',
+                tag: `event-${eventDoc.id}-${offset}`,
+                data: { noteId: eventDoc.id }
+              },
+              data: { title: msgTitle, body: bodyText, noteId: eventDoc.id }
+            }
+          });
+
+          // Cleanup token invalidi per uid
+          const failed = [];
+          resp.responses.forEach((r, idx) => {
+            if (!r.success) {
+              const code = r.error && r.error.code;
+              if (code === 'messaging/invalid-registration-token' ||
+                  code === 'messaging/registration-token-not-registered') {
+                failed.push(tokens[idx]);
+              }
+            }
+          });
+          if (failed.length > 0) {
+            await db.collection('users').doc(uid).update({
+              fcmTokens: admin.firestore.FieldValue.arrayRemove(...failed)
+            });
+          }
+          sentCount++;
+        } catch (e) {
+          console.error(`[event ${eventDoc.id}] send failed for uid=${uid}:`, e.message);
+        }
+
+        newSent.push(offset);
+        triggered = true;
+      }
+
+      if (triggered) {
+        updates.push(remDoc.ref.update({
+          sentOffsets: newSent,
+          lastFiredEventStart: eventStart,
+        }));
+      }
+    }
+  }
+
+  await Promise.all(updates);
+  if (sentCount > 0) {
+    console.log(`Inviati ${sentCount} reminder evento per-user.`);
+  } else {
+    console.log('Nessun event reminder da inviare.');
+  }
+}
+
+const NOTIF_STRINGS = {
+  it: {
+    defaultTitle: 'punto! — Promemoria',
+    bodyWithDate: (d) => `Hai un promemoria per il ${d}`,
+    bodyNoDate: 'Hai un promemoria in scadenza!',
+  },
+  en: {
+    defaultTitle: 'punto! — Reminder',
+    bodyWithDate: (d) => `You have a reminder for ${d}`,
+    bodyNoDate: 'You have an upcoming reminder!',
+  },
+};
+
 async function runAll() {
   await checkAndSendReminders();
+  await checkAndSendEventReminders();
   await checkAndSendCompletions();
 }
 

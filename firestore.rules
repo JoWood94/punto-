@@ -23,12 +23,15 @@ service cloud.firestore {
     function isValidTypedNote(data) {
       // - type obbligatorio in whitelist
       // - se type=='event' → calendarId richiesto e stringa
+      // - se type=='event' → eventStart required (number) e eventEnd >= eventStart se presente
       // - se type=='note' → hasReminderBlock deve essere false (denormalizzato dal FE
       //   al save; previene ReminderBlock dentro una nota "pura")
       // - image opzionale con constraint di size/mime
       return 'type' in data &&
         isValidNoteType(data) &&
         (data.type != 'event' || ('calendarId' in data && data.calendarId is string)) &&
+        (data.type != 'event' || ('eventStart' in data && data.eventStart is number)) &&
+        (data.type != 'event' || !('eventEnd' in data) || (data.eventEnd is number && data.eventEnd >= data.eventStart)) &&
         (data.type != 'note' || data.hasReminderBlock == false) &&
         isValidImage(data);
     }
@@ -169,6 +172,48 @@ service cloud.firestore {
             )
           );
         // Delete: il proprio subdoc (riattiva) oppure l'owner della nota.
+        allow delete: if request.auth != null && (
+          uid == request.auth.uid ||
+          get(/databases/$(database)/documents/notes/$(noteId)).data.uid == request.auth.uid
+        );
+      }
+
+      // ── Event reminders subcollection (per-user reminder per eventi) ───────
+      // Modello: ogni utente (owner del calendar + subscriber) ha il proprio
+      // doc con la lista degli offset minuti pre-evento (es. [10, 60, 1440]).
+      // Il cron calcola targetTime = eventStart - offset*60s e invia push se
+      // matcha l'orario corrente. `sentOffsets` evita doppi invii per la
+      // stessa istanza. Default per il guest: doc inesistente = nessun reminder.
+      match /eventReminders/{uid} {
+        // Read: solo self (privacy: nessuno legge i reminder altrui).
+        // Eccezione owner-cascade: l'owner del calendar dell'evento può leggere
+        // per cleanup al delete dell'evento. Usa get() su notes/{noteId}.
+        allow read: if request.auth != null && (
+          uid == request.auth.uid ||
+          get(/databases/$(database)/documents/notes/$(noteId)).data.uid == request.auth.uid
+        );
+
+        // Create: solo self. Il documento parent (notes/{noteId}) deve essere
+        // un evento di cui sono owner del calendar OPPURE subscriber.
+        // Schema valido: uid coerente, offsetsMinutes lista di int >=0.
+        allow create: if request.auth != null &&
+          uid == request.auth.uid &&
+          request.resource.data.uid == request.auth.uid &&
+          request.resource.data.offsetsMinutes is list &&
+          request.resource.data.sentOffsets is list &&
+          (
+            get(/databases/$(database)/documents/notes/$(noteId)).data.uid == request.auth.uid ||
+            isSubscriberOfEventCalendar(get(/databases/$(database)/documents/notes/$(noteId)).data)
+          );
+
+        // Update: solo self, schema invariato, no cambio uid.
+        allow update: if request.auth != null &&
+          uid == request.auth.uid &&
+          request.resource.data.uid == resource.data.uid &&
+          request.resource.data.offsetsMinutes is list &&
+          request.resource.data.sentOffsets is list;
+
+        // Delete: self (rimuove i propri reminder) OR owner dell'evento (cascade).
         allow delete: if request.auth != null && (
           uid == request.auth.uid ||
           get(/databases/$(database)/documents/notes/$(noteId)).data.uid == request.auth.uid
@@ -390,6 +435,20 @@ service cloud.firestore {
           get(/databases/$(database)/documents/calendars/$(calId)).data.uid == request.auth.uid
         );
       }
+    }
+
+    // ── Collection group query per subscribers ─────────────────────────────────
+    // CalendarService.getSubscribedCalendars usa
+    //   collectionGroup('subscribers') where('uid','==',myUid)
+    // per trovare tutti i calendari (owned o subscribed) di cui l'utente è sub.
+    // Firestore richiede una rule list dedicata per le collection group query:
+    // la rule scoped `/calendars/{calId}/subscribers/{subUid}` non basta perché
+    // valuta `subUid == auth.uid` (path var, doc-id) mentre la query filtra sul
+    // campo `data.uid`. Riproponiamo la rule con `resource.data.uid` che Firestore
+    // riconosce come globalmente true grazie al filtro `where('uid','==',auth.uid)`.
+    match /{path=**}/subscribers/{subUid} {
+      allow read: if request.auth != null
+        && resource.data.uid == request.auth.uid;
     }
   }
 }

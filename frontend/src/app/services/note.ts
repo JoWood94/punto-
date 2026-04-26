@@ -6,7 +6,7 @@ import {
   collection, collectionGroup, doc, addDoc, updateDoc, deleteDoc, deleteField, query, where, onSnapshot, getDoc, getDocFromServer, setDoc, writeBatch, arrayUnion, arrayRemove, getDocs, serverTimestamp, Firestore as RawFirestore,
   DocumentReference, DocumentSnapshot
 } from 'firebase/firestore';
-import { Observable, of, switchMap, combineLatest, startWith, map } from 'rxjs';
+import { Observable, of, switchMap, combineLatest, startWith, map, tap, shareReplay } from 'rxjs';
 import { AuthService } from './auth';
 import { CryptoService, AES_MARKER } from './crypto';
 import { environment } from '../../environments/environment';
@@ -137,6 +137,10 @@ export interface Note {
   cancelled?: boolean;
   /** Solo per type='event'. Obbligatorio. Indica il calendario di appartenenza. */
   calendarId?: string;
+  /** Solo per type='event'. Timestamp ms inizio evento. Required se type='event' (enforced in createNote/updateNote). */
+  eventStart?: number;
+  /** Solo per type='event'. Timestamp ms fine evento. Opzionale — assente = evento puntuale. */
+  eventEnd?: number;
   /** Immagine di copertina inline base64. Distinto da ImageBlock nei blocks (legacy).
    *  Se entrambi presenti, top-level vince nella UI (semantica "locandina"). */
   image?: {
@@ -379,6 +383,12 @@ export class NoteService {
     if (noteType === 'event' && !noteData.calendarId) {
       throw new Error('createNote: calendarId è obbligatorio per type="event"');
     }
+    if (noteType === 'event' && (typeof noteData.eventStart !== 'number' || noteData.eventStart <= 0)) {
+      throw new Error('createNote: eventStart è obbligatorio per type="event"');
+    }
+    if (noteType === 'event' && typeof noteData.eventEnd === 'number' && noteData.eventEnd < (noteData.eventStart as number)) {
+      throw new Error('createNote: eventEnd deve essere >= eventStart');
+    }
 
     // Note pure non possono contenere ReminderBlock (li strip silenziosamente)
     let blocks: NoteBlock[] = (noteData.blocks ?? []) as NoteBlock[];
@@ -553,12 +563,34 @@ export class NoteService {
           return () => unsub();
         });
 
-        // ── Merge: emetti quando almeno uno dei due stream emette ─────────────
+        // ── Stream 3: eventi da calendari condivisi (subscribed, non-owned) ───
+        // getEventsStream restituisce TUTTI gli eventi visibili (owned + sub).
+        // Quelli owned arrivano già da owned$ (con decifratura completa); qui
+        // teniamo solo quelli `uid !== me` per non duplicarli e per assicurare
+        // che gli eventi dei calendari condivisi entrino nel feed.
+        const eventsExternal$ = this.getEventsStream().pipe(
+          map(events => events.filter(e => e.uid !== user.uid))
+        );
+
+        // ── Merge: emetti quando almeno uno dei tre stream emette ─────────────
+        // Dedup per id: in caso di overlap (evento collaboratore-shared che è
+        // anche type='event'), la versione di owned/shared sovrascrive quella
+        // dell'events stream (più completa, decifrata).
         return combineLatest([
           owned$.pipe(startWith([] as Note[])),
           shared$.pipe(startWith([] as Note[])),
+          eventsExternal$.pipe(startWith([] as Note[])),
         ]).pipe(
-          map(([owned, shared]) => [...owned, ...shared])
+          map(([owned, shared, eventsExt]) => {
+            console.log('[DBG-EVT-MERGE] owned=', owned.length, 'shared=', shared.length, 'eventsExt=', eventsExt.length);
+            const byId = new Map<string, Note>();
+            // Ordine importante: eventsExt prima, poi shared, poi owned →
+            // owned vince in caso di id collisions.
+            for (const n of eventsExt) { if (n.id) byId.set(n.id, n); }
+            for (const n of shared)    { if (n.id) byId.set(n.id, n); }
+            for (const n of owned)     { if (n.id) byId.set(n.id, n); }
+            return Array.from(byId.values());
+          })
         );
       })
     );
@@ -588,6 +620,7 @@ export class NoteService {
     return this.authService.user$.pipe(
       switchMap(user => {
         if (!user) return of([] as Note[]);
+        console.log('[DBG-EVT-STREAM] init for uid', user.uid);
 
         // Stream 1: elenco calendarId visibili (owned auto-iscritti + subscribed)
         const visibleCalIds$ = new Observable<string[]>(subscriber => {
@@ -595,29 +628,47 @@ export class NoteService {
             collectionGroup(this.db, 'subscribers'),
             where('uid', '==', user.uid)
           );
+          console.log('[DBG-EVT-STREAM] visibleCalIds$ SUBSCRIBE @', performance.now().toFixed(0));
           const unsub = onSnapshot(q, snap => {
             const ids = snap.docs.map(d => d.ref.parent.parent!.id);
+            console.log('[DBG-EVT-STREAM] subscribers snap → calIds:', ids,
+              'fromCache=', snap.metadata.fromCache,
+              'hasPendingWrites=', snap.metadata.hasPendingWrites,
+              'size=', snap.size,
+              '@', performance.now().toFixed(0));
             subscriber.next(ids);
           }, err => {
-            console.warn('[NoteService] getEventsStream subscribers error:', err.code, err.message);
+            console.warn('[DBG-EVT-STREAM] subscribers ERROR code=', err.code, 'msg=', err.message,
+              '@', performance.now().toFixed(0));
             subscriber.next([]);
           });
-          return () => unsub();
+          return () => {
+            console.log('[DBG-EVT-STREAM] visibleCalIds$ TEARDOWN @', performance.now().toFixed(0));
+            unsub();
+          };
         });
 
         // Stream 2: per ogni calendarId un listener eventi. Merge in array piatto.
         return visibleCalIds$.pipe(
+          tap(ids => console.log('[DBG-EVT-STREAM] TAP visibleCalIds$ ids=', ids, 'len=', ids.length, '@', performance.now().toFixed(0))),
           switchMap(calIds => {
-            if (calIds.length === 0) return of([] as Note[]);
+            if (calIds.length === 0) {
+              console.log('[DBG-EVT-STREAM] no calIds, emit [] @', performance.now().toFixed(0));
+              return of([] as Note[]);
+            }
 
             const perCal$: Observable<Note[]>[] = calIds.map(calId =>
               new Observable<Note[]>(subscriber => {
+                console.log('[DBG-EVT-STREAM] open listener for calId', calId);
                 const q = query(
                   collection(this.db, 'notes'),
                   where('calendarId', '==', calId),
                   where('type', '==', 'event')
                 );
                 const unsub = onSnapshot(q, snap => {
+                  console.log('[DBG-EVT-STREAM] events snap calId=', calId, 'docs=', snap.docs.length,
+                    'fromCache=', snap.metadata.fromCache,
+                    'hasPendingWrites=', snap.metadata.hasPendingWrites);
                   const events: Note[] = snap.docs.map(d => {
                     const raw = { id: d.id, ...d.data() } as any;
                     // Gli eventi non sono cifrati con AES (non passano per generateShareCode).
@@ -636,9 +687,10 @@ export class NoteService {
                         : { editContent: false, editReminders: false },
                     } as Note;
                   });
+                  console.log('[DBG-EVT-STREAM] mapped events for calId=', calId, 'count=', events.length, events.map(e => ({ id: e.id, uid: e.uid, calendarId: e.calendarId, eventStart: e.eventStart })));
                   subscriber.next(events);
                 }, err => {
-                  console.warn('[NoteService] getEventsStream calendar', calId, 'error:', err.code, err.message);
+                  console.error('[DBG-EVT-STREAM] events query FAILED calId=', calId, err.code, err.message);
                   subscriber.next([]);
                 });
                 return () => unsub();
@@ -736,6 +788,24 @@ export class NoteService {
         `updateNote: type è immutabile (era "${currentType}", tentato "${data.type}"). ` +
         `Per cambiare tipo usa "Duplica come memo/evento".`
       );
+    }
+
+    // Guard eventStart/eventEnd per aggiornamenti su type='event'
+    const effectiveType = (data.type ?? currentType) as NoteType | undefined;
+    if (effectiveType === 'event' && data.eventStart !== undefined) {
+      if (typeof data.eventStart !== 'number' || data.eventStart <= 0) {
+        throw new Error('updateNote: eventStart deve essere un timestamp ms valido per type="event"');
+      }
+      const endToCheck = data.eventEnd !== undefined ? data.eventEnd : (noteSnap.data()?.['eventEnd'] as number | undefined);
+      if (typeof endToCheck === 'number' && endToCheck < data.eventStart) {
+        throw new Error('updateNote: eventEnd deve essere >= eventStart');
+      }
+    }
+    if (effectiveType === 'event' && data.eventEnd !== undefined && typeof data.eventEnd === 'number') {
+      const startToCheck = data.eventStart !== undefined ? data.eventStart : (noteSnap.data()?.['eventStart'] as number | undefined);
+      if (typeof startToCheck === 'number' && data.eventEnd < startToCheck) {
+        throw new Error('updateNote: eventEnd deve essere >= eventStart');
+      }
     }
 
     // Auto-transizione type ↔ reminder (UX back-compat Fase 0):
@@ -1152,6 +1222,27 @@ export class NoteService {
     // Cleanup asincrono: rimuove tutti gli inviti scaduti per questa nota
     this.cleanupExpiredInvites(noteId).catch(() => {});
     return noteId;
+  }
+
+  /**
+   * Peek dell'invite senza consumarlo. Permette al chiamante di
+   * dispatchare al service corretto (note vs calendar) in base al type.
+   * Throws su token non trovato.
+   */
+  async peekInvite(token: string): Promise<{ type: 'note' | 'calendar'; resourceId: string; title?: string }> {
+    const inviteSnap = await getDoc(doc(this.db, `invites/${token}`));
+    if (!inviteSnap.exists()) throw new Error('invite/not-found');
+    const d = inviteSnap.data();
+    // Schema unificato post-Fase 3: type + resourceId. Legacy: solo noteId.
+    if (d['type'] === 'calendar') {
+      const resourceId = d['resourceId'] ?? d['calendarId'];
+      if (!resourceId) throw new Error('invite/malformed');
+      return { type: 'calendar', resourceId, title: d['calendarTitle'] || undefined };
+    }
+    // Default: note (sia type='note' sia legacy senza type)
+    const noteId = d['resourceId'] ?? d['noteId'];
+    if (!noteId) throw new Error('invite/malformed');
+    return { type: 'note', resourceId: noteId };
   }
 
   /** Legge e valida un token invito note senza accettarlo: ritorna { noteId, createdBy } o lancia errore.
@@ -1842,6 +1933,49 @@ export class NoteService {
     return this.watchReminderSubscription(noteId, uid, sub => {
       callback(sub?.snoozedUntil ?? null);
     });
+  }
+
+  // ─── Event reminders (per-user, sub-collection) ──────────────────────────
+  // Modello: ogni utente (owner del calendar + subscriber) ha il proprio doc
+  // notes/{eventId}/eventReminders/{uid} con offsetsMinutes (es. [60] = 1h prima).
+  // Default per il guest: doc inesistente = nessun reminder = nessuna push.
+  // Il cron calcola targetTime = eventStart - offset*60s (no time assoluto storato:
+  // se l'owner sposta l'evento, l'offset segue automaticamente).
+
+  /** Scrive l'offset reminder per l'utente corrente. offsetMin=null → cancella il doc.
+   *  offsetMin=0 → reminder all'inizio dell'evento. */
+  async writeMyEventReminder(eventId: string, offsetMin: number | null): Promise<void> {
+    const uid = this.authService.getCurrentUserId();
+    if (!uid) throw new Error('Not authenticated');
+    const ref = doc(this.db, `notes/${eventId}/eventReminders/${uid}`);
+    if (offsetMin === null) {
+      await deleteDoc(ref).catch(() => {});
+      return;
+    }
+    await setDoc(ref, {
+      uid,
+      offsetsMinutes: [offsetMin],
+      sentOffsets: [],
+      updatedAt: Date.now(),
+    }, { merge: false });
+  }
+
+  /** Listener real-time sull'offset reminder dell'utente corrente per un evento.
+   *  Emette il primo offset (o null se doc assente / array vuoto). */
+  watchMyEventReminder(
+    eventId: string,
+    callback: (offsetMin: number | null) => void
+  ): () => void {
+    const uid = this.authService.getCurrentUserId();
+    if (!uid) { callback(null); return () => {}; }
+    const ref = doc(this.db, `notes/${eventId}/eventReminders/${uid}`);
+    return onSnapshot(ref, snap => {
+      if (!snap.exists()) { callback(null); return; }
+      const data = snap.data() ?? {};
+      const arr = Array.isArray(data['offsetsMinutes']) ? data['offsetsMinutes'] : [];
+      const first = typeof arr[0] === 'number' ? arr[0] : null;
+      callback(first);
+    }, () => callback(null));
   }
 
   /** Cifra in batch le note esistenti dopo il setup E2E (migrazione). */

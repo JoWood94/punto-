@@ -10,7 +10,7 @@ import { MatInputModule } from '@angular/material/input';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
-import { MatDatepickerModule } from '@angular/material/datepicker';
+import { MatDatepickerModule, MatDatepicker } from '@angular/material/datepicker';
 import { MatNativeDateModule } from '@angular/material/core';
 import { MatAutocompleteModule } from '@angular/material/autocomplete';
 import { MatCheckboxModule } from '@angular/material/checkbox';
@@ -18,6 +18,7 @@ import { MatSelectModule } from '@angular/material/select';
 import { MatChipsModule } from '@angular/material/chips';
 import { MatMenuModule } from '@angular/material/menu';
 import { MatDialogModule, MatDialog } from '@angular/material/dialog';
+import { MatBottomSheet, MatBottomSheetModule } from '@angular/material/bottom-sheet';
 import { DragDropModule, CdkDragDrop, moveItemInArray } from '@angular/cdk/drag-drop';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { firstValueFrom } from 'rxjs';
@@ -35,6 +36,13 @@ import { CryptoService } from '../../services/crypto';
 import { ToastService } from '../../services/toast';
 import { SnoozeSheetComponent } from '../snooze-sheet/snooze-sheet';
 import { ImageProcessorService } from '../../services/image-processor.service';
+import { Calendar } from '../../services/calendar';
+import {
+  ReminderPresetSheetComponent, ReminderPresetSheetData, ReminderPresetSheetResult, ReminderPresetKey
+} from '../reminder-preset-sheet/reminder-preset-sheet.component';
+import {
+  CalendarPickerSheetComponent, CalendarPickerSheetData, CalendarPickerSheetResult
+} from '../calendar-picker-sheet/calendar-picker-sheet.component';
 // TODO: import Storage riabilitare con piano Firebase Storage
 // import { getStorage, ref as storageRef, uploadBytesResumable, getDownloadURL, deleteObject } from 'firebase/storage';
 // import { getApp } from 'firebase/app';
@@ -48,9 +56,10 @@ import { ImageProcessorService } from '../../services/image-processor.service';
     MatFormFieldModule, MatInputModule, MatButtonModule, MatIconModule,
     MatTooltipModule, MatAutocompleteModule,
     MatCheckboxModule, MatDatepickerModule, MatNativeDateModule,
-    MatSelectModule, MatChipsModule, MatMenuModule, MatDialogModule,
+    MatSelectModule, MatChipsModule, MatMenuModule, MatDialogModule, MatBottomSheetModule,
     DragDropModule, TranslateModule,
     SnoozeSheetComponent,
+    CalendarPickerSheetComponent,
   ],
   templateUrl: './note-editor.html',
   styleUrls: ['./note-editor.scss']
@@ -66,7 +75,10 @@ export class NoteEditorComponent implements OnInit, OnChanges, DoCheck, AfterVie
   @Input() initialNoteType: NoteType = 'note';
   /** calendarId pre-risolto dal dashboard (Fase 4 A.1). Usato per eventi nuovi. */
   @Input() initialCalendarId?: string;
-  @Output() closeEditor = new EventEmitter<boolean>();
+  /** Calendari owned dall'utente corrente (Fase 4 G). Passato dal dashboard. */
+  @Input() ownedCalendars: Calendar[] = [];
+  /** Emette la nota corrente (o null) per permettere al dashboard di sincronizzare la vista. */
+  @Output() closeEditor = new EventEmitter<Partial<Note> | null>();
   @Output() noteCreated = new EventEmitter<string>();
   @Output() noteLiveUpdate = new EventEmitter<{id: string, title: string}>();
 
@@ -74,6 +86,9 @@ export class NoteEditorComponent implements OnInit, OnChanges, DoCheck, AfterVie
   @ViewChildren('textBlockEl') textBlockEls!: QueryList<ElementRef<HTMLElement>>;
   @ViewChild('editorContent') editorContent!: ElementRef<HTMLElement>;
   @ViewChild('titleInput') titleInputRef!: ElementRef<HTMLInputElement>;
+  /** Datepicker nascosti per event start/end nel nuovo layout inline. */
+  @ViewChild('eventStartDp') eventStartDp?: MatDatepicker<Date>;
+  @ViewChild('eventEndDp') eventEndDp?: MatDatepicker<Date>;
 
   note: Partial<Note> & { blocks: NoteBlock[]; tags: string[] } = {
     title: '',
@@ -111,6 +126,282 @@ export class NoteEditorComponent implements OnInit, OnChanges, DoCheck, AfterVie
   // TODO: uploadProgress riabilitare con piano Firebase Storage
   // uploadProgress = new Map<number, number>(); // blockIndex → upload %
 
+  // ─── Event fields (Slice H) ───────────────────────────────────────────────
+  /** True se l'evento ha una durata (eventEnd valorizzato). */
+  get hasDuration(): boolean { return typeof this.note.eventEnd === 'number'; }
+
+  reminderEnabled = false;
+  reminderPresetKey: ReminderPresetKey = 'HOUR_1';
+
+  get reminderPresetLabel(): string {
+    const map: Record<string, string> = {
+      NONE:     'EVENT.REMINDER_NONE',
+      AT_START: 'EVENT.REMINDER_AT_START',
+      MIN_5:    'EVENT.REMINDER_5MIN',
+      MIN_15:   'EVENT.REMINDER_15MIN',
+      HOUR_1:   'EVENT.REMINDER_1H',
+      HOUR_2:   'EVENT.REMINDER_2H',
+      DAY_1:    'EVENT.REMINDER_1DAY',
+      CUSTOM:   'EVENT.REMINDER_CUSTOM',
+    };
+    return map[this.reminderPresetKey] ?? 'EVENT.REMINDER_1H';
+  }
+
+  private presetOffsetMin(key: ReminderPresetKey): number | null {
+    switch (key) {
+      case 'AT_START': return 0;
+      case 'MIN_5':    return 5;
+      case 'MIN_15':   return 15;
+      case 'HOUR_1':   return 60;
+      case 'HOUR_2':   return 120;
+      case 'DAY_1':    return 60 * 24;
+      default:         return null;
+    }
+  }
+
+  /** Mappa offset minuti → preset key (per ripristinare la UI dal subdoc). */
+  private inferPresetFromOffset(offsetMin: number): ReminderPresetKey {
+    if (offsetMin === 0)    return 'AT_START';
+    if (offsetMin === 5)    return 'MIN_5';
+    if (offsetMin === 15)   return 'MIN_15';
+    if (offsetMin === 60)   return 'HOUR_1';
+    if (offsetMin === 120)  return 'HOUR_2';
+    if (offsetMin === 1440) return 'DAY_1';
+    return 'CUSTOM';
+  }
+
+  /** Avvia il listener sul sub-doc eventReminders/{myUid} per un evento.
+   *  Sostituisce il vecchio modello `note.reminderTime` top-level: ogni utente
+   *  vede e modifica solo i propri reminder. Migra i legacy reminderTime al
+   *  primo open dell'owner. */
+  private startEventReminderWatcher(eventId: string): void {
+    this.stopEventReminderWatcher();
+    this.eventReminderFirstEmit = true;
+    this.myEventReminderUnsub = this.noteService.watchMyEventReminder(eventId, (offsetMin) => {
+      const isOwner = this.note.myRole !== 'guest';
+      // Migrazione lazy owner-side: se il sub-doc non esiste e c'è un legacy
+      // `reminderTime` salvato sul doc evento, ricostruisci l'offset e scrivilo
+      // nel sub-doc. Lo svuotamento del campo legacy avviene al prossimo save.
+      if (this.eventReminderFirstEmit) {
+        this.eventReminderFirstEmit = false;
+        if (offsetMin === null && isOwner && typeof this.note.reminderTime === 'number'
+            && typeof this.note.eventStart === 'number') {
+          const legacyOffset = Math.round((this.note.eventStart - this.note.reminderTime) / 60_000);
+          if (legacyOffset >= 0 && legacyOffset <= 60 * 24 * 30) {
+            console.log('[eventReminders] migration owner: offset=', legacyOffset);
+            this.noteService.writeMyEventReminder(eventId, legacyOffset).catch(err =>
+              console.warn('[eventReminders] migration write failed', err));
+            // Non aggiornare la UI ora: il watcher riemetterà col valore migrato.
+            return;
+          }
+        }
+      }
+      // Applica lo stato del sub-doc (o il default vuoto per il guest).
+      if (offsetMin === null) {
+        this.reminderEnabled = false;
+        this.reminderPresetKey = 'HOUR_1';
+        this.note.reminderTime = null;
+      } else {
+        this.reminderEnabled = true;
+        this.reminderPresetKey = this.inferPresetFromOffset(offsetMin);
+        if (typeof this.note.eventStart === 'number') {
+          this.note.reminderTime = this.note.eventStart - offsetMin * 60_000;
+        }
+      }
+      this.cdr.markForCheck();
+    });
+  }
+
+  private stopEventReminderWatcher(): void {
+    if (this.myEventReminderUnsub) { this.myEventReminderUnsub(); this.myEventReminderUnsub = null; }
+  }
+
+  /** Inferisce il reminderPresetKey dalla differenza eventStart−reminderTime.
+   *  Usato in initNote() per ripristinare la selezione preset al riaprire la nota. */
+  private inferReminderPresetKey(eventStart?: number, reminderTime?: number | null): ReminderPresetKey {
+    if (!eventStart || typeof reminderTime !== 'number') return 'HOUR_1';
+    const offsetMin = Math.round((eventStart - reminderTime) / 60_000);
+    if (offsetMin === 0)    return 'AT_START';
+    if (offsetMin === 5)    return 'MIN_5';
+    if (offsetMin === 15)   return 'MIN_15';
+    if (offsetMin === 60)   return 'HOUR_1';
+    if (offsetMin === 120)  return 'HOUR_2';
+    if (offsetMin === 1440) return 'DAY_1';
+    return 'CUSTOM';
+  }
+
+  // Cache dei Date ricostruiti dal timestamp: il getter NON deve ricreare
+  // l'oggetto Date ad ogni CD (Angular vede nuovo reference su [value] →
+  // re-emit di valueChange → loop infinito di CD → freeze app).
+  private _eventStartDateCache: Date | null = null;
+  private _eventStartTsCache: number | null = null;
+  private _eventEndDateCache: Date | null = null;
+  private _eventEndTsCache: number | null = null;
+
+  get eventStartAsDate(): Date | null {
+    const ts = this.note.eventStart;
+    if (typeof ts !== 'number') { this._eventStartDateCache = null; this._eventStartTsCache = null; return null; }
+    if (this._eventStartTsCache !== ts) {
+      this._eventStartDateCache = new Date(ts);
+      this._eventStartTsCache = ts;
+    }
+    return this._eventStartDateCache;
+  }
+
+  get eventEndAsDate(): Date | null {
+    const ts = this.note.eventEnd;
+    if (typeof ts !== 'number') { this._eventEndDateCache = null; this._eventEndTsCache = null; return null; }
+    if (this._eventEndTsCache !== ts) {
+      this._eventEndDateCache = new Date(ts);
+      this._eventEndTsCache = ts;
+    }
+    return this._eventEndDateCache;
+  }
+
+  onEventStartChange(date: Date | null): void {
+    if (!date) return;
+    this.note.eventStart = date.getTime();
+    // Se eventEnd esiste e ora è < eventStart, aggiusta forward
+    if (typeof this.note.eventEnd === 'number' && this.note.eventEnd < date.getTime()) {
+      this.note.eventEnd = date.getTime() + 60 * 60 * 1000;
+    }
+    // Ricalcola reminderTime se abilitato (NONE e CUSTOM non hanno offset fisso)
+    if (this.reminderEnabled) {
+      const offsetMin = this.presetOffsetMin(this.reminderPresetKey);
+      if (typeof offsetMin === 'number') {
+        this.note.reminderTime = date.getTime() - offsetMin * 60_000;
+      }
+    }
+    this.triggerAutoSave();
+  }
+
+  onEventEndChange(date: Date | null): void {
+    if (!date) return;
+    this.note.eventEnd = date.getTime();
+    this.triggerAutoSave();
+  }
+
+  // ── Nuovo layout inline event: picker opener + date/time change handlers ──
+
+  /** True se eventEnd cade nello stesso giorno di eventStart (confronto locale). */
+  get isEndSameDayAsStart(): boolean {
+    if (!this.note?.eventStart || !this.note?.eventEnd) return false;
+    const s = new Date(this.note.eventStart);
+    const e = new Date(this.note.eventEnd);
+    return s.getFullYear() === e.getFullYear()
+      && s.getMonth() === e.getMonth()
+      && s.getDate() === e.getDate();
+  }
+
+  /** Apre il MatDatepicker nascosto per event start. */
+  openEventStartPicker(): void {
+    this.eventStartDp?.open();
+  }
+
+  /** Apre il MatDatepicker nascosto per event end. */
+  openEventEndPicker(): void {
+    this.eventEndDp?.open();
+  }
+
+  /** Gestisce il cambio data dal datepicker nascosto di event start.
+   *  Preserva l'ora corrente del timestamp eventStart. */
+  onEventStartDateChange(date: Date | null): void {
+    if (!date) return;
+    const existing = this.note.eventStart ? new Date(this.note.eventStart) : new Date();
+    date.setHours(existing.getHours(), existing.getMinutes(), 0, 0);
+    this.onEventStartChange(date);
+  }
+
+  /** Gestisce il cambio data dal datepicker nascosto di event end.
+   *  Preserva l'ora corrente del timestamp eventEnd. */
+  onEventEndDateChange(date: Date | null): void {
+    if (!date) return;
+    const existing = this.note.eventEnd ? new Date(this.note.eventEnd) : new Date();
+    date.setHours(existing.getHours(), existing.getMinutes(), 0, 0);
+    this.onEventEndChange(date);
+  }
+
+  /** Gestisce il cambio ora dall'input time nascosto di event start. */
+  onEventStartTimeChange(timeStr: string): void {
+    if (!timeStr) return;
+    const [h, m] = timeStr.split(':').map(Number);
+    const base = this.note.eventStart ? new Date(this.note.eventStart) : new Date();
+    base.setHours(h, m, 0, 0);
+    this.onEventStartChange(base);
+  }
+
+  /** Gestisce il cambio ora dall'input time nascosto di event end. */
+  onEventEndTimeChange(timeStr: string): void {
+    if (!timeStr) return;
+    const [h, m] = timeStr.split(':').map(Number);
+    const base = this.note.eventEnd ? new Date(this.note.eventEnd) : new Date();
+    base.setHours(h, m, 0, 0);
+    this.onEventEndChange(base);
+  }
+
+  enableDuration(): void {
+    console.log('[DBG-EVT-EDITOR] enable duration');
+    // Default: end = start (stessa data e ora). L'utente regola manualmente.
+    this.note.eventEnd = this.note.eventStart ?? Date.now();
+    this.triggerAutoSave();
+  }
+
+  removeDuration(e: Event): void {
+    e.stopPropagation();
+    console.log('[DBG-EVT-EDITOR] remove duration');
+    this.note.eventEnd = undefined;
+    this.triggerAutoSave();
+  }
+
+  async openReminderPresetSheet(): Promise<void> {
+    const eventStart = this.note.eventStart;
+    if (!eventStart) return;
+    const current: ReminderPresetKey = this.reminderEnabled ? this.reminderPresetKey : 'NONE';
+    const data: ReminderPresetSheetData = { eventStart, current };
+    console.log('[DBG-EVT-RPS] opening with panelClass: reminder-preset-sheet-pane');
+    const ref = this.bottomSheet.open(ReminderPresetSheetComponent, {
+      data,
+      panelClass: 'reminder-preset-sheet-pane',
+    });
+    const result: ReminderPresetSheetResult | undefined = await firstValueFrom(ref.afterDismissed());
+    if (!result) return;
+    console.log('[DBG-EVT-EDITOR] preset selected', { key: result.key, time: result.time });
+
+    // Calcola l'offset target dal preset (NONE = null = disable).
+    let nextOffsetMin: number | null;
+    if (result.key === 'NONE') {
+      nextOffsetMin = null;
+    } else if (result.key === 'CUSTOM') {
+      // TODO: dialog datetime-picker per offset libero. Per ora no-op.
+      this.reminderPresetKey = 'CUSTOM';
+      return;
+    } else {
+      const offset = this.presetOffsetMin(result.key);
+      if (typeof offset !== 'number') return;
+      nextOffsetMin = offset;
+    }
+
+    // Aggiorna stato UI immediato (il watcher confermerà o sovrascriverà).
+    if (nextOffsetMin === null) {
+      this.reminderEnabled = false;
+      this.note.reminderTime = null;
+    } else {
+      this.reminderEnabled = true;
+      this.reminderPresetKey = result.key;
+      this.note.reminderTime = eventStart - nextOffsetMin * 60_000;
+    }
+
+    // Persisti sul sub-doc per-utente. Per nuovi eventi non ancora salvati,
+    // bufferizza in pendingReminderOffsetMin: il flush avviene dopo createNote.
+    if (this.savedNoteId) {
+      this.noteService.writeMyEventReminder(this.savedNoteId, nextOffsetMin).catch(err => {
+        console.warn('[eventReminders] write failed', err);
+      });
+    } else {
+      this.pendingReminderOffsetMin = nextOffsetMin;
+    }
+  }
+
   private noteService = inject(NoteService);
   private authService = inject(AuthService);
   private cryptoService = inject(CryptoService);
@@ -119,6 +410,7 @@ export class NoteEditorComponent implements OnInit, OnChanges, DoCheck, AfterVie
   private ngZone = inject(NgZone);
   private overdueTicker: ReturnType<typeof setInterval> | null = null;
   private dialog = inject(MatDialog);
+  private bottomSheet = inject(MatBottomSheet);
   translationService = inject(TranslationService);
   private toast = inject(ToastService);
 
@@ -146,6 +438,12 @@ export class NoteEditorComponent implements OnInit, OnChanges, DoCheck, AfterVie
   readonly imageBlockUploading = signal<number | null>(null);
   private imageBlockErrors = new Map<number, string>();
   private liveNoteUnsub: (() => void) | null = null;
+  /** Watcher subdoc eventReminders/{myUid} per type=event. */
+  private myEventReminderUnsub: (() => void) | null = null;
+  /** Buffer offset preset per nuovi eventi non ancora salvati: persiste dopo createNote. */
+  private pendingReminderOffsetMin: number | null | undefined = undefined;
+  /** True dopo il primo emit del watcher: serve per la migrazione lazy owner-side. */
+  private eventReminderFirstEmit = true;
   private livePermsUnsub: (() => void) | null = null;
   private lastSavedAt = 0;
   private userHasModifiedContent = false;
@@ -183,6 +481,48 @@ export class NoteEditorComponent implements OnInit, OnChanges, DoCheck, AfterVie
 
   get hasReminderBlock(): boolean {
     return this.note.blocks.some(b => b.type === 'reminder');
+  }
+
+  /** Mostra il calendar picker solo per eventi con almeno 2 calendari owned disponibili. */
+  get showCalendarPicker(): boolean {
+    return this.note?.type === 'event' && this.ownedCalendars.length > 1;
+  }
+
+  /**
+   * True se il calendario dell'evento non appartiene all'utente corrente.
+   * Forward-compat per eventi di calendari subscribed: picker disabled.
+   */
+  get isReadOnlyEvent(): boolean {
+    if (this.note?.type !== 'event') return false;
+    if (!this.note.calendarId) return false;
+    return !this.ownedCalendars.some(c => c.id === this.note.calendarId);
+  }
+
+  onCalendarPickerChange(newCalId: string): void {
+    console.log('[DBG-EVT-CAL-PICKER] editor change', { from: this.note.calendarId, to: newCalId });
+    this.note.calendarId = newCalId;
+    this.triggerAutoSave();
+  }
+
+  /** Colore del calendario attualmente selezionato per il dot del mini-FAB. */
+  get selectedCalendarColor(): string {
+    if (!this.note?.calendarId) return '#1C1B1F';
+    const cal = this.ownedCalendars.find(c => c.id === this.note.calendarId);
+    return cal?.color || '#1C1B1F';
+  }
+
+  async openCalendarPickerSheet(): Promise<void> {
+    if (this.note?.type !== 'event') return;
+    const ref = this.bottomSheet.open(CalendarPickerSheetComponent, {
+      panelClass: 'reminder-preset-sheet-pane',
+      data: { calendars: this.ownedCalendars, currentId: this.note.calendarId ?? null } satisfies CalendarPickerSheetData,
+    });
+    const result: CalendarPickerSheetResult | undefined = await firstValueFrom(ref.afterDismissed());
+    if (result?.calendarId && result.calendarId !== this.note.calendarId) {
+      this.note.calendarId = result.calendarId;
+      this.triggerAutoSave();
+      console.log('[DBG-EVT-CAL-PICKER] sheet pick', result.calendarId);
+    }
   }
 
   get anyCollaboratorEditing(): boolean {
@@ -268,7 +608,7 @@ export class NoteEditorComponent implements OnInit, OnChanges, DoCheck, AfterVie
     ref.afterClosed().subscribe((result) => {
       if (result?.left) {
         this.stopLiveSync();
-        this.closeEditor.emit(this.note?.blocks?.some(b => b.type === 'reminder') ?? false);
+        this.closeEditor.emit(this.note ?? null);
       }
     });
   }
@@ -519,10 +859,24 @@ export class NoteEditorComponent implements OnInit, OnChanges, DoCheck, AfterVie
         blocks,
         tags: this.selectedNote.tags ? [...this.selectedNote.tags] : []
       };
+      // Ripristina stato reminder evento (Slice H)
+      // Per type=event: il reminder vive nel sub-doc per-utente (eventReminders/{myUid}).
+      // Lo stato iniziale è OFF: il watcher (startEventReminderWatcher) lo riempirà
+      // appena arriva il primo emit dal sub-doc. Per i guest senza sub-doc → resta OFF.
+      if (this.selectedNote.type === 'event') {
+        this.reminderEnabled = false;
+        this.reminderPresetKey = 'HOUR_1';
+      } else {
+        this.reminderEnabled = false;
+      }
       this.lastSavedAt = this.selectedNote.updatedAt ?? 0;
       this.stopLiveSync();
       this.startLiveSync();
       this.startSnoozeWatcher();
+      // Avvia watcher eventReminders solo per type=event con id già esistente.
+      if (this.selectedNote.type === 'event' && this.selectedNote.id) {
+        this.startEventReminderWatcher(this.selectedNote.id);
+      }
     } else {
       // Guard: ngOnInit + ngOnChanges chiamano entrambi initNote() al mount — evita doppia creazione
       if (this.isNewNote) return;
@@ -535,8 +889,31 @@ export class NoteEditorComponent implements OnInit, OnChanges, DoCheck, AfterVie
       const resolvedType: NoteType = this.initialReminderDate && this.initialNoteType === 'note'
         ? 'memo'
         : this.initialNoteType;
-      if (this.initialReminderDate) {
-        // Da vista Promemoria o da calendario: blocco reminder, nessun titolo di default
+      // ⚠️ Ordine branch: PRIMA event (Slice H), poi initialReminderDate (memo da
+      // calendario/promemoria), poi default. Senza questa precedenza, un evento
+      // creato dal FAB con initialReminderDate valorizzato (newNoteCalendarDate
+      // del dashboard) cadrebbe nel ramo memo e non avrebbe eventStart → la rule
+      // Firestore rifiuta perché eventStart è obbligatorio per type='event'.
+      if (resolvedType === 'event') {
+        // Evento nuovo: eventStart = initialReminderDate (da calendario) oppure ora arrotondata
+        const eventBase = this.initialReminderDate ?? (() => {
+          const now = new Date();
+          now.setMinutes(Math.ceil(now.getMinutes() / 15) * 15, 0, 0);
+          return now;
+        })();
+        const eventStart = eventBase.getTime();
+        // Includi calendarId pre-risolto dal dashboard (Personale lazy-create
+        // o primo owned). Senza questo, il calendar-picker mostra come selected
+        // il primo calendar della lista (non Personale) — visual mismatch col
+        // payload che buildPayload fissa via initialCalendarId al save.
+        this.note = {
+          title: '', blocks: [], tags: [], color: 'default',
+          type: resolvedType, eventStart,
+          calendarId: this.initialCalendarId,
+        };
+        this.reminderEnabled = false;
+      } else if (this.initialReminderDate) {
+        // Memo da vista Promemoria o calendario: blocco reminder, nessun titolo di default
         const d = this.initialReminderDate;
         const roundedMin = Math.ceil(d.getMinutes() / 5) * 5;
         const reminderHour = roundedMin >= 60 ? d.getHours() + 1 : d.getHours();
@@ -566,8 +943,18 @@ export class NoteEditorComponent implements OnInit, OnChanges, DoCheck, AfterVie
           // il guest accetta l'invito, l'owner deve già essere iscritto per ricevere
           // gli update live senza dover riaprire la nota.
           this.startLiveSync();
+          // Per type=event: flush dell'offset bufferizzato e avvio del watcher.
+          if (this.note.type === 'event') {
+            const pending = this.pendingReminderOffsetMin;
+            this.pendingReminderOffsetMin = undefined;
+            if (pending !== undefined) {
+              this.noteService.writeMyEventReminder(result.id, pending).catch(err =>
+                console.warn('[eventReminders] flush after createNote failed', err));
+            }
+            this.startEventReminderWatcher(result.id);
+          }
         })
-        .catch(err => console.error('[AutoSave] createNote error:', err));
+        .catch(err => console.error('[DBG-EVT-SAVE] createNote FAILED', { code: err?.code, message: err?.message, payloadType: newPayload?.type, hasEventStart: typeof newPayload?.eventStart === 'number', hasEventEnd: typeof newPayload?.eventEnd === 'number', err }));
     }
     this.textBlocksNeedInit = true;
   }
@@ -1222,15 +1609,20 @@ export class NoteEditorComponent implements OnInit, OnChanges, DoCheck, AfterVie
     const repeatValue = reminder?.recurrence && reminder.recurrence !== 'none'
       ? reminder.recurrence as 'daily' | 'weekly' | 'monthly' | 'yearly'
       : null;
+    // Per eventi: i reminder vivono nel sub-doc per-utente
+    // notes/{eventId}/eventReminders/{uid}, NON sul doc evento. Quindi i campi
+    // reminder top-level vengono azzerati al save (anche per migrare via gli
+    // eventuali legacy reminderTime degli eventi esistenti).
+    const isEvent = this.note.type === 'event';
     const payload: any = {
       ...this.note,
       blocks,
       tags: this.note.tags ?? [],
-      reminderTime: reminder?.time ?? null,
-      reminderStatus: reminder?.status ?? null,
-      recurrence: reminder?.recurrence ?? 'none',
-      reminderRepeat: repeatValue,
-      recurrenceEndDate: reminder?.recurrenceEndDate ?? null,
+      reminderTime: isEvent ? null : (reminder?.time ?? null),
+      reminderStatus: isEvent ? null : (reminder?.status ?? null),
+      recurrence: isEvent ? 'none' : (reminder?.recurrence ?? 'none'),
+      reminderRepeat: isEvent ? null : repeatValue,
+      recurrenceEndDate: isEvent ? null : (reminder?.recurrenceEndDate ?? null),
     };
     delete payload.address; delete payload.lat; delete payload.lon; delete payload.checklist;
     // Strip read-only ownership/sharing metadata — mai scrivibili dal client direttamente
@@ -1252,12 +1644,21 @@ export class NoteEditorComponent implements OnInit, OnChanges, DoCheck, AfterVie
     if (this.note.type === 'event' && this.initialCalendarId && !payload.calendarId) {
       payload.calendarId = this.initialCalendarId;
     }
+    // Per eventi: eventEnd è opzionale. Le rules richiedono `eventEnd is number`
+    // se la key esiste (null non è number). Rimuovi del tutto se non valorizzato,
+    // altrimenti il forEach undefined→null sotto creerebbe un payload invalido.
+    if (this.note.type === 'event' && typeof payload.eventEnd !== 'number') {
+      delete payload.eventEnd;
+    }
     Object.keys(payload).forEach(k => { if (payload[k] === undefined) payload[k] = null; });
     return payload;
   }
 
   private isPristine(): boolean {
     if (this.userHasModifiedContent) return false;
+    // Per eventi: la creazione dal FAB → "Evento" è già un'azione esplicita,
+    // eventStart è valorizzato di default. Non considerare pristine se è un evento.
+    if (this.note.type === 'event' && typeof this.note.eventStart === 'number') return false;
     const title = (this.note.title || '').trim();
     if (title && title !== this.PLACEHOLDER_TITLE) return false;
     // Se c'è un reminder block con tempo configurato, la nota non è pristine
@@ -1287,7 +1688,7 @@ export class NoteEditorComponent implements OnInit, OnChanges, DoCheck, AfterVie
       this.lastSavedAt = Date.now();
       console.log('[AutoSave] updateNote OK — lastSavedAt:', this.lastSavedAt);
     } catch (err) {
-      console.error('[AutoSave] updateNote error:', err);
+      console.error('[DBG-EVT-SAVE] updateNote FAILED', { code: (err as any)?.code, message: (err as any)?.message, err });
     } finally {
       this.pendingOwnWrite = false;
     }
@@ -1309,13 +1710,13 @@ export class NoteEditorComponent implements OnInit, OnChanges, DoCheck, AfterVie
         const remoteAt = await this.noteService.getNoteUpdatedAt(this.savedNoteId);
         if (remoteAt && remoteAt > this.lastSavedAt) {
           console.warn('[anti-overwrite] handleClose bail — remoteAt:', remoteAt, 'lastSavedAt:', this.lastSavedAt);
-          this.closeEditor.emit(this.note?.blocks?.some(b => b.type === 'reminder') ?? false);
+          this.closeEditor.emit(this.note ?? null);
           return;
         }
       } catch { /* errore di rete: procedi con il save */ }
       await this.performAutoSave();
     }
-    this.closeEditor.emit(this.note?.blocks?.some(b => b.type === 'reminder') ?? false);
+    this.closeEditor.emit(this.note ?? null);
   }
 
   onTitleChange() {
@@ -1347,7 +1748,9 @@ export class NoteEditorComponent implements OnInit, OnChanges, DoCheck, AfterVie
         'collaboratorUids:', data['collaboratorUids']);
 
       // Guest kick (data path): controlla sul raw prima del decrypt — collaboratorUids non è cifrato.
-      if (this.note.myRole === 'guest') {
+      // Gli eventi di calendar usano subscription al calendario (non collaboratorUids) per l'accesso
+      // del guest: la check su collaboratorUids ritornerebbe sempre "kick" → skip per type='event'.
+      if (this.note.myRole === 'guest' && this.note.type !== 'event') {
         const uid = this.authService.getCurrentUserId();
         const collabs: string[] = data['collaboratorUids'] ?? [];
         if (uid && !collabs.includes(uid)) {
@@ -1407,6 +1810,7 @@ export class NoteEditorComponent implements OnInit, OnChanges, DoCheck, AfterVie
     clearTimeout(this.syncStateTimer);
     this.syncState.set('idle');
     this.stopPresence();
+    this.stopEventReminderWatcher();
   }
 
   /** Kick-out handler condiviso tra data-path (collaboratorUids / not-found) e error-path (permission-denied). */
@@ -1426,7 +1830,7 @@ export class NoteEditorComponent implements OnInit, OnChanges, DoCheck, AfterVie
     const msg = this.translationService.instant(key, { title, username });
     this.ngZone.run(() => {
       this.toast.show(msg, 5000);
-      this.closeEditor.emit(this.note?.blocks?.some(b => b.type === 'reminder') ?? false);
+      this.closeEditor.emit(this.note ?? null);
     });
   }
 
@@ -1494,6 +1898,15 @@ export class NoteEditorComponent implements OnInit, OnChanges, DoCheck, AfterVie
     if (!this.savedNoteId) return;
     if (this.note.type === 'note') return;
     this.showSnoozeSheet.update(v => !v);
+  }
+
+  /** Mini-FAB campanella: snooze sheet per memo, preset sheet per event. */
+  onBellTap(): void {
+    if (this.note?.type === 'event') {
+      this.openReminderPresetSheet();
+    } else {
+      this.openSnoozeSheet();
+    }
   }
 
   async snoozeReminder(timestamp: number) {

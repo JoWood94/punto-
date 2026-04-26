@@ -27,6 +27,9 @@ import { PassphraseDialogComponent } from '../passphrase-dialog/passphrase-dialo
 import { UpdateDialogComponent } from '../update-dialog/update-dialog';
 import { UsernameDialogComponent } from '../username-dialog/username-dialog';
 import { JoinByCodeDialogComponent } from '../join-by-code-dialog/join-by-code-dialog';
+import { CalendarFilterDialogComponent } from '../calendar-filter-dialog/calendar-filter-dialog.component';
+import { CalendarManageDialogComponent } from '../calendar-manage-dialog/calendar-manage-dialog.component';
+import { AddCalendarDialogComponent } from '../add-calendar-dialog/add-calendar-dialog.component';
 import { SettingsComponent } from '../settings/settings.component';
 import { TranslateModule } from '@ngx-translate/core';
 import { TranslationService } from '../../services/translation';
@@ -120,6 +123,18 @@ export class DashboardComponent implements OnInit, OnDestroy {
   notesLoaded = false;
   pendingSelectNoteId: string | null = null;
   calendarCurrentDate: Date = new Date();
+  calendarPref: { showMemos: boolean; hiddenCalendarIds: string[] } = { showMemos: true, hiddenCalendarIds: [] };
+
+  /**
+   * Sottinsieme di myCalendars owned dall'utente corrente.
+   * myCalendars è popolato da getAllVisibleCalendars() che unisce owned + subscribed:
+   * il filtro per uid separa i propri calendari da quelli altrui.
+   */
+  get ownedCalendars(): Calendar[] {
+    const uid = this.authService.getCurrentUserId();
+    if (!uid) return [];
+    return this.myCalendars.filter(c => c.uid === uid);
+  }
 
   // TODO: tags disabilitati temporaneamente
   // allTags: string[] = [];
@@ -295,6 +310,15 @@ export class DashboardComponent implements OnInit, OnDestroy {
     // Carica preferenza visibilità calendario
     this.calendarShowAllNotes = await this.noteService.getUserPreference<boolean>('calendarShowAllNotes', false);
 
+    // Carica preferenze filtro calendari
+    this.noteService.getUserPreference<{ showMemos: boolean; hiddenCalendarIds: string[] }>(
+      'calendarView',
+      { showMemos: true, hiddenCalendarIds: [] }
+    ).then(p => {
+      this.calendarPref = p ?? { showMemos: true, hiddenCalendarIds: [] };
+      console.log('[DBG-EVT-FILTER] loaded pref', this.calendarPref);
+    });
+
     // Tutti gli init async completati — mostra il contenuto
     this.isReady = true;
 
@@ -353,7 +377,10 @@ export class DashboardComponent implements OnInit, OnDestroy {
         // l'utente che non ha più accesso (owner ha rimosso o eliminato la nota).
         const currentSharedSnapshot = new Map<string, { title: string; ownerUid: string }>();
         for (const n of notes) {
-          if (n.myRole === 'guest' && n.id) {
+          // Escludi gli eventi di calendar: il loro myRole='guest' deriva dalla
+          // subscription al calendario, non da una share esplicita. Una sparizione
+          // transitoria nel feed (race del visibleCalIds$) NON è un kick-out.
+          if (n.myRole === 'guest' && n.id && n.type !== 'event') {
             currentSharedSnapshot.set(n.id, { title: n.title ?? '', ownerUid: n.uid ?? '' });
           }
         }
@@ -403,7 +430,9 @@ export class DashboardComponent implements OnInit, OnDestroy {
       console.warn('Push notifications non disponibili in questo browser.');
     });
 
-    this.calendarsSub = this.calendarService.getMyCalendars().subscribe({
+    // getAllVisibleCalendars() unisce owned + subscribed (dedup by id, owned wins).
+    // Così la filter-dialog mostra anche i calendari a cui l'utente è iscritto.
+    this.calendarsSub = this.calendarService.getAllVisibleCalendars().subscribe({
       next: cals => {
         this.myCalendars = cals;
       },
@@ -512,15 +541,39 @@ export class DashboardComponent implements OnInit, OnDestroy {
   isSharedWithMeSectionExpanded = true;
 
   private _calendarNotesCache: Note[] = [];
-  private _calendarNotesCacheKey: { src: Note[] | null; showAll: boolean } = { src: null, showAll: false };
+  private _calendarNotesCacheKey: { src: Note[] | null; showAll: boolean; prefRef: { showMemos: boolean; hiddenCalendarIds: string[] } | null } = {
+    src: null,
+    showAll: false,
+    prefRef: null,
+  };
 
   get calendarNotes(): Note[] {
     const showAll = this.calendarShowAllNotes;
-    if (this._calendarNotesCacheKey.src === this.allNotes && this._calendarNotesCacheKey.showAll === showAll) {
+    const pref = this.calendarPref;
+    if (
+      this._calendarNotesCacheKey.src === this.allNotes &&
+      this._calendarNotesCacheKey.showAll === showAll &&
+      this._calendarNotesCacheKey.prefRef === pref
+    ) {
       return this._calendarNotesCache;
     }
-    this._calendarNotesCache = showAll ? this.allNotes : this.allNotes.filter(n => hasReminder(n));
-    this._calendarNotesCacheKey = { src: this.allNotes, showAll };
+    // Gli eventi (type='event') vanno sempre inclusi nel base array indipendentemente
+    // da hasReminder: il default reminder per event è OFF (Slice H decoupling), e
+    // la posizione nel calendario è determinata da eventStart, non da reminderTime.
+    const base = showAll
+      ? this.allNotes
+      : this.allNotes.filter(n => hasReminder(n) || n.type === 'event');
+    const filtered = base.filter(n => {
+      if (n.type === 'memo') return pref.showMemos;
+      if (n.type === 'event') {
+        if (!n.calendarId) return false;
+        return !pref.hiddenCalendarIds.includes(n.calendarId);
+      }
+      // 'note' senza reminder non arriva qui (filtro hasReminder), difensivo
+      return true;
+    });
+    this._calendarNotesCache = filtered;
+    this._calendarNotesCacheKey = { src: this.allNotes, showAll, prefRef: pref };
     return this._calendarNotesCache;
   }
 
@@ -532,12 +585,14 @@ export class DashboardComponent implements OnInit, OnDestroy {
     );
   }
 
-  // ─── Vista NOTE: solo note senza reminder e senza ricorrenza ─
+  // ─── Vista NOTE: solo note senza reminder, senza ricorrenza, e NON eventi.
+  // Gli eventi (type='event') vivono solo nel calendario indipendentemente dal
+  // reminder (default OFF), quindi vanno esclusi anche da pinned/plain.
   get pinnedNotes(): Note[] {
-    return this.filteredNotes.filter(n => n.pinned && !hasReminder(n) && !isRecurringNote(n) && n.myRole !== 'guest');
+    return this.filteredNotes.filter(n => n.type !== 'event' && n.pinned && !hasReminder(n) && !isRecurringNote(n) && n.myRole !== 'guest');
   }
   get plainNotes(): Note[] {
-    return this.filteredNotes.filter(n => !n.pinned && !hasReminder(n) && !isRecurringNote(n) && n.myRole !== 'guest');
+    return this.filteredNotes.filter(n => n.type !== 'event' && !n.pinned && !hasReminder(n) && !isRecurringNote(n) && n.myRole !== 'guest');
   }
 
   // ─── Vista PROMEMORIA ─────────────────────────────────────────
@@ -547,10 +602,10 @@ export class DashboardComponent implements OnInit, OnDestroy {
     return memos;
   }
   get recurringReminderNotes(): Note[] {
-    return this.filteredNotes.filter(n => isRecurringNote(n));
+    return this.filteredNotes.filter(n => n.type === 'memo' && isRecurringNote(n));
   }
   get evadedNotes(): Note[] {
-    return this.filteredNotes.filter(n => getReminderStatus(n) === 'completed');
+    return this.filteredNotes.filter(n => n.type === 'memo' && getReminderStatus(n) === 'completed');
   }
 
   // ─── Condivise con me (solo senza reminder) ───────────────────
@@ -1050,6 +1105,93 @@ export class DashboardComponent implements OnInit, OnDestroy {
     }
   }
 
+  async onOpenCalendarFilter(): Promise<void> {
+    const currentUid = this.authService.getCurrentUserId() ?? undefined;
+    const ref = this.dialog.open(CalendarFilterDialogComponent, {
+      width: '420px',
+      maxWidth: '95vw',
+      data: { calendars: this.myCalendars, currentUid },
+    });
+    const result = await firstValueFrom(ref.afterClosed());
+    console.log('[DBG-EVT-FILTER] dialog closed', result);
+
+    if (result?.applied) {
+      const [updatedPref, updatedShowAll] = await Promise.all([
+        this.noteService.getUserPreference<{ showMemos: boolean; hiddenCalendarIds: string[] }>(
+          'calendarView',
+          { showMemos: true, hiddenCalendarIds: [] }
+        ),
+        this.noteService.getUserPreference<boolean>('calendarShowAllNotes', false),
+      ]);
+      this.calendarPref = updatedPref ?? { showMemos: true, hiddenCalendarIds: [] };
+      this.calendarShowAllNotes = updatedShowAll ?? false;
+    }
+    if (result?.manage) {
+      const cal = this.myCalendars.find(c => c.id === result.manage);
+      if (cal) this.openCalendarManage(cal);
+    }
+    if (result?.newCalendar || result?.addCalendar) {
+      this.openNewCalendarDialog();
+    }
+    if (result?.unsubscribe) {
+      await this.confirmUnsubscribeCalendar(result.unsubscribe);
+    }
+  }
+
+  private async confirmUnsubscribeCalendar(calId: string): Promise<void> {
+    const cal = this.myCalendars.find(c => c.id === calId);
+    if (!cal) return;
+    const confirmed = await firstValueFrom(
+      this.dialog.open(ConfirmDialogComponent, {
+        width: '420px', maxWidth: '95vw',
+        data: {
+          title: this.translationService.instant('CALENDAR.UNSUBSCRIBE'),
+          message: this.translationService.instant('CALENDAR.UNSUBSCRIBE_CONFIRM', { name: cal.title }),
+          confirmLabel: this.translationService.instant('CALENDAR.UNSUBSCRIBE'),
+          cancelLabel: this.translationService.instant('COMMON.CANCEL'),
+        },
+      }).afterClosed()
+    );
+    if (!confirmed) return;
+    try {
+      await this.calendarService.unsubscribeFromCalendar(calId);
+      console.log('[DBG-EVT-FILTER] unsubscribed', calId);
+      this.myCalendars = this.myCalendars.filter(c => c.id !== calId);
+    } catch (err: any) {
+      console.error('[DBG-EVT-FILTER] unsubscribe failed', err?.code, err?.message);
+      this.toast.show(this.translationService.instant('COMMON.ERROR_GENERIC'));
+    }
+  }
+
+  private openCalendarManage(cal: Calendar): void {
+    const ref = this.dialog.open(CalendarManageDialogComponent, {
+      width: '480px',
+      maxWidth: '95vw',
+      data: { calendar: cal },
+    });
+    ref.afterClosed().subscribe(r => {
+      console.log('[DBG-EVT-MANAGE] dialog closed', r);
+      // UI ottimistica: rimuovi immediatamente il calendar deleted da myCalendars.
+      // La subscription getAllVisibleCalendars() ha race condition (Promise.all
+      // dentro onSnapshot di getSubscribedCalendars) che a volte ripristina lo
+      // stato vecchio. Fix strutturale separato; questa è la riga di sicurezza.
+      if (r?.deleted) {
+        this.myCalendars = this.myCalendars.filter(c => c.id !== cal.id);
+      }
+    });
+  }
+
+  private openNewCalendarDialog(): void {
+    const ref = this.dialog.open(AddCalendarDialogComponent, {
+      width: '420px',
+      maxWidth: '95vw',
+    });
+    ref.afterClosed().subscribe(r => {
+      console.log('[DBG-EVT-NEW-CAL] dialog closed', r);
+      // La subscription getMyCalendars() emetterà automaticamente il nuovo calendar.
+    });
+  }
+
   /** Naviga alla vista calendario (bottone header desktop). Chiude eventuali
    *  modi secondari (settings embedded, editor) per tornare allo stato base. */
   goToCalendar() {
@@ -1117,17 +1259,42 @@ export class DashboardComponent implements OnInit, OnDestroy {
     }
   }
 
-  /** Handler emit dal CreateFabComponent quando l'utente vuole unirsi a una nota condivisa. */
+  /** Handler emit dal CreateFabComponent quando l'utente vuole unirsi a una nota o calendario condiviso. */
   async onJoinShared() {
     const ref = this.dialog.open(JoinByCodeDialogComponent, {
       width: '460px',
       maxWidth: '95vw',
     });
     const result = await firstValueFrom(ref.afterClosed());
-    if (result?.joined && result.noteId) {
+    console.log('[DBG-JOIN] dialog closed', result);
+    if (result?.kind === 'note' && result.noteId) {
       // La nota condivisa arrivera dal live listener getNotes().
       // Tentiamo di selezionarla subito se e gia in lista, altrimenti
       // aspettiamo la prossima emissione via pendingSelectNoteId.
+      const existing = this.allNotes.find(n => n.id === result.noteId);
+      if (existing) {
+        this.selectNote(existing);
+      } else {
+        this.pendingSelectNoteId = result.noteId;
+      }
+    } else if (result?.kind === 'calendar' && result.calendarId) {
+      console.log('[DBG-JOIN] subscribed to calendar', result.calendarId);
+      // UI ottimistica: leggi il calendar e aggiungilo subito a myCalendars senza
+      // aspettare il listener (che può essere bloccato o lento dopo permission-denied
+      // su un vecchio snapshot in stato "errored"). La subscription emetterà il dato
+      // corretto al prossimo cambio; il push manuale è il safety net.
+      try {
+        const cal = await this.calendarService.getCalendar(result.calendarId);
+        if (cal && !this.myCalendars.some(c => c.id === cal.id)) {
+          this.myCalendars = [...this.myCalendars, { ...cal, myRole: 'subscriber' }];
+          console.log('[DBG-JOIN] optimistic added to myCalendars', cal.id);
+        }
+      } catch (err) {
+        console.warn('[DBG-JOIN] optimistic getCalendar failed', err);
+      }
+      this.toast.show(this.translationService.instant('CALENDAR.SUBSCRIBED_TOAST'));
+    } else if (result?.joined && result.noteId) {
+      // Backward-compat: vecchio shape pre-F.2 (join nota senza kind)
       const existing = this.allNotes.find(n => n.id === result.noteId);
       if (existing) {
         this.selectNote(existing);
@@ -1177,8 +1344,8 @@ export class DashboardComponent implements OnInit, OnDestroy {
     if (note) this.selectNote(note);
   }
 
-  closeEditor(hasReminder = false) {
-    this.syncViewToNoteType(hasReminder);
+  closeEditor(note: Partial<Note> | null = null) {
+    this.syncViewToNoteType(note);
     this.deactivateNote();
   }
   handleBackButton() {
@@ -1187,15 +1354,27 @@ export class DashboardComponent implements OnInit, OnDestroy {
       return;
     }
     if (this.activeNote !== undefined) {
-      const hasReminder = this.noteEditorComp?.note?.blocks?.some(b => b.type === 'reminder') ?? false;
-      this.syncViewToNoteType(hasReminder);
+      const currentNote = this.noteEditorComp?.note ?? null;
+      this.syncViewToNoteType(currentNote as Partial<Note> | null);
       this.deactivateNote();
     } else {
       this.currentMainView = 'list';
     }
   }
 
-  private syncViewToNoteType(hasReminder: boolean) {
+  private syncViewToNoteType(note?: Partial<Note> | null) {
+    console.log('[DBG-EVT-NAV] syncViewToNoteType', { type: note?.type, eventStart: note?.eventStart });
+    if (note?.type === 'event' && note.eventStart) {
+      // Atterra sul calendar mantenendo la view che l'utente stava usando
+      // (month/week/day): cambia solo la data corrente per posizionare il
+      // calendario sul giorno dell'evento.
+      this.currentMainView = 'calendar';
+      this.calendarCurrentDate = new Date(note.eventStart);
+      console.log('[DBG-EVT-NAV] applied event view', { calendarCurrentDate: this.calendarCurrentDate.toISOString(), view: this.lastCalendarView });
+      if (this.isMobile) this.setMobileNav('calendar');
+      return;
+    }
+    const hasReminder = note?.blocks?.some((b: any) => b.type === 'reminder') ?? false;
     const view = hasReminder ? 'reminders' : 'notes';
     this.activeView = view;
     if (this.isMobile) this.setMobileNav(view);
