@@ -64,6 +64,8 @@ export class NoteEditorComponent implements OnInit, OnChanges, DoCheck, AfterVie
    * Ignorato quando selectedNote è valorizzato (editing di doc esistente).
    */
   @Input() initialNoteType: NoteType = 'note';
+  /** calendarId pre-risolto dal dashboard (Fase 4 A.1). Usato per eventi nuovi. */
+  @Input() initialCalendarId?: string;
   @Output() closeEditor = new EventEmitter<boolean>();
   @Output() noteCreated = new EventEmitter<string>();
   @Output() noteLiveUpdate = new EventEmitter<{id: string, title: string}>();
@@ -553,7 +555,8 @@ export class NoteEditorComponent implements OnInit, OnChanges, DoCheck, AfterVie
       this.pendingFocusTitleInput = true;
       this.savedNoteId = null;
       // Crea subito su Firestore per avere un ID
-      this.createNotePromise = this.noteService.createNote(this.buildPayload())
+      const newPayload = this.buildPayload();
+      this.createNotePromise = this.noteService.createNote(newPayload)
         .then(result => {
           this.savedNoteId = result.id;
           (this.note as any).id = result.id;
@@ -1243,6 +1246,11 @@ export class NoteEditorComponent implements OnInit, OnChanges, DoCheck, AfterVie
       payload.completionNotifyByName = this.myUsername || this.translationService.instant('SHARING.UNKNOWN_COLLABORATOR');
       payload.completionNotifyAt = Date.now();
       this.completionNotifyPendingFlag = false;
+    }
+    // Fase 4 A.1: propaga calendarId per eventi nuovi (initialCalendarId dal dashboard).
+    // Per editing di nota esistente, calendarId arriva già da this.note via spread.
+    if (this.note.type === 'event' && this.initialCalendarId && !payload.calendarId) {
+      payload.calendarId = this.initialCalendarId;
     }
     Object.keys(payload).forEach(k => { if (payload[k] === undefined) payload[k] = null; });
     return payload;

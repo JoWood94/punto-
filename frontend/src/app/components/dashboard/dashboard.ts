@@ -33,6 +33,7 @@ import { TranslationService } from '../../services/translation';
 import { Observable, Subscription, firstValueFrom, skip } from 'rxjs';
 import { Location } from '@angular/common';
 import { PushNotificationService } from '../../services/push-notification';
+import { CalendarService, Calendar } from '../../services/calendar';
 import { BreakpointObserver, Breakpoints } from '@angular/cdk/layout';
 import { SwUpdate } from '@angular/service-worker';
 import { environment } from '../../../environments/environment';
@@ -111,9 +112,11 @@ export class DashboardComponent implements OnInit, OnDestroy {
   calendarShowAllNotes = false;
   allNotes: Note[] = [];
   filteredNotes: Note[] = [];
+  myCalendars: Calendar[] = [];
   searchQuery = '';
   newNoteCalendarDate: Date | undefined = undefined;
   newNoteType: NoteType = 'note';
+  newNoteCalendarId: string | undefined = undefined;
   notesLoaded = false;
   pendingSelectNoteId: string | null = null;
   calendarCurrentDate: Date = new Date();
@@ -125,6 +128,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
   private notesSub?: Subscription;
   private authSub?: Subscription;
   private routeSub?: Subscription;
+  private calendarsSub?: Subscription;
   // Snapshot delle note dove sono guest, mantenuto tra emissioni di notes$.
   // null = lista non ancora inizializzata (prima emissione: no diff).
   // Usato per rilevare quando una nota condivisa sparisce (owner l'ha eliminata
@@ -151,6 +155,8 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   private swUpdate = inject(SwUpdate);
   private ngZone = inject(NgZone);
+
+  private calendarService: CalendarService = inject(CalendarService);
 
   constructor(
     private noteService: NoteService,
@@ -397,6 +403,12 @@ export class DashboardComponent implements OnInit, OnDestroy {
       console.warn('Push notifications non disponibili in questo browser.');
     });
 
+    this.calendarsSub = this.calendarService.getMyCalendars().subscribe({
+      next: cals => {
+        this.myCalendars = cals;
+      },
+    });
+
     // Gestione back gesture mobile.
     // replaceState (non pushState) converte l'entry iniziale in uno stato JS puro:
     // iOS non ricarica la pagina quando il popstate torna a uno stato JS.
@@ -467,6 +479,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.notesSub?.unsubscribe();
     this.authSub?.unsubscribe();
     this.routeSub?.unsubscribe();
+    this.calendarsSub?.unsubscribe();
     clearInterval(this.sessionCheckInterval);
     clearInterval(this.versionCheckInterval);
     clearTimeout(this.settingsMenuTimer);
@@ -530,9 +543,8 @@ export class DashboardComponent implements OnInit, OnDestroy {
   // ─── Vista PROMEMORIA ─────────────────────────────────────────
   // Note condivise con reminder appaiono qui insieme alle proprie (BF-JJ)
   get activeReminderNotes(): Note[] {
-    return this.filteredNotes.filter(n =>
-      hasReminder(n) && getReminderStatus(n) !== 'completed' && !isRecurringNote(n)
-    );
+    const memos = this.filteredNotes.filter(n => n.type === 'memo' && hasReminder(n) && getReminderStatus(n) !== 'completed' && !isRecurringNote(n));
+    return memos;
   }
   get recurringReminderNotes(): Note[] {
     return this.filteredNotes.filter(n => isRecurringNote(n));
@@ -1070,8 +1082,39 @@ export class DashboardComponent implements OnInit, OnDestroy {
   }
 
   /** Handler emit dal CreateFabComponent speed-dial (creazione nota/memo/evento). */
-  onCreateFab(type: NoteType) {
+  async onCreateFab(type: NoteType) {
+    if (type === 'event') {
+      const calendarId = await this.ensurePersonalCalendar();
+      if (!calendarId) {
+        return;
+      }
+      this.newNoteCalendarId = calendarId;
+    } else {
+      this.newNoteCalendarId = undefined;
+    }
     this.openNoteEditor(type);
+  }
+
+  /**
+   * Restituisce un calendarId owned dall'utente. Se non ne ha → crea
+   * silenziosamente "Personale" (isDefault:true) e ritorna il suo id.
+   * Usa `getMyCalendars()` (Observable) tramite `firstValueFrom`.
+   */
+  private async ensurePersonalCalendar(): Promise<string | null> {
+    try {
+      const owned = await firstValueFrom(this.calendarService.getMyCalendars());
+      if (owned.length > 0) {
+        const def = owned.find(c => c.isDefault) ?? owned[0];
+        return def.id ?? null;
+      }
+      const newCalId = await this.calendarService.createCalendar({
+        title: 'Personale',
+        isDefault: true,
+      });
+      return newCalId ?? null;
+    } catch (err) {
+      return null;
+    }
   }
 
   /** Handler emit dal CreateFabComponent quando l'utente vuole unirsi a una nota condivisa. */

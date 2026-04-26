@@ -335,6 +335,7 @@
          [class.editor-leaving]="editorLeaving">
       <app-note-editor #noteEditor [selectedNote]="activeNote" [initialReminderDate]="newNoteCalendarDate"
                        [initialNoteType]="newNoteType"
+                       [initialCalendarId]="newNoteCalendarId"
                        (closeEditor)="closeEditor($event)"
                        (noteCreated)="onNoteCreated($event)"
                        (noteLiveUpdate)="onNoteLiveUpdate($event)">
@@ -344,6 +345,7 @@
     <div class="calendar-wrapper" *ngIf="isReady && (currentMainView === 'calendar' || (!isMobile && currentMainView === 'list')) && activeNote === undefined && !settingsOpen">
       <app-calendar-view [notes]="calendarNotes" [isMobile]="isMobile"
         [initialViewType]="lastCalendarView"
+        [calendars]="myCalendars"
         (viewTypeChange)="lastCalendarView = $event"
         (noteSelected)="onCalendarNoteSelected($event)"
         (currentDateChange)="onCalendarCurrentDateChange($event)">
@@ -358,7 +360,7 @@
 
     <!-- FAB desktop: speed-dial Nota/Memo/Evento (Fase 1) -->
     <div class="sidenav-fab-area" *ngIf="activeNote === undefined && !isMobile && !settingsOpen">
-      <app-create-fab variant="desktop" (create)="onCreateFab($event)" (joinShared)="onJoinShared()"></app-create-fab>
+      <app-create-fab variant="desktop" [eventsEnabled]="true" (create)="onCreateFab($event)" (joinShared)="onJoinShared()"></app-create-fab>
     </div>
   </mat-sidenav-content>
 
@@ -366,7 +368,7 @@
 
 <!-- FAB mobile: speed-dial Nota/Memo/Evento (Fase 1) -->
 <div class="mobile-fab-overlay" *ngIf="isMobile && activeNote === undefined && !settingsOpen">
-  <app-create-fab variant="mobile" (create)="onCreateFab($event)" (joinShared)="onJoinShared()"></app-create-fab>
+  <app-create-fab variant="mobile" [eventsEnabled]="true" (create)="onCreateFab($event)" (joinShared)="onJoinShared()"></app-create-fab>
 </div>
 
 <!-- Unified nav toolbar — mobile e tablet (<1280px): Note / Promemoria / Calendario -->
