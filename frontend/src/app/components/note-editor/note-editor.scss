@@ -642,7 +642,7 @@
 .format-floating-toolbar {
   position: absolute;
   left: 28px;
-  bottom: calc(6px + min(env(safe-area-inset-bottom, 0px), 44px));
+  bottom: calc(-6px + min(env(safe-area-inset-bottom, 0px), 44px));
   display: flex;
   align-items: center;
   background: var(--punto-primary);
