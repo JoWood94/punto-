@@ -41,6 +41,30 @@ const db = admin.firestore();
 const messaging = admin.messaging();
 
 /**
+ * Estrae tutti i token FCM da un user doc.
+ * Priorità: fcmDevices (un token per device) + fcmTokens legacy deduplicati.
+ */
+function extractTokens(userData) {
+  const fromDevices = Object.values(userData.fcmDevices ?? {}).filter(t => typeof t === 'string');
+  const legacy = (userData.fcmTokens ?? []).filter(t => !fromDevices.includes(t));
+  return [...fromDevices, ...legacy];
+}
+
+/**
+ * Rimuove token invalidi da fcmDevices (per device-id) e da fcmTokens (legacy).
+ * deviceMap: { [deviceId]: token } dal tokensCache dell'utente.
+ */
+async function removeInvalidTokens(uid, failedTokens, deviceMap) {
+  const update = { fcmTokens: admin.firestore.FieldValue.arrayRemove(...failedTokens) };
+  for (const [devId, tok] of Object.entries(deviceMap)) {
+    if (failedTokens.includes(tok)) {
+      update[`fcmDevices.${devId}`] = admin.firestore.FieldValue.delete();
+    }
+  }
+  await db.collection('users').doc(uid).update(update);
+}
+
+/**
  * Calcola il prossimo orario di promemoria in base alla ricorrenza.
  * @param {number} currentTime - Timestamp attuale del promemoria (ms)
  * @param {string} recurrence - 'daily' | 'weekly' | 'monthly' | 'yearly'
@@ -156,7 +180,8 @@ async function checkAndSendReminders() {
         const userDoc = await db.collection('users').doc(uid).get();
         const userData = userDoc.exists ? userDoc.data() : {};
         tokensCache[uid] = {
-          tokens: userData.fcmTokens ?? [],
+          tokens: extractTokens(userData),
+          fcmDevices: userData.fcmDevices ?? {},
           notifTitleEnabled: userData.notifTitleEnabled === true,
           language: userData.language ?? 'it',
         };
@@ -186,7 +211,8 @@ async function checkAndSendReminders() {
             const userDoc = await db.collection('users').doc(collabUid).get();
             const userData = userDoc.exists ? userDoc.data() : {};
             tokensCache[collabUid] = {
-              tokens: userData.fcmTokens ?? [],
+              tokens: extractTokens(userData),
+              fcmDevices: userData.fcmDevices ?? {},
               notifTitleEnabled: userData.notifTitleEnabled === true,
               language: userData.language ?? 'it',
             };
@@ -269,9 +295,7 @@ async function checkAndSendReminders() {
           });
 
           for (const [failUid, failTokens] of Object.entries(failedByUid)) {
-            await db.collection('users').doc(failUid).update({
-              fcmTokens: admin.firestore.FieldValue.arrayRemove(...failTokens)
-            });
+            await removeInvalidTokens(failUid, failTokens, tokensCache[failUid]?.fcmDevices ?? {});
           }
           
           sentCount++;
@@ -426,7 +450,8 @@ async function checkAndSendCompletions() {
         const userDoc = await db.collection('users').doc(uid).get();
         const userData = userDoc.exists ? userDoc.data() : {};
         tokensCache[uid] = {
-          tokens: userData.fcmTokens ?? [],
+          tokens: extractTokens(userData),
+          fcmDevices: userData.fcmDevices ?? {},
           language: userData.language ?? 'it',
         };
       }
@@ -483,9 +508,7 @@ async function checkAndSendCompletions() {
           }
         });
         for (const [failUid, failTokens] of Object.entries(failedByUid)) {
-          await db.collection('users').doc(failUid).update({
-            fcmTokens: admin.firestore.FieldValue.arrayRemove(...failTokens),
-          });
+          await removeInvalidTokens(failUid, failTokens, tokensCache[failUid]?.fcmDevices ?? {});
         }
       } catch (e) {
         console.error(`Failed completion notify for note ${doc.id} lang ${lang}:`, e.message);
@@ -599,7 +622,8 @@ async function checkAndSendEventReminders() {
           const userDoc = await db.collection('users').doc(uid).get();
           const userData = userDoc.exists ? userDoc.data() : {};
           tokensCache[uid] = {
-            tokens: userData.fcmTokens ?? [],
+            tokens: extractTokens(userData),
+            fcmDevices: userData.fcmDevices ?? {},
             language: userData.language ?? 'it',
             notifTitleEnabled: userData.notifTitleEnabled === true,
           };
@@ -648,9 +672,7 @@ async function checkAndSendEventReminders() {
             }
           });
           if (failed.length > 0) {
-            await db.collection('users').doc(uid).update({
-              fcmTokens: admin.firestore.FieldValue.arrayRemove(...failed)
-            });
+            await removeInvalidTokens(uid, failed, tokensCache[uid]?.fcmDevices ?? {});
           }
           sentCount++;
         } catch (e) {

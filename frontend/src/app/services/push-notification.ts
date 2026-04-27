@@ -1,9 +1,11 @@
 import { Injectable, inject, Injector, runInInjectionContext } from '@angular/core';
 import { Messaging, getToken, deleteToken, onMessage } from '@angular/fire/messaging';
-import { getFirestore, doc, setDoc, getDoc, arrayUnion } from 'firebase/firestore';
+import { getFirestore, doc, setDoc, updateDoc, arrayRemove } from 'firebase/firestore';
 import { getApp, getApps, initializeApp } from 'firebase/app';
 import { AuthService } from './auth';
 import { environment } from '../../environments/environment';
+
+const DEVICE_ID_KEY = 'punto_device_id';
 
 @Injectable({
   providedIn: 'root'
@@ -16,6 +18,17 @@ export class PushNotificationService {
   private get db() {
     const app = getApps().length ? getApp() : initializeApp(environment.firebase);
     return getFirestore(app);
+  }
+
+  private getOrCreateDeviceId(): string {
+    let id = localStorage.getItem(DEVICE_ID_KEY);
+    if (!id) {
+      id = typeof crypto.randomUUID === 'function'
+        ? crypto.randomUUID()
+        : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      localStorage.setItem(DEVICE_ID_KEY, id);
+    }
+    return id;
   }
 
   async requestPermission(): Promise<string | null> {
@@ -69,23 +82,17 @@ export class PushNotificationService {
         console.log('Firebase Cloud Messaging Token:', token);
         
         const uid = this.authService.getCurrentUserId();
-        console.log('[Push] uid for save:', uid, 'token len:', token?.length ?? 0);
+        const deviceId = this.getOrCreateDeviceId();
+        console.log('[Push] uid:', uid, 'deviceId:', deviceId, 'token len:', token?.length ?? 0);
         if (uid && token) {
           const userRef = doc(this.db, `users/${uid}`);
-          // arrayUnion è atomic: safe con scritture concorrenti da più dispositivi.
-          // Aggiunge il token solo se non già presente, senza sovrascrivere l'array.
-          await setDoc(userRef, { fcmTokens: arrayUnion(token) }, { merge: true });
-          console.log('[Push] FCM token saved to Firestore for uid', uid);
-
-          // Cleanup asincrono: se l'array supera 5 token, tronca i più vecchi.
-          // Separato dall'arrayUnion per non introdurre race condition.
-          const userSnap = await getDoc(userRef);
-          if (userSnap.exists()) {
-            const tokens: string[] = userSnap.data()['fcmTokens'] ?? [];
-            if (tokens.length > 5) {
-              await setDoc(userRef, { fcmTokens: tokens.slice(-5) }, { merge: true });
-            }
-          }
+          // Un device = un token: sovrascrive sempre la entry di questo dispositivo.
+          // Niente duplicati anche su reinstall PWA o refresh token.
+          await setDoc(userRef, { fcmDevices: { [deviceId]: token } }, { merge: true });
+          // Migrazione: rimuove questo token dall'array legacy fcmTokens (se presente).
+          // Chirurgico: rimuove solo il token di questo device, non tocca gli altri.
+          await updateDoc(userRef, { fcmTokens: arrayRemove(token) }).catch(() => {});
+          console.log('[Push] FCM token saved to fcmDevices for deviceId', deviceId);
         }
         
         return token;
