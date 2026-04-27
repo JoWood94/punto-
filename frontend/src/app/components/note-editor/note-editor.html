@@ -191,48 +191,55 @@
   <section class="event-section event-section--when">
     <div class="event-when-stack">
 
-      <!-- Start: data + ora, no icona. Click apre datepicker + time input nascosti. -->
-      <button class="event-dt-row" type="button"
-              [disabled]="isReadOnlyEvent"
-              (click)="openEventStartPicker()">
-        <span class="event-dt-date">{{ note.eventStart | date:'EEE d MMM':'':dateLocale }}</span>
-        <span class="event-dt-time">{{ note.eventStart | date:'HH:mm' }}</span>
-        <!-- Datepicker e time input nascosti per event start -->
+      <!-- Start: data e ora come hit-area separate. Tap su data apre datepicker;
+           tap su ora apre il time picker nativo (label > input pattern). -->
+      <div class="event-dt-row">
+        <button class="event-dt-date-btn" type="button"
+                [disabled]="isReadOnlyEvent"
+                (click)="openEventStartPicker()">
+          <span class="event-dt-date">{{ note.eventStart | date:'EEE d MMM':'':dateLocale }}</span>
+        </button>
+        <label class="event-dt-time-label">
+          <input type="time" step="300"
+                 class="event-dt-time-input"
+                 [value]="note.eventStart | date:'HH:mm'"
+                 [disabled]="isReadOnlyEvent"
+                 (change)="onEventStartTimeChange($any($event.target).value)">
+          <span class="event-dt-time">{{ note.eventStart | date:'HH:mm' }}</span>
+        </label>
+        <!-- Datepicker hidden per event start -->
         <input [matDatepicker]="eventStartDp"
                [value]="eventStartAsDate"
                (dateChange)="onEventStartDateChange($event.value)"
                class="event-dt-hidden-input">
         <mat-datepicker #eventStartDp></mat-datepicker>
-      </button>
-      <!-- Time input nascosto per event start -->
-      <input type="time" step="300"
-             class="event-dt-hidden-time"
-             [value]="note.eventStart | date:'HH:mm'"
-             [disabled]="isReadOnlyEvent"
-             (change)="onEventStartTimeChange($any($event.target).value)">
+      </div>
 
       <!-- Freccia separatrice (visibile solo se duration ON) -->
       <span class="event-dt-arrow" *ngIf="hasDuration" aria-hidden="true">→</span>
 
-      <!-- End: sempre data + ora (entrambi tappabili → affordance esplicita) -->
-      <button *ngIf="hasDuration" class="event-dt-row" type="button"
-              [disabled]="isReadOnlyEvent"
-              (click)="openEventEndPicker()">
-        <span class="event-dt-date">{{ note.eventEnd | date:'EEE d MMM':'':dateLocale }}</span>
-        <span class="event-dt-time">{{ note.eventEnd | date:'HH:mm' }}</span>
-        <!-- Datepicker e time input nascosti per event end -->
+      <!-- End: data e ora come hit-area separate, stesso pattern di start. -->
+      <div *ngIf="hasDuration" class="event-dt-row">
+        <button class="event-dt-date-btn" type="button"
+                [disabled]="isReadOnlyEvent"
+                (click)="openEventEndPicker()">
+          <span class="event-dt-date">{{ note.eventEnd | date:'EEE d MMM':'':dateLocale }}</span>
+        </button>
+        <label class="event-dt-time-label">
+          <input type="time" step="300"
+                 class="event-dt-time-input"
+                 [value]="note.eventEnd | date:'HH:mm'"
+                 [disabled]="isReadOnlyEvent"
+                 (change)="onEventEndTimeChange($any($event.target).value)">
+          <span class="event-dt-time">{{ note.eventEnd | date:'HH:mm' }}</span>
+        </label>
+        <!-- Datepicker hidden per event end -->
         <input [matDatepicker]="eventEndDp"
                [value]="eventEndAsDate"
                (dateChange)="onEventEndDateChange($event.value)"
                class="event-dt-hidden-input">
         <mat-datepicker #eventEndDp></mat-datepicker>
-      </button>
-      <!-- Time input nascosto per event end -->
-      <input *ngIf="hasDuration" type="time" step="300"
-             class="event-dt-hidden-time"
-             [value]="note.eventEnd | date:'HH:mm'"
-             [disabled]="isReadOnlyEvent"
-             (change)="onEventEndTimeChange($any($event.target).value)">
+      </div>
 
       <!-- Clear duration -->
       <button *ngIf="hasDuration" class="event-dt-clear" type="button"
@@ -242,9 +249,9 @@
         <mat-icon>close</mat-icon>
       </button>
 
-      <!-- Add duration (se nessun end) -->
-      <button *ngIf="!hasDuration" class="event-dt-add" type="button"
-              [disabled]="isReadOnlyEvent"
+      <!-- Add duration (se nessun end). Nascosto per il guest readonly: non
+           può modificare né start né end di un evento di un calendario altrui. -->
+      <button *ngIf="!hasDuration && !isReadOnlyEvent" class="event-dt-add" type="button"
               (click)="enableDuration()">
         <mat-icon>add</mat-icon>
         <span>{{ 'EVENT.ADD_DURATION' | translate }}</span>
@@ -367,22 +374,29 @@
             <mat-autocomplete #autoAddress="matAutocomplete"
                               (optionSelected)="selectAddress($any(block), $event.option.value)">
               <mat-option *ngFor="let opt of $any(block).addressOptions || []" [value]="opt">
-                {{ opt.display_name }}
+                {{ opt.display_label || opt.display_name }}
               </mat-option>
             </mat-autocomplete>
           </mat-form-field>
 
-          <!-- Address confirmed view. Tap sull'indirizzo apre l'app di navigazione
-               nativa (Apple Maps su iOS, Google Maps / picker su Android). -->
+          <!-- Address confirmed view. Pill compatta: solo via [num], città,
+               provincia. Tap sulla pill apre l'app di navigazione nativa
+               (Apple Maps su iOS, Google Maps / picker su Android). Sempre
+               cliccabile, anche per il guest readonly. -->
           <div *ngIf="$any(block).address && !$any(block).editing" class="selected-address-view">
-            <div class="address-label-row">
-              <button type="button" class="address-text address-text--tappable"
-                      [disabled]="!guestCanEdit"
-                      (click)="openMaps($any(block))">{{ $any(block).address }}</button>
-              <button mat-icon-button [disabled]="!guestCanEdit" (click)="openMaps($any(block))" matTooltip="Apri nell'app mappe">
-                <mat-icon>open_in_new</mat-icon>
+            <div class="location-pill-row">
+              <button type="button" class="location-pill"
+                      (click)="openMaps($any(block))">
+                <mat-icon class="location-pill-icon">place</mat-icon>
+                <span class="location-pill-label">
+                  {{ $any(block).shortAddress || compactAddress($any(block).address) }}
+                </span>
+                <mat-icon class="location-pill-open">open_in_new</mat-icon>
               </button>
-              <button mat-icon-button [disabled]="!guestCanEdit" (click)="$any(block).editing = true" matTooltip="Modifica">
+              <!-- Matita: solo chi può editare la nota. -->
+              <button mat-icon-button class="location-edit-btn"
+                      *ngIf="guestCanEdit"
+                      (click)="$any(block).editing = true" matTooltip="Modifica">
                 <mat-icon>edit</mat-icon>
               </button>
             </div>
@@ -396,7 +410,9 @@
       </ng-container>
 
       <!-- ════ IMAGE BLOCK ════ — inline base64 (Fase 2), aspect-ratio naturale -->
-      <ng-container *ngIf="block.type === 'image'">
+      <!-- In read-only event: blocco image senza data viene proprio nascosto
+           (niente placeholder "Aggiungi immagine" disabilitato). -->
+      <ng-container *ngIf="block.type === 'image' && !(isReadOnlyEvent && !$any(block).data)">
         <div class="metadata-section image-block">
           <div class="block-label-row" *ngIf="!$any(block).data">
             <mat-icon>photo</mat-icon>
@@ -434,7 +450,7 @@
             <mat-icon >link</mat-icon>
             <span class="block-label">Collegamento</span>
             <button mat-icon-button class="edit-link-btn"
-                    [disabled]="!guestCanEdit"
+                    *ngIf="guestCanEdit"
                     (click)="editLinkBlock(i)"
                     matTooltip="Modifica collegamento"
                     type="button">
@@ -444,10 +460,10 @@
 
           <!-- Link valorizzato: anchor + edit button inline. Il click è intercettato
                e apre via window.open: su iOS PWA standalone target="_blank" sul tag
-               anchor riavvia la PWA invece di delegare al browser. -->
+               anchor riavvia la PWA invece di delegare al browser. Aprire il link
+               è azione di lettura — sempre consentita anche al guest readonly. -->
           <div class="link-row" *ngIf="$any(block).url">
-            <a [attr.href]="guestCanEdit ? $any(block).url : null"
-               [class.link-anchor--disabled]="!guestCanEdit"
+            <a [attr.href]="$any(block).url"
                target="_blank"
                rel="noopener noreferrer"
                (click)="openExternalUrl($any(block).url, $event)"
@@ -455,8 +471,9 @@
               <mat-icon class="link-anchor-icon">open_in_new</mat-icon>
               <span class="link-anchor-text">{{ $any(block).label || $any(block).url }}</span>
             </a>
+            <!-- Matita: solo chi può editare. Nascosta per il guest readonly. -->
             <button mat-icon-button class="edit-link-btn"
-                    [disabled]="!guestCanEdit"
+                    *ngIf="guestCanEdit"
                     (click)="editLinkBlock(i)"
                     matTooltip="Modifica collegamento"
                     type="button">
@@ -464,8 +481,8 @@
             </button>
           </div>
 
-          <!-- Stato vuoto (nessun URL ancora) -->
-          <span *ngIf="!$any(block).url" class="link-empty"
+          <!-- Stato vuoto (nessun URL ancora): solo chi può editare. -->
+          <span *ngIf="!$any(block).url && guestCanEdit" class="link-empty"
                 (click)="editLinkBlock(i)">
             <mat-icon>add_link</mat-icon>
             Clicca ✏️ per inserire il collegamento
@@ -473,9 +490,9 @@
         </div>
       </ng-container>
 
-      <!-- Remove block button -->
+      <!-- Remove block button: nascosto per gli eventi in read-only (guest del calendario) -->
       <button mat-icon-button class="remove-block-btn"
-              *ngIf="canRemoveBlock(i)"
+              *ngIf="canRemoveBlock(i) && !isReadOnlyEvent"
               [disabled]="!guestCanEdit"
               (click)="removeBlock(i)"
               matTooltip="Rimuovi blocco"
@@ -597,8 +614,10 @@
     </button>
   </div>
 
-  <!-- FAB + (stessa distanza dal bordo di "Nuova Nota") -->
+  <!-- FAB + (stessa distanza dal bordo di "Nuova Nota").
+       Nascosto per gli eventi in read-only (guest del calendario). -->
   <button mat-mini-fab class="add-block-fab"
+          *ngIf="!isReadOnlyEvent"
           [disabled]="!guestCanEdit"
           (click)="toggleAddBlockMenu()" type="button"
           [class.add-block-fab-open]="addBlockMenuOpen()"
@@ -631,10 +650,12 @@
 </button>
 
 <!-- Mini-FAB condivisione: absolute bottom-left, affiancato al reminder-mini-fab.
-     Se la campanella non è presente (type='note') occupa lo slot della campanella. -->
+     Se la campanella non è presente (type='note') occupa lo slot della campanella.
+     Nascosto per gli eventi in read-only (guest del calendario): non può condividere
+     un evento di un calendario altrui. -->
 <button class="share-mini-fab"
         type="button"
-        *ngIf="canShare"
+        *ngIf="canShare && !isReadOnlyEvent"
         (click)="openSharePanel()"
         [class.share-mini-fab--active]="note.isShared"
         [class.share-mini-fab--no-bell]="!note.type || note.type === 'note'"

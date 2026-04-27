@@ -365,4 +365,33 @@ mat-list-item, a[mat-list-item] {
   }
 }
 
+/* Reminder preset bottom sheet — card flottante senza panel grigio.
+   Il panelClass viene applicato al .cdk-overlay-pane esterno; il
+   .mat-bottom-sheet-container è un suo figlio diretto e ha
+   min-width: 100vw di default da Material — vanno entrambi vincolati. */
+.cdk-overlay-pane.reminder-preset-sheet-pane {
+  max-width: 480px !important;
+  width: min(480px, 100%) !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+}
+.cdk-overlay-pane.reminder-preset-sheet-pane > .mat-bottom-sheet-container,
+.cdk-overlay-pane.reminder-preset-sheet-pane > .mat-mdc-bottom-sheet-container {
+  background: transparent !important;
+  background-color: transparent !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+  width: 100% !important;
+  overflow: visible !important;
+}
+.reminder-preset-sheet-pane .rps-card {
+  background: var(--punto-surface-bright, #FFFBFE) !important;
+  max-height: calc(80vh - 16px);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
 /* You can add global styles to this file, and also import other style files */

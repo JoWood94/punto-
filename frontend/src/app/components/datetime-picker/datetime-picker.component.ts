@@ -43,23 +43,12 @@ export class DatetimePickerComponent implements OnChanges {
   @Output() valueChange = new EventEmitter<Date | null>();
 
   localDate: Date | null = null;
-  hour = '12';
-  minute = '00';
+  hour = 12;
+  minute = 0;
 
   private translationService = inject(TranslationService);
 
   get dateLocale(): string { return this.translationService.pipeDateLocale; }
-
-  get hours(): string[] {
-    return Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'));
-  }
-
-  get minutes(): string[] {
-    const step = Math.max(1, Math.min(30, this.minuteStep));
-    const arr: string[] = [];
-    for (let m = 0; m < 60; m += step) arr.push(String(m).padStart(2, '0'));
-    return arr;
-  }
 
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['value']) this.syncFromValue();
@@ -72,10 +61,25 @@ export class DatetimePickerComponent implements OnChanges {
       return;
     }
     this.localDate = new Date(this.value);
-    this.hour = String(this.value.getHours()).padStart(2, '0');
+    this.hour = this.value.getHours();
     const step = Math.max(1, this.minuteStep);
-    const snapped = Math.floor(this.value.getMinutes() / step) * step;
-    this.minute = String(snapped).padStart(2, '0');
+    this.minute = Math.floor(this.value.getMinutes() / step) * step;
+  }
+
+  /** Stringa HH:mm per <input type="time">. */
+  get timeStr(): string {
+    return `${String(this.hour).padStart(2, '0')}:${String(this.minute).padStart(2, '0')}`;
+  }
+
+  /** Handler <input type="time">: aggiorna hour+minute ed emette. */
+  onTimeStrChange(e: Event): void {
+    const val = (e.target as HTMLInputElement).value; // "HH:mm"
+    if (!val || !val.includes(':')) return;
+    const [h, m] = val.split(':').map(n => parseInt(n, 10));
+    if (Number.isNaN(h) || Number.isNaN(m)) return;
+    this.hour = h;
+    this.minute = m;
+    this.onFieldChange();
   }
 
   onFieldChange(): void {
@@ -84,7 +88,7 @@ export class DatetimePickerComponent implements OnChanges {
       return;
     }
     const d = new Date(this.localDate);
-    d.setHours(parseInt(this.hour, 10) || 0, parseInt(this.minute, 10) || 0, 0, 0);
+    d.setHours(this.hour, this.minute, 0, 0);
     this.valueChange.emit(d);
   }
 }

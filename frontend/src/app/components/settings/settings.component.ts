@@ -69,7 +69,6 @@ export class SettingsComponent implements OnInit {
 
   defaultView: 'list' | 'calendar' | 'reminders' = 'list';
   notifTitleEnabled = false;
-  calendarShowAllNotes = false;
   resetInProgress = false;
   updateAvailable = false;
 
@@ -117,7 +116,6 @@ export class SettingsComponent implements OnInit {
     this.defaultView = await this.noteService.getUserPreference<'list' | 'calendar' | 'reminders'>('defaultView', 'list');
     this.notifTitleEnabled = await this.noteService.getUserPreference<boolean>('notifTitleEnabled', false);
     this.noteService.setNotifTitleEnabled(this.notifTitleEnabled);
-    this.calendarShowAllNotes = await this.noteService.getUserPreference<boolean>('calendarShowAllNotes', false);
     this.currentUsername = await this.noteService.getUsername();
     this.settingsLoaded = true;
   }
@@ -164,13 +162,6 @@ export class SettingsComponent implements OnInit {
     this.notifTitleEnabled = enabled;
     this.noteService.setNotifTitleEnabled(enabled);
     await this.noteService.setUserPreference('notifTitleEnabled', enabled);
-  }
-
-  async onCalendarShowAllNotesToggle(enabled: boolean) {
-    this.calendarShowAllNotes = enabled;
-    await this.noteService.setUserPreference('calendarShowAllNotes', enabled);
-    // Propaga al parent embedded così il calendario aggiorna subito il filtro.
-    this.preferenceChange.emit({ key: 'calendarShowAllNotes', value: enabled });
   }
 
   startEditUsername() {

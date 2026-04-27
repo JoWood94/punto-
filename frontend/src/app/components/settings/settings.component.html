@@ -99,29 +99,6 @@
 
   <mat-divider></mat-divider>
 
-  <!-- Sezione 3: Calendario -->
-  <section class="settings-section">
-    <div class="section-header">
-      <span class="section-label">{{ 'SETTINGS.CALENDAR_SECTION' | translate }}</span>
-    </div>
-
-    <div class="toggle-row">
-      <div class="toggle-label-group">
-        <span class="toggle-label">{{ 'SETTINGS.SHOW_ALL_NOTES' | translate }}</span>
-        <span class="toggle-sublabel">{{ 'SETTINGS.SHOW_ALL_NOTES_DESC' | translate }}</span>
-      </div>
-      <mat-slide-toggle
-        [checked]="calendarShowAllNotes"
-        [disabled]="!settingsLoaded"
-        (change)="onCalendarShowAllNotesToggle($event.checked)"
-        [disableRipple]="true"
-        color="primary">
-      </mat-slide-toggle>
-    </div>
-  </section>
-
-  <mat-divider></mat-divider>
-
   <!-- Sezione 4: Lingua -->
   <section class="settings-section">
     <div class="section-header">

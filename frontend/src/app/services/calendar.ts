@@ -62,6 +62,8 @@ export interface InviteDoc {
   createdBy: string;
   createdAt: number;
   expiresAt: number;
+  /** Denormalizzato per preview pre-subscribe (l'utente non ha ancora read-access al calendar). */
+  calendarTitle?: string;
 }
 
 // ─── Service ──────────────────────────────────────────────────────────────────
@@ -169,58 +171,97 @@ export class CalendarService {
     const uid = this.authService.getCurrentUserId();
     if (!uid) throw new Error('Not authenticated');
 
-    // Verifica ownership lato client (rules è il backstop)
-    const calSnap = await getDoc(doc(this.db, `calendars/${id}`));
-    if (!calSnap.exists()) return;
+    console.log('[DBG-DEL-CAL] step 0: ownership check', { id, uid });
+    let calSnap;
+    try {
+      calSnap = await getDoc(doc(this.db, `calendars/${id}`));
+    } catch (err: any) {
+      // Firestore può ritornare permission-denied invece di not-found per
+      // non leakare l'esistenza del doc. Caso tipico: cache locale ha un
+      // calendar che server-side è stato già eliminato (ghost).
+      if (err?.code === 'permission-denied') {
+        console.log('[DBG-DEL-CAL] step 0: calendar inaccessibile (deleted o non-owner) — abort graceful');
+        return;
+      }
+      throw err;
+    }
+    if (!calSnap.exists()) { console.log('[DBG-DEL-CAL] calendar not found, abort'); return; }
     if (calSnap.data()?.['uid'] !== uid) {
       throw new Error('Permission denied: only owner can delete calendar');
     }
 
-    // 1. Eventi (type='event' + calendarId match)
-    //    Nota: query su calendarId usa index (calendarId, reminderTime) già presente
-    const eventsSnap = await getDocs(query(
-      collection(this.db, 'notes'),
-      where('calendarId', '==', id)
-    ));
+    console.log('[DBG-DEL-CAL] step 1: query events (calendarId==id, uid==self)');
+    let eventsSnap: any;
+    try {
+      // Aggiungiamo where('uid','==',uid) perché la rule `notes.read` controlla
+      // `resource.data.uid == auth.uid` (doc-dependent): Firestore richiede un
+      // constraint nella query che renda la rule staticamente true sull'intera
+      // result set. Senza questo where, list/getDocs sull'intera collection notes
+      // viene rifiutata permission-denied (Fase 4 deleteCalendar bug).
+      eventsSnap = await getDocs(query(
+        collection(this.db, 'notes'),
+        where('calendarId', '==', id),
+        where('uid', '==', uid)
+      ));
+      console.log('[DBG-DEL-CAL] step 1 OK', { count: eventsSnap.size });
+    } catch (err: any) {
+      console.error('[DBG-DEL-CAL] step 1 FAILED (events query)', err?.code, err?.message);
+      throw err;
+    }
 
-    // 2. Invites calendar attivi (compat: filtro resourceId==id + type==calendar)
-    //    Usiamo `resourceId` come campo primario post-Fase 3; gli invites legacy
-    //    per note hanno `noteId`, quindi non sono catturati dalla query.
-    const invitesSnap = await getDocs(query(
-      collection(this.db, 'invites'),
-      where('resourceId', '==', id),
-      where('type', '==', 'calendar')
-    )).catch(() => null);
+    console.log('[DBG-DEL-CAL] step 2: query invites (resourceId==id, type=calendar)');
+    let invitesSnap: any = null;
+    try {
+      invitesSnap = await getDocs(query(
+        collection(this.db, 'invites'),
+        where('resourceId', '==', id),
+        where('type', '==', 'calendar')
+      ));
+      console.log('[DBG-DEL-CAL] step 2 OK', { count: invitesSnap?.size });
+    } catch (err: any) {
+      console.warn('[DBG-DEL-CAL] step 2 FAILED (invites query) — non-blocking', err?.code, err?.message);
+    }
 
-    // 3. Subscribers subcollection
-    //    Solo l'owner può "listare" i subscribers? NO — rules read self-only.
-    //    Però deleteDoc del calendar non cascada la subcollection automaticamente,
-    //    quindi l'owner deve poterli leggere per cancellarli.
-    //    WORKAROUND: la rule `delete` sui subscribers permette all'owner di cancellare
-    //    QUALSIASI subdoc (vedi firestore.rules sezione subscribers). Ma per ottenerne
-    //    la lista serve anche permesso di read → qui allarghiamo la read ALL'OWNER
-    //    solo nel contesto di getDocs (lettura batch). Trade-off: l'owner può
-    //    potenzialmente enumerare i sub; privacy-wise meno stretto del piano,
-    //    ma è l'unico modo per fare cascade delete lato client senza Cloud Functions.
-    //    Alternativa futura (BL): Cloud Function `onCalendarDelete`.
-    const subsSnap = await getDocs(collection(this.db, `calendars/${id}/subscribers`)).catch(() => null);
+    console.log('[DBG-DEL-CAL] step 3: list subscribers');
+    let subsSnap: any = null;
+    try {
+      subsSnap = await getDocs(collection(this.db, `calendars/${id}/subscribers`));
+      console.log('[DBG-DEL-CAL] step 3 OK', { count: subsSnap?.size });
+    } catch (err: any) {
+      console.error('[DBG-DEL-CAL] step 3 FAILED (subscribers list)', err?.code, err?.message);
+      throw err;
+    }
 
-    // Batch chunks (max 500 op per batch)
-    const allOps: { ref: any }[] = [];
-    eventsSnap.docs.forEach(d => allOps.push({ ref: d.ref }));
-    invitesSnap?.docs.forEach(d => allOps.push({ ref: d.ref }));
-    subsSnap?.docs.forEach(d => allOps.push({ ref: d.ref }));
+    console.log('[DBG-DEL-CAL] step 4: batch delete', {
+      events: eventsSnap.size, invites: invitesSnap?.size ?? 0, subs: subsSnap?.size ?? 0,
+    });
+    const allOps: { ref: any; type: string }[] = [];
+    eventsSnap.docs.forEach((d: any) => allOps.push({ ref: d.ref, type: 'event' }));
+    invitesSnap?.docs.forEach((d: any) => allOps.push({ ref: d.ref, type: 'invite' }));
+    subsSnap?.docs.forEach((d: any) => allOps.push({ ref: d.ref, type: 'sub' }));
 
     for (let i = 0; i < allOps.length; i += 450) {
       const chunk = allOps.slice(i, i + 450);
-      const batch = writeBatch(this.db);
-      chunk.forEach(({ ref }) => batch.delete(ref));
-      await batch.commit();
+      console.log('[DBG-DEL-CAL] step 4 batch', { i, size: chunk.length, types: chunk.map(c => c.type) });
+      try {
+        const batch = writeBatch(this.db);
+        chunk.forEach(({ ref }) => batch.delete(ref));
+        await batch.commit();
+        console.log('[DBG-DEL-CAL] step 4 batch OK');
+      } catch (err: any) {
+        console.error('[DBG-DEL-CAL] step 4 batch FAILED', err?.code, err?.message, { types: chunk.map(c => c.type) });
+        throw err;
+      }
     }
 
-    // 4. Finalmente il doc calendar
-    await deleteDoc(doc(this.db, `calendars/${id}`));
-    console.log('[CalendarService] deleteCalendar id:', id, 'events:', eventsSnap.size, 'subs:', subsSnap?.size ?? 0);
+    console.log('[DBG-DEL-CAL] step 5: delete calendar doc');
+    try {
+      await deleteDoc(doc(this.db, `calendars/${id}`));
+      console.log('[DBG-DEL-CAL] step 5 OK — deleteCalendar complete', { id, events: eventsSnap.size, subs: subsSnap?.size ?? 0 });
+    } catch (err: any) {
+      console.error('[DBG-DEL-CAL] step 5 FAILED (calendar doc delete)', err?.code, err?.message);
+      throw err;
+    }
   }
 
   // ─── Read streams ──────────────────────────────────────────────────────────
@@ -254,11 +295,18 @@ export class CalendarService {
 
   /**
    * Stream real-time dei calendari cui l'utente è iscritto (subscriber).
+   *
    * Implementazione: collectionGroup su `subscribers` where `uid==currentUid`
-   * → per ogni subdoc risolvi il parent calendar doc.
+   * → per ogni calendar subscribed mantiene un listener `onSnapshot` attivo
+   * sul doc parent `calendars/{calId}`, in modo che aggiornamenti di color/title
+   * da parte dell'owner si propaghino in tempo reale ai subscriber.
    *
    * Nota: include anche i calendari owned (perché owner è auto-iscritto).
    * Il chiamante filtra per `myRole` se vuole solo i subscribed esterni.
+   *
+   * Performance: con N calendar subscribed, vengono mantenuti N listener Firestore
+   * attivi in parallelo. Accettabile per N ≤ 10 (uso tipico). Cleanup automatico
+   * alla disiscrizione o quando il subscriber doc viene rimosso.
    */
   getSubscribedCalendars(): Observable<Calendar[]> {
     return this.authService.user$.pipe(
@@ -266,30 +314,73 @@ export class CalendarService {
         if (!user) return of([] as Calendar[]);
         const q = query(collectionGroup(this.db, 'subscribers'), where('uid', '==', user.uid));
         return new Observable<Calendar[]>(subscriber => {
-          const unsub = onSnapshot(q, async snap => {
-            // Per ogni subdoc risali al parent `calendars/{calId}`.
-            // d.ref.path = "calendars/{calId}/subscribers/{uid}" → segmento 1 = calId.
-            const cals: Calendar[] = await Promise.all(snap.docs.map(async d => {
+          const cache = new Map<string, Calendar>();              // calId → Calendar live
+          const calUnsubs = new Map<string, () => void>();        // calId → unsubscriber
+          const subData = new Map<string, CalendarSubscriber>(); // calId → sub metadata
+          let invocationId = 0;
+
+          const emit = () => {
+            // Nuova reference array ad ogni emissione → Angular CD rileva il cambio
+            subscriber.next([...cache.values()]);
+          };
+
+          const subUnsub = onSnapshot(q, snap => {
+            const myId = ++invocationId;
+            const newCalIds = new Set<string>();
+
+            snap.docs.forEach(d => {
               const calId = d.ref.parent.parent!.id;
-              const subData = d.data() as CalendarSubscriber;
-              try {
-                const calSnap = await getDoc(doc(this.db, `calendars/${calId}`));
-                if (!calSnap.exists()) return null;
-                return {
-                  id: calId,
-                  ...(calSnap.data() as Omit<Calendar, 'id'>),
-                  myRole: subData.role === 'owner' ? 'owner' : 'subscriber',
-                } as Calendar;
-              } catch {
-                return null;
+              const data = d.data() as CalendarSubscriber;
+              newCalIds.add(calId);
+              subData.set(calId, data);
+
+              // Crea listener live sul calendar parent solo la prima volta
+              if (!calUnsubs.has(calId)) {
+                const calRef = doc(this.db, `calendars/${calId}`);
+                const unsub = onSnapshot(calRef, calSnap => {
+                  if (calSnap.exists()) {
+                    const sub = subData.get(calId);
+                    cache.set(calId, {
+                      id: calId,
+                      ...(calSnap.data() as Omit<Calendar, 'id'>),
+                      myRole: sub?.role === 'owner' ? 'owner' : 'subscriber',
+                    });
+                  } else {
+                    cache.delete(calId);
+                  }
+                  emit();
+                }, err => {
+                  console.warn('[CalendarService] subscribed calendar listener error', calId, err.code);
+                  cache.delete(calId);
+                  emit();
+                });
+                calUnsubs.set(calId, unsub);
               }
-            })).then(arr => arr.filter((c): c is Calendar => c !== null));
-            subscriber.next(cals);
+            });
+
+            // Cleanup listener per calendar a cui non si è più iscritti
+            for (const [calId, unsub] of [...calUnsubs.entries()]) {
+              if (!newCalIds.has(calId)) {
+                unsub();
+                calUnsubs.delete(calId);
+                cache.delete(calId);
+                subData.delete(calId);
+              }
+            }
+            if (myId !== invocationId) return; // anti-race: emit più recente già in volo
+            emit();
           }, err => {
             console.warn('[CalendarService] getSubscribedCalendars error:', err.code, err.message);
             subscriber.next([]);
           });
-          return () => unsub();
+
+          return () => {
+            subUnsub();
+            calUnsubs.forEach(u => u());
+            calUnsubs.clear();
+            cache.clear();
+            subData.clear();
+          };
         });
       })
     );
@@ -339,13 +430,19 @@ export class CalendarService {
     const uid = this.authService.getCurrentUserId();
     if (!uid) throw new Error('Not authenticated');
 
+    console.log('[DBG-SUB-CAL] start', { uid, token });
+
     const { calendarId, createdBy } = await this.readCalendarInvite(token);
+    console.log('[DBG-SUB-CAL] invite read', { calendarId, createdBy });
+
     if (uid === createdBy) throw new Error('Cannot subscribe to your own calendar');
 
     const subRef = doc(this.db, `calendars/${calendarId}/subscribers/${uid}`);
     // Rifiuta doppia iscrizione silenziosamente (idempotente)
     const existing = await getDoc(subRef);
+    console.log('[DBG-SUB-CAL] existing.exists()=', existing.exists(), 'fromCache=', existing.metadata.fromCache);
     if (existing.exists()) {
+      console.log('[DBG-SUB-CAL] already subscribed — early return');
       return calendarId;
     }
 
@@ -355,7 +452,24 @@ export class CalendarService {
       notificationsEnabled: false,  // opt-in: il sub esterno deve abilitare esplicitamente
       role: 'subscriber',
     };
-    await setDoc(subRef, subData);
+    console.log('[DBG-SUB-CAL] setDoc payload', subData, 'path=', subRef.path);
+    try {
+      await setDoc(subRef, subData);
+      console.log('[DBG-SUB-CAL] setDoc resolved');
+    } catch (e: any) {
+      console.error('[DBG-SUB-CAL] setDoc FAILED', e?.code, e?.message);
+      throw e;
+    }
+
+    // Verifica persistenza forzando un re-read dal server (no-cache).
+    // Se il rule ha rejectato silenziosamente, qui vedremo il rollback.
+    try {
+      const verify = await getDoc(subRef);
+      console.log('[DBG-SUB-CAL] verify after setDoc — exists=', verify.exists(), 'fromCache=', verify.metadata.fromCache, 'data=', verify.data());
+    } catch (e: any) {
+      console.error('[DBG-SUB-CAL] verify read FAILED', e?.code, e?.message);
+    }
+
     return calendarId;
   }
 
@@ -398,10 +512,16 @@ export class CalendarService {
       throw new Error('Permission denied: only owner can create invite');
     }
 
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-    const bytes = crypto.getRandomValues(new Uint8Array(20));
+    // Token formato unambiguous-base32: 8 char UPPERCASE senza 0/O/1/I/L.
+    // Stesso pattern di NoteService.createInvite (note share-by-code) — la rule
+    // Firestore `invites.create` richiede `inviteId.matches('^[ABCDEFGHJKMNPQRSTUVWXYZ23456789]{8}$')`,
+    // un token alfanumerico misto rifiutato con permission-denied.
+    // 8 char × log2(32) = 40 bit di entropia (lookup space ~1×10^12).
+    const chars = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';   // 32 char
+    const bytes = crypto.getRandomValues(new Uint8Array(8));
     const token = Array.from(bytes).map(b => chars[b % chars.length]).join('');
 
+    const calData = calSnap.data();
     const now = Date.now();
     const invite: InviteDoc = {
       type: 'calendar',
@@ -409,6 +529,9 @@ export class CalendarService {
       createdBy: uid,
       createdAt: now,
       expiresAt: now + CalendarService.CALENDAR_INVITE_TTL_MS,
+      // Denormalizziamo il title per permettere preview prima del subscribe (quando
+      // l'utente non ha ancora rule read sul calendar parent).
+      calendarTitle: calData?.['title'] ?? '',
     };
     await setDoc(doc(this.db, `invites/${token}`), invite);
     return token;

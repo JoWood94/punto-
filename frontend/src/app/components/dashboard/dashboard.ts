@@ -361,7 +361,26 @@ export class DashboardComponent implements OnInit, OnDestroy {
       };
       vv.addEventListener('resize', setVh);
       vv.addEventListener('scroll', setVh);
+      // Bug PWA primo avvio iOS: visualViewport.height + env(safe-area-inset-*)
+      // a volte sono stale finché un evento di layout non li rinfresca.
+      // Forziamo un mini-kick (touch del body) + ricalcoli ripetuti per sbloccare
+      // iOS senza dover ruotare lo schermo manualmente.
+      const kick = () => {
+        document.body.style.minHeight = '101vh';
+        requestAnimationFrame(() => {
+          document.body.style.minHeight = '';
+          setVh();
+        });
+      };
       setVh();
+      requestAnimationFrame(() => requestAnimationFrame(setVh));
+      setTimeout(kick, 50);
+      setTimeout(kick, 300);
+      window.addEventListener('orientationchange', () => {
+        setVh();
+        setTimeout(setVh, 250);
+      });
+      window.addEventListener('pageshow', setVh);
     }
 
     this.notes$ = this.noteService.getNotes();
@@ -610,8 +629,10 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   // ─── Condivise con me (solo senza reminder) ───────────────────
   // Le condivise con reminder vivono in vista Promemoria insieme alle proprie.
+  // Gli eventi (type='event') sono ESCLUSI: vivono solo nella vista calendario,
+  // mai nella lista note (anche per il guest del calendario).
   get sharedWithMeNotes(): Note[] {
-    return this.filteredNotes.filter(n => n.myRole === 'guest' && !hasReminder(n));
+    return this.filteredNotes.filter(n => n.myRole === 'guest' && n.type !== 'event' && !hasReminder(n));
   }
 
   private autoSelectView() {

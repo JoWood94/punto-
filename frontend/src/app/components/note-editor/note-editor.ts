@@ -41,6 +41,11 @@ import {
   ReminderPresetSheetComponent, ReminderPresetSheetData, ReminderPresetSheetResult, ReminderPresetKey
 } from '../reminder-preset-sheet/reminder-preset-sheet.component';
 import {
+  EventReminderCustomDialogComponent,
+  EventReminderCustomDialogData,
+  EventReminderCustomDialogResult,
+} from '../event-reminder-custom-dialog/event-reminder-custom-dialog.component';
+import {
   CalendarPickerSheetComponent, CalendarPickerSheetData, CalendarPickerSheetResult
 } from '../calendar-picker-sheet/calendar-picker-sheet.component';
 // TODO: import Storage riabilitare con piano Firebase Storage
@@ -62,7 +67,10 @@ import {
     CalendarPickerSheetComponent,
   ],
   templateUrl: './note-editor.html',
-  styleUrls: ['./note-editor.scss']
+  styleUrls: ['./note-editor.scss'],
+  host: {
+    '[class.editor-readonly-event]': 'isReadOnlyEvent',
+  },
 })
 export class NoteEditorComponent implements OnInit, OnChanges, DoCheck, AfterViewInit, AfterViewChecked, OnDestroy {
   @Input() selectedNote: Note | null = null;
@@ -372,9 +380,16 @@ export class NoteEditorComponent implements OnInit, OnChanges, DoCheck, AfterVie
     if (result.key === 'NONE') {
       nextOffsetMin = null;
     } else if (result.key === 'CUSTOM') {
-      // TODO: dialog datetime-picker per offset libero. Per ora no-op.
+      // Apre il dialog "Personalizza": l'utente sceglie data/ora esatta del
+      // reminder; calcoliamo offsetMin = (eventStart - selected) / 60000.
+      const ref = this.dialog.open<EventReminderCustomDialogComponent, EventReminderCustomDialogData, EventReminderCustomDialogResult | null>(
+        EventReminderCustomDialogComponent,
+        { data: { eventStart }, width: '420px', maxWidth: '95vw' }
+      );
+      const customResult = await firstValueFrom(ref.afterClosed());
+      if (!customResult) return;
+      nextOffsetMin = customResult.offsetMin;
       this.reminderPresetKey = 'CUSTOM';
-      return;
     } else {
       const offset = this.presetOffsetMin(result.key);
       if (typeof offset !== 'number') return;
@@ -1252,19 +1267,86 @@ export class NoteEditorComponent implements OnInit, OnChanges, DoCheck, AfterVie
 
   private addressSearchTimeout: any;
 
+  /** Estrae il numero civico dalla query digitata (es. "via roma 12B" → "12B").
+   *  Tollera suffissi alfabetici brevi (12A, 12bis è meno comune ma ok). */
+  private extractHouseNumberFromQuery(q: string): string | null {
+    // Ultima sequenza di cifre (con eventuale lettera A-Z) preceduta da spazio
+    // o da virgola, posizionata dopo un nome di via plausibile.
+    const m = q.match(/(?:^|[\s,])(\d+[A-Za-z]?)(?:\s|,|$)/);
+    return m ? m[1] : null;
+  }
+
   onAddressInput(block: any, event: Event) {
     const val = (event.target as HTMLInputElement).value;
     clearTimeout(this.addressSearchTimeout);
     if (!val || val.length < 3) { block.addressOptions = []; this.cdr.detectChanges(); return; }
     this.addressSearchTimeout = setTimeout(async () => {
       try {
-        const res = await fetch(
-          `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(val)}&limit=5`
-        );
-        block.addressOptions = await res.json();
+        // addressdetails=1 → struttura `address.house_number/road/city/...`
+        // accept-language=it → display_name in italiano
+        // limit=10 → più risultati (anche Nominatim a volte mette i civici dopo i punti generici)
+        const lang = this.translationService.currentLang || 'it';
+        const url = `https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&accept-language=${lang}&limit=10&q=${encodeURIComponent(val)}`;
+        const res = await fetch(url);
+        const raw = await res.json() as any[];
+        // Re-rank: i risultati con house_number salgono in cima quando l'utente
+        // ha digitato cifre nella query (segnale chiaro: vuole un civico preciso).
+        const queryHasNumber = /\d/.test(val);
+        const ranked = queryHasNumber
+          ? [...raw].sort((a, b) => {
+              const ah = a?.address?.house_number ? 1 : 0;
+              const bh = b?.address?.house_number ? 1 : 0;
+              return bh - ah;
+            })
+          : raw;
+        // Fallback civico: se la query contiene un numero ma OSM non lo ha
+        // indicizzato per quella via, aggiungiamo NOI il numero al display
+        // (fix per zone italiane con civici mancanti su OpenStreetMap).
+        // Il `lat/lon` resta quello della via — la nav app risolve da display_name.
+        const queryNumber = this.extractHouseNumberFromQuery(val);
+        for (const o of ranked) {
+          const a = o.address || {};
+          const road = a.road || a.pedestrian || a.footway || '';
+          const num = a.house_number || (queryNumber && road ? queryNumber : '');
+          const city = a.city || a.town || a.village || a.hamlet || '';
+          if (road && num) {
+            o.display_label = `${road} ${num}${city ? ', ' + city : ''}`;
+            // Sovrascriviamo anche il display_name per coerenza al save.
+            if (!a.house_number && queryNumber) {
+              o._injected_house_number = queryNumber;
+              o.display_name = `${road} ${num}${city ? ', ' + city : ''}, ${o.display_name.replace(road + ',', '').trim()}`;
+            }
+          } else {
+            o.display_label = o.display_name;
+          }
+        }
+        block.addressOptions = ranked;
         this.cdr.detectChanges();
       } catch (e) { console.error(e); }
     }, 600);
+  }
+
+  /** Compatta un display_name lungo di Nominatim a "via, città, country".
+   *  Heuristica: la "città" è la prima parte (dopo la via) che ricorre più volte
+   *  nella stringa; se non trovata, prende la seconda parte. Il country è l'ultima.
+   *  Usato come fallback quando block.shortAddress non è disponibile (indirizzi
+   *  salvati prima dell'introduzione di shortAddress). */
+  compactAddress(displayName: string): string {
+    if (!displayName) return '';
+    const parts = displayName.split(',').map(p => p.trim()).filter(Boolean);
+    if (parts.length <= 3) return displayName;
+    const via = parts[0];
+    const country = parts[parts.length - 1];
+    // Trova la prima parte (idx >= 1) che appare almeno 2 volte → tipica
+    // ridondanza di Nominatim (city locality + city metropolitan area).
+    let city: string | null = null;
+    for (let i = 1; i < parts.length - 1; i++) {
+      const p = parts[i];
+      const dupCount = parts.reduce((n, x) => n + (x === p ? 1 : 0), 0);
+      if (dupCount >= 2) { city = p; break; }
+    }
+    if (!city) city = parts[1]; // fallback: subito dopo la via
+    return `${via}, ${city}, ${country}`;
   }
 
   selectAddress(block: any, option: any) {
@@ -1275,6 +1357,18 @@ export class NoteEditorComponent implements OnInit, OnChanges, DoCheck, AfterVie
     block.editing = false;
     block.mapUrl = this.generateMapUrl(block.lat, block.lon);
     block.addressOptions = [];
+    // Versione "pill" compatta dell'indirizzo: solo via [num], città, provincia.
+    // Fallback al display_name completo se i campi strutturati mancano.
+    const a = option.address || {};
+    const road = a.road || a.pedestrian || a.footway || a.path || '';
+    const num = a.house_number || option._injected_house_number || '';
+    const city = a.city || a.town || a.village || a.hamlet || '';
+    const province = a.county || a.state_district || a.state || '';
+    const parts: string[] = [];
+    if (road) parts.push(num ? `${road} ${num}` : road);
+    if (city) parts.push(city);
+    if (province && province !== city) parts.push(province);
+    block.shortAddress = parts.length > 0 ? parts.join(', ') : option.display_name;
     this.triggerAutoSave();
   }
 
@@ -1294,7 +1388,8 @@ export class NoteEditorComponent implements OnInit, OnChanges, DoCheck, AfterVie
    *  Usiamo window.open invece di <a target="_blank"> perché iOS PWA
    *  standalone ignora target="_blank" (ricarica la PWA). */
   openMaps(block: LocationBlock) {
-    if (!this.guestCanEdit) return;
+    // Aprire la mappa è un'azione di lettura: consentita anche al guest
+    // readonly (subscriber del calendario di un evento altrui).
     if (!block.lat || !block.lon) return;
     const query = `${block.lat},${block.lon}`;
     const label = encodeURIComponent(block.address ?? '');
@@ -2062,6 +2157,7 @@ export class NoteEditorComponent implements OnInit, OnChanges, DoCheck, AfterVie
     console.log('[applyRemoteUpdate] applying — noteId:', this.savedNoteId,
       'remoteAt:', data['updatedAt'], 'lastSavedAt (unchanged):', this.lastSavedAt,
       'blocks count:', blocks.length, 'collaboratorUids:', remoteCollabUids.length);
+    const isEventDoc = data['type'] === 'event' || this.note.type === 'event';
     this.note = {
       ...this.note,
       title: data['title'] ?? this.note.title,
@@ -2070,7 +2166,26 @@ export class NoteEditorComponent implements OnInit, OnChanges, DoCheck, AfterVie
       // "group" non appena un guest accetta l'invito (collaboratorUids cresce remoto).
       collaboratorUids: remoteCollabUids,
       isShared: remoteCollabUids.length > 0,
+      // Eventi: propaga al guest gli spostamenti di start/end e i cambi di calendario
+      // o di stato cancelled. Senza questo il guest non vede in tempo reale che
+      // l'owner ha spostato l'evento, e la pill reminder mostra l'orario sbagliato.
+      ...(isEventDoc ? {
+        eventStart: typeof data['eventStart'] === 'number' ? data['eventStart'] : this.note.eventStart,
+        eventEnd: typeof data['eventEnd'] === 'number'
+          ? data['eventEnd']
+          : (data['eventEnd'] === null ? undefined : this.note.eventEnd),
+        calendarId: typeof data['calendarId'] === 'string' ? data['calendarId'] : this.note.calendarId,
+        cancelled: data['cancelled'] === true,
+      } : {}),
     };
+    // Per type=event: ricalcola reminderTime locale dal nuovo eventStart × offset
+    // attuale, così la pill reminder si aggiorna senza aspettare il watcher subdoc.
+    if (isEventDoc && this.reminderEnabled && typeof this.note.eventStart === 'number') {
+      const offsetMin = this.presetOffsetMin(this.reminderPresetKey);
+      if (typeof offsetMin === 'number') {
+        this.note.reminderTime = this.note.eventStart - offsetMin * 60_000;
+      }
+    }
     // NOTE: lastSavedAt is intentionally NOT updated here.
     // It tracks the timestamp of our OWN writes (set in performAutoSave) to filter
     // Firestore echo-back. Updating it from remote snapshots would block subsequent

@@ -15,20 +15,11 @@
   </button>
 
   <div class="dtp-time" [class.dtp-time--disabled]="disabled">
-    <select [(ngModel)]="hour"
-            [disabled]="disabled"
-            (change)="onFieldChange()"
-            class="dtp-select"
-            aria-label="Hour">
-      <option *ngFor="let h of hours" [value]="h">{{ h }}</option>
-    </select>
-    <span class="dtp-colon">:</span>
-    <select [(ngModel)]="minute"
-            [disabled]="disabled"
-            (change)="onFieldChange()"
-            class="dtp-select"
-            aria-label="Minute">
-      <option *ngFor="let m of minutes" [value]="m">{{ m }}</option>
-    </select>
+    <input type="time"
+           class="dtp-time-input"
+           [value]="timeStr"
+           [disabled]="disabled"
+           (input)="onTimeStrChange($event)"
+           aria-label="Ora">
   </div>
 </div>

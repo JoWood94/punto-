@@ -17,36 +17,33 @@ $ease-out-editorial: cubic-bezier(0.2, 0, 0, 1);
   flex-wrap: wrap;
 }
 
-// ── Date button: pill outlined coerente con la toolbar strip dell'app ──────
+// ── Date button: naked, solo icona + testo, niente pillola ──────────────────
 .dtp-date-btn {
   position: relative;
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  padding: 0 16px;
-  min-height: 40px;
+  gap: 6px;
+  padding: 6px 0;
+  min-height: auto;
   background: transparent;
-  border: 1px solid $c-edge;
-  border-radius: 999px;
+  border: 0;
+  border-radius: 0;
   color: $c-ink;
   font-family: inherit;
   font-weight: 500;
-  font-size: 14px;
+  font-size: 16px;
   letter-spacing: -0.005em;
   cursor: pointer;
-  transition:
-    border-color 160ms $ease-out-editorial,
-    background 160ms $ease-out-editorial;
+  transition: background 160ms $ease-out-editorial;
 
   &:hover:not(:disabled) {
-    border-color: $c-edge-hover;
-    background: rgba(28, 27, 31, 0.04);
+    background: transparent;
   }
 
   &:focus-visible {
     outline: 2px solid $c-ink;
     outline-offset: 2px;
-    border-color: $c-ink;
+    border-radius: 4px;
   }
 
   &:disabled {
@@ -64,6 +61,7 @@ $ease-out-editorial: cubic-bezier(0.2, 0, 0, 1);
     height: 18px;
     line-height: 1;
     color: rgba(28, 27, 31, 0.65);
+    opacity: 0.75;
   }
 
   .dtp-date-text {
@@ -79,51 +77,47 @@ $ease-out-editorial: cubic-bezier(0.2, 0, 0, 1);
   height: 0;
 }
 
-// ── Time: coppia HH:MM con select pill ─────────────────────────────────────
+// ── Time: input type="time" unico — apre picker nativo iOS/Android ──────────
+// iOS: spinner wheel nativo Apple. Android: spinner Material.
+// font-size 16px previene auto-zoom iOS Safari al focus.
 .dtp-time {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
 
   &--disabled { opacity: 0.5; }
 }
 
-.dtp-select {
+.dtp-time-input {
   appearance: none;
   -webkit-appearance: none;
   background: transparent;
-  border: 1px solid $c-edge;
-  border-radius: 999px;
-  padding: 0 14px;
-  min-height: 40px;
+  border: 0;
+  border-radius: 0;
+  padding: 6px 0;
+  min-height: auto;
   font-family: inherit;
-  font-weight: 500;
-  font-size: 14px;
-  letter-spacing: -0.005em;
-  color: $c-ink;
-  min-width: 58px;
-  text-align: center;
-  text-align-last: center;
+  font-weight: 600;
+  font-size: 16px; // iOS anti-zoom (>= 16px previene auto-zoom Safari)
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.01em;
+  color: var(--punto-on-surface, #1C1B1F);
   cursor: pointer;
-  transition: border-color 160ms $ease-out-editorial, background 160ms $ease-out-editorial;
 
   &:hover:not(:disabled) {
-    border-color: $c-edge-hover;
-    background: rgba(28, 27, 31, 0.04);
+    background: transparent;
   }
 
+  &:focus,
   &:focus-visible {
-    outline: 2px solid $c-ink;
-    outline-offset: 2px;
-    border-color: $c-ink;
+    outline: none;
   }
 
   &:disabled { cursor: not-allowed; }
-}
 
-.dtp-colon {
-  font-size: 14px;
-  font-weight: 500;
-  color: rgba(28, 27, 31, 0.45);
-  padding: 0 2px;
+  // Rimuovi il default browser chrome (frecce, spinner) dove possibile
+  &::-webkit-calendar-picker-indicator {
+    opacity: 0;
+    width: 0;
+    cursor: pointer;
+  }
 }

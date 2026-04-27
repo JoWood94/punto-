@@ -40,15 +40,48 @@ export class CalendarViewComponent implements OnChanges, OnInit, AfterViewInit {
   @Input() isMobile = false;
   @Input() initialViewType: CalendarViewType = 'month';
   @Input() calendars: Calendar[] = [];
+  @Input() currentViewType: CalendarViewType | null = null;
   @Output() noteSelected = new EventEmitter<Note>();
   @Output() viewTypeChange = new EventEmitter<CalendarViewType>();
   @Output() currentDateChange = new EventEmitter<Date>();
+  @Output() openFilter = new EventEmitter<void>();
+  @Output() deleteEvent = new EventEmitter<Note>();
 
   @ViewChild('monthsContainer') monthsContainerRef?: ElementRef<HTMLElement>;
   @ViewChild('toolbarSegments') toolbarSegmentsRef?: ElementRef<HTMLElement>;
 
   viewType: CalendarViewType = 'month';
-  currentDate = new Date();
+
+  /** Storage interno della data corrente. Acceduto via getter/setter per supportare @Input. */
+  private _currentDate: Date = new Date();
+
+  /** Flag per bloccare il re-emit verso il parent durante l'apply di un Input esterno */
+  private suppressDateEmit = false;
+
+  /** @Input setter: riceve la data dal parent (back-navigation da evento).
+   *  Se diversa da quella interna, aggiorna la vista senza fare emit (anti-loop). */
+  @Input() set currentDate(v: Date | null) {
+    if (!v) return;
+    const incoming = new Date(v).getTime();
+    const current  = this._currentDate.getTime();
+    if (incoming === current) return;
+    this.suppressDateEmit = true;
+    this._currentDate = new Date(v);
+    // Rebuild della vista corrente per riflettere il nuovo giorno
+    if (this.viewType === 'month') {
+      this.isProgrammaticScroll = true;
+      this.buildScrollableMonths(this._currentDate);
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        this.scrollToCurrentMonth();
+      }));
+    } else {
+      this.buildView();
+    }
+    this.suppressDateEmit = false;
+  }
+
+  /** Getter pubblico per l'uso nel template e nella classe */
+  get currentDate(): Date { return this._currentDate; }
 
   // ── Toolbar drag indicator ──
   private readonly VIEW_SEGMENTS: CalendarViewType[] = ['day', 'week', 'month'];
@@ -90,6 +123,23 @@ export class CalendarViewComponent implements OnChanges, OnInit, AfterViewInit {
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['notes'] || changes['isMobile']) {
       this.refresh();
+    }
+    // Gestione runtime di currentViewType: cambia vista senza re-emit verso il parent
+    if (changes['currentViewType']) {
+      const newView = changes['currentViewType'].currentValue as CalendarViewType | null;
+      if (newView && newView !== this.viewType) {
+        // Usa _setViewSilent per non emettere viewTypeChange (il parent ha già aggiornato lastCalendarView)
+        this.viewType = newView;
+        const index = this.VIEW_SEGMENTS.indexOf(newView);
+        this.toolbarIndicatorTransform = this.cssTransform(index);
+        if (newView === 'month') {
+          this.isProgrammaticScroll = true;
+          this.buildScrollableMonths(this._currentDate);
+          requestAnimationFrame(() => requestAnimationFrame(() => this.scrollToCurrentMonth()));
+        } else {
+          this.buildView();
+        }
+      }
     }
   }
 
@@ -274,8 +324,8 @@ export class CalendarViewComponent implements OnChanges, OnInit, AfterViewInit {
     }
     if (found) {
       const [y, m] = (found as HTMLElement).getAttribute('data-month')!.split('-').map(Number);
-      if (this.currentDate.getFullYear() !== y || this.currentDate.getMonth() !== m) {
-        this.currentDate = new Date(y, m, 1);
+      if (this._currentDate.getFullYear() !== y || this._currentDate.getMonth() !== m) {
+        this._currentDate = new Date(y, m, 1);
       }
     }
   }
@@ -357,17 +407,89 @@ export class CalendarViewComponent implements OnChanges, OnInit, AfterViewInit {
     }
   }
 
+  // ── Multiday event helpers (Slice H) ─────────────────────────────────────────
+
+  private getEventDays(note: Note): Date[] {
+    if (note.type !== 'event') return [];
+    // Slice H: usa eventStart/eventEnd come fonte di verità. Niente più fallback
+    // su reminderTime: gli eventi legacy senza eventStart non sono renderizzati.
+    // Questo evita i casi in cui un evento appariva in 2 giorni distinti
+    // (es. eventStart e reminderTime divergenti).
+    const start = (note as any).eventStart;
+    if (typeof start !== 'number') {
+      console.warn('[DBG-EVT-CAL] event without eventStart, skipping', { id: note.id, title: note.title, reminderTime: note.reminderTime });
+      return [];
+    }
+    const end = (note as any).eventEnd;
+    const endTs = typeof end === 'number' ? end : start;
+    const startDay = new Date(new Date(start).setHours(0, 0, 0, 0));
+    const endDay   = new Date(new Date(endTs).setHours(0, 0, 0, 0));
+    const days: Date[] = [];
+    let cursor = new Date(startDay);
+    while (cursor.getTime() <= endDay.getTime()) {
+      days.push(new Date(cursor));
+      cursor.setDate(cursor.getDate() + 1);
+    }
+    if (days.length > 1) {
+      console.log('[DBG-EVT-CAL] multi-day event', {
+        id: note.id, title: note.title,
+        eventStart: new Date(start).toISOString(),
+        eventEnd: new Date(endTs).toISOString(),
+        days: days.map(d => d.toISOString().slice(0, 10)),
+      });
+    }
+    return days;
+  }
+
+  eventDayPosition(note: Note, day: Date): 'first' | 'middle' | 'last' | 'single' | null {
+    if (note.type !== 'event') return null;
+    const days = this.getEventDays(note);
+    if (days.length === 0) return null;
+    if (days.length === 1) return 'single';
+    const i = days.findIndex(d => d.toDateString() === day.toDateString());
+    if (i < 0) return null;
+    if (i === 0) return 'first';
+    if (i === days.length - 1) return 'last';
+    return 'middle';
+  }
+
+  isEventMid(note: Note, day: Date): boolean {
+    return this.eventDayPosition(note, day) === 'middle';
+  }
+
+  isEventLast(note: Note, day: Date): boolean {
+    return this.eventDayPosition(note, day) === 'last';
+  }
+
   private getNotesForDay(date: Date): Note[] {
-    return this.notes.filter(n => {
+    const seen = new Set<string>();
+    const result: Note[] = [];
+    for (const n of this.notes) {
+      // Per gli eventi: visibilità decisa SOLO da getEventDays (eventStart/End).
+      // Niente fallback su getNoteDate(reminderTime/createdAt) che farebbe
+      // apparire l'evento anche il giorno di creazione (bug Slice H).
+      if (n.type === 'event') {
+        const days = this.getEventDays(n);
+        if (days.some(d => this.isSameDay(d, date))) {
+          if (!seen.has(n.id ?? n.createdAt?.toString() ?? '')) {
+            seen.add(n.id ?? n.createdAt?.toString() ?? '');
+            result.push(n);
+          }
+        }
+        continue;   // skip ALWAYS i fallback successivi per gli eventi
+      }
       const d = this.getNoteDate(n);
-      if (d && this.isSameDay(d, date)) return true;
+      if (d && this.isSameDay(d, date)) {
+        result.push(n);
+        continue;
+      }
       // Includi note ricorrenti (la nota originale, non una copia)
       const repeat = this.getEffectiveRepeat(n);
       if (repeat && n.reminderTime && !this.isSameDay(new Date(n.reminderTime), date)) {
-        return this.isRecurringOnDate(n, date);
+        if (this.isRecurringOnDate(n, date)) result.push(n);
       }
-      return false;
-    });
+    }
+    return result;
   }
 
   private isSameDay(a: Date, b: Date): boolean {
@@ -377,12 +499,12 @@ export class CalendarViewComponent implements OnChanges, OnInit, AfterViewInit {
   }
 
   navigate(direction: number): void {
-    const d = new Date(this.currentDate);
+    const d = new Date(this._currentDate);
     if (this.viewType === 'month') d.setMonth(d.getMonth() + direction);
     else if (this.viewType === 'week') d.setDate(d.getDate() + direction * 7);
     else d.setDate(d.getDate() + direction);
-    this.currentDate = d;
-    this.currentDateChange.emit(new Date(this.currentDate));
+    this._currentDate = d;
+    this.currentDateChange.emit(new Date(this._currentDate));
     if (this.viewType === 'month') {
       this.isProgrammaticScroll = true;
       this.buildScrollableMonths(this.currentDate);
@@ -393,8 +515,8 @@ export class CalendarViewComponent implements OnChanges, OnInit, AfterViewInit {
   }
 
   goToToday(): void {
-    this.currentDate = new Date();
-    this.currentDateChange.emit(new Date(this.currentDate));
+    this._currentDate = new Date();
+    this.currentDateChange.emit(new Date(this._currentDate));
     this.toolbarIndicatorTransform = this.cssTransform(this.VIEW_SEGMENTS.indexOf(this.viewType));
     if (this.viewType === 'month') {
       // Lock immediato: blocca TUTTI gli scroll events intermedi
@@ -410,8 +532,8 @@ export class CalendarViewComponent implements OnChanges, OnInit, AfterViewInit {
   }
 
   selectDay(day: CalendarDay): void {
-    this.currentDate = new Date(day.date);
-    this.currentDateChange.emit(new Date(this.currentDate));
+    this._currentDate = new Date(day.date);
+    this.currentDateChange.emit(new Date(this._currentDate));
     this.setView('day');
   }
 
@@ -519,6 +641,36 @@ export class CalendarViewComponent implements OnChanges, OnInit, AfterViewInit {
   formatTime(reminderTime: number | null | undefined): string {
     if (!reminderTime) return '';
     return new Date(reminderTime).toLocaleTimeString(this.translationService.locale, { hour: '2-digit', minute: '2-digit' });
+  }
+
+  /** Formatta il range orario di un evento. "08:00 → 10:30" se ha eventEnd,
+   *  altrimenti solo "08:00". Stringa vuota se non è un evento. */
+  formatEventRange(note: Note): string {
+    if (note.type !== 'event' || typeof note.eventStart !== 'number') return '';
+    const start = this.formatTime(note.eventStart);
+    if (typeof note.eventEnd === 'number') {
+      return `${start} → ${this.formatTime(note.eventEnd)}`;
+    }
+    return start;
+  }
+
+  /** True se l'utente corrente è owner del calendario dell'evento (può eliminarlo).
+   *  Per i guest del calendario il bottone elimina non viene mostrato. */
+  canDeleteEvent(note: Note): boolean {
+    if (note.type !== 'event' || !note.calendarId) return false;
+    const cal = this.calendars.find(c => c.id === note.calendarId);
+    return cal?.myRole === 'owner';
+  }
+
+  /** Click sul bottone elimina di una event card: stop propagation per non aprire
+   *  l'evento, conferma soft via dialog gestito dal parent. */
+  onDeleteEventClick(event: MouseEvent, note: Note): void {
+    event.stopPropagation();
+    this.deleteEvent.emit(note);
+  }
+
+  onTuneClick(): void {
+    this.openFilter.emit();
   }
 
   get todayIsVisible(): boolean {

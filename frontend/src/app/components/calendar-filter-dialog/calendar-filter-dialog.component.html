@@ -1,0 +1,120 @@
+<div class="filter-dialog">
+
+  <!-- Header -->
+  <div class="filter-dialog-header" mat-dialog-title>
+    <span class="filter-dialog-title">{{ 'CALENDAR.FILTER_TITLE' | translate }}</span>
+    <button mat-icon-button class="filter-close-btn" type="button" (click)="cancel()"
+            [attr.aria-label]="'COMMON.CLOSE' | translate">
+      <mat-icon>close</mat-icon>
+    </button>
+  </div>
+
+  <!-- Content -->
+  <mat-dialog-content class="filter-dialog-content">
+
+    <!-- Sezione: Mostra -->
+    <section class="filter-section">
+      <div class="filter-section-label">{{ 'CALENDAR.SHOW_SECTION' | translate }}</div>
+
+      <div class="filter-row filter-row--show" (click)="toggleShowMemos()">
+        <mat-checkbox
+          [checked]="showMemos"
+          (change)="toggleShowMemos()"
+          (click)="$event.stopPropagation()"
+          color="primary">
+        </mat-checkbox>
+        <span class="filter-row-text">{{ 'CALENDAR.SHOW_MEMOS' | translate }}</span>
+      </div>
+
+      <div class="filter-row filter-row--show" (click)="toggleShowAllNotes()">
+        <mat-checkbox
+          [checked]="showAllNotes"
+          (change)="toggleShowAllNotes()"
+          (click)="$event.stopPropagation()"
+          color="primary">
+        </mat-checkbox>
+        <span class="filter-row-text">{{ 'CALENDAR.SHOW_ALL_NOTES' | translate }}</span>
+      </div>
+    </section>
+
+    <div class="filter-divider"></div>
+
+    <!-- Sezione: Calendari visibili -->
+    <section class="filter-section">
+      <div class="filter-section-label">{{ 'CALENDAR.VISIBLE_CALENDARS_SECTION' | translate }}</div>
+
+      <!-- CTA Nuovo calendario -->
+      <button mat-stroked-button class="cal-add-btn" (click)="openAddCalendar()" type="button">
+        <mat-icon>add</mat-icon>
+        <span>{{ 'CALENDAR.NEW' | translate }}</span>
+      </button>
+
+      <ng-container *ngFor="let cal of data.calendars">
+
+        <!-- Riga owned (cliccabile per manage) -->
+        <div *ngIf="isOwned(cal); else subscribedRow"
+             class="filter-row filter-row--owned"
+             (click)="openManage(cal)">
+          <!-- Color dot -->
+          <span class="cal-color-dot" [style.background-color]="cal.color || '#1C1B1F'"></span>
+
+          <!-- Checkbox: disabled se isDefault -->
+          <ng-container *ngIf="cal.isDefault; else toggleableOwned">
+            <mat-checkbox
+              [checked]="true"
+              [disabled]="true"
+              color="primary"
+              (click)="$event.stopPropagation()"
+              [matTooltip]="'CALENDAR.PERSONAL_DEFAULT_TOOLTIP' | translate">
+            </mat-checkbox>
+          </ng-container>
+          <ng-template #toggleableOwned>
+            <mat-checkbox
+              [checked]="isCalendarVisible(cal.id!)"
+              (change)="toggleCalendar(cal.id!)"
+              (click)="$event.stopPropagation()"
+              color="primary">
+            </mat-checkbox>
+          </ng-template>
+
+          <span class="filter-row-text">{{ cal.title }}</span>
+          <mat-icon class="filter-row-chevron">chevron_right</mat-icon>
+        </div>
+
+        <!-- Riga subscribed (checkbox + unsub button) -->
+        <ng-template #subscribedRow>
+          <div class="filter-row filter-row--subscribed">
+            <span class="cal-color-dot" [style.background-color]="cal.color || '#1C1B1F'"></span>
+            <mat-checkbox
+              [checked]="isCalendarVisible(cal.id!)"
+              (change)="toggleCalendar(cal.id!)"
+              color="primary">
+            </mat-checkbox>
+            <span class="filter-row-text">{{ cal.title }}</span>
+            <button mat-icon-button
+                    class="filter-row-unsub"
+                    type="button"
+                    (click)="requestUnsubscribe(cal, $event)"
+                    [matTooltip]="'CALENDAR.UNSUBSCRIBE' | translate"
+                    [attr.aria-label]="'CALENDAR.UNSUBSCRIBE' | translate">
+              <mat-icon>link_off</mat-icon>
+            </button>
+          </div>
+        </ng-template>
+
+      </ng-container>
+    </section>
+
+  </mat-dialog-content>
+
+  <!-- Footer -->
+  <mat-dialog-actions class="filter-dialog-actions">
+    <button mat-button type="button" (click)="cancel()">
+      {{ 'CALENDAR.CANCEL' | translate }}
+    </button>
+    <button mat-flat-button color="primary" type="button" (click)="save()">
+      {{ 'CALENDAR.SAVE' | translate }}
+    </button>
+  </mat-dialog-actions>
+
+</div>

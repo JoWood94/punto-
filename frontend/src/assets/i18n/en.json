@@ -15,7 +15,8 @@
     "DELETE": "Delete",
     "ENABLE": "Enable",
     "SAVE": "Save",
-    "CLOSE": "Close"
+    "CLOSE": "Close",
+    "ERROR_GENERIC": "Something went wrong. Please try again."
   },
   "SEARCH": {
     "PLACEHOLDER_NOTES": "Search notes",
@@ -42,7 +43,7 @@
     "NEW_EVENT_ARIA": "New event",
     "NEW_REMINDER": "New Reminder",
     "NEW_REMINDER_ARIA": "New reminder",
-    "JOIN_SHARED": "Join a shared note",
+    "JOIN_SHARED": "Join with code",
     "CREATE": "Create",
     "CLOSE": "Close"
   },
@@ -50,6 +51,29 @@
     "NOTE": "Note",
     "MEMO": "Reminder",
     "EVENT": "Event"
+  },
+  "EVENT": {
+    "CALENDAR_LABEL": "Calendar",
+    "WHEN": "When",
+    "START": "Start",
+    "END": "End",
+    "ADD_DURATION": "Add duration",
+    "REMOVE_DURATION": "Remove duration",
+    "REMINDER": "Reminder",
+    "REMINDER_NONE": "No reminder",
+    "REMINDER_AT_START": "At the event time",
+    "REMINDER_5MIN": "5 minutes before",
+    "REMINDER_15MIN": "15 minutes before",
+    "REMINDER_1H": "1 hour before",
+    "REMINDER_2H": "2 hours before",
+    "REMINDER_1DAY": "1 day before",
+    "REMINDER_CUSTOM": "Custom...",
+    "REMINDER_CUSTOM_TITLE": "Custom reminder",
+    "REMINDER_CUSTOM_HINT": "Pick the date and time you want to be reminded.",
+    "REMINDER_CUSTOM_INVALID": "Invalid date",
+    "REMINDER_CUSTOM_AFTER": "The reminder must be before the event",
+    "REMINDER_CUSTOM_OUT_OF_RANGE": "At most 30 days before",
+    "PICK_CALENDAR": "Change calendar"
   },
   "DATETIME": {
     "SELECT_DATE": "Select date"
@@ -170,7 +194,39 @@
     "WEEK": "Week",
     "MONTH": "Month",
     "TODAY": "Today",
-    "EMPTY": "No notes with reminders on this day"
+    "EMPTY": "No notes with reminders on this day",
+    "FILTER_TITLE": "Calendar",
+    "SHOW_SECTION": "Show",
+    "SHOW_MEMOS": "Show reminders",
+    "SHOW_ALL_NOTES": "Show notes without reminder",
+    "VISIBLE_CALENDARS_SECTION": "Visible calendars",
+    "MANAGE_TOOLTIP": "Edit calendar",
+    "OPEN_FILTER": "Filters",
+    "PERSONAL_DEFAULT_TOOLTIP": "Personal calendar is always visible",
+    "SAVE": "Save",
+    "CANCEL": "Cancel",
+    "NEW": "New calendar",
+    "NEW_TITLE": "New calendar",
+    "CREATE_BTN": "Create",
+    "SUBSCRIBED_TOAST": "Subscribed to calendar",
+    "UNSUBSCRIBE": "Unsubscribe",
+    "UNSUBSCRIBE_CONFIRM": "Unsubscribe from calendar «{{name}}»? You will no longer see its events on your calendar.",
+    "MANAGE_TITLE": "Manage calendar",
+    "NAME_LABEL": "Name",
+    "NAME_LOCKED_HINT": "Personal calendar can't be renamed.",
+    "COLOR_LABEL": "Color",
+    "SHARE_LABEL": "Share code",
+    "GENERATE_CODE": "Generate code",
+    "SHARE_HINT": "Valid 30 days. Anyone with this code will subscribe to the calendar.",
+    "COPY": "Copy",
+    "COPY_SUCCESS": "Code copied",
+    "DELETE": "Delete calendar",
+    "DELETE_LOCKED_HINT": "Personal calendar can't be deleted.",
+    "DELETE_CONFIRM": "Delete calendar «{{name}}»? All associated events will be removed. This cannot be undone.",
+    "INVITE_NOT_FOUND": "Invalid code",
+    "INVITE_EXPIRED": "Code expired",
+    "INVITE_ALREADY_SUBSCRIBED": "You are already subscribed to this calendar",
+    "NOT_OWNER_HINT": "You are not the owner of this calendar and cannot edit it."
   },
   "LINK_DIALOG": {
     "TITLE": "Link",
@@ -318,12 +374,15 @@
     "SAVE_SUCCESS": "Username updated"
   },
   "JOIN": {
+    "TITLE": "Join with code",
+    "HINT": "Works for shared notes and calendars.",
     "PREVIEW_QUESTION": "Do you want to join \"{{title}}\" by @{{owner}}?",
     "PREVIEW_QUESTION_NO_TITLE": "Do you want to join a note by @{{owner}}?",
+    "PREVIEW_CALENDAR": "Do you want to subscribe to this shared calendar?",
     "LOADING_PREVIEW": "Loading preview...",
     "ERROR_INVALID": "Invalid code",
     "ERROR_EXPIRED": "Code expired or revoked",
-    "ERROR_ALREADY_IN": "You are already a collaborator on this note",
+    "ERROR_ALREADY_IN": "You are already a collaborator on this resource",
     "ERROR_OWN_NOTE": "You cannot join your own note",
     "ERROR_GENERIC": "Could not load preview. Please try again."
   }

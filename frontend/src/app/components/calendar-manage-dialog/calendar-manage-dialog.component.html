@@ -1,0 +1,121 @@
+<div class="manage-dialog">
+
+  <!-- Header -->
+  <div class="manage-dialog-header" mat-dialog-title>
+    <span class="manage-dialog-title">{{ 'CALENDAR.MANAGE_TITLE' | translate }}</span>
+    <button mat-icon-button class="manage-close-btn" type="button" (click)="cancel()"
+            [attr.aria-label]="'COMMON.CLOSE' | translate">
+      <mat-icon>close</mat-icon>
+    </button>
+  </div>
+
+  <!-- Content -->
+  <mat-dialog-content class="manage-dialog-content">
+
+    <!-- Non-owner: vista sola lettura -->
+    <ng-container *ngIf="!isOwned">
+      <section class="manage-section">
+        <div class="manage-section-label">{{ 'CALENDAR.NAME_LABEL' | translate }}</div>
+        <p class="manage-readonly-name">{{ data.calendar.title }}</p>
+      </section>
+      <div class="manage-not-owner-hint">
+        <mat-icon class="manage-not-owner-icon">info_outline</mat-icon>
+        <span>{{ 'CALENDAR.NOT_OWNER_HINT' | translate }}</span>
+      </div>
+    </ng-container>
+
+    <!-- Owner: controlli completi -->
+    <ng-container *ngIf="isOwned">
+
+      <!-- Nome -->
+      <section class="manage-section">
+        <div class="manage-section-label">{{ 'CALENDAR.NAME_LABEL' | translate }}</div>
+        <mat-form-field appearance="outline" class="manage-name-field">
+          <input matInput
+                 [(ngModel)]="title"
+                 [disabled]="isDefault"
+                 [placeholder]="'CALENDAR.NAME_LABEL' | translate"
+                 maxlength="64" />
+          <mat-hint *ngIf="isDefault">{{ 'CALENDAR.NAME_LOCKED_HINT' | translate }}</mat-hint>
+        </mat-form-field>
+      </section>
+
+      <!-- Colore -->
+      <section class="manage-section">
+        <div class="manage-section-label">{{ 'CALENDAR.COLOR_LABEL' | translate }}</div>
+        <div class="manage-palette">
+          <button
+            *ngFor="let c of palette"
+            type="button"
+            class="swatch"
+            [class.swatch--selected]="color === c"
+            [style.background-color]="c"
+            (click)="pickColor(c)"
+            [attr.aria-label]="c">
+          </button>
+        </div>
+      </section>
+
+      <div class="manage-divider"></div>
+
+      <!-- Codice condivisione -->
+      <section class="manage-section">
+        <div class="manage-section-label">{{ 'CALENDAR.SHARE_LABEL' | translate }}</div>
+
+        <ng-container *ngIf="inviteCode === null; else showCode">
+          <button mat-stroked-button type="button"
+                  class="manage-generate-btn"
+                  [disabled]="inviteLoading"
+                  (click)="generateCode()">
+            <mat-spinner *ngIf="inviteLoading" diameter="16" class="inline-spinner"></mat-spinner>
+            <mat-icon *ngIf="!inviteLoading">share</mat-icon>
+            {{ 'CALENDAR.GENERATE_CODE' | translate }}
+          </button>
+        </ng-container>
+
+        <ng-template #showCode>
+          <div class="manage-code-row">
+            <mat-form-field appearance="outline" class="manage-code-field">
+              <input matInput [value]="inviteCode" readonly class="manage-code-input" />
+            </mat-form-field>
+            <button mat-icon-button type="button" (click)="copyCode()"
+                    [attr.aria-label]="'CALENDAR.COPY' | translate"
+                    [matTooltip]="'CALENDAR.COPY' | translate">
+              <mat-icon>content_copy</mat-icon>
+            </button>
+          </div>
+          <p class="manage-share-hint">{{ 'CALENDAR.SHARE_HINT' | translate }}</p>
+        </ng-template>
+      </section>
+
+      <div class="manage-divider"></div>
+
+      <!-- Elimina -->
+      <section class="manage-section manage-section--danger">
+        <div class="manage-section-label">{{ 'CALENDAR.DELETE' | translate }}</div>
+        <button mat-button class="manage-delete-btn" type="button"
+                [disabled]="isDefault"
+                [matTooltip]="isDefault ? ('CALENDAR.DELETE_LOCKED_HINT' | translate) : ''"
+                (click)="confirmDelete()">
+          <mat-icon>delete_outline</mat-icon>
+          {{ 'CALENDAR.DELETE' | translate }}
+        </button>
+        <p *ngIf="isDefault" class="manage-locked-hint">{{ 'CALENDAR.DELETE_LOCKED_HINT' | translate }}</p>
+      </section>
+
+    </ng-container>
+
+  </mat-dialog-content>
+
+  <!-- Footer -->
+  <mat-dialog-actions class="manage-dialog-actions">
+    <button mat-button type="button" (click)="cancel()">
+      {{ 'COMMON.CANCEL' | translate }}
+    </button>
+    <button *ngIf="isOwned" mat-flat-button color="primary" type="button" [disabled]="saving" (click)="save()">
+      <mat-spinner *ngIf="saving" diameter="16" class="inline-spinner"></mat-spinner>
+      {{ 'COMMON.SAVE' | translate }}
+    </button>
+  </mat-dialog-actions>
+
+</div>

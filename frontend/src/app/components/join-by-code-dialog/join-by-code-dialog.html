@@ -1,6 +1,6 @@
 <h2 mat-dialog-title class="join-dialog-title">
   <mat-icon class="join-dialog-icon">group_add</mat-icon>
-  {{ 'SHARING.JOIN_TITLE' | translate }}
+  {{ 'JOIN.TITLE' | translate }}
 </h2>
 
 <mat-dialog-content class="join-dialog-content">
@@ -27,31 +27,44 @@
     <mat-error *ngIf="previewState() === 'error' && errorMessage()">{{ errorMessage() }}</mat-error>
   </mat-form-field>
 
+  <!-- Hint unificato -->
+  <p class="join-hint">{{ 'JOIN.HINT' | translate }}</p>
+
   <!-- Loading preview hint -->
   <p *ngIf="previewState() === 'loading'" class="join-state-hint join-state-hint--loading">
     {{ 'JOIN.LOADING_PREVIEW' | translate }}
   </p>
 
-  <!-- Preview card: titolo + owner -->
+  <!-- Preview card calendario -->
   <div *ngIf="previewState() === 'ready' && preview() as p" class="join-preview">
-    <p class="join-preview__question">
-      <ng-container *ngIf="p.noteTitle; else noTitle">
-        {{ 'JOIN.PREVIEW_QUESTION' | translate:{ title: p.noteTitle, owner: p.ownerUsername } }}
-      </ng-container>
-      <ng-template #noTitle>
-        {{ 'JOIN.PREVIEW_QUESTION_NO_TITLE' | translate:{ owner: p.ownerUsername } }}
-      </ng-template>
-    </p>
+    <ng-container *ngIf="p.docType === 'calendar'; else notePreview">
+      <p class="join-preview__question join-preview__question--calendar">
+        {{ 'JOIN.PREVIEW_CALENDAR' | translate }}
+      </p>
+      <p *ngIf="calendarTitle()" class="join-preview__title">{{ calendarTitle() }}</p>
+    </ng-container>
 
-    <!-- Consenso notifiche — solo per memo/event -->
-    <section *ngIf="needsNotificationConsent" class="join-notif-consent">
-      <h3 class="join-notif-consent__title">{{ 'INVITE.NOTIF_CONSENT_TITLE' | translate }}</h3>
-      <p class="join-notif-consent__hint">{{ 'INVITE.NOTIF_CONSENT_HINT' | translate }}</p>
-      <mat-radio-group [(ngModel)]="notificationsEnabled" class="join-notif-consent__group" aria-label="Notifiche">
-        <mat-radio-button [value]="true">{{ 'INVITE.NOTIF_CONSENT_YES' | translate }}</mat-radio-button>
-        <mat-radio-button [value]="false">{{ 'INVITE.NOTIF_CONSENT_NO' | translate }}</mat-radio-button>
-      </mat-radio-group>
-    </section>
+    <!-- Preview card nota/memo/evento -->
+    <ng-template #notePreview>
+      <p class="join-preview__question">
+        <ng-container *ngIf="p.noteTitle; else noTitle">
+          {{ 'JOIN.PREVIEW_QUESTION' | translate:{ title: p.noteTitle, owner: p.ownerUsername } }}
+        </ng-container>
+        <ng-template #noTitle>
+          {{ 'JOIN.PREVIEW_QUESTION_NO_TITLE' | translate:{ owner: p.ownerUsername } }}
+        </ng-template>
+      </p>
+
+      <!-- Consenso notifiche — solo per memo/event -->
+      <section *ngIf="needsNotificationConsent" class="join-notif-consent">
+        <h3 class="join-notif-consent__title">{{ 'INVITE.NOTIF_CONSENT_TITLE' | translate }}</h3>
+        <p class="join-notif-consent__hint">{{ 'INVITE.NOTIF_CONSENT_HINT' | translate }}</p>
+        <mat-radio-group [(ngModel)]="notificationsEnabled" class="join-notif-consent__group" aria-label="Notifiche">
+          <mat-radio-button [value]="true">{{ 'INVITE.NOTIF_CONSENT_YES' | translate }}</mat-radio-button>
+          <mat-radio-button [value]="false">{{ 'INVITE.NOTIF_CONSENT_NO' | translate }}</mat-radio-button>
+        </mat-radio-group>
+      </section>
+    </ng-template>
   </div>
 
   <p class="join-format-hint">{{ 'SHARING.JOIN_FORMAT_HINT' | translate }}</p>

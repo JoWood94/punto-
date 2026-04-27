@@ -1,0 +1,11 @@
+<div class="cps-card">
+  <button *ngFor="let cal of options"
+          class="cps-pill"
+          [class.cps-pill--selected]="cal.id === currentId"
+          type="button"
+          (click)="pick(cal.id!)">
+    <span class="cps-pill-dot" [style.background-color]="cal.color || '#1C1B1F'"></span>
+    <span class="cps-pill-label">{{ cal.title }}</span>
+    <mat-icon *ngIf="cal.id === currentId" class="cps-pill-check">check</mat-icon>
+  </button>
+</div>

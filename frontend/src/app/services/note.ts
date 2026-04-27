@@ -413,7 +413,14 @@ export class NoteService {
     };
 
     let payload: any;
+    const isEvent = (noteData as any).type === 'event';
     if (!this.cryptoService.isEnabled) {
+      payload = base;
+    } else if (isEvent) {
+      // Gli eventi sono "broadcast" nel calendario condiviso: leggibili a
+      // chiunque sia subscriber del calendar. Non possono essere PGP-cifrati
+      // (la chiave privata è dell'owner: i subscribers non potrebbero leggerli).
+      // Restano sempre in chiaro.
       payload = base;
     } else if (hasCollaborators) {
       // Per note gia condivise alla creazione (caso raro), cifra con AES se disponibile
@@ -825,9 +832,12 @@ export class NoteService {
     const noteRef = doc(this.db, `notes/${id}`);
     const skipFields: (keyof Note)[] = this.notifTitleEnabled ? ['title'] : [];
     const hasCollaborators = (noteSnap.data()?.['collaboratorUids']?.length ?? 0) > 0;
+    // isEvent: true se il doc esistente è event o se data.type lo sta settando a event.
+    const isEvent = effectiveType === 'event' || noteSnap.data()?.['type'] === 'event';
 
     let payload: any;
-    if (!this.cryptoService.isEnabled || options?.skipEncryption) {
+    if (!this.cryptoService.isEnabled || options?.skipEncryption || isEvent) {
+      // Eventi: sempre in chiaro (broadcast a tutti i subscribers del calendar).
       payload = { ...data, updatedAt: Date.now() };
     } else if (hasCollaborators) {
       // Nota condivisa: cifra con AES se la chiave e disponibile in cache

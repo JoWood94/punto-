@@ -381,6 +381,48 @@
   }
 }
 
+// ─── Mini-FAB calendar: solo per eventi con >1 calendario owned.
+// Posizionato dopo .share-mini-fab: reminder(28) + reminder-w(56) + gap(12) + share-w(56) + gap(12) = 164px.
+// Size uniforme 56×56 come reminder e share.
+.calendar-mini-fab {
+  position: absolute;
+  bottom: calc(28px + min(env(safe-area-inset-bottom, 0px), 44px));
+  left: 164px;
+  z-index: 300;
+  width: 56px;
+  height: 56px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--punto-on-surface, #1C1B1F);
+  color: var(--punto-surface-bright, #FFFBFE);
+  display: inline-grid;
+  place-items: center;
+  cursor: pointer;
+  box-shadow:
+    0 2px 4px rgba(0, 0, 0, 0.3),
+    0 4px 12px rgba(0, 0, 0, 0.15);
+  transition:
+    opacity 280ms cubic-bezier(0.4, 0, 0.2, 1),
+    transform 280ms cubic-bezier(0.4, 0, 0.2, 1);
+
+  &--hidden {
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(140px) scale(0.9);
+  }
+
+  &:active { transform: scale(0.96); }
+}
+
+.calendar-mini-fab-dot {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #FFFBFE;
+  border: 2px solid rgba(255, 251, 254, 0.5);
+  pointer-events: none;
+}
+
 .title-input-raw {
   flex: 1;
   font-family: var(--punto-font, 'Plus Jakarta Sans', sans-serif);
@@ -666,7 +708,64 @@
 .selected-address-view {
   display: flex;
   flex-direction: column;
+  gap: 8px;
 }
+
+// ─── Location pill ───────────────────────────────────────────────────────
+// Stile coerente con event-reminder-active-pill: full-width, scura, rounded.
+// Nasconde il display_name lungo di Nominatim e mostra solo via [num], città,
+// provincia (vedi selectAddress in note-editor.ts).
+.location-pill-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.location-pill {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 10px 16px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--punto-on-surface, #1C1B1F);
+  color: var(--punto-surface-bright, #FFFBFE);
+  font-size: 14px;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+  box-sizing: border-box;
+  transition: transform 140ms cubic-bezier(0.2, 0, 0, 1), opacity 140ms cubic-bezier(0.2, 0, 0, 1);
+
+  &:active { transform: scale(0.99); opacity: 0.92; }
+}
+
+.location-pill-icon {
+  font-size: 18px;
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+
+.location-pill-label {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.location-pill-open {
+  font-size: 16px;
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  opacity: 0.7;
+}
+
+.location-edit-btn { flex-shrink: 0; }
 
 .address-label {
   display: flex;
@@ -1859,5 +1958,289 @@ $rs-hover-bg: rgba(28, 27, 31, 0.05);
     font-size: 0.9rem;
     color: color-mix(in srgb, var(--mat-sys-on-surface) 40%, transparent);
   }
+}
+
+// ── Calendar picker (Fase 4 G) ─────────────────────────────────────────────────
+.calendar-picker-wrapper {
+  flex-shrink: 0;
+  padding: 8px 16px 0;
+}
+
+// ══════════ Event sections (Quando / Promemoria) — Slice H ══════════════════════
+// Le sezioni sono ora posizionate DOPO il titolo e PRIMA dei blocchi corpo.
+// Usano gli stessi margini orizzontali di editor-header (24px desktop, 16px mobile).
+.event-section {
+  flex-shrink: 0;
+  padding-inline: 24px;
+
+  @media (max-width: 479px) {
+    padding-inline: 16px;
+  }
+}
+
+.event-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-block-end: 10px;
+  min-height: 28px;
+}
+
+.event-section-label {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1;
+  color: color-mix(in oklch, var(--punto-on-surface, #1C1B1F) 55%, transparent);
+}
+
+// ── Sezione Quando: layout inline a piena larghezza ──
+// start ed end condividono la riga (flex 1 1 0); arrow e clear sono
+// elementi a dimensione naturale. Niente padding orizzontale interno:
+// il testo è flush con i margini di sezione (= margini titolo).
+.event-when-stack {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  background: transparent;
+  margin-block: 4px 8px;
+  // Margin-left extra per allineare visivamente la riga start/end con il
+  // contenuto della pill reminder sottostante (icona campanella interna).
+  padding-inline-start: 8px;
+}
+
+// Container row data+ora per start/end. Ora è un <div> wrapper neutro:
+// le interazioni (cursor, hover, focus) vivono sui figli .event-dt-date-btn
+// e .event-dt-time-label così ognuno ha la propria hit-area distinta.
+.event-dt-row {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  flex: 1 1 0;
+  min-width: 0;
+  background: transparent;
+  white-space: nowrap;
+  overflow: hidden;
+
+  > .event-dt-date,
+  > .event-dt-time {
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}
+
+// Input datepicker e time nascosti dietro i bottoni visibili
+.event-dt-hidden-input {
+  position: absolute;
+  width: 0;
+  height: 0;
+  opacity: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.event-dt-hidden-time {
+  position: absolute;
+  width: 0;
+  height: 0;
+  opacity: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+// Button data: nessun stile container, eredita dal padre. Solo reset.
+// In readonly (guest del calendario) NON applichiamo opacity: il testo deve
+// apparire normale. Solo cursor + pointer-events sono soppressi via :disabled.
+.event-dt-date-btn {
+  display: inline-flex;
+  align-items: baseline;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  border-radius: 6px;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  min-width: 0;
+  &:disabled { cursor: default; pointer-events: none; }
+}
+
+// Label che wrappa input time + span visibile. Click sul span apre il
+// time picker nativo via semantica del label. L'input è opacity 0 ma
+// pointer-events auto e dimensioni piene così il tap lo raggiunge.
+.event-dt-time-label {
+  position: relative;
+  display: inline-flex;
+  align-items: baseline;
+  padding: 0;
+  border-radius: 6px;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  min-width: 0;
+
+  > .event-dt-time-input {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0;
+    border: 0;
+    background: transparent;
+    cursor: pointer;
+    // Tap target per touch: copre tutto il label.
+    pointer-events: auto;
+  }
+
+  // Readonly: stesso colore del testo normale, solo non interattivo.
+  &:has(.event-dt-time-input:disabled) { cursor: default; pointer-events: none; }
+}
+
+// ─── Read-only event (guest del calendario) ────────────────────────────────
+// Il guest non può modificare un evento di un calendario altrui ma il visual
+// non deve sembrare "disabled" (testi grigi opachi). Mantiene i colori
+// normali e disattiva solo l'interazione. Si applica all'host del componente.
+:host(.editor-readonly-event) {
+  // Override globale degli stati disabled all'interno del component.
+  // ESCLUDIAMO gli input nascosti (datetime/time/datepicker) che devono
+  // restare opacity:0 anche da disabled, altrimenti il picker indicator
+  // nativo del browser si vede sovrapposto al testo visibile.
+  button:disabled,
+  input:disabled:not(.event-dt-time-input):not(.event-dt-hidden-input):not(.event-dt-hidden-time):not(.reminder-hidden-input):not(.reminder-hero-time-input),
+  select:disabled,
+  textarea:disabled,
+  label:has(input:disabled),
+  [contenteditable='false'] {
+    opacity: 1 !important;
+    color: inherit !important;
+    -webkit-text-fill-color: inherit !important;
+    cursor: default !important;
+    filter: none !important;
+  }
+
+  // Drag handle dei blocchi: nascosto in readonly (no riordino).
+  .drag-handle { display: none !important; }
+}
+
+.event-dt-date {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--punto-on-surface, #1C1B1F);
+}
+
+.event-dt-time {
+  font-size: 14px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--punto-primary, #1C1B1F);
+}
+
+// Tag "Start"/"End" rimossi — classe mantenuta vuota per compatibilità
+.event-dt-tag { display: none; }
+
+// Separatore freccia tra start e end
+.event-dt-arrow {
+  font-size: 16px;
+  color: color-mix(in oklch, var(--punto-on-surface, #1C1B1F) 45%, transparent);
+  flex-shrink: 0;
+}
+
+.event-dt-picker {
+  flex: 1;
+  min-width: 0;
+}
+
+.event-dt-clear {
+  border: 0;
+  background: transparent;
+  padding: 4px;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 50%;
+  flex-shrink: 0;
+  cursor: pointer;
+
+  &:hover { background: color-mix(in oklch, var(--punto-on-surface, #1C1B1F) 6%, transparent); }
+  &:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  mat-icon {
+    font-size: 16px;
+    width: 16px;
+    height: 16px;
+    color: color-mix(in oklch, var(--punto-on-surface, #1C1B1F) 45%, transparent);
+  }
+}
+
+.event-dt-add {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 0;
+  background: transparent;
+  padding: 6px 8px;
+  font: 500 14px/1 inherit;
+  color: var(--punto-primary, #1C1B1F);
+  cursor: pointer;
+  flex-shrink: 0;
+
+  mat-icon { font-size: 16px; width: 16px; height: 16px; }
+
+  &:disabled { opacity: 0.4; cursor: not-allowed; }
+}
+
+// ── Pill promemoria: full-width con margini uguali al content area ──
+// padding-inline identica a editor-header per allineamento verticale perfetto.
+.event-reminder-active-wrapper {
+  padding-inline: 24px;
+  margin-block-end: 16px;
+
+  @media (max-width: 479px) {
+    padding-inline: 16px;
+  }
+}
+
+// Pill promemoria attivo — full-width del content area editor
+.event-reminder-active-pill {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 12px 18px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--punto-on-surface, #1C1B1F);
+  color: var(--punto-surface-bright, #FFFBFE);
+  font-size: 14px;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+  box-sizing: border-box;
+  transition: transform 140ms cubic-bezier(0.2, 0, 0, 1), opacity 140ms cubic-bezier(0.2, 0, 0, 1);
+
+  &:active { transform: scale(0.99); opacity: 0.92; }
+}
+
+.event-reminder-active-icon {
+  font-size: 18px;
+  width: 18px;
+  height: 18px;
+  color: inherit;
+  flex-shrink: 0;
+}
+
+.event-reminder-active-label {
+  font-size: 14px;
+  font-weight: 500;
+  flex: 1 1 auto;
+}
+
+.event-reminder-active-when {
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  color: color-mix(in oklch, var(--punto-surface-bright, #FFFBFE) 70%, transparent);
+  flex-shrink: 0;
 }
 

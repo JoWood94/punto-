@@ -336,6 +336,7 @@
       <app-note-editor #noteEditor [selectedNote]="activeNote" [initialReminderDate]="newNoteCalendarDate"
                        [initialNoteType]="newNoteType"
                        [initialCalendarId]="newNoteCalendarId"
+                       [ownedCalendars]="ownedCalendars"
                        (closeEditor)="closeEditor($event)"
                        (noteCreated)="onNoteCreated($event)"
                        (noteLiveUpdate)="onNoteLiveUpdate($event)">
@@ -345,10 +346,13 @@
     <div class="calendar-wrapper" *ngIf="isReady && (currentMainView === 'calendar' || (!isMobile && currentMainView === 'list')) && activeNote === undefined && !settingsOpen">
       <app-calendar-view [notes]="calendarNotes" [isMobile]="isMobile"
         [initialViewType]="lastCalendarView"
+        [currentDate]="calendarCurrentDate"
+        [currentViewType]="lastCalendarView"
         [calendars]="myCalendars"
         (viewTypeChange)="lastCalendarView = $event"
         (noteSelected)="onCalendarNoteSelected($event)"
-        (currentDateChange)="onCalendarCurrentDateChange($event)">
+        (currentDateChange)="onCalendarCurrentDateChange($event)"
+        (openFilter)="onOpenCalendarFilter()">
       </app-calendar-view>
     </div>
 

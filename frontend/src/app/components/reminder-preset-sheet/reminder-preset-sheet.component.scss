@@ -1,0 +1,71 @@
+:host {
+  display: block;
+}
+
+.rps-card {
+  background: var(--punto-surface-bright, #FFFBFE);
+  border-radius: 24px;
+  padding: 12px;
+  margin: 0 12px 16px;
+  box-shadow: none;            /* niente alone scuro dietro la card (Giuseppe) */
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.rps-pill {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  min-height: 64px;
+  padding: 14px 22px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--punto-on-surface, #1C1B1F);
+  color: var(--punto-surface-bright, #FFFBFE);
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+  transition: transform 120ms ease-out, opacity 120ms ease-out;
+
+  &:active {
+    transform: scale(0.98);
+    opacity: 0.92;
+  }
+
+  &--selected {
+    box-shadow: inset 0 0 0 2px color-mix(in oklch, var(--punto-surface-bright, #FFFBFE) 40%, transparent);
+  }
+}
+
+.rps-pill-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.rps-pill-label {
+  font-size: 16px;
+  font-weight: 500;
+  color: inherit;
+  line-height: 1.3;
+}
+
+.rps-pill-when {
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  color: color-mix(in oklch, var(--punto-surface-bright, #FFFBFE) 70%, transparent);
+  line-height: 1.3;
+}
+
+.rps-pill-check {
+  font-size: 22px;
+  width: 22px;
+  height: 22px;
+  color: var(--punto-surface-bright, #FFFBFE);
+  flex: 0 0 auto;
+}

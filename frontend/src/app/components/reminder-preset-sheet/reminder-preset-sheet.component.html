@@ -1,0 +1,14 @@
+<div class="rps-card" role="dialog" [attr.aria-label]="'EVENT.REMINDER' | translate">
+  <button
+    *ngFor="let preset of presets"
+    class="rps-pill"
+    [class.rps-pill--selected]="preset.key === data.current"
+    type="button"
+    (click)="select(preset)">
+    <span class="rps-pill-text">
+      <span class="rps-pill-label">{{ preset.labelKey | translate }}</span>
+      <span class="rps-pill-when" *ngIf="preset.key !== 'NONE' && subLabel(preset)">{{ subLabel(preset) }}</span>
+    </span>
+    <mat-icon *ngIf="preset.key === data.current" class="rps-pill-check">check</mat-icon>
+  </button>
+</div>

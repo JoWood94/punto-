@@ -39,6 +39,25 @@
   }
 }
 
+// ─── Filtro / tune button ──────────────────────────────────────
+.calendar-tune-btn {
+  color: rgba(0, 0, 0, 0.54);
+  transition: color 150ms ease, background 150ms ease;
+  flex-shrink: 0;
+
+  &:hover {
+    color: var(--mat-sys-primary, #1C1B1F);
+    background: rgba(28, 27, 31, 0.06);
+  }
+
+  mat-icon {
+    font-size: 22px;
+    width: 22px;
+    height: 22px;
+    line-height: 22px;
+  }
+}
+
 // ─── Dark toolbar (segmented control + today pill) ──────────
 .calendar-toolbar {
   display: flex;
@@ -122,6 +141,16 @@
   display: flex;
   align-items: center;
   transition: background 0.25s ease, color 0.25s ease, border-color 0.25s ease;
+  -webkit-tap-highlight-color: transparent;
+  /* iOS Safari mantiene tap-highlight grigio dopo il tap; e :focus / :active
+     possono rendere la pillola "sporca" rispetto agli altri segmenti.
+     Forziamo lo stato attivo a restare bianco puro (#FFFBFE). */
+  &:focus, &:focus-visible, &:active { outline: none; }
+  &--active:focus, &--active:focus-visible, &--active:active {
+    background: #FFFBFE !important;
+    color: #1C1B1F !important;
+    border-color: transparent !important;
+  }
 
   &--active {
     background: #FFFBFE;
@@ -636,4 +665,21 @@
   vertical-align: middle;
   color: inherit;
   opacity: 0.9;
+}
+
+// ─── Multiday event — dot (middle days) + end tag (Slice H) ──
+.day-note-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin: 2px 0;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.chip-end-tag {
+  font-size: 10px;
+  margin-left: 4px;
+  opacity: 0.75;
+  font-style: normal;
 }

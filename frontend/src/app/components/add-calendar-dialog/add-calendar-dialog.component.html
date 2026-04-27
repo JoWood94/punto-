@@ -1,0 +1,58 @@
+<h2 mat-dialog-title class="add-cal-title">
+  <mat-icon class="add-cal-icon">add_circle</mat-icon>
+  {{ 'CALENDAR.NEW_TITLE' | translate }}
+</h2>
+
+<mat-dialog-content class="add-cal-content">
+
+  <mat-form-field appearance="outline" class="add-cal-field">
+    <mat-label>{{ 'CALENDAR.NAME_LABEL' | translate }}</mat-label>
+    <input
+      #titleInput
+      matInput
+      [(ngModel)]="title"
+      (keydown.enter)="onSubmit()"
+      [disabled]="state() === 'loading'"
+      autocomplete="off"
+      autocorrect="off"
+      spellcheck="false"
+      class="add-cal-name-input"
+    />
+    <mat-error *ngIf="state() === 'error' && errorMessage()">{{ errorMessage() }}</mat-error>
+  </mat-form-field>
+
+  <!-- Colore -->
+  <div class="add-cal-color-section">
+    <span class="add-cal-color-label">{{ 'CALENDAR.COLOR_LABEL' | translate }}</span>
+    <div class="add-cal-palette" role="radiogroup" [attr.aria-label]="'CALENDAR.COLOR_LABEL' | translate">
+      <button
+        *ngFor="let c of palette"
+        type="button"
+        class="add-cal-swatch"
+        [class.add-cal-swatch--selected]="c === selectedColor"
+        [style.background-color]="c"
+        (click)="pickColor(c)"
+        [attr.aria-checked]="c === selectedColor"
+        role="radio"
+        [attr.aria-label]="c">
+        <mat-icon *ngIf="c === selectedColor" class="add-cal-swatch-check">check</mat-icon>
+      </button>
+    </div>
+  </div>
+
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <button mat-button type="button" (click)="cancel()" [disabled]="state() === 'loading'">
+    {{ 'COMMON.CANCEL' | translate }}
+  </button>
+  <button mat-flat-button
+          class="add-cal-submit-btn"
+          type="button"
+          [disabled]="!canSubmit"
+          (click)="onSubmit()">
+    <mat-spinner *ngIf="state() === 'loading'" diameter="18" class="btn-spinner"></mat-spinner>
+    <mat-icon *ngIf="state() !== 'loading'">add</mat-icon>
+    {{ 'CALENDAR.CREATE_BTN' | translate }}
+  </button>
+</mat-dialog-actions>
