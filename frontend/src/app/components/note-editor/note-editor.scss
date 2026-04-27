@@ -116,6 +116,17 @@
     animation: syncSpin 900ms cubic-bezier(0.4, 0, 0.6, 1) infinite;
   }
 
+  // Variante inline: usata nella riga titolo memo. Niente position absolute,
+  // niente top/right; il flex parent gestisce la posizione (margin-left auto).
+  // Riusa stesse dimensioni/stile del cerchio nero per coerenza visiva.
+  &--inline {
+    position: static;
+    top: auto;
+    right: auto;
+    margin-inline-start: auto;
+    flex-shrink: 0;
+  }
+
   @keyframes syncSpin {
     0%   { transform: rotate(0deg) scale(1); }
     50%  { transform: rotate(180deg) scale(0.85); }

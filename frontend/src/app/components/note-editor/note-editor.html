@@ -40,6 +40,16 @@
            [disabled]="!guestCanEdit"
            (ngModelChange)="onTitleChange()" />
 
+    <!-- Sync indicator: in coda alla riga titolo, allineato verticalmente
+         col FAB ricorrenza nella riga date sottostante. Mostra spunta→nuvola
+         durante aggiornamento remoto. Inline (non floating) sulla riga memo. -->
+    <div class="sync-indicator sync-indicator--inline"
+         [class.sync-indicator--visible]="syncState() !== 'idle'"
+         [class.sync-indicator--syncing]="syncState() === 'syncing'"
+         [attr.aria-label]="syncState() === 'syncing' ? 'Sincronizzazione in corso' : 'Nota aggiornata'">
+      <mat-icon>{{ syncState() === 'syncing' ? 'sync' : 'done' }}</mat-icon>
+    </div>
+
   </div><!-- /memo-header-title-row -->
 
   <!-- ── Micro-toast inline per evasione ricorrente ── -->
@@ -209,7 +219,7 @@
 
 
 <!-- editor-header: nasconde la riga titolo per i memo con reminderBlock (titolo già in memo-header-title-row).
-     Badge "Shared with you" e sync indicator restano visibili per tutti i tipi. -->
+     Sync indicator floating: solo per note ed eventi (memo ha la sua versione inline nell'header memo). -->
 <div class="editor-header" [class.editor-header--memo]="!!reminderBlock && note.type === 'memo'">
   <!-- Badge "Shared with you" — guest -->
   <div class="shared-with-you-badge" *ngIf="isGuest">
@@ -224,8 +234,9 @@
          (ngModelChange)="onTitleChange()" />
   </div>
 
-  <!-- Indicatore sync floating — spunta→nuvola durante aggiornamento remoto -->
+  <!-- Indicatore sync floating — solo note/event (memo usa la versione inline) -->
   <div class="sync-indicator"
+       *ngIf="!(!!reminderBlock && note.type === 'memo')"
        [class.sync-indicator--visible]="syncState() !== 'idle'"
        [class.sync-indicator--syncing]="syncState() === 'syncing'"
        [attr.aria-label]="syncState() === 'syncing' ? 'Sincronizzazione in corso' : 'Nota aggiornata'">
