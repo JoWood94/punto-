@@ -176,6 +176,11 @@ async function checkAndSendReminders() {
 
       if (!reminderMs) continue;
 
+      // Gli eventi calendario sono gestiti esclusivamente da checkAndSendEventReminders.
+      // Skipparli qui evita il doppio invio quando un evento ha sia reminderStatus:'pending'
+      // che una entry nella sub-collection eventReminders.
+      if (note.type === 'event') continue;
+
       // Calcola il momento effettivo di notifica applicando l'offset (se presente).
       // notifyTime = reminderTime - notifyOffsetMin * 60000.
       // Doc legacy senza notifyOffsetMin → offset 0 → notifyTime = reminderTime.
