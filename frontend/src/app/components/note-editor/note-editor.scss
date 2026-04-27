@@ -22,15 +22,44 @@
 // Image block (Fase 2): stile coerente con gli altri .metadata-section.
 .image-block {
   .image-empty { display: flex; flex-direction: column; gap: 8px; }
+  // Pill placeholder "Add image": stessa struttura delle altre pill (icona +
+  // label, full-width, rounded 999) ma in shade chiara per indicare CTA / non
+  // contenuto inserito. Niente bordo dashed, niente sfondo brand pieno.
   .image-empty-btn {
-    display: inline-flex; align-items: center; gap: 10px; align-self: flex-start;
-    height: 44px; padding: 0 18px;
-    border: 1px dashed rgba(28,27,31,0.24); border-radius: 999px;
-    background: transparent; color: #1C1B1F;
-    font: 500 14px / 1 inherit; letter-spacing: -0.005em; cursor: pointer;
-    transition: background 140ms ease, border-color 140ms ease;
-    mat-icon { font-size: 20px; width: 20px; height: 20px; line-height: 1; }
-    &:hover:not(:disabled) { background: rgba(28,27,31,0.04); border-color: rgba(28,27,31,0.38); }
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    width: 100%;
+    min-height: 64px;
+    padding: 16px 24px;
+    border: 0 !important;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--punto-on-surface, #1C1B1F) 6%, transparent);
+    color: var(--punto-on-surface, #1C1B1F);
+    font-family: var(--punto-font, 'Plus Jakarta Sans', sans-serif);
+    font-size: 15px;
+    font-weight: 500;
+    text-align: center;
+    cursor: pointer;
+    box-sizing: border-box;
+    transition:
+      background 140ms cubic-bezier(0.2, 0, 0, 1),
+      transform 140ms cubic-bezier(0.2, 0, 0, 1);
+
+    mat-icon {
+      font-size: 22px;
+      width: 22px;
+      height: 22px;
+      line-height: 1;
+      flex-shrink: 0;
+      opacity: 0.75;
+    }
+
+    &:hover:not(:disabled) {
+      background: color-mix(in srgb, var(--punto-on-surface, #1C1B1F) 10%, transparent);
+    }
+    &:active:not(:disabled) { transform: scale(0.99); }
     &:disabled { opacity: 0.5; cursor: not-allowed; }
   }
   .image-spin { animation: image-spin 900ms linear infinite; }
@@ -41,11 +70,12 @@
   // Background transparent: il parent della nota (bianco) fa da sfondo, non un grigio artificiale.
   .image-preview {
     width: 100%; max-height: 420px; display: flex; justify-content: center;
-    border-radius: 10px; overflow: hidden; background: transparent;
+    border-radius: var(--punto-shape-lg, 16px); overflow: hidden; background: transparent;
   }
   .image-preview-img {
     display: block; max-width: 100%; max-height: 420px; width: auto; height: auto;
     object-fit: contain; -webkit-user-drag: none;
+    border-radius: var(--punto-shape-lg, 16px);
   }
 }
 
@@ -158,6 +188,12 @@
   position: absolute;
   bottom: calc(6px + min(env(safe-area-inset-bottom, 0px), 44px));
   left: 28px;
+
+  // Desktop: allineato al .add-block-fab (dentro .floating-toolbar-area
+  // che ora ha bottom:10px su desktop) e alle pill di nav (.lmt-pill, 16px).
+  @media (min-width: 768px) {
+    bottom: calc(16px + min(env(safe-area-inset-bottom, 0px), 44px));
+  }
   z-index: 300;
   width: 56px;
   height: 56px;
@@ -229,6 +265,11 @@
   bottom: calc(6px + min(env(safe-area-inset-bottom, 0px), 44px));
   left: calc(28px + 56px + 12px); // reminder-fab width + gap
   z-index: 300;
+
+  // Desktop: allineato a .add-block-fab e alle pill di nav.
+  @media (min-width: 768px) {
+    bottom: calc(16px + min(env(safe-area-inset-bottom, 0px), 44px));
+  }
 
   &--no-bell {
     left: 28px;
@@ -400,48 +441,6 @@
   }
 }
 
-// ─── Mini-FAB calendar: solo per eventi con >1 calendario owned.
-// Posizionato dopo .share-mini-fab: reminder(28) + reminder-w(56) + gap(12) + share-w(56) + gap(12) = 164px.
-// Size uniforme 56×56 come reminder e share.
-.calendar-mini-fab {
-  position: absolute;
-  bottom: calc(6px + min(env(safe-area-inset-bottom, 0px), 44px));
-  left: 164px;
-  z-index: 300;
-  width: 56px;
-  height: 56px;
-  border: 0;
-  border-radius: 50%;
-  background: var(--punto-on-surface, #1C1B1F);
-  color: var(--punto-surface-bright, #FFFBFE);
-  display: inline-grid;
-  place-items: center;
-  cursor: pointer;
-  box-shadow:
-    0 2px 4px rgba(0, 0, 0, 0.3),
-    0 4px 12px rgba(0, 0, 0, 0.15);
-  transition:
-    opacity 280ms cubic-bezier(0.4, 0, 0.2, 1),
-    transform 280ms cubic-bezier(0.4, 0, 0.2, 1);
-
-  &--hidden {
-    opacity: 0;
-    pointer-events: none;
-    transform: translateY(140px) scale(0.9);
-  }
-
-  &:active { transform: scale(0.96); }
-}
-
-.calendar-mini-fab-dot {
-  width: 18px;
-  height: 18px;
-  border-radius: 50%;
-  background: #FFFBFE;
-  border: 2px solid rgba(255, 251, 254, 0.5);
-  pointer-events: none;
-}
-
 .title-input-raw {
   flex: 1;
   font-family: var(--punto-font, 'Plus Jakarta Sans', sans-serif);
@@ -525,14 +524,15 @@
   // --vh cambia e il layer composited non si invalida finché l'utente non scrolla.
   transform: translateZ(0);
 
-  // Tastiera virtuale aperta: i FAB e la floating-toolbar sono già nascosti
-  // via keyboardOpen(), quindi il padding-bottom riservato a loro produce
-  // solo una fascia bianca sotto l'ultimo blocco. Lo azzeriamo ed usiamo
-  // scroll-padding per garantire che scrollIntoView dell'input attivo
-  // lasci comunque qualche pixel di respiro.
+  // Tastiera virtuale aperta: la format-floating-toolbar è ancorata sopra la
+  // tastiera (position:fixed + env(keyboard-inset-height)), quindi serve sia
+  // un padding-bottom (spazio scrollabile sotto l'ultimo blocco) sia un
+  // scroll-padding-bottom dell'altezza pill+respiro, così lo scrollIntoView
+  // dell'input attivo (chiamato da setVh in dashboard.ts) lo posiziona
+  // SOPRA la toolbar invece che dietro.
   &.keyboard-open {
-    padding-bottom: 0;
-    scroll-padding-bottom: 24px;
+    padding-bottom: 88px;
+    scroll-padding-bottom: 88px;
   }
 
   // Mobile: allineato ai margini x della reminder-strip (16px).
@@ -551,30 +551,32 @@
   min-width: 0;
   display: flex;
   flex-direction: column;
-  min-height: 100px;
-  background: var(--mat-sys-surface);
-  border: 1px solid var(--mat-sys-outline-variant);
-  border-radius: var(--punto-shape-lg, 16px);
-  padding: 12px 16px;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  padding: 6px 0;
 }
 
 // (toolbar-scroll-container rimossa — sostituita da floating-toolbar-area)
 
 .rich-text-editor {
-  flex: 1;
   min-width: 0;      // previene flex overflow su iOS (contenteditable sfonda il container)
   width: 100%;
-  padding: 8px 0 6px;
+  padding: 2px 0;
   outline: none;
-  min-height: 40px;
+  // Altezza driven dal contenuto: una riga prende solo 1 line-height,
+  // poi cresce naturalmente man mano che si aggiungono righe.
+  min-height: 1.5em;
   font-size: 1rem;
   line-height: 1.5;
   color: var(--mat-sys-on-surface);
   transition: box-shadow var(--_t);
 
-  &:empty:before {
+  &:empty:before,
+  &.rich-text-editor--empty:before {
     content: attr(data-placeholder);
     color: color-mix(in srgb, var(--mat-sys-on-surface) 38%, transparent);
+    pointer-events: none;
   }
 
   &:focus {
@@ -593,13 +595,25 @@
 // dell'editor scrolla fino al bordo inferiore e i FAB fluttuano sopra,
 // niente fascia bianca di spacer sotto l'ultimo blocco.
 .floating-toolbar-area {
-  position: absolute;
+  // Mobile: position:fixed + env(keyboard-inset-height) ancorato sopra la
+  // tastiera + UI native browser (iOS 17+, Chrome 108+).
+  // Desktop: position:absolute rispetto al :host (dentro l'editor-wrapper, a
+  // destra della sidenav), così la toolbar non finisce DIETRO il sidenav.
+  position: fixed;
   left: 0;
   right: 0;
-  bottom: 0;
+  bottom: env(keyboard-inset-height, 0px);
   height: calc(62px + min(env(safe-area-inset-bottom, 0px), 44px));
   pointer-events: none;
   z-index: 5;
+
+  @media (min-width: 768px) {
+    position: absolute;
+    // Allineato al bottom della .lmt-pill della sidenav (sticky bottom:0 +
+    // padding-bottom:16px ⇒ bottom edge a 16px dal viewport). I FAB interni
+    // hanno già bottom:6+safe rispetto all'area, quindi 10 + 6 ≈ 16 px.
+    bottom: 10px;
+  }
 
   &.toolbar-hidden {
     visibility: hidden;
@@ -757,9 +771,21 @@
   text-align: left;
   cursor: pointer;
   box-sizing: border-box;
-  transition: transform 140ms cubic-bezier(0.2, 0, 0, 1), opacity 140ms cubic-bezier(0.2, 0, 0, 1);
+  margin-right: 0;
+  transition:
+    transform 140ms cubic-bezier(0.2, 0, 0, 1),
+    opacity 140ms cubic-bezier(0.2, 0, 0, 1),
+    margin-right 160ms cubic-bezier(0.2, 0, 0, 1);
 
   &:active { transform: scale(0.99); opacity: 0.92; }
+
+  // Quando il blocco è attivo (o hover desktop) il trigger 3-dots è visibile:
+  // riserviamo spazio a destra così il bordo della pill non finisce sotto al cerchio.
+  .block-item--active & { margin-right: 36px; }
+}
+
+@media (hover: hover) {
+  .block-item:hover .location-pill { margin-right: 36px; }
 }
 
 .location-pill-icon {
@@ -864,6 +890,20 @@
   ::ng-deep .mdc-checkbox { touch-action: manipulation; }
 }
 
+// Primo item della checklist: stesso ridimensionamento di .location-pill /
+// .link-anchor — quando il blocco è attivo (o hover desktop) il trigger 3-dots
+// è visibile in alto a destra, quindi riserviamo spazio per non sovrapporsi.
+.checklist-item:first-child {
+  margin-right: 0;
+  transition: margin-right 160ms cubic-bezier(0.2, 0, 0, 1);
+
+  .block-item--active & { margin-right: 36px; }
+}
+
+@media (hover: hover) {
+  .block-item:hover .checklist-item:first-child { margin-right: 36px; }
+}
+
 // Wrapper input + × — contiene visivamente tutto all'interno del tile
 .checklist-input-wrap {
   flex: 1;
@@ -965,16 +1005,14 @@
   gap: 10px;
 }
 
-// Layout flex orizzontale: [drag] [content] [remove]
+// Blocco a tutta larghezza: drag-handle/remove fissi rimossi, drag&drop via
+// long-press sul blocco intero (cdkDragStartDelay). Azioni nel menu overlay.
 .block-item {
-  display: flex;
-  align-items: flex-start;
-  gap: 4px;
+  position: relative;
+  display: block;
   padding: 2px 0;
 
-  // Blocco testo: nessun gap laterale, il testo è flush con il contenuto
   &.block-type-text {
-    gap: 0;
     padding: 0;
   }
 
@@ -982,19 +1020,72 @@
     transition: transform var(--_t);
   }
 
-  // Su hover (desktop) mostra drag, remove ed edit-link
-  &:hover .drag-handle  { opacity: 0.5; }
-  &:hover .remove-block-btn { opacity: 0.6; }
-  &:hover .edit-link-btn { opacity: 0.6; }
+  &.cdk-drag-preview {
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+    border-radius: var(--punto-shape-md, 12px);
+  }
 
-  // Su dispositivi touch (no-hover) drag-handle sempre visibile (discreto),
-  // altrimenti l'utente non ha modo di sapere che può riordinare i blocchi.
-  @media (hover: none) {
-    .drag-handle { opacity: 0.38; }
-    .remove-block-btn { opacity: 0.5; }
-    .edit-link-btn { opacity: 0.5; }
+}
+
+// Overflow trigger overlay: visibile SOLO quando il blocco è in interazione
+// (.block-item--active). Posizionato dentro l'angolo top-right del blocco con
+// bordo + icona nei colori brand (--punto-on-surface).
+.block-actions-trigger {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 28px !important;
+  height: 28px !important;
+  padding: 0 !important;
+  background: var(--punto-on-surface, #1C1B1F) !important;
+  border: 0;
+  border-radius: 50%;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+  opacity: 0;
+  pointer-events: none;
+  transform: scale(0.85);
+  transition:
+    opacity 160ms cubic-bezier(0.2, 0, 0, 1),
+    transform 160ms cubic-bezier(0.2, 0, 0, 1);
+  z-index: 4;
+
+  mat-icon {
+    font-size: 16px;
+    width: 16px;
+    height: 16px;
+    color: var(--punto-surface-bright, #FFFBFE);
+  }
+
+  // Visibile quando il blocco è attivo, il menu è aperto, oppure (solo
+  // device con hover reale, no touch) quando il blocco è in hover.
+  .block-item--active &,
+  &[aria-expanded="true"] {
+    opacity: 1;
+    pointer-events: auto;
+    transform: scale(1);
+  }
+
+  &:active { transform: scale(0.94); }
+
+  // Desktop hover: rivela il trigger anche senza click (esclude touch puro).
+  @media (hover: hover) {
+    .block-item:hover & {
+      opacity: 1;
+      pointer-events: auto;
+      transform: scale(1);
+    }
+  }
+
+  // Sul blocco testo (no card) il trigger sta dentro al padding superiore
+  .block-type-text & {
+    top: 0;
+    right: 0;
   }
 }
+
+// Drag handle e remove-btn ex-fissi: ora gestiti dal menu, niente nel layout.
+.drag-handle,
+.remove-block-btn { display: none !important; }
 
 // Placeholder durante il drag
 .drag-placeholder {
@@ -1048,14 +1139,13 @@
   }
 }
 
-// Contenuto del blocco — card bianca con bordo sottile
 .metadata-section {
   flex: 1;
   min-width: 0;
-  padding: 14px 16px;
-  background: var(--mat-sys-surface);
-  border: 1px solid var(--mat-sys-outline-variant);
-  border-radius: var(--punto-shape-lg, 16px);
+  padding: 14px 0;
+  background: transparent;
+  border: none;
+  border-radius: 0;
   margin: 0;
 }
 
@@ -1102,11 +1192,11 @@
 }
 
 .block-label {
-  font-size: 0.75rem;
-  font-weight: 600;
+  font-family: var(--punto-font, 'Plus Jakarta Sans', sans-serif);
+  font-size: 0.875rem;
+  font-weight: 500;
   color: var(--mat-sys-on-surface-variant);
-  text-transform: uppercase;
-  letter-spacing: 0.07em;
+  letter-spacing: 0;
   flex: 1;
 }
 
@@ -1310,9 +1400,8 @@
 // ─── Link block ──────────────────────────────────────────────
 // .link-block eredita tutto da .metadata-section — nessun override necessario
 
-// Row anchor + edit button quando link valorizzato (header è nascosto).
-// L'anchor mantiene la sua width naturale (shrink-fit della pill Tickets);
-// l'edit button segue a destra dopo il gap, con opacity gestita da .block-item.
+// Row anchor + edit button quando link valorizzato. Stessa struttura della
+// .location-pill-row: anchor flex:1 (full-width della card), edit-btn trailing.
 .link-row {
   display: flex;
   align-items: center;
@@ -1320,66 +1409,66 @@
   min-width: 0;
 
   .link-anchor {
-    flex: 0 1 auto;
+    flex: 1 1 auto;
     min-width: 0;
   }
 }
 
 // Bottone modifica link: segue stesso pattern di .remove-block-btn
+// Identica a .location-edit-btn: nessun override dimensione/opacity, lascia
+// il comportamento standard mat-icon-button con icona Material di default.
 .edit-link-btn {
   flex-shrink: 0;
-  opacity: 0;
-  border-radius: 50%;
-  transition:
-    opacity var(--_t),
-    background 200ms var(--_e);
-  width: 32px !important;
-  height: 32px !important;
-
-  mat-icon {
-    font-size: 16px;
-    width: 16px;
-    height: 16px;
-  }
-
-  &:hover { background: color-mix(in srgb, var(--mat-sys-on-surface) 8%, transparent); }
-  &:active { background: color-mix(in srgb, var(--mat-sys-on-surface) 12%, transparent); }
 }
 
-// Link cliccabile — pill-shaped con sfondo primario sottile
+// Link cliccabile — pill brand: stesso linguaggio di .location-pill (scura,
+// full-width della card, rounded 999px, testo on-primary).
 .link-anchor {
-  display: inline-flex;
+  display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 7px 14px 7px 10px;
-  border-radius: var(--punto-shape-full, 9999px);
-  text-decoration: none;
-  background: color-mix(in srgb, var(--punto-primary) 10%, transparent);
-  color: var(--punto-primary);
-  font-size: 0.875rem;
+  gap: 10px;
+  padding: 10px 16px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--punto-on-surface, #1C1B1F);
+  color: var(--punto-surface-bright, #FFFBFE);
+  font-size: 14px;
   font-weight: 500;
-  max-width: 100%;
-  overflow: hidden;
-  transition: background var(--_t);
+  text-align: left;
+  text-decoration: none;
+  box-sizing: border-box;
+  margin-right: 0;
+  transition:
+    transform 140ms cubic-bezier(0.2, 0, 0, 1),
+    opacity 140ms cubic-bezier(0.2, 0, 0, 1),
+    margin-right 160ms cubic-bezier(0.2, 0, 0, 1);
 
-  &:hover {
-    background: color-mix(in srgb, var(--punto-primary) 16%, transparent);
-  }
+  &:active { transform: scale(0.99); opacity: 0.92; }
+
+  // Quando il blocco è attivo (o hover desktop) riserviamo spazio per il
+  // trigger 3-dots, così il bordo della pill non finisce sotto al cerchio.
+  .block-item--active & { margin-right: 36px; }
+}
+
+@media (hover: hover) {
+  .block-item:hover .link-anchor { margin-right: 36px; }
 }
 
 .link-anchor-icon {
-  font-size: 16px;
-  width: 16px;
-  height: 16px;
+  font-size: 18px;
+  width: 18px;
+  height: 18px;
   flex-shrink: 0;
   color: inherit;
+  opacity: 0.7;
 }
 
 .link-anchor-text {
+  flex: 1 1 auto;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  flex: 1;
 }
 
 // Stato vuoto — messaggio con invito a inserire il link
@@ -1735,6 +1824,61 @@ $rs-hover-bg: rgba(28, 27, 31, 0.05);
   &:disabled { opacity: 0.4; cursor: not-allowed; }
 }
 
+// ── Pill calendario: stessa struttura della reminder pill, sopra di essa ──
+.event-calendar-active-wrapper {
+  padding-inline: 24px;
+  margin-block-end: 8px;
+
+  @media (max-width: 479px) {
+    padding-inline: 16px;
+  }
+}
+
+.event-calendar-active-pill {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 12px 18px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--punto-on-surface, #1C1B1F);
+  color: var(--punto-surface-bright, #FFFBFE);
+  font-size: 14px;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+  box-sizing: border-box;
+  transition: transform 140ms cubic-bezier(0.2, 0, 0, 1), opacity 140ms cubic-bezier(0.2, 0, 0, 1);
+
+  &:active { transform: scale(0.99); opacity: 0.92; }
+}
+
+.event-calendar-active-icon {
+  font-size: 18px;
+  width: 18px;
+  height: 18px;
+  color: inherit;
+  flex-shrink: 0;
+}
+
+.event-calendar-active-label {
+  font-size: 14px;
+  font-weight: 500;
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.event-calendar-active-dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 251, 254, 0.5);
+  flex-shrink: 0;
+}
+
 // ── Pill promemoria: full-width con margini uguali al content area ──
 // padding-inline identica a editor-header per allineamento verticale perfetto.
 .event-reminder-active-wrapper {
@@ -1802,9 +1946,10 @@ $rs-hover-bg: rgba(28, 27, 31, 0.05);
   align-items: center;
   gap: 3px; // Fix 1: spunta praticamente attaccata al testo (era 6px poi editor-header gap:4px)
 
-  // Completato: tutto l'header perde peso visivo
+  // Completato: l'header perde leggero peso visivo, ma la spunta resta
+  // nera brand piena per non essere percepita come "disabled".
   &--completed {
-    .memo-check { opacity: 0.55; }
+    .memo-title-input { opacity: 0.55; }
   }
 }
 
@@ -1827,7 +1972,8 @@ $rs-hover-bg: rgba(28, 27, 31, 0.05);
   height: 30px;
   border: none;
   background: transparent;
-  color: $rs-ink;
+  color: #1C1B1F !important;
+  opacity: 1 !important;
   cursor: pointer;
   padding: 0;
   flex-shrink: 0;
@@ -1842,17 +1988,24 @@ $rs-hover-bg: rgba(28, 27, 31, 0.05);
     width: 30px;
     height: 30px;
     line-height: 1;
-    color: inherit;
+    color: #1C1B1F !important;
+    fill: #1C1B1F !important;
+    opacity: 1 !important;
+    // Override eventuale CSS custom property Material/MDC.
+    --mat-icon-color: #1C1B1F !important;
     // Overdue: terracotta parziale (ring, non fill)
-    .memo-header-title-row--overdue & { color: $rs-danger; }
+    .memo-header-title-row--overdue & { color: $rs-danger !important; }
   }
 
   &:hover:not(:disabled) { background: $rs-hover-bg; }
   &:active:not(:disabled) { transform: scale(0.92); }
   &:focus-visible { outline: 2px solid $rs-ink; outline-offset: 2px; }
-  &:disabled { opacity: 0.38; cursor: not-allowed; }
+  &:disabled {
+    cursor: not-allowed;
+    // Niente opacity ridotta: l'icona resta nera brand anche post-completamento.
+  }
 
-  &--checked mat-icon { color: $rs-ink; }
+  &--checked mat-icon { color: #1C1B1F !important; }
 }
 
 // ─── Micro-toast inline per evasione ricorrente ───────────────────────────────

@@ -1,7 +1,7 @@
 import {
   Component, Input, Output, EventEmitter, inject, OnInit, OnChanges, OnDestroy,
   SimpleChanges, ViewChildren, ViewChild, QueryList, ElementRef, ChangeDetectorRef,
-  AfterViewInit, AfterViewChecked, DoCheck, signal, NgZone
+  AfterViewInit, AfterViewChecked, DoCheck, signal, NgZone, HostListener
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -117,6 +117,10 @@ export class NoteEditorComponent implements OnInit, OnChanges, DoCheck, AfterVie
   readonly isList = signal(false);
   readonly isOrderedList = signal(false);
   readonly activeTextBlockIndex = signal<number | null>(null);
+  /** Indice del blocco "in interazione": rivela il trigger menu (3 dots).
+   *  Settato da click sul blocco e da focus dei text block. Resettato al
+   *  click fuori dai blocchi (cfr. onDocumentClickReset). */
+  readonly activeBlockIndex = signal<number | null>(null);
   /** true quando la tastiera virtuale è aperta (detection via visualViewport).
    *  Usato per nascondere i floating button mobile mentre si digita. */
   readonly keyboardOpen = signal(false);
@@ -698,6 +702,12 @@ export class NoteEditorComponent implements OnInit, OnChanges, DoCheck, AfterVie
     if (!this.note?.calendarId) return '#1C1B1F';
     const cal = this.ownedCalendars.find(c => c.id === this.note.calendarId);
     return cal?.color || '#1C1B1F';
+  }
+
+  get selectedCalendarTitle(): string {
+    if (!this.note?.calendarId) return '';
+    const cal = this.ownedCalendars.find(c => c.id === this.note.calendarId);
+    return cal?.title || '';
   }
 
   async openCalendarPickerSheet(): Promise<void> {
@@ -1305,6 +1315,52 @@ export class NoteEditorComponent implements OnInit, OnChanges, DoCheck, AfterVie
     return true;
   }
 
+  /** Sposta il blocco verso l'alto, saltando i reminder (filtrati nel template). */
+  moveBlockUp(index: number): void {
+    if (!this.note?.blocks || index <= 0) return;
+    let prev = index - 1;
+    while (prev >= 0 && this.note.blocks[prev].type === 'reminder') prev--;
+    if (prev < 0) return;
+    this.saveTextBlocksFromDOM();
+    const blocks = [...this.note.blocks];
+    moveItemInArray(blocks, index, prev);
+    this.note.blocks = blocks;
+    this.textBlocksNeedInit = true;
+    this.triggerAutoSave();
+  }
+
+  /** Sposta il blocco verso il basso, saltando i reminder (filtrati nel template). */
+  moveBlockDown(index: number): void {
+    if (!this.note?.blocks || index >= this.note.blocks.length - 1) return;
+    let next = index + 1;
+    while (next < this.note.blocks.length && this.note.blocks[next].type === 'reminder') next++;
+    if (next >= this.note.blocks.length) return;
+    this.saveTextBlocksFromDOM();
+    const blocks = [...this.note.blocks];
+    moveItemInArray(blocks, index, next);
+    this.note.blocks = blocks;
+    this.textBlocksNeedInit = true;
+    this.triggerAutoSave();
+  }
+
+  /** True se il blocco all'indice ha almeno un blocco draggabile precedente (non-reminder). */
+  canMoveBlockUp(index: number): boolean {
+    if (!this.note?.blocks || index <= 0) return false;
+    for (let i = index - 1; i >= 0; i--) {
+      if (this.note.blocks[i].type !== 'reminder') return true;
+    }
+    return false;
+  }
+
+  /** True se il blocco all'indice ha almeno un blocco draggabile successivo (non-reminder). */
+  canMoveBlockDown(index: number): boolean {
+    if (!this.note?.blocks || index >= this.note.blocks.length - 1) return false;
+    for (let i = index + 1; i < this.note.blocks.length; i++) {
+      if (this.note.blocks[i].type !== 'reminder') return true;
+    }
+    return false;
+  }
+
   // TODO: sostituire con block.id stabile (uuid generato alla creazione) per gestire
   // correttamente riordino e cancellazione senza re-mount dei nodi non coinvolti.
   trackBlock(index: number, _block: NoteBlock): number {
@@ -1339,11 +1395,55 @@ export class NoteEditorComponent implements OnInit, OnChanges, DoCheck, AfterVie
 
   onTextFocus(blockIndex: number) {
     this.activeTextBlockIndex.set(blockIndex);
+    this.activeBlockIndex.set(blockIndex);
     this.updateFormatState();
   }
 
   onTextBlur() {
     this.activeTextBlockIndex.set(null);
+    // activeBlockIndex resta finché un click outside non lo resetta:
+    // così il trigger menu è cliccabile anche dopo il blur dell'editor.
+  }
+
+  /** Imposta il blocco "in interazione" per rivelare il trigger menu (3 dots). */
+  setActiveBlock(index: number): void {
+    this.activeBlockIndex.set(index);
+  }
+
+  /** Apre l'azione di modifica del blocco location/link dal menu (3 dots). */
+  editBlockFromMenu(index: number): void {
+    const block = this.note?.blocks?.[index] as any;
+    if (!block) return;
+    if (block.type === 'link') {
+      this.editLinkBlock(index);
+    } else if (block.type === 'location') {
+      block.editing = true;
+      this.cdr.markForCheck();
+    }
+  }
+
+  /** Listener globale: click fuori da qualunque .block-item / overlay CDK
+   *  (menu, bottom sheet) → nasconde il trigger menu. */
+  @HostListener('document:click', ['$event.target'])
+  onDocumentClickReset(target: EventTarget | null): void {
+    const el = target as HTMLElement | null;
+    if (!el || typeof el.closest !== 'function') return;
+    if (el.closest('.block-item')) return;
+    if (el.closest('.cdk-overlay-container')) return;
+    if (this.activeBlockIndex() !== null) this.activeBlockIndex.set(null);
+  }
+
+  /** True se il blocco testo è effettivamente vuoto (rendere il placeholder). */
+  isEmptyText(html: string | undefined | null): boolean {
+    if (html == null) return true;
+    const stripped = String(html)
+      .replace(/<br\s*\/?>/gi, '')
+      .replace(/<div>\s*<\/div>/gi, '')
+      .replace(/<p>\s*<\/p>/gi, '')
+      .replace(/&nbsp;/g, '')
+      .replace(/<[^>]+>/g, '')
+      .trim();
+    return stripped.length === 0;
   }
 
   updateFormatState() {

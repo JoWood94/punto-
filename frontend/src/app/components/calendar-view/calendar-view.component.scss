@@ -23,6 +23,7 @@
   flex-shrink: 0;
 
   .nav-controls {
+    position: relative;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -35,6 +36,14 @@
       text-align: center;
       text-transform: capitalize;
       color: rgba(0, 0, 0, 0.8);
+    }
+
+    // Tune button ancorato all'estrema destra: la nav resta centrata sul mese.
+    .calendar-tune-btn {
+      position: absolute;
+      right: 4px;
+      top: 50%;
+      transform: translateY(-50%);
     }
   }
 }
@@ -184,6 +193,12 @@
       flex: 1;
       text-align: center;
       text-transform: capitalize;
+    }
+
+    // Su mobile lo space-between gestisce già la posizione: reset dell'override desktop.
+    .calendar-tune-btn {
+      position: static;
+      transform: none;
     }
   }
 }

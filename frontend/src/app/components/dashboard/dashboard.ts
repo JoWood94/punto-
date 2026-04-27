@@ -795,12 +795,15 @@ export class DashboardComponent implements OnInit, OnDestroy {
     if (!time) return null;
     const today = new Date();
     const rem = new Date(time);
-    if (rem.getFullYear() === today.getFullYear() &&
-        rem.getMonth() === today.getMonth() &&
-        rem.getDate() === today.getDate()) {
-      return rem.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
-    }
-    return null;
+    const hhmm = rem.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
+    const isToday = rem.getFullYear() === today.getFullYear() &&
+                    rem.getMonth() === today.getMonth() &&
+                    rem.getDate() === today.getDate();
+    if (isToday) return hhmm;
+    // Non oggi: DD/MM HH:MM — pattern coerente con formatNextOccurrence dei ricorrenti.
+    const dd = String(rem.getDate()).padStart(2, '0');
+    const mm = String(rem.getMonth() + 1).padStart(2, '0');
+    return `${dd}/${mm} ${hhmm}`;
   }
 
   formatNextOccurrence(note: Note): string {
@@ -847,7 +850,17 @@ export class DashboardComponent implements OnInit, OnDestroy {
     event.stopPropagation();
     if (!note.id) return;
     try {
+      // Post RF-01b il reminder vive dentro blocks[type==='reminder'].status.
+      // findReminderBlock prevale sul legacy n.reminderStatus, quindi dobbiamo
+      // aggiornare il block (ricostruendo l'array) — altrimenti il filtro
+      // della lista continua a vedere il memo come 'pending'.
       const update: any = { reminderStatus: 'completed' };
+      const blocks = (note as any).blocks;
+      if (Array.isArray(blocks)) {
+        update.blocks = blocks.map((b: any) =>
+          b?.type === 'reminder' ? { ...b, status: 'completed' } : b
+        );
+      }
       const isShared = note.isShared || (note.collaboratorUids && note.collaboratorUids.length > 0);
       if (isShared) {
         const uid = this.authService.getCurrentUserId();

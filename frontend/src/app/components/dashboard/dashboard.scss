@@ -478,17 +478,22 @@
   flex-shrink: 0;
 }
 
+// Track: usa currentColor + outline così è visibile sia su card chiare
+// (testo nero ⇒ track grigio scuro, outline più scuro) sia su card scure
+// (es. memo, testo bianco ⇒ track grigio chiaro, outline bianco tenue).
 .progress-bar-track {
   flex: 1;
-  height: 3px;
-  background: color-mix(in srgb, var(--punto-primary) 16%, transparent);
+  height: 6px;
+  background: color-mix(in srgb, currentColor 18%, transparent);
+  border: 1px solid color-mix(in srgb, currentColor 35%, transparent);
   border-radius: var(--punto-shape-full, 9999px);
   overflow: hidden;
+  box-sizing: border-box;
 }
 
 .progress-bar-fill {
   height: 100%;
-  background: var(--punto-primary);
+  background: white;
   border-radius: var(--punto-shape-full, 9999px);
   transition: width var(--_t);
 }
@@ -870,16 +875,24 @@
   }
 }
 
-// FAB desktop e mobile: posizione condivisa, z-index differente
+// FAB desktop e mobile: bottom allineato al bottom delle nav pill
+// (.lmt-pill su wide-desktop ⇒ 16px; .unified-toolbar su mobile/tablet
+// ⇒ 6 + safe-area). Right invariato.
 .sidenav-fab-area,
 .mobile-fab-overlay {
   position: fixed;
-  bottom: 28px;
   right: 28px;
 }
 
-.sidenav-fab-area { z-index: 200; }
-.mobile-fab-overlay { z-index: 300; }
+.sidenav-fab-area {
+  bottom: 16px;
+  z-index: 200;
+}
+
+.mobile-fab-overlay {
+  bottom: calc(6px + env(safe-area-inset-bottom, 0px));
+  z-index: 300;
+}
 
 // Desktop FAB extended (pill con testo)
 .sidenav-fab-area .new-note-fab {

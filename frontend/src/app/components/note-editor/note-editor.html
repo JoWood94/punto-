@@ -322,6 +322,19 @@
     </div>
   </section>
 
+  <!-- ═══ CALENDARIO (pill attiva) — full-width, sopra il reminder ═══ -->
+  <div *ngIf="note.type === 'event' && ownedCalendars.length > 1"
+       class="event-calendar-active-wrapper">
+    <button type="button"
+            class="event-calendar-active-pill"
+            (click)="openCalendarPickerSheet()"
+            [attr.aria-label]="'EVENT.PICK_CALENDAR' | translate">
+      <mat-icon class="event-calendar-active-icon">event</mat-icon>
+      <span class="event-calendar-active-label">{{ selectedCalendarTitle }}</span>
+      <span class="event-calendar-active-dot" [style.background-color]="selectedCalendarColor"></span>
+    </button>
+  </div>
+
   <!-- ═══ PROMEMORIA (pill attiva) — full-width ═══ -->
   <div *ngIf="note.type === 'event' && reminderEnabled"
        class="event-reminder-active-wrapper">
@@ -346,28 +359,36 @@
 
     <ng-container *ngFor="let block of note.blocks; let i = index; trackBy: trackBlock">
     <div *ngIf="block.type !== 'reminder'"
-         cdkDrag class="block-item" [ngClass]="'block-type-' + block.type">
+         cdkDrag class="block-item" [ngClass]="'block-type-' + block.type"
+         [class.block-item--active]="activeBlockIndex() === i"
+         [cdkDragStartDelay]="350"
+         [cdkDragDisabled]="draggableBlockCount <= 1 || isReadOnlyEvent || block.type === 'text' || block.type === 'checklist'"
+         (pointerdown)="setActiveBlock(i)"
+         (click)="setActiveBlock(i)">
 
       <!-- Drag placeholder (styled by Agent 2) -->
       <div class="drag-placeholder" *cdkDragPlaceholder></div>
 
-      <!-- Drag handle: sempre nel DOM per CDK, collassato se è l'unico blocco
-           draggabile (reminder escluso da *ngIf sopra). -->
-      <div cdkDragHandle class="drag-handle"
-           [class.drag-handle-collapsed]="draggableBlockCount <= 1">
-        <mat-icon>drag_indicator</mat-icon>
-      </div>
+      <!-- Action menu overlay (top-right): rimpiazza drag-handle e remove-btn fissi.
+           Drag&drop attivo via long-press (cdkDragStartDelay). -->
+      <button mat-icon-button class="block-actions-trigger"
+              *ngIf="!isReadOnlyEvent"
+              [disabled]="!guestCanEdit"
+              [matMenuTriggerFor]="blockMenu"
+              [matMenuTriggerData]="{ i: i, type: block.type }"
+              (click)="$event.stopPropagation()"
+              aria-label="Azioni blocco"
+              type="button">
+        <mat-icon>more_vert</mat-icon>
+      </button>
 
       <!-- ════ TEXT BLOCK ════ -->
       <ng-container *ngIf="block.type === 'text'">
         <div class="rich-text-wrapper">
-          <div class="block-label-row" *ngIf="!$any(block).html">
-            <mat-icon>notes</mat-icon>
-            <span class="block-label">Testo</span>
-          </div>
           <div
             #textBlockEl
             class="rich-text-editor"
+            [class.rich-text-editor--empty]="isEmptyText($any(block).html)"
             [attr.contenteditable]="guestCanEdit ? 'true' : null"
             [attr.data-placeholder]="'Scrivi qui...'"
             (input)="onTextInput(i, $event)"
@@ -455,12 +476,6 @@
                 </span>
                 <mat-icon class="location-pill-open">open_in_new</mat-icon>
               </button>
-              <!-- Matita: solo chi può editare la nota. -->
-              <button mat-icon-button class="location-edit-btn"
-                      *ngIf="guestCanEdit"
-                      (click)="$any(block).editing = true" matTooltip="Modifica">
-                <mat-icon>edit</mat-icon>
-              </button>
             </div>
             <div class="map-preview" *ngIf="$any(block).mapUrl">
               <iframe width="100%" height="180" frameborder="0" scrolling="no"
@@ -511,19 +526,10 @@
           <div class="block-label-row" *ngIf="!$any(block).url">
             <mat-icon >link</mat-icon>
             <span class="block-label">Collegamento</span>
-            <button mat-icon-button class="edit-link-btn"
-                    *ngIf="guestCanEdit"
-                    (click)="editLinkBlock(i)"
-                    matTooltip="Modifica collegamento"
-                    type="button">
-              <mat-icon>edit</mat-icon>
-            </button>
           </div>
 
-          <!-- Link valorizzato: anchor + edit button inline. Il click è intercettato
-               e apre via window.open: su iOS PWA standalone target="_blank" sul tag
-               anchor riavvia la PWA invece di delegare al browser. Aprire il link
-               è azione di lettura — sempre consentita anche al guest readonly. -->
+          <!-- Link valorizzato: anchor pill brand. Modifica via menu (3 dots).
+               Click sull'anchor → apre via window.open per coerenza iOS PWA. -->
           <div class="link-row" *ngIf="$any(block).url">
             <a [attr.href]="$any(block).url"
                target="_blank"
@@ -533,14 +539,6 @@
               <mat-icon class="link-anchor-icon">open_in_new</mat-icon>
               <span class="link-anchor-text">{{ $any(block).label || $any(block).url }}</span>
             </a>
-            <!-- Matita: solo chi può editare. Nascosta per il guest readonly. -->
-            <button mat-icon-button class="edit-link-btn"
-                    *ngIf="guestCanEdit"
-                    (click)="editLinkBlock(i)"
-                    matTooltip="Modifica collegamento"
-                    type="button">
-              <mat-icon>edit</mat-icon>
-            </button>
           </div>
 
           <!-- Stato vuoto (nessun URL ancora): solo chi può editare. -->
@@ -551,16 +549,6 @@
           </span>
         </div>
       </ng-container>
-
-      <!-- Remove block button: nascosto per gli eventi in read-only (guest del calendario) -->
-      <button mat-icon-button class="remove-block-btn"
-              *ngIf="canRemoveBlock(i) && !isReadOnlyEvent"
-              [disabled]="!guestCanEdit"
-              (click)="removeBlock(i)"
-              matTooltip="Rimuovi blocco"
-              type="button">
-        <mat-icon>close</mat-icon>
-      </button>
 
     </div><!-- /block-item -->
     </ng-container>
@@ -597,10 +585,42 @@
 
 </div><!-- /editor-content -->
 
+<!-- Menu azioni blocco (overflow): condiviso da tutti i .block-actions-trigger.
+     Long-press sul blocco resta attivo per il drag&drop nativo (cdkDragStartDelay). -->
+<mat-menu #blockMenu="matMenu" class="block-actions-menu" xPosition="before"
+          (closed)="activeBlockIndex.set(null)">
+  <ng-template matMenuContent let-i="i" let-type="type">
+    <button mat-menu-item type="button"
+            *ngIf="type === 'location' || type === 'link'"
+            (click)="editBlockFromMenu(i)">
+      <mat-icon>edit</mat-icon>
+      <span>Modifica</span>
+    </button>
+    <button mat-menu-item type="button"
+            (click)="moveBlockUp(i)"
+            [disabled]="!canMoveBlockUp(i)">
+      <mat-icon>arrow_upward</mat-icon>
+      <span>Sposta su</span>
+    </button>
+    <button mat-menu-item type="button"
+            (click)="moveBlockDown(i)"
+            [disabled]="!canMoveBlockDown(i)">
+      <mat-icon>arrow_downward</mat-icon>
+      <span>Sposta giù</span>
+    </button>
+    <button mat-menu-item type="button"
+            (click)="removeBlock(i)"
+            [disabled]="!canRemoveBlock(i)">
+      <mat-icon>delete_outline</mat-icon>
+      <span>Elimina</span>
+    </button>
+  </ng-template>
+</mat-menu>
+
 <!-- ── Floating toolbars (M3 Expressive) ── -->
 <!-- toolbar-hidden via CSS class (non *ngIf): su iOS il focus event su input[type=time]
      può non propagarsi correttamente con *ngIf, visibility:hidden è più affidabile -->
-<div class="floating-toolbar-area" [class.toolbar-hidden]="nonTextFieldFocused() || keyboardOpen()">
+<div class="floating-toolbar-area" [class.toolbar-hidden]="nonTextFieldFocused()">
 
   <!-- Backdrop per chiudere la toolbar add-block -->
   <div class="add-block-backdrop" *ngIf="addBlockMenuOpen()" (click)="closeAddBlockMenu()"></div>
@@ -730,17 +750,6 @@
   <span class="presence-chip" *ngIf="presenceUsers().length > 0">
     @{{ presenceUsers()[0].displayName }}{{ presenceUsers().length > 1 ? ' +' + (presenceUsers().length - 1) : '' }}
   </span>
-</button>
-
-<!-- Mini-FAB calendar: visibile solo per type='event' con >1 calendar owned.
-     Apre uno sheet con tutti i calendari owned come pille selezionabili. -->
-<button class="calendar-mini-fab"
-        type="button"
-        *ngIf="note.type === 'event' && ownedCalendars.length > 1"
-        (click)="openCalendarPickerSheet()"
-        [class.calendar-mini-fab--hidden]="activeTextBlockIndex() !== null || addBlockMenuOpen() || keyboardOpen()"
-        [attr.aria-label]="'EVENT.PICK_CALENDAR' | translate">
-  <span class="calendar-mini-fab-dot" [style.background-color]="selectedCalendarColor"></span>
 </button>
 
 <!-- Snooze/mute sheet: visibile SOLO per gli eventi. Per i memo, snooze/mute sono
