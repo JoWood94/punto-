@@ -240,11 +240,11 @@
   display: flex;
   align-items: center;
   gap: 5px;
-  // Il titolo deve consumare lo spazio centrale; le icone trailing
-  // (status promemoria) si posizionano alla fine della riga senza far
-  // wrappare il titolo. ellipsis su titolo se troppo lungo.
+  // Titolo non grow (flex: 0 1 auto) → si stringe solo se lungo,
+  // così le icone trailing restano attaccate al titolo invece di
+  // essere spinte a fine row.
   > .note-item-title {
-    flex: 1 1 auto;
+    flex: 0 1 auto;
     min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -261,11 +261,10 @@
   color: var(--mat-sys-on-secondary-container, #21005d);
 }
 
-// Trailing bells: posizionati a fine riga dopo il titolo (ricorrenza,
-// status completato, notifiche). Margin-left auto sul primo per
-// spingere il gruppo a destra anche con icone leading mancanti.
+// Trailing bells: subito dopo il titolo (ricorrenza, status completato,
+// notifiche). Niente margin-left auto: restano attaccate al testo del titolo.
 .note-card-bell--trail {
-  &:first-of-type { margin-inline-start: auto; }
+  // (gap del flex-row gestisce la spaziatura)
 }
 
 // ─── Sezione "Condivise con me" — header differenziato ──────────
