@@ -46,8 +46,10 @@ const messaging = admin.messaging();
  */
 function extractTokens(userData) {
   const fromDevices = Object.values(userData.fcmDevices ?? {}).filter(t => typeof t === 'string');
-  const legacy = (userData.fcmTokens ?? []).filter(t => !fromDevices.includes(t));
-  return [...fromDevices, ...legacy];
+  // Se fcmDevices è presente, ignora completamente fcmTokens legacy per evitare duplicati
+  // (il client fa arrayRemove solo del token corrente, token diversi resterebbero)
+  if (fromDevices.length > 0) return fromDevices;
+  return (userData.fcmTokens ?? []).filter(t => typeof t === 'string');
 }
 
 /**
