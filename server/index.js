@@ -122,6 +122,7 @@ async function checkAndSendReminders() {
       console.log("Nessun promemoria in sospeso ora.");
       return;
     }
+    console.log(`Query: ${notesSnapshot.size} doc(s) con reminderStatus=pending.`);
 
     // Prefetch snooze/mute attivi: due collectionGroup query (index-backed).
     // snoozeMap → noteId → Set<uid> skippati (unione). Snooze temporaneo cleanup
@@ -179,7 +180,10 @@ async function checkAndSendReminders() {
       // Gli eventi calendario sono gestiti esclusivamente da checkAndSendEventReminders.
       // Skipparli qui evita il doppio invio quando un evento ha sia reminderStatus:'pending'
       // che una entry nella sub-collection eventReminders.
-      if (note.type === 'event') continue;
+      if (note.type === 'event') {
+        console.log(`[skip-event] note=${doc.id} uid=${note.uid} reminderTime=${new Date(reminderMs).toISOString()}`);
+        continue;
+      }
 
       // Calcola il momento effettivo di notifica applicando l'offset (se presente).
       // notifyTime = reminderTime - notifyOffsetMin * 60000.
@@ -191,6 +195,7 @@ async function checkAndSendReminders() {
 
       // Filtro in-memory: scarta i doc la cui notifyTime è ancora nel futuro.
       if (notifyTime > now) {
+        console.log(`[too-early] note=${doc.id} uid=${note.uid} notifyTime=${new Date(notifyTime).toISOString()} (fra ${Math.round((notifyTime - now) / 60000)}min)`);
         continue;
       }
 
@@ -348,6 +353,9 @@ async function checkAndSendReminders() {
           ? rawTitle
           : strings.defaultTitle;
         const bodyText = formatSmartDate(reminderMs, language) ?? strings.bodyNoDate;
+
+        const safeTitle = (rawTitle && !isEncrypted(rawTitle)) ? `"${rawTitle}"` : '[cifrato]';
+        console.log(`[send] note=${doc.id} uid=${uid} title=${safeTitle} reminderTime=${new Date(reminderMs).toISOString()} body="${bodyText}" tokens=${allTokens.length}`);
 
         try {
           const response = await messaging.sendEachForMulticast({
@@ -585,6 +593,7 @@ async function checkAndSendEventReminders() {
     console.log('Nessun evento nella finestra di check.');
     return;
   }
+  console.log(`Query eventi: ${eventsSnap.size} evento/i nella finestra [now-1h, now+8gg].`);
 
   const tokensCache = {};
   const updates = [];
@@ -666,6 +675,9 @@ async function checkAndSendEventReminders() {
           ? rawTitle
           : strings.defaultTitle;
         const bodyText = formatSmartDate(eventStart, language) ?? strings.bodyNoDate;
+
+        const safeEvTitle = (rawTitle && !isEncrypted(rawTitle)) ? `"${rawTitle}"` : '[cifrato]';
+        console.log(`[event-send] event=${eventDoc.id} uid=${uid} title=${safeEvTitle} offset=${offset}min targetTime=${new Date(targetTime).toISOString()} body="${bodyText}" tokens=${tokens.length}`);
 
         try {
           const resp = await messaging.sendEachForMulticast({
