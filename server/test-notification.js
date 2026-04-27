@@ -51,7 +51,10 @@ async function sendTestNotification() {
 
   for (const userDoc of userDocs) {
     const data = userDoc.data();
-    const tokens = data.fcmTokens || [];
+    const fromDevices = Object.values(data.fcmDevices ?? {}).filter(t => typeof t === 'string');
+    const legacy = (data.fcmTokens ?? []).filter(t => !fromDevices.includes(t));
+    const tokens = [...fromDevices, ...legacy];
+    console.log(`  [${userDoc.id}] fcmDevices=${fromDevices.length} fcmTokens(legacy)=${legacy.length}`);
     if (tokens.length === 0) {
       console.log(`  [${userDoc.id}] Nessun token FCM registrato — skip.`);
       continue;
