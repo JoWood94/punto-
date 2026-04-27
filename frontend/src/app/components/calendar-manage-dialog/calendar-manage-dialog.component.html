@@ -3,7 +3,7 @@
   <!-- Header -->
   <div class="manage-dialog-header" mat-dialog-title>
     <span class="manage-dialog-title">{{ 'CALENDAR.MANAGE_TITLE' | translate }}</span>
-    <button mat-icon-button class="manage-close-btn" type="button" (click)="cancel()"
+    <button mat-icon-button class="manage-close-btn" type="button" (click)="close()"
             [attr.aria-label]="'COMMON.CLOSE' | translate">
       <mat-icon>close</mat-icon>
     </button>
@@ -30,12 +30,13 @@
       <!-- Nome -->
       <section class="manage-section">
         <div class="manage-section-label">{{ 'CALENDAR.NAME_LABEL' | translate }}</div>
-        <mat-form-field appearance="outline" class="manage-name-field">
+        <mat-form-field appearance="outline" subscriptSizing="dynamic" class="manage-name-field">
           <input matInput
                  [(ngModel)]="title"
                  [disabled]="isDefault"
                  [placeholder]="'CALENDAR.NAME_LABEL' | translate"
-                 maxlength="64" />
+                 maxlength="64"
+                 (blur)="onTitleBlur()" />
           <mat-hint *ngIf="isDefault">{{ 'CALENDAR.NAME_LOCKED_HINT' | translate }}</mat-hint>
         </mat-form-field>
       </section>
@@ -106,16 +107,5 @@
     </ng-container>
 
   </mat-dialog-content>
-
-  <!-- Footer -->
-  <mat-dialog-actions class="manage-dialog-actions">
-    <button mat-button type="button" (click)="cancel()">
-      {{ 'COMMON.CANCEL' | translate }}
-    </button>
-    <button *ngIf="isOwned" mat-flat-button color="primary" type="button" [disabled]="saving" (click)="save()">
-      <mat-spinner *ngIf="saving" diameter="16" class="inline-spinner"></mat-spinner>
-      {{ 'COMMON.SAVE' | translate }}
-    </button>
-  </mat-dialog-actions>
 
 </div>

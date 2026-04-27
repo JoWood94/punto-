@@ -1,5 +1,5 @@
 <!-- Header unico globale — fuori dal sidenav container -->
-<mat-toolbar class="app-header">
+<mat-toolbar class="app-header" [class.app-header--compact]="isMobile && (activeNote !== undefined || settingsOpen)">
 
   <!-- Back: editor (mobile) oppure settings embedded su mobile.
        Su desktop l'header non cambia: niente back, settings chiuso navigando altrove. -->
@@ -11,9 +11,9 @@
     <mat-icon>arrow_back</mat-icon>
   </button>
 
-  <!-- Logo -->
-  <img src="punto_logo_no_bg.png" alt="punto! logo" class="mobile-center-logo" *ngIf="isMobile" />
-  <img src="punto_logo_no_bg.png" alt="punto! logo" class="header-logo" *ngIf="!isMobile" />
+  <!-- Logo: visibile sempre su desktop; su mobile solo nella list view (non in editor/settings) -->
+  <img src="punto_logo_no_bg.png" alt="punto! logo" class="header-logo"
+       *ngIf="!isMobile || (activeNote === undefined && !settingsOpen)" />
 
   <span class="spacer"></span>
 
@@ -71,6 +71,7 @@
 </div>
 
 <mat-sidenav-container class="dashboard-container"
+  [class.dashboard-container--compact]="isMobile && (activeNote !== undefined || settingsOpen)"
   style="touch-action: pan-y"
   (touchstart)="isMobile && onTouchStart($event)"
   (touchend)="isMobile && onTouchEnd($event)">
@@ -337,6 +338,7 @@
                        [initialNoteType]="newNoteType"
                        [initialCalendarId]="newNoteCalendarId"
                        [ownedCalendars]="ownedCalendars"
+                       [allCalendars]="myCalendars"
                        (closeEditor)="closeEditor($event)"
                        (noteCreated)="onNoteCreated($event)"
                        (noteLiveUpdate)="onNoteLiveUpdate($event)">

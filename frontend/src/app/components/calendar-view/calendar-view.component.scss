@@ -23,6 +23,7 @@
   flex-shrink: 0;
 
   .nav-controls {
+    position: relative;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -35,6 +36,14 @@
       text-align: center;
       text-transform: capitalize;
       color: rgba(0, 0, 0, 0.8);
+    }
+
+    // Tune button ancorato all'estrema destra: la nav resta centrata sul mese.
+    .calendar-tune-btn {
+      position: absolute;
+      right: 4px;
+      top: 50%;
+      transform: translateY(-50%);
     }
   }
 }
@@ -173,17 +182,21 @@
   gap: 4px;
 
   .nav-controls {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    width: 100%;
+    // Stesso pattern del desktop: frecce+label centrati, tune absolute a destra.
+    // Evita overlap delle touch area (48×48px) tra chevron_right e tune.
+    justify-content: center;
+    padding-right: 52px;
 
     .header-label {
       font-size: 13px;
       font-weight: 500;
-      flex: 1;
+      min-width: 100px; // previene overflow su iPhone mini
       text-align: center;
       text-transform: capitalize;
+    }
+
+    .calendar-tune-btn {
+      right: 0;
     }
   }
 }
@@ -292,6 +305,13 @@
       font-weight: 600;
     }
 
+    .day-number-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 2px;
+    }
+
     .day-number {
       display: flex;
       align-items: center;
@@ -301,7 +321,14 @@
       font-size: 12px;
       font-weight: 500;
       color: rgba(0, 0, 0, 0.65);
-      margin-bottom: 3px;
+    }
+
+    .more-notes--top {
+      font-size: 9px;
+      font-weight: 600;
+      color: rgba(0, 0, 0, 0.38);
+      line-height: 1;
+      padding: 0 2px;
     }
 
     .day-notes {
@@ -478,64 +505,38 @@
     max-width: 640px;
     margin: 0 auto;
 
-    .day-note-item {
+    .day-note-card {
       border-radius: 8px;
-      padding: 14px 16px;
+      padding: 12px 14px;
       cursor: pointer;
-      display: flex;
-      gap: 16px;
+      color: white;
       transition: filter 0.12s;
 
-      &:hover { filter: brightness(0.92); }
+      &:hover  { filter: brightness(0.92); }
+      &:active { filter: brightness(0.88); }
 
-      &.day-note-reminder {
-        .day-note-time, .day-note-title, .day-note-preview { color: rgba(255,255,255,0.9); }
-        .day-bell { color: white; }
-      }
-
-      &:not(.day-note-reminder) {
-        .day-note-time, .day-note-title { color: white; }
-        .day-note-preview { color: white; opacity: 0.75; }
-        .day-bell { color: white; }
-      }
-
-      .day-note-time {
+      .day-note-card-meta {
         display: flex;
         align-items: center;
-        gap: 4px;
-        font-size: 13px;
+        gap: 5px;
+        font-size: 12px;
         font-weight: 600;
-        min-width: 46px;
-        padding-top: 2px;
-        flex-shrink: 0;
+        color: rgba(255, 255, 255, 0.8);
+        margin-bottom: 4px;
 
-        .day-bell {
-          font-size: 16px !important;
-          width: 16px;
-          height: 16px;
+        .day-note-card-icon {
+          font-size: 14px !important;
+          width: 14px;
+          height: 14px;
+          color: inherit;
+          flex-shrink: 0;
         }
       }
 
-      .day-note-content {
-        flex: 1;
-        min-width: 0;
-
-        .day-note-title {
-          font-size: 15px;
-          font-weight: 500;
-          margin-bottom: 4px;
-        }
-
-        .day-note-preview {
-          font-size: 13px;
-          overflow: hidden;
-          max-height: 38px;
-          display: -webkit-box;
-          -webkit-box-orient: vertical;
-          -webkit-line-clamp: 2;
-
-          p { margin: 0; }
-        }
+      .day-note-card-title {
+        font-size: 15px;
+        font-weight: 500;
+        color: white;
       }
     }
   }
@@ -615,43 +616,147 @@
     border-right: 1px solid rgba(0, 0, 0, 0.06);
     border-bottom: 1px solid rgba(0, 0, 0, 0.06);
 
+    .day-number-row { margin-bottom: 1px; }
     .day-number { font-size: 10px; width: 20px; height: 20px; line-height: 20px; }
     &.today .day-number { width: 20px; height: 20px; }
-    .day-notes .note-chip:nth-child(n+2) { display: none; }
+    .more-notes--top { font-size: 8px; }
     .more-notes { font-size: 9px; }
   }
 
 
-  // Week view
+  // Week view mobile — layout a righe (una per giorno, altezza uguale)
   .week-view {
-    padding-bottom: 88px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    padding-bottom: 88px; // spazio per FAB + bottom nav
   }
 
-  .week-grid .week-day-col {
-    cursor: pointer;
+  .week-grid {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
 
-    &:active {
-      background: rgba(0, 0, 0, 0.04);
-    }
+    .week-day-col {
+      flex: 1;
+      min-height: 0;
+      display: flex;
+      flex-direction: row;
+      align-items: stretch;
+      border-right: none;
+      border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+      cursor: pointer;
+      transition: background 0.12s;
 
-    .week-day-header {
-      padding: 8px 2px 4px;
+      &:last-child { border-bottom: none; }
+      &:active     { background: rgba(0, 0, 0, 0.04); }
 
-      .week-day-name   { font-size: 8px; letter-spacing: 0; }
-      .week-day-number { font-size: 15px; width: 26px; height: 26px; }
+      &.today {
+        background: color-mix(in srgb, var(--mat-sys-on-surface) 4%, transparent);
+      }
+
+      .week-day-header {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        width: 64px;
+        flex-shrink: 0;
+        padding: 6px 8px;
+        border-right: 1px solid rgba(0, 0, 0, 0.06);
+        border-bottom: none;
+        cursor: inherit;
+
+        &:hover { background: transparent; }
+
+        .week-day-name {
+          font-size: 10px;
+          font-weight: 600;
+          letter-spacing: 0.3px;
+          color: rgba(0, 0, 0, 0.45);
+          text-transform: uppercase;
+        }
+
+        .week-day-number {
+          font-size: 18px;
+          width: 30px;
+          height: 30px;
+          margin-top: 2px;
+        }
+      }
+
+      // mobile: area cards — scroll orizzontale, label giorno fisso a sinistra
+      .week-day-cards {
+        flex: 1;
+        min-width: 0;
+        padding: 5px 8px;
+        display: flex;
+        flex-direction: row;
+        align-items: stretch;
+        gap: 6px;
+        overflow-x: auto;
+        overflow-y: hidden;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+        &::-webkit-scrollbar { display: none; }
+
+        .week-day-note-card {
+          flex-shrink: 0;
+          width: 160px;
+          border-radius: 6px;
+          padding: 7px 10px;
+          cursor: pointer;
+          color: white;
+          transition: filter 0.12s;
+          display: flex;
+          flex-direction: column;
+          justify-content: center;
+
+          &:active { filter: brightness(0.92); }
+
+          .week-card-meta {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 11px;
+            font-weight: 600;
+            color: rgba(255, 255, 255, 0.8);
+            margin-bottom: 2px;
+
+            .week-card-icon {
+              font-size: 12px !important;
+              width: 12px;
+              height: 12px;
+              color: inherit;
+              flex-shrink: 0;
+            }
+          }
+
+          .week-card-title {
+            font-size: 13px;
+            font-weight: 500;
+            color: white;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+          }
+        }
+
+        .more-notes {
+          flex-shrink: 0;
+          font-size: 10px;
+          color: rgba(0, 0, 0, 0.45);
+          padding: 1px 2px;
+          white-space: nowrap;
+        }
+      }
     }
   }
 
   // Day view
   .day-view {
     padding: 12px 14px;
-
-    .day-notes-list .day-note-item {
-      flex-direction: column;
-      gap: 4px;
-
-      .day-note-time { min-width: 0; }
-    }
   }
 }
 

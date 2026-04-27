@@ -10,6 +10,7 @@
     "RETRY": "Riprova"
   },
   "COMMON": {
+    "OK": "OK",
     "CANCEL": "Annulla",
     "CONFIRM": "Conferma",
     "DELETE": "Elimina",
@@ -181,6 +182,10 @@
     "ADD_REMINDER": "Aggiungi promemoria",
     "REMOVE_REMINDER": "Rimuovi promemoria",
     "ADD_BLOCK": "Aggiungi blocco",
+    "BLOCK_EDIT": "Modifica",
+    "BLOCK_MOVE_UP": "Sposta su",
+    "BLOCK_MOVE_DOWN": "Sposta giù",
+    "BLOCK_DELETE": "Elimina",
     "SNOOZE_LABEL": "Snooze",
     "SNOOZE_15MIN": "15 minuti",
     "SNOOZE_1H": "1 ora",
@@ -213,7 +218,7 @@
     "SHOW_SECTION": "Mostra",
     "SHOW_MEMOS": "Mostra promemoria",
     "SHOW_ALL_NOTES": "Mostra note senza promemoria",
-    "VISIBLE_CALENDARS_SECTION": "Calendari visibili",
+    "VISIBLE_CALENDARS_SECTION": "Calendari",
     "MANAGE_TOOLTIP": "Modifica calendario",
     "OPEN_FILTER": "Filtri",
     "PERSONAL_DEFAULT_TOOLTIP": "Il calendario personale è sempre visibile",

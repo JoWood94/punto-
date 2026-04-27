@@ -159,7 +159,7 @@ body {
 
 /* app-header globale — usato in dashboard e settings */
 :root {
-  --app-header-h: calc(80px + env(safe-area-inset-top, 0px));
+  --app-header-h: calc(64px + env(safe-area-inset-top, 0px));
 }
 
 .app-header {

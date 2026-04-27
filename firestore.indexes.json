@@ -39,6 +39,14 @@
         { "fieldPath": "type", "order": "ASCENDING" },
         { "fieldPath": "eventStart", "order": "ASCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "notes",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "reminderStatus", "order": "ASCENDING" },
+        { "fieldPath": "reminderTime", "order": "ASCENDING" }
+      ]
     }
   ],
   "fieldOverrides": [

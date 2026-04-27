@@ -1,7 +1,7 @@
 import {
   Component, Input, Output, EventEmitter, inject, OnInit, OnChanges, OnDestroy,
   SimpleChanges, ViewChildren, ViewChild, QueryList, ElementRef, ChangeDetectorRef,
-  AfterViewInit, AfterViewChecked, DoCheck, signal, NgZone
+  AfterViewInit, AfterViewChecked, DoCheck, signal, NgZone, HostListener
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -85,6 +85,8 @@ export class NoteEditorComponent implements OnInit, OnChanges, DoCheck, AfterVie
   @Input() initialCalendarId?: string;
   /** Calendari owned dall'utente corrente (Fase 4 G). Passato dal dashboard. */
   @Input() ownedCalendars: Calendar[] = [];
+  /** Tutti i calendari visibili (owned + subscribed). Usato per lookup read-only su eventi guest. */
+  @Input() allCalendars: Calendar[] = [];
   /** Emette la nota corrente (o null) per permettere al dashboard di sincronizzare la vista. */
   @Output() closeEditor = new EventEmitter<Partial<Note> | null>();
   @Output() noteCreated = new EventEmitter<string>();
@@ -117,6 +119,10 @@ export class NoteEditorComponent implements OnInit, OnChanges, DoCheck, AfterVie
   readonly isList = signal(false);
   readonly isOrderedList = signal(false);
   readonly activeTextBlockIndex = signal<number | null>(null);
+  /** Indice del blocco "in interazione": rivela il trigger menu (3 dots).
+   *  Settato da click sul blocco e da focus dei text block. Resettato al
+   *  click fuori dai blocchi (cfr. onDocumentClickReset). */
+  readonly activeBlockIndex = signal<number | null>(null);
   /** true quando la tastiera virtuale è aperta (detection via visualViewport).
    *  Usato per nascondere i floating button mobile mentre si digita. */
   readonly keyboardOpen = signal(false);
@@ -443,6 +449,9 @@ export class NoteEditorComponent implements OnInit, OnChanges, DoCheck, AfterVie
   private pendingOwnWrite = false;
   /** Block index to focus after next DOM init (used to open keyboard on new text block). */
   private pendingFocusBlockIndex: number | null = null;
+  private pendingFocusChecklistBlockIndex: number | null = null;
+  /** When true, onTextFocus() skips signal updates to avoid interrupting iOS keyboard gesture chain. */
+  private _skipTextFocusSignals = false;
   /** Set to true when a new note is created — focuses the title input after DOM init. */
   private pendingFocusTitleInput = false;
 
@@ -659,6 +668,8 @@ export class NoteEditorComponent implements OnInit, OnChanges, DoCheck, AfterVie
     this.memoInlineToastTimer = setTimeout(() => {
       this.memoInlineToast.set(null);
       this.memoInlineToastTimer = null;
+      block._evaded = false;
+      block._prevTime = null;
     }, 6000);
   }
 
@@ -673,9 +684,9 @@ export class NoteEditorComponent implements OnInit, OnChanges, DoCheck, AfterVie
     return this.note.blocks.some(b => b.type === 'reminder');
   }
 
-  /** Mostra il calendar picker solo per eventi con almeno 2 calendari owned disponibili. */
+  /** Mostra la calendar pill: interattiva per owner con ≥2 calendari, read-only per guest. */
   get showCalendarPicker(): boolean {
-    return this.note?.type === 'event' && this.ownedCalendars.length > 1;
+    return this.note?.type === 'event' && (this.ownedCalendars.length > 1 || this.isReadOnlyEvent);
   }
 
   /**
@@ -696,8 +707,16 @@ export class NoteEditorComponent implements OnInit, OnChanges, DoCheck, AfterVie
   /** Colore del calendario attualmente selezionato per il dot del mini-FAB. */
   get selectedCalendarColor(): string {
     if (!this.note?.calendarId) return '#1C1B1F';
-    const cal = this.ownedCalendars.find(c => c.id === this.note.calendarId);
+    const cal = this.allCalendars.find(c => c.id === this.note.calendarId)
+             ?? this.ownedCalendars.find(c => c.id === this.note.calendarId);
     return cal?.color || '#1C1B1F';
+  }
+
+  get selectedCalendarTitle(): string {
+    if (!this.note?.calendarId) return '';
+    const cal = this.allCalendars.find(c => c.id === this.note.calendarId)
+             ?? this.ownedCalendars.find(c => c.id === this.note.calendarId);
+    return cal?.title || '';
   }
 
   async openCalendarPickerSheet(): Promise<void> {
@@ -772,6 +791,13 @@ export class NoteEditorComponent implements OnInit, OnChanges, DoCheck, AfterVie
   /** True se il guest può modificare i reminder (editReminders). */
   get guestCanEditReminders(): boolean {
     return !this.isGuest || !!(this.note.myPermissions?.editReminders);
+  }
+
+  /** True se l'utente può spuntare/de-spuntare checklist (ma non modificare il testo).
+   *  Permesso più ampio di guestCanEdit: vale per tutti i collaboratori diretti della nota,
+   *  ma NON per i subscriber del calendario (isReadOnlyEvent). */
+  get guestCanToggleChecklist(): boolean {
+    return !this.isReadOnlyEvent;
   }
 
   // ─── Sharing ────────────────────────────────────────────────────────────────
@@ -892,6 +918,38 @@ export class NoteEditorComponent implements OnInit, OnChanges, DoCheck, AfterVie
       this.initTextBlockElements();
       this.applyPendingFocus();
     }
+    if (this.pendingFocusChecklistBlockIndex !== null) {
+      this.applyPendingChecklistFocus();
+    }
+  }
+
+  /** Foca il primo input checklist del blocco appena creato.
+   *  I blocchi reminder non hanno un .block-item DOM (sono renderizzati a parte),
+   *  quindi mappiamo l'indice della collezione note.blocks all'indice DOM
+   *  contando solo i blocchi non-reminder. */
+  private applyPendingChecklistFocus(): void {
+    const targetIdx = this.pendingFocusChecklistBlockIndex;
+    if (targetIdx === null) return;
+    let domIdx = 0;
+    for (let i = 0; i < targetIdx; i++) {
+      if (this.note.blocks[i].type !== 'reminder') domIdx++;
+    }
+    const root = this.editorContent?.nativeElement;
+    if (!root) return;
+    const blockEls = root.querySelectorAll<HTMLElement>('.block-item');
+    const blockEl = blockEls[domIdx];
+    const input = blockEl?.querySelector<HTMLInputElement>('.checklist-input');
+    if (!input) return;
+    this.pendingFocusChecklistBlockIndex = null;
+    // focus() prima di activeBlockIndex.set(): su iOS il re-render di ⋮/+
+    // scatenato dal signal può interrompere il focus e bloccare l'apertura
+    // della tastiera virtuale. Il blocco diventa "attivo" dopo il focus.
+    input.focus();
+    this.activeBlockIndex.set(targetIdx);
+    // block: 'nearest' scrolla solo il minimo per rendere visibile l'input,
+    // evitando di posizionarlo al centro della viewport intera (che con la
+    // tastiera aperta corrisponde a troppo in alto).
+    input.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
   }
 
   private applyPendingFocus() {
@@ -905,14 +963,16 @@ export class NoteEditorComponent implements OnInit, OnChanges, DoCheck, AfterVie
     }
     const el = this.textBlockEls.toArray()[textElIdx]?.nativeElement;
     if (!el) return;
+    // Stessa tecnica di applyPendingChecklistFocus: sopprimiamo gli aggiornamenti
+    // segnale durante el.focus() per non innescare un re-render che interrompe
+    // la catena gesture-iOS e blocca l'apertura della tastiera virtuale.
+    this._skipTextFocusSignals = true;
     el.focus();
-    // Posiziona il cursore alla fine del contenuto
-    const range = document.createRange();
-    range.selectNodeContents(el);
-    range.collapse(false);
-    const sel = window.getSelection();
-    sel?.removeAllRanges();
-    sel?.addRange(range);
+    this._skipTextFocusSignals = false;
+    this.activeTextBlockIndex.set(targetIdx);
+    this.activeBlockIndex.set(targetIdx);
+    this.updateFormatState();
+    el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
   }
 
   private initTextBlockElements() {
@@ -1171,7 +1231,7 @@ export class NoteEditorComponent implements OnInit, OnChanges, DoCheck, AfterVie
         newBlock = { type: 'text', html: '' };
         break;
       case 'checklist':
-        newBlock = { type: 'checklist', items: [] } as ChecklistBlock;
+        newBlock = { type: 'checklist', items: [{ text: '', done: false }] } as ChecklistBlock;
         break;
       case 'location':
         newBlock = { type: 'location', address: '', searchQuery: '', editing: true, addressOptions: [] } as any;
@@ -1200,22 +1260,36 @@ export class NoteEditorComponent implements OnInit, OnChanges, DoCheck, AfterVie
       this.note.blocks.length === 1 &&
       this.note.blocks[0].type === 'text' &&
       !(this.note.blocks[0] as TextBlock).html;
+    let createdAt: number;
     if (isOnlyEmptyText) {
       this.note.blocks = [newBlock];
+      createdAt = 0;
     } else {
-      const insertAt = afterIndex !== undefined ? afterIndex + 1 : this.note.blocks.length;
+      createdAt = afterIndex !== undefined ? afterIndex + 1 : this.note.blocks.length;
       this.note.blocks = [
-        ...this.note.blocks.slice(0, insertAt),
+        ...this.note.blocks.slice(0, createdAt),
         newBlock,
-        ...this.note.blocks.slice(insertAt)
+        ...this.note.blocks.slice(createdAt)
       ];
-      if (type === 'text') this.pendingFocusBlockIndex = insertAt;
+      if (type === 'text') this.pendingFocusBlockIndex = createdAt;
     }
     this.textBlocksNeedInit = true;
-    // I blocchi testo si auto-focalizzano: iOS keyboard avoidance gestisce lo scroll.
-    // scrollEditorToBottom sovrascrive quella posizione e mostra il nuovo blocco
-    // in fondo con il padding-bottom bianco visibile sopra la toolbar.
+    if (type === 'text') {
+      // iOS: il focus deve avvenire nello stesso task dell'evento utente perché
+      // il browser apra la tastiera virtuale. detectChanges() forza il render
+      // sincrono del nuovo elemento (#textBlockEl entra nella QueryList), poi
+      // applyPendingFocus() chiama el.focus() prima che zone.js chiuda il task.
+      // La seconda chiamata da ngAfterViewChecked sarà no-op (pendingFocusBlockIndex = null).
+      this.cdr.detectChanges();
+      this.applyPendingFocus();
+    }
     if (type !== 'text') this.scrollEditorToBottom();
+    if (type === 'checklist') {
+      // activeBlockIndex viene impostato DOPO input.focus() in applyPendingChecklistFocus
+      // per evitare che il re-render di ⋮/+ su iOS interrompa il focus prima che
+      // il browser apra la tastiera virtuale.
+      this.pendingFocusChecklistBlockIndex = createdAt;
+    }
     this.triggerAutoSave();
   }
 
@@ -1305,6 +1379,52 @@ export class NoteEditorComponent implements OnInit, OnChanges, DoCheck, AfterVie
     return true;
   }
 
+  /** Sposta il blocco verso l'alto, saltando i reminder (filtrati nel template). */
+  moveBlockUp(index: number): void {
+    if (!this.note?.blocks || index <= 0) return;
+    let prev = index - 1;
+    while (prev >= 0 && this.note.blocks[prev].type === 'reminder') prev--;
+    if (prev < 0) return;
+    this.saveTextBlocksFromDOM();
+    const blocks = [...this.note.blocks];
+    moveItemInArray(blocks, index, prev);
+    this.note.blocks = blocks;
+    this.textBlocksNeedInit = true;
+    this.triggerAutoSave();
+  }
+
+  /** Sposta il blocco verso il basso, saltando i reminder (filtrati nel template). */
+  moveBlockDown(index: number): void {
+    if (!this.note?.blocks || index >= this.note.blocks.length - 1) return;
+    let next = index + 1;
+    while (next < this.note.blocks.length && this.note.blocks[next].type === 'reminder') next++;
+    if (next >= this.note.blocks.length) return;
+    this.saveTextBlocksFromDOM();
+    const blocks = [...this.note.blocks];
+    moveItemInArray(blocks, index, next);
+    this.note.blocks = blocks;
+    this.textBlocksNeedInit = true;
+    this.triggerAutoSave();
+  }
+
+  /** True se il blocco all'indice ha almeno un blocco draggabile precedente (non-reminder). */
+  canMoveBlockUp(index: number): boolean {
+    if (!this.note?.blocks || index <= 0) return false;
+    for (let i = index - 1; i >= 0; i--) {
+      if (this.note.blocks[i].type !== 'reminder') return true;
+    }
+    return false;
+  }
+
+  /** True se il blocco all'indice ha almeno un blocco draggabile successivo (non-reminder). */
+  canMoveBlockDown(index: number): boolean {
+    if (!this.note?.blocks || index >= this.note.blocks.length - 1) return false;
+    for (let i = index + 1; i < this.note.blocks.length; i++) {
+      if (this.note.blocks[i].type !== 'reminder') return true;
+    }
+    return false;
+  }
+
   // TODO: sostituire con block.id stabile (uuid generato alla creazione) per gestire
   // correttamente riordino e cancellazione senza re-mount dei nodi non coinvolti.
   trackBlock(index: number, _block: NoteBlock): number {
@@ -1338,12 +1458,75 @@ export class NoteEditorComponent implements OnInit, OnChanges, DoCheck, AfterVie
   }
 
   onTextFocus(blockIndex: number) {
+    if (this._skipTextFocusSignals) return;
     this.activeTextBlockIndex.set(blockIndex);
+    this.activeBlockIndex.set(blockIndex);
     this.updateFormatState();
   }
 
   onTextBlur() {
     this.activeTextBlockIndex.set(null);
+    // activeBlockIndex resta finché un click outside non lo resetta:
+    // così il trigger menu è cliccabile anche dopo il blur dell'editor.
+  }
+
+  /** Imposta il blocco "in interazione" per rivelare il trigger menu (3 dots). */
+  setActiveBlock(index: number): void {
+    this.activeBlockIndex.set(index);
+  }
+
+  /** Apre l'azione di modifica del blocco location/link/image dal menu (3 dots). */
+  editBlockFromMenu(index: number): void {
+    const block = this.note?.blocks?.[index] as any;
+    if (!block) return;
+    if (block.type === 'link') {
+      this.editLinkBlock(index);
+    } else if (block.type === 'location') {
+      block.editing = true;
+      this.cdr.markForCheck();
+    } else if (block.type === 'image') {
+      this.pickImageReplacement(index);
+    }
+  }
+
+  /** Apre un file picker programmatico per sostituire l'immagine del blocco.
+   *  onImageBlockFileSelected sovrascrive block.data, quindi la vecchia immagine
+   *  viene automaticamente rimpiazzata. */
+  private pickImageReplacement(blockIndex: number): void {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/jpeg,image/png,image/webp,image/heic,image/heif';
+    input.style.display = 'none';
+    input.addEventListener('change', (event) => {
+      this.onImageBlockFileSelected(blockIndex, event);
+      setTimeout(() => input.remove(), 0);
+    });
+    document.body.appendChild(input);
+    input.click();
+  }
+
+  /** Listener globale: click fuori da qualunque .block-item / overlay CDK
+   *  (menu, bottom sheet) → nasconde il trigger menu. */
+  @HostListener('document:click', ['$event.target'])
+  onDocumentClickReset(target: EventTarget | null): void {
+    const el = target as HTMLElement | null;
+    if (!el || typeof el.closest !== 'function') return;
+    if (el.closest('.block-item')) return;
+    if (el.closest('.cdk-overlay-container')) return;
+    if (this.activeBlockIndex() !== null) this.activeBlockIndex.set(null);
+  }
+
+  /** True se il blocco testo è effettivamente vuoto (rendere il placeholder). */
+  isEmptyText(html: string | undefined | null): boolean {
+    if (html == null) return true;
+    const stripped = String(html)
+      .replace(/<br\s*\/?>/gi, '')
+      .replace(/<div>\s*<\/div>/gi, '')
+      .replace(/<p>\s*<\/p>/gi, '')
+      .replace(/&nbsp;/g, '')
+      .replace(/<[^>]+>/g, '')
+      .trim();
+    return stripped.length === 0;
   }
 
   updateFormatState() {
@@ -1389,21 +1572,21 @@ export class NoteEditorComponent implements OnInit, OnChanges, DoCheck, AfterVie
 
   // ─── Checklist Block ────────────────────────────────────────────────────────
 
-  addChecklistItem(block: ChecklistBlock, text: string) {
-    if (text.trim()) {
-      block.items.push({ text: text.trim(), done: false });
-      this.scrollEditorToBottom();
-      this.triggerAutoSave();
-    }
-  }
-
-  onChecklistEnter(event: Event, block: ChecklistBlock, input: HTMLInputElement) {
-    event.preventDefault(); // evita newline / submit su mobile
-    const text = input.value;
-    this.addChecklistItem(block, text);
-    input.value = '';
-    // Su iOS il focus sincrono dopo clear non funziona — setTimeout necessario
-    setTimeout(() => input.focus(), 30);
+  /** Click sul trigger "+" inline (ultimo item): aggiunge una voce vuota in
+   *  coda e ne fa focus, replicando la logica dell'invio da tastiera. */
+  addChecklistItemTrailing(block: ChecklistBlock, event: Event): void {
+    event.preventDefault();
+    event.stopPropagation();
+    const newIndex = block.items.length;
+    block.items.push({ text: '', done: false });
+    this.triggerAutoSave();
+    const target = event.currentTarget as HTMLElement | null;
+    setTimeout(() => {
+      const wrap = target?.closest('.checklist-items')
+        ?? this.editorContent?.nativeElement.querySelector('.block-item--active .checklist-items');
+      const inputs = wrap?.querySelectorAll<HTMLInputElement>('.checklist-input');
+      inputs?.[newIndex]?.focus();
+    }, 30);
   }
 
   /** Invio da un item esistente: inserisce una NUOVA riga vuota subito dopo e
@@ -1430,8 +1613,35 @@ export class NoteEditorComponent implements OnInit, OnChanges, DoCheck, AfterVie
     this.triggerAutoSave();
   }
 
+  /** Blur su un input checklist: se il focus esce dallo stesso .checklist-items
+   *  rimuove gli item finali vuoti (utente preme Invio creando l'item, poi blur
+   *  senza scrivere). Lascia almeno un item per non rendere il blocco "morto"
+   *  privo di trigger "+" inline. */
+  onChecklistInputBlur(block: ChecklistBlock, event: FocusEvent): void {
+    const next = event.relatedTarget as HTMLElement | null;
+    const currentItems = (event.target as HTMLElement | null)?.closest('.checklist-items');
+    if (next && currentItems && currentItems.contains(next)) return;
+    let changed = false;
+    while (block.items.length > 1 && !block.items[block.items.length - 1].text.trim()) {
+      block.items.pop();
+      changed = true;
+    }
+    if (changed) {
+      this.triggerAutoSave();
+      this.cdr.markForCheck();
+    }
+  }
+
+  /** Salva la modifica al testo di un item: richiede editContent. */
   onChecklistItemChange() {
     if (!this.guestCanEdit) return;
+    this.signalActivity();
+    this.triggerAutoSave();
+  }
+
+  /** Salva il toggle done/undone di un item: disponibile a tutti i collaboratori diretti. */
+  onChecklistItemToggle() {
+    if (!this.guestCanToggleChecklist) return;
     this.signalActivity();
     this.triggerAutoSave();
   }
@@ -1981,9 +2191,6 @@ export class NoteEditorComponent implements OnInit, OnChanges, DoCheck, AfterVie
 
   private isPristine(): boolean {
     if (this.userHasModifiedContent) return false;
-    // Per eventi: la creazione dal FAB → "Evento" è già un'azione esplicita,
-    // eventStart è valorizzato di default. Non considerare pristine se è un evento.
-    if (this.note.type === 'event' && typeof this.note.eventStart === 'number') return false;
     const title = (this.note.title || '').trim();
     if (title && title !== this.PLACEHOLDER_TITLE) return false;
     // Se c'è un reminder block con tempo configurato, la nota non è pristine

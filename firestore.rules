@@ -107,7 +107,7 @@ service cloud.firestore {
           request.resource.data.uid == resource.data.uid
         )
       ) && isValidTypedNote(request.resource.data)
-        && eventCalendarOwnedByWriter(request.resource.data);
+        && (resource.data.uid != request.auth.uid || eventCalendarOwnedByWriter(request.resource.data));
 
       // Solo l'owner può eliminare.
       // Nota: in Fase 3 la cascade delete dal CalendarService cancella gli eventi

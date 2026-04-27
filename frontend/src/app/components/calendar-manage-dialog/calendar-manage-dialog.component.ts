@@ -1,4 +1,4 @@
-import { Component, Inject, OnInit } from '@angular/core';
+import { Component, EventEmitter, Inject, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import {
@@ -68,7 +68,7 @@ export class CalendarManageDialogComponent implements OnInit {
   inviteCode: string | null = null;
   inviteLoading = false;
 
-  saving = false;
+  readonly calendarChange = new EventEmitter<{ title: string; color: string }>();
 
   constructor(
     public dialogRef: MatDialogRef<CalendarManageDialogComponent, CalendarManageDialogResult>,
@@ -99,7 +99,21 @@ export class CalendarManageDialogComponent implements OnInit {
 
   pickColor(c: string): void {
     this.color = c;
-    console.log('[DBG-EVT-MANAGE] palette pick', { color: c });
+    this.persistCalendar({ color: c });
+  }
+
+  onTitleBlur(): void {
+    const trimmed = this.title.trim();
+    if (!trimmed || trimmed === this.data.calendar.title) return;
+    this.persistCalendar({ title: trimmed });
+  }
+
+  private persistCalendar(partial: Partial<Pick<Calendar, 'title' | 'color'>>): void {
+    if ('title' in partial) this.data.calendar.title = partial.title!;
+    if ('color' in partial) this.data.calendar.color = partial.color!;
+    this.calendarChange.emit({ title: this.data.calendar.title, color: this.data.calendar.color ?? '#1C1B1F' });
+    this.calendarService.updateCalendar(this.data.calendar.id!, partial)
+      .catch(() => this.toast.show(this.translationService.instant('COMMON.ERROR_GENERIC')));
   }
 
   async generateCode(): Promise<void> {
@@ -156,30 +170,7 @@ export class CalendarManageDialogComponent implements OnInit {
     }
   }
 
-  async save(): Promise<void> {
-    const cal = this.data.calendar;
-    const titleChanged = this.title.trim() !== cal.title;
-    const colorChanged = this.color !== cal.color;
-    if (titleChanged || colorChanged) {
-      this.saving = true;
-      try {
-        const partial: Partial<Pick<Calendar, 'title' | 'color'>> = {};
-        if (titleChanged) partial.title = this.title.trim();
-        if (colorChanged) partial.color = this.color;
-        await this.calendarService.updateCalendar(cal.id!, partial);
-        console.log('[DBG-EVT-MANAGE] save', partial);
-      } catch {
-        this.saving = false;
-        this.toast.show(this.translationService.instant('COMMON.ERROR_GENERIC'));
-        return;
-      } finally {
-        this.saving = false;
-      }
-    }
-    this.dialogRef.close({ updated: true });
-  }
-
-  cancel(): void {
-    this.dialogRef.close();
+  close(): void {
+    this.dialogRef.close({});
   }
 }

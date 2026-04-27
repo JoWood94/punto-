@@ -795,12 +795,15 @@ export class DashboardComponent implements OnInit, OnDestroy {
     if (!time) return null;
     const today = new Date();
     const rem = new Date(time);
-    if (rem.getFullYear() === today.getFullYear() &&
-        rem.getMonth() === today.getMonth() &&
-        rem.getDate() === today.getDate()) {
-      return rem.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
-    }
-    return null;
+    const hhmm = rem.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
+    const isToday = rem.getFullYear() === today.getFullYear() &&
+                    rem.getMonth() === today.getMonth() &&
+                    rem.getDate() === today.getDate();
+    if (isToday) return hhmm;
+    // Non oggi: DD/MM HH:MM — pattern coerente con formatNextOccurrence dei ricorrenti.
+    const dd = String(rem.getDate()).padStart(2, '0');
+    const mm = String(rem.getMonth() + 1).padStart(2, '0');
+    return `${dd}/${mm} ${hhmm}`;
   }
 
   formatNextOccurrence(note: Note): string {
@@ -847,7 +850,17 @@ export class DashboardComponent implements OnInit, OnDestroy {
     event.stopPropagation();
     if (!note.id) return;
     try {
+      // Post RF-01b il reminder vive dentro blocks[type==='reminder'].status.
+      // findReminderBlock prevale sul legacy n.reminderStatus, quindi dobbiamo
+      // aggiornare il block (ricostruendo l'array) — altrimenti il filtro
+      // della lista continua a vedere il memo come 'pending'.
       const update: any = { reminderStatus: 'completed' };
+      const blocks = (note as any).blocks;
+      if (Array.isArray(blocks)) {
+        update.blocks = blocks.map((b: any) =>
+          b?.type === 'reminder' ? { ...b, status: 'completed' } : b
+        );
+      }
       const isShared = note.isShared || (note.collaboratorUids && note.collaboratorUids.length > 0);
       if (isShared) {
         const uid = this.authService.getCurrentUserId();
@@ -1180,10 +1193,14 @@ export class DashboardComponent implements OnInit, OnDestroy {
       maxWidth: '95vw',
       data: { calendars: this.myCalendars, currentUid },
     });
+    ref.componentInstance.prefsChange.subscribe(prefs => {
+      this.calendarPref = { showMemos: prefs.showMemos, hiddenCalendarIds: prefs.hiddenCalendarIds };
+      this.calendarShowAllNotes = prefs.showAllNotes;
+    });
     const result = await firstValueFrom(ref.afterClosed());
     console.log('[DBG-EVT-FILTER] dialog closed', result);
 
-    if (result?.applied) {
+    if (!result?.manage && !(result?.newCalendar || result?.addCalendar) && !result?.unsubscribe) {
       const [updatedPref, updatedShowAll] = await Promise.all([
         this.noteService.getUserPreference<{ showMemos: boolean; hiddenCalendarIds: string[] }>(
           'calendarView',
@@ -1236,6 +1253,9 @@ export class DashboardComponent implements OnInit, OnDestroy {
       width: '480px',
       maxWidth: '95vw',
       data: { calendar: cal },
+    });
+    ref.componentInstance.calendarChange.subscribe(({ title, color }: { title: string; color: string }) => {
+      this.myCalendars = this.myCalendars.map(c => c.id === cal.id ? { ...c, title, color } : c);
     });
     ref.afterClosed().subscribe(r => {
       console.log('[DBG-EVT-MANAGE] dialog closed', r);
@@ -1373,12 +1393,12 @@ export class DashboardComponent implements OnInit, OnDestroy {
   }
 
   private computeDefaultReminderDate(): Date {
-    // Use calendarCurrentDate for the day (respects day-view navigation),
-    // with current time + 5 min for the hour/minute
-    const calDate = new Date(this.calendarCurrentDate);
+    // Sempre oggi + ora corrente + 5 min (arrotondata al multiplo di 5).
+    // Non usare calendarCurrentDate: se il calendario è navigato su un altro giorno,
+    // il promemoria partirebbe da quella data invece che da oggi.
     const now = new Date(Date.now() + 5 * 60 * 1000);
     const roundedMinutes = Math.ceil(now.getMinutes() / 5) * 5;
-    const d = new Date(calDate);
+    const d = new Date();
     d.setHours(now.getHours());
     if (roundedMinutes >= 60) {
       d.setHours(d.getHours() + 1);
