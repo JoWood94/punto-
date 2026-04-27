@@ -385,26 +385,12 @@
        [style.transform]="navIndicatorTransform"
        [class.unified-toolbar-indicator--dragging]="navDragging">
   </div>
-  <button class="unified-toolbar-seg" type="button"
-          [class.unified-toolbar-seg--active]="mobileNav === 'notes'"
-          (click)="setMobileNav('notes')"
-          aria-label="Note">
-    <mat-icon>edit_note</mat-icon>
-    <span class="seg-label">{{ 'NAV.NOTES' | translate }}</span>
-  </button>
-  <button class="unified-toolbar-seg" type="button"
-          [class.unified-toolbar-seg--active]="mobileNav === 'reminders'"
-          (click)="setMobileNav('reminders')"
-          [attr.aria-label]="'NAV.REMINDERS' | translate">
-    <mat-icon>notifications</mat-icon>
-    <span class="seg-label">{{ 'NAV.REMINDERS' | translate }}</span>
-  </button>
-  <button class="unified-toolbar-seg" type="button"
-          [class.unified-toolbar-seg--active]="mobileNav === 'calendar'"
-          (click)="setMobileNav('calendar')"
-          [attr.aria-label]="'NAV.CALENDAR' | translate">
-    <mat-icon>calendar_month</mat-icon>
-    <span class="seg-label">{{ 'NAV.CALENDAR' | translate }}</span>
+  <button *ngFor="let seg of NAV_SEGMENTS" class="unified-toolbar-seg" type="button"
+          [class.unified-toolbar-seg--active]="mobileNav === seg"
+          (click)="setMobileNav(seg)"
+          [attr.aria-label]="NAV_SEGMENT_META[seg].labelKey | translate">
+    <mat-icon>{{ NAV_SEGMENT_META[seg].icon }}</mat-icon>
+    <span class="seg-label">{{ NAV_SEGMENT_META[seg].labelKey | translate }}</span>
   </button>
 </div>
 

@@ -106,7 +106,17 @@ export class DashboardComponent implements OnInit, OnDestroy {
   navIndicatorTransform = 'translateX(0px)';
   private navDragStartX = 0;
   private navDragStartIndex = 0;
-  private readonly NAV_SEGMENTS: Array<'notes' | 'reminders' | 'calendar'> = ['notes', 'reminders', 'calendar'];
+  // Su tablet/desktop (!isMobile) il calendario è già visibile a destra accanto
+  // alla note-list: il segmento "Calendario" nella toolbar è ridondante e va
+  // filtrato dall'array. Solo su mobile mostriamo tutti e tre i segmenti.
+  get NAV_SEGMENTS(): Array<'notes' | 'reminders' | 'calendar'> {
+    return this.isMobile ? ['notes', 'reminders', 'calendar'] : ['notes', 'reminders'];
+  }
+  readonly NAV_SEGMENT_META: Record<'notes' | 'reminders' | 'calendar', { icon: string; labelKey: string }> = {
+    notes: { icon: 'edit_note', labelKey: 'NAV.NOTES' },
+    reminders: { icon: 'notifications', labelKey: 'NAV.REMINDERS' },
+    calendar: { icon: 'calendar_month', labelKey: 'NAV.CALENDAR' },
+  };
   private readonly NAV_SEG_WIDTH = 52; // deve corrispondere al CSS
   isOffline = !navigator.onLine;
   hasFirestoreError = false;
@@ -469,6 +479,11 @@ export class DashboardComponent implements OnInit, OnDestroy {
   private checkMobile() {
     this.breakpointObserver.observe([Breakpoints.Handset]).subscribe(result => {
       this.isMobile = result.matches;
+      // Resize mobile→tablet con mobileNav='calendar': il segmento sparisce
+      // dall'array filtrato, l'indicator finirebbe a -52px. Riallinea su 'notes'.
+      if (!this.isMobile && this.mobileNav === 'calendar') {
+        this.setMobileNav('notes');
+      }
     });
     this.breakpointObserver.observe(['(min-width: 1280px)']).subscribe(result => {
       this.isWideDesktop = result.matches;
