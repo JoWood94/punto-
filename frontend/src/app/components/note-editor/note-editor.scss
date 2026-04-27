@@ -64,6 +64,14 @@
     padding-left: 16px;
     padding-right: 16px;
   }
+
+  // In memo mode il titolo è nell'header memo sopra: niente padding verticale qui
+  // (la riga titolo è nascosta via *ngIf nel template).
+  &--memo {
+    padding-block: 0;
+    gap: 0;
+    // Il badge "shared" e il sync indicator restano, ma non serve padding
+  }
 }
 
 .editor-header-row {
@@ -137,7 +145,7 @@
 // che rompono il fixed positioning e causano clipping da overflow:hidden.
 .reminder-mini-fab {
   position: absolute;
-  bottom: calc(28px + min(env(safe-area-inset-bottom, 0px), 44px));
+  bottom: calc(6px + min(env(safe-area-inset-bottom, 0px), 44px));
   left: 28px;
   z-index: 300;
   width: 56px;
@@ -207,7 +215,7 @@
 // campanella tramite la modifier .share-mini-fab--no-bell.
 .share-mini-fab {
   position: absolute;
-  bottom: calc(28px + min(env(safe-area-inset-bottom, 0px), 44px));
+  bottom: calc(6px + min(env(safe-area-inset-bottom, 0px), 44px));
   left: calc(28px + 56px + 12px); // reminder-fab width + gap
   z-index: 300;
 
@@ -386,7 +394,7 @@
 // Size uniforme 56×56 come reminder e share.
 .calendar-mini-fab {
   position: absolute;
-  bottom: calc(28px + min(env(safe-area-inset-bottom, 0px), 44px));
+  bottom: calc(6px + min(env(safe-area-inset-bottom, 0px), 44px));
   left: 164px;
   z-index: 300;
   width: 56px;
@@ -501,7 +509,7 @@
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
   overscroll-behavior-y: contain;
-  padding: 0 24px calc(84px + env(safe-area-inset-bottom, 0px) + 16px);
+  padding: 0 24px calc(62px + env(safe-area-inset-bottom, 0px) + 16px);
   // Forza GPU compositing: previene l'artefatto WebKit (div bianco) che appare quando
   // --vh cambia e il layer composited non si invalida finché l'utente non scrolla.
   transform: translateZ(0);
@@ -564,7 +572,8 @@
 }
 
 // ─── Floating Toolbar Area ───────────────────────────────────
-// flex-shrink:0 + height fisso: il toolbar occupa sempre 84px + safe-area
+// flex-shrink:0 + height fisso: il toolbar occupa sempre 72px + safe-area
+// (era 84px — ridotto di 12px coerentemente con bottom offset FAB 28px→16px).
 // in fondo al flex column di :host. Quando --vh si riduce con la tastiera,
 // editor-content (flex:1) si riduce, la toolbar rimane visibile sopra la tastiera.
 // Funziona perché dashboard-container ha height:var(--vh) + overflow:hidden
@@ -577,7 +586,7 @@
   left: 0;
   right: 0;
   bottom: 0;
-  height: calc(84px + min(env(safe-area-inset-bottom, 0px), 44px));
+  height: calc(62px + min(env(safe-area-inset-bottom, 0px), 44px));
   pointer-events: none;
   z-index: 5;
 
@@ -599,7 +608,7 @@
 .format-floating-toolbar {
   position: absolute;
   left: 28px;
-  bottom: calc(28px + min(env(safe-area-inset-bottom, 0px), 44px));
+  bottom: calc(6px + min(env(safe-area-inset-bottom, 0px), 44px));
   display: flex;
   align-items: center;
   background: var(--punto-primary);
@@ -639,7 +648,7 @@
 .add-block-fab {
   position: absolute;
   right: 28px;
-  bottom: calc(28px + min(env(safe-area-inset-bottom, 0px), 44px));
+  bottom: calc(6px + min(env(safe-area-inset-bottom, 0px), 44px));
   background: var(--punto-primary) !important;
   color: white !important;
   width: 56px;
@@ -677,7 +686,7 @@
 .add-block-toolbar {
   position: absolute;
   right: calc(28px + 56px + 12px); // a sinistra del FAB con 12px gap
-  bottom: calc(28px + min(env(safe-area-inset-bottom, 0px), 44px));
+  bottom: calc(6px + min(env(safe-area-inset-bottom, 0px), 44px));
   display: flex;
   align-items: center;
   background: var(--punto-primary);
@@ -1389,501 +1398,25 @@
   }
 }
 
-// ─── Reminder: campanella nell'header ────────────────────────
-
+// ─── Campanella nell'header (riferimento legacy — mantenuto per safe) ────────
 .reminder-header-btn {
   flex-shrink: 0;
   width: 40px !important;
   height: 40px !important;
   opacity: 0.4;
-  transition:
-    opacity var(--_t),
-    color var(--_t);
-
-  mat-icon {
-    font-size: 22px;
-    width: 22px;
-    height: 22px;
-    color: var(--mat-sys-on-surface-variant);
-    transition: color var(--_t);
-  }
-
+  transition: opacity var(--_t), color var(--_t);
+  mat-icon { font-size: 22px; width: 22px; height: 22px; color: var(--mat-sys-on-surface-variant); transition: color var(--_t); }
   &:hover { opacity: 0.75; }
-
-  &--active {
-    opacity: 1;
-
-    mat-icon {
-      color: var(--punto-primary);
-    }
-  }
+  &--active { opacity: 1; mat-icon { color: var(--punto-primary); } }
 }
 
-// ─── Reminder strip — editorial hero + meta line ──────────────────────────
-// Un memo è "una cosa da ricordare, quando": la quando diventa typography,
-// non form. Palette app (#1C1B1F/#FFFBFE), font Plus Jakarta Sans con
-// letter-spacing tight, pickerizzati come text-style click-to-edit.
-
+// Variabili shared usate dal nuovo memo header
 $rs-ink: #1C1B1F;
 $rs-paper: #FFFBFE;
-$rs-danger: #D4746B;   // terracotta coerente con snooze-pill--danger
+$rs-danger: #D4746B;
 $rs-muted:  rgba(28, 27, 31, 0.55);
 $rs-sep:    rgba(28, 27, 31, 0.28);
 $rs-hover-bg: rgba(28, 27, 31, 0.05);
-
-.reminder-strip {
-  flex-shrink: 0;
-  background: var(--punto-bg, #{$rs-paper});
-  padding: 14px 24px 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  overflow: hidden;
-
-  @media (max-width: 479px) {
-    padding: 12px 16px;
-  }
-
-  // Overdue: l'hero diventa terracotta (sistema colore pre-esistente a #B3261E
-  // sostituito col terracotta brand-coherent #D4746B)
-  // Overdue: segnalato SOLO via pill "Scaduto" nel meta (non colorare
-  // l'hero — date/ora in terracotta era aggressivo). Vedi
-  // .reminder-meta-chunk--overdue-state sotto.
-
-  // Completed / evaso: opacity leggera + strikethrough hero
-  &--completed .reminder-hero {
-    opacity: 0.55;
-    .reminder-hero-date, .reminder-hero-time > span { text-decoration: line-through; }
-  }
-}
-
-// ── Hero row: [checkbox] data · ora · ricorrenza ───────────────────────────
-.reminder-hero {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 8px;
-  font-family: inherit;
-
-  // Su mobile stretto forziamo la riga unica: la ricorrenza non deve andare a capo.
-  // Gap ridotto + data abbreviata (vedi .reminder-hero-date-short) permettono
-  // di stare dentro 360-400px anche con font 16-17px.
-  @media (max-width: 479px) {
-    flex-wrap: nowrap;
-    gap: 4px;
-  }
-}
-
-// Switch responsive della data: corto sotto 480px, lungo sopra.
-.reminder-hero-date-short { display: none; }
-.reminder-hero-date-long { display: inline; }
-@media (max-width: 479px) {
-  .reminder-hero-date-short { display: inline; }
-  .reminder-hero-date-long { display: none; }
-}
-
-// Checkbox round inline (Things 3 pattern). Affordance universale da todo-app.
-.reminder-hero-check {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 26px;
-  height: 26px;
-  border: none;
-  background: transparent;
-  color: $rs-ink;
-  cursor: pointer;
-  padding: 0;
-  flex-shrink: 0;
-  border-radius: 50%;
-  transition:
-    background 160ms cubic-bezier(0.2, 0, 0, 1),
-    transform 140ms cubic-bezier(0.2, 0, 0, 1);
-
-  mat-icon {
-    font-size: 26px;
-    width: 26px;
-    height: 26px;
-    line-height: 1;
-    color: inherit;
-  }
-
-  &:hover:not(:disabled) {
-    background: $rs-hover-bg;
-  }
-  &:active:not(:disabled) {
-    transform: scale(0.92);
-  }
-
-  &:focus-visible {
-    outline: 2px solid $rs-ink;
-    outline-offset: 2px;
-  }
-
-  &:disabled {
-    opacity: 0.38;
-    cursor: not-allowed;
-  }
-
-  // Stato checked: icona filled (check_circle) già colore ink → nessun bg.
-  &--checked mat-icon {
-    color: $rs-ink;
-  }
-}
-
-.reminder-hero-date,
-.reminder-hero-time > span,
-.reminder-hero-recurrence {
-  font-family: inherit;
-  font-size: 20px;
-  font-weight: 600;
-  letter-spacing: -0.01em;
-  color: $rs-ink;
-  background: transparent;
-  border: none;
-  padding: 0 4px;
-  cursor: pointer;
-  white-space: nowrap;
-  line-height: 1.25;
-  // Editable-text affordance: dotted underline sempre visibile a rest.
-  // Pattern unificato per tutti i chunk cliccabili (hero + meta).
-  text-decoration: underline dotted $rs-sep;
-  text-decoration-thickness: 1px;
-  text-underline-offset: 4px;
-  transition:
-    color 180ms cubic-bezier(0.2, 0, 0, 1),
-    background 160ms cubic-bezier(0.2, 0, 0, 1),
-    text-decoration-color 180ms cubic-bezier(0.2, 0, 0, 1);
-
-  @media (max-width: 479px) {
-    font-size: 17px;
-    padding: 0 2px;
-  }
-
-  &:hover:not(:disabled) {
-    background: $rs-hover-bg;
-    border-radius: 6px;
-    text-decoration-style: solid;
-    text-decoration-color: $rs-muted;
-  }
-
-  &:focus-visible {
-    outline: 2px solid $rs-ink;
-    outline-offset: 2px;
-    border-radius: 6px;
-  }
-
-  &:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-    text-decoration: none;
-  }
-}
-
-.reminder-hero-date {
-  position: relative;
-  text-align: left;
-  text-transform: capitalize; // "giovedì 23 aprile" → "Giovedì 23 Aprile"
-}
-
-.reminder-hero-sep {
-  font-size: 18px;
-  font-weight: 500;
-  color: $rs-sep;
-  user-select: none;
-  padding: 0 2px;
-}
-
-// Timepicker nativo: label wrap + input type="time" stacked absolute opacity:0.
-// Il picker OS si apre sul tap; la label visibile usa lo stile hero.
-.reminder-hero-time {
-  position: relative;
-  display: inline-flex;
-  align-items: baseline;
-  cursor: pointer;
-
-  // Quando l'input time sottostante è disabled (guest senza editReminders),
-  // applica lo stesso stile disabled del recurrence select.
-  &:has(input:disabled) {
-    cursor: default;
-    > span {
-      opacity: 0.5;
-      cursor: default;
-      text-decoration: none;
-    }
-  }
-}
-
-.reminder-hero-time-input {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  opacity: 0;
-  cursor: pointer;
-  appearance: none;
-  -webkit-appearance: none;
-  font-size: 16px; // iOS anti-zoom
-  border: none;
-  background: transparent;
-
-  &:disabled { cursor: not-allowed; }
-}
-
-// Ricorrenza in hero: label come 3° token tipografico, stesso peso di data/ora.
-// Select nativo nascosto sotto per preservare il picker OS.
-.reminder-hero-recurrence {
-  position: relative;
-  display: inline-flex;
-  align-items: baseline;
-  text-transform: capitalize; // "una volta" → "Una volta"
-
-  .reminder-hero-recurrence-select {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    opacity: 0;
-    cursor: pointer;
-    appearance: none;
-    -webkit-appearance: none;
-    font-size: 16px; // iOS anti-zoom
-    border: none;
-    background: transparent;
-  }
-
-  // Quando il select sottostante è disabled, disabilita visivamente il label.
-  &:has(select:disabled) {
-    opacity: 0.5;
-    cursor: not-allowed;
-    text-decoration: none;
-  }
-}
-
-// CTA ghost pill — solo per azioni secondarie (es. "Evadi ricorrenza" overdue).
-// Meno dominante del filled CTA: border sottile, bg transparent.
-// Inline naturale nella meta-line (no margin-left:auto che creava un buco).
-.reminder-cta-ghost {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  height: 32px;
-  padding: 0 14px;
-  border-radius: 999px;
-  border: 1px solid $rs-ink;
-  background: transparent;
-  color: $rs-ink;
-  font-family: inherit;
-  font-weight: 500;
-  font-size: 12.5px;
-  letter-spacing: -0.005em;
-  white-space: nowrap;
-  cursor: pointer;
-  transition:
-    background 160ms cubic-bezier(0.2, 0, 0, 1),
-    color 180ms cubic-bezier(0.2, 0, 0, 1),
-    transform 140ms cubic-bezier(0.2, 0, 0, 1);
-
-  &:hover:not(:disabled) {
-    background: $rs-ink;
-    color: $rs-paper;
-  }
-  &:active:not(:disabled) { transform: scale(0.97); }
-
-  &:focus-visible {
-    outline: 2px solid $rs-ink;
-    outline-offset: 2px;
-  }
-
-  &:disabled {
-    opacity: 0.38;
-    cursor: not-allowed;
-  }
-}
-
-// CTA di completamento ora è la checkbox hero (.reminder-hero-check).
-// CTA "Evadi ricorrenza" overdue è .reminder-cta-ghost nella meta-line.
-
-// ── Meta line: ricorrenza · fine · stato (text-style click-to-edit) ────────
-.reminder-meta {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px 10px;
-  font-family: inherit;
-  font-size: 14.5px;
-  font-weight: 500;
-  letter-spacing: -0.005em;
-  color: $rs-muted;
-  line-height: 1.5;
-  margin-top: 6px;
-}
-
-.reminder-meta-chunk {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  font-family: inherit;
-  font-size: inherit;
-  font-weight: inherit;
-  letter-spacing: inherit;
-  color: inherit;
-  background: transparent;
-  border: none;
-  padding: 3px 6px;
-  border-radius: 6px;
-  cursor: pointer;
-  white-space: nowrap;
-  // Editable-text affordance coerente con hero (dotted a rest → solid on hover).
-  text-decoration: underline dotted $rs-sep;
-  text-decoration-thickness: 1px;
-  text-underline-offset: 3px;
-  transition:
-    background 160ms cubic-bezier(0.2, 0, 0, 1),
-    color 180ms cubic-bezier(0.2, 0, 0, 1),
-    text-decoration-color 180ms cubic-bezier(0.2, 0, 0, 1);
-
-  &:hover:not(:disabled) {
-    background: $rs-hover-bg;
-    color: $rs-ink;
-    text-decoration-style: solid;
-    text-decoration-color: $rs-muted;
-  }
-
-  &:focus-visible {
-    outline: 2px solid $rs-ink;
-    outline-offset: 1px;
-  }
-
-  &:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-    text-decoration: none;
-  }
-
-  // Select nativo sottostante (cattura tap/click → OS picker) con label
-  // visibile sopra. Preserva il picker nativo mobile per UX familiare.
-  .reminder-meta-chunk-select {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    opacity: 0;
-    cursor: pointer;
-    appearance: none;
-    -webkit-appearance: none;
-    font-size: 16px; // iOS anti-zoom
-    border: none;
-    background: transparent;
-  }
-
-  // Variant: ricorrenza = "once" (nessuna info utile → muted ulteriore)
-  &--muted { opacity: 0.7; }
-
-  // ── Stati informativi come pill scure tema app ───────────────────────────
-  // Distinzione morfologica dai chunk editabili (dotted underline): gli stati
-  // sono pill filled scure #26252A (leggermente più chiaro di $rs-ink) con
-  // label bianca. Forma coerente col linguaggio pill-shaped dell'app.
-  // --overdue-state usa terracotta (stessa height+padding+font delle altre).
-  &--muted-state,
-  &--snoozed-state,
-  &--evaded-state,
-  &--overdue-state {
-    text-decoration: none;
-    color: $rs-paper;
-    border: none;
-    border-radius: 999px;
-    height: 28px;
-    padding: 0 14px;
-    font-size: 13px;
-    font-weight: 500;
-    line-height: 1;
-    letter-spacing: -0.003em;
-  }
-
-  &--muted-state,
-  &--snoozed-state,
-  &--evaded-state {
-    background: #26252A;
-  }
-
-  &--overdue-state {
-    background: $rs-danger;
-    cursor: default;
-    pointer-events: none;
-  }
-
-  &--muted-state {
-    cursor: default;
-    pointer-events: none;
-  }
-  &--snoozed-state {
-    cursor: default;
-    pointer-events: none;
-  }
-  &--evaded-state {
-    font-weight: 600;
-  }
-
-  // Pill scura cliccabile (undo evasione): stesso styling + hover lift.
-  &--clickable {
-    cursor: pointer;
-    pointer-events: auto;
-    &:hover:not(:disabled) {
-      background: #34333A;
-    }
-  }
-}
-
-.reminder-meta-chunk-undo {
-  font-size: 14px !important;
-  width: 14px !important;
-  height: 14px !important;
-  opacity: 0.8;
-  margin-left: 4px;
-  color: inherit; // bianco su pill scura
-}
-
-.reminder-meta-sep {
-  color: $rs-sep;
-  user-select: none;
-  font-weight: 500;
-  padding: 0 2px;
-}
-
-.reminder-meta-clear {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
-  border: none;
-  background: transparent;
-  cursor: pointer;
-  padding: 0;
-  color: $rs-muted;
-  transition: background 160ms cubic-bezier(0.2, 0, 0, 1), color 180ms;
-
-  mat-icon {
-    font-size: 14px;
-    width: 14px;
-    height: 14px;
-    color: inherit;
-  }
-
-  &:hover:not(:disabled) {
-    background: $rs-hover-bg;
-    color: $rs-ink;
-  }
-
-  &:disabled {
-    opacity: 0.38;
-    cursor: not-allowed;
-  }
-}
 
 .reminder-hidden-input {
   position: absolute;
@@ -2242,5 +1775,358 @@ $rs-hover-bg: rgba(28, 27, 31, 0.05);
   font-variant-numeric: tabular-nums;
   color: color-mix(in oklch, var(--punto-surface-bright, #FFFBFE) 70%, transparent);
   flex-shrink: 0;
+}
+
+// ══════════ Memo header — specchio editoriale dell'header evento ════════════
+
+// ─── Riga titolo con check inline ────────────────────────────────────────────
+// Il contenitore porta anche la classe `editor-header` → eredita padding 16px 24px,
+// flex-direction:column e gap:4px dall'evento. Questo blocco ridefinisce solo i
+// valori memo-specifici: flex-direction→row (riga singola spunta+titolo), gap stretto,
+// align-items:center per centrare la spunta sulla baseline del titolo.
+.memo-header-title-row {
+  // Override di editor-header (che è flex-direction:column): il memo ha spunta+titolo
+  // sulla stessa riga orizzontale.
+  flex-direction: row;
+  align-items: center;
+  gap: 3px; // Fix 1: spunta praticamente attaccata al testo (era 6px poi editor-header gap:4px)
+
+  // Completato: tutto l'header perde peso visivo
+  &--completed {
+    .memo-check { opacity: 0.55; }
+  }
+}
+
+// Input titolo inline nel memo header: stessa family/size del .title-input-raw standard,
+// nessun margin aggiuntivo — la flex row gestisce il centramento verticale.
+.memo-title-input {
+  flex: 1 1 0;
+  min-width: 0; // evita overflow fuori dal flex container
+  padding-inline: 0; // azzera il padding UA browser (2px default su <input>) — Fix 1
+  // Nessun margin-top: align-items:center sulla riga già allinea correttamente
+  // la prima riga del titolo con il centro della spunta.
+}
+
+// Checkbox tonda — identica a .reminder-hero-check ma usata nell'header memo
+.memo-check {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border: none;
+  background: transparent;
+  color: $rs-ink;
+  cursor: pointer;
+  padding: 0;
+  flex-shrink: 0;
+  // align-self: center (ereditato dal parent align-items:center) — non sovrascrivere.
+  border-radius: 50%;
+  transition:
+    background 160ms cubic-bezier(0.2, 0, 0, 1),
+    transform 140ms cubic-bezier(0.2, 0, 0, 1);
+
+  mat-icon {
+    font-size: 30px;
+    width: 30px;
+    height: 30px;
+    line-height: 1;
+    color: inherit;
+    // Overdue: terracotta parziale (ring, non fill)
+    .memo-header-title-row--overdue & { color: $rs-danger; }
+  }
+
+  &:hover:not(:disabled) { background: $rs-hover-bg; }
+  &:active:not(:disabled) { transform: scale(0.92); }
+  &:focus-visible { outline: 2px solid $rs-ink; outline-offset: 2px; }
+  &:disabled { opacity: 0.38; cursor: not-allowed; }
+
+  &--checked mat-icon { color: $rs-ink; }
+}
+
+// ─── Micro-toast inline per evasione ricorrente ───────────────────────────────
+// Non usa MatSnackBar: rimane contestuale all'header, sparisce automaticamente in 6s.
+.memo-inline-toast {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 0;
+  overflow: hidden;
+  opacity: 0;
+  padding: 0 24px;
+  transition:
+    height 200ms cubic-bezier(0.2, 0, 0, 1),
+    opacity 200ms cubic-bezier(0.2, 0, 0, 1);
+
+  @media (max-width: 479px) { padding: 0 16px; }
+
+  font-size: 13px;
+  font-weight: 500;
+  color: $rs-muted;
+
+  &--visible {
+    height: 36px;
+    opacity: 1;
+  }
+
+  &-undo {
+    border: none;
+    background: transparent;
+    font: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    color: $rs-ink;
+    cursor: pointer;
+    padding: 0;
+    text-decoration: underline dotted $rs-sep;
+    text-underline-offset: 3px;
+
+    &:hover { text-decoration-style: solid; }
+  }
+}
+
+// ─── Sezione Quando memo ─────────────────────────────────────────────────────
+// Il contenitore porta anche la classe `event-section` → eredita padding-inline
+// 24px/16px dall'evento. Nessun override necessario su .memo-section.
+.memo-section {
+  // Nessuna proprietà propria: tutte ereditate da event-section.
+  // Il blocco esiste per le regole figlio memo-specifiche se necessario in futuro.
+}
+
+// Il wrapper porta anche la classe `event-when-stack` → eredita display:flex,
+// gap:6px, margin-block:4px 8px, padding-inline-start:8px, width:100%, align-items:center.
+// .memo-when-stack override solo le differenze rispetto all'evento:
+//   - flex-wrap: wrap (evento è nowrap; il memo wrappa su mobile stretto con end date)
+//   - padding-inline-end: 4px (per evitare che il FAB ricorrenza tocchi il bordo destra)
+.memo-when-stack {
+  flex-wrap: wrap; // override di event-when-stack flex-wrap:nowrap
+  padding-inline-end: 4px; // spazio a destra per il FAB ricorrenza
+}
+
+// ─── Riga start memo: flex shrink 0 — non viene schiacciata dall'end date.
+// Issue 3: quando l'end date è valorizzata, il `.event-dt-row` con flex:1 1 0
+// rubava spazio alla riga start fino a nascondere/sovrapporre il time picker.
+// Soluzione: riga start è un wrapper con flex-shrink:0 e layout flex row autonomo,
+// identico al layout interno di .event-dt-row ma senza il flex: 1 1 0 che causa
+// il problema. Il time picker rimane sempre accessibile.
+.memo-dt-start-row {
+  display: flex;
+  align-items: center; // center: la `Prossima ·` (12px) e il data/ora (14px) restano
+                       // sempre allineati al centro del wrapper, indipendentemente da
+                       // baseline asimmetriche fra label piccola e bottoni più alti.
+  gap: 6px;
+  flex-shrink: 0;  // non cede spazio alle righe end o ai FAB a destra
+  min-width: 0;
+  background: transparent;
+  white-space: nowrap;
+}
+
+// Riga end date: porta anche la classe `event-dt-row` → eredita display:flex,
+// gap:6px, white-space:nowrap, min-width:0, overflow:hidden.
+// Override: align-items center (la X clear è un grid 32px → con baseline interna
+// disallineava il data btn rispetto allo start), flex non è 1 1 0, gap ridotto.
+.memo-dt-end-row {
+  align-items: center; // override di .event-dt-row baseline
+  flex: 0 1 auto;      // non cresce indefinitamente come event-dt-row (flex:1 1 0)
+  gap: 4px;            // gap leggermente ridotto: la X è immediatamente vicina alla data fine
+}
+
+// Spacer flessibile tra end date e FAB ricorrenza: spinge il FAB all'estrema destra.
+.memo-when-spacer {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+// FAB tondo ricorrenza (32px) — posizionato in coda alla riga date.
+// Disattivo (nessuna ricorrenza): background nero, icona bianca.
+// Attivo (ricorrenza impostata): background bianco, icona nera, bordo outline-variant.
+// Stesso linguaggio visivo del .reminder-mini-fab--active e della .memo-check--checked.
+.memo-recurrence-fab {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 0;
+  flex-shrink: 0;
+  margin-inline-end: 10px;
+  cursor: pointer;
+  // Stato disattivo (default): nero/bianco — stesso look degli altri FAB neri
+  background: var(--punto-on-surface, #1C1B1F);
+  color: var(--punto-surface-bright, #FFFBFE);
+  transition:
+    background 160ms cubic-bezier(0.2, 0, 0, 1),
+    color 160ms cubic-bezier(0.2, 0, 0, 1),
+    border-color 160ms cubic-bezier(0.2, 0, 0, 1),
+    transform 140ms cubic-bezier(0.2, 0, 0, 1);
+  outline: none;
+
+  mat-icon {
+    font-size: 16px;
+    width: 16px;
+    height: 16px;
+    color: inherit;
+  }
+
+  // Stato attivo: bianco/nero + bordo 1px — coerente con .reminder-mini-fab--active
+  &--active {
+    background: var(--punto-surface-bright, #FFFBFE);
+    color: var(--punto-on-surface, #1C1B1F);
+    border: 1px solid var(--mat-sys-outline-variant);
+  }
+
+  &:hover:not(:disabled) {
+    transform: scale(1.08);
+  }
+
+  &:active:not(:disabled) {
+    transform: scale(0.93);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--punto-on-surface, #1C1B1F);
+    outline-offset: 2px;
+  }
+
+  &:disabled {
+    opacity: 0.38;
+    cursor: not-allowed;
+  }
+}
+
+// Label "Prossima ·" per occorrenza ricorrente
+.memo-next-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: color-mix(in oklch, var(--punto-on-surface, #1C1B1F) 50%, transparent);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+// Bottone testuale "+ Ripetizione" / "+ Fine ripetizione"
+.memo-add-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: 0;
+  background: transparent;
+  padding: 4px 6px;
+  font: 500 13px/1 inherit;
+  color: var(--punto-primary, #1C1B1F);
+  cursor: pointer;
+  border-radius: 6px;
+  white-space: nowrap;
+  outline: none;
+  transition: background 140ms cubic-bezier(0.2, 0, 0, 1);
+
+  &:hover:not(:disabled) {
+    background: color-mix(in oklch, var(--punto-primary, #1C1B1F) 8%, transparent);
+  }
+  &:focus-visible {
+    outline: 2px solid var(--punto-primary, #1C1B1F);
+    outline-offset: 2px;
+  }
+  &:disabled { opacity: 0.4; cursor: not-allowed; }
+}
+
+// .memo-recurrence-chip e .memo-recurrence-chip-caret rimossi (Issue 2):
+// sostituiti dal FAB tondo .memo-recurrence-fab definito sopra.
+
+// ─── Pill campanella memo ─────────────────────────────────────────────────────
+// Stile identico a .event-reminder-active-pill + posizionamento identico.
+.memo-bell-wrapper {
+  padding-inline: 24px;
+  margin-block-end: 12px;
+
+  @media (max-width: 479px) { padding-inline: 16px; }
+}
+
+.memo-bell-pill {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 12px 16px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--punto-on-surface, #1C1B1F);
+  color: var(--punto-surface-bright, #FFFBFE);
+  font-size: 14px;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+  box-sizing: border-box;
+  transition: transform 140ms cubic-bezier(0.2, 0, 0, 1), opacity 140ms cubic-bezier(0.2, 0, 0, 1);
+
+  &:active { transform: scale(0.99); opacity: 0.92; }
+
+  // Overdue: pill terracotta per segnalazione urgenza
+  &--overdue {
+    background: $rs-danger;
+  }
+}
+
+.memo-bell-icon {
+  font-size: 18px;
+  width: 18px;
+  height: 18px;
+  color: inherit;
+  flex-shrink: 0;
+}
+
+.memo-bell-label {
+  font-size: 14px;
+  font-weight: 500;
+  flex: 1 1 auto;
+}
+
+.memo-bell-when {
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  color: color-mix(in oklch, var(--punto-surface-bright, #FFFBFE) 70%, transparent);
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+// Wrapper azioni a destra: mute + snooze icons
+.memo-bell-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+// Pillola di stato piccola nella pill campanella
+.memo-bell-state-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px 2px 4px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
+
+  mat-icon {
+    font-size: 14px;
+    width: 14px;
+    height: 14px;
+    color: inherit;
+    flex-shrink: 0;
+  }
+
+  &--muted,
+  &--snoozed {
+    background: color-mix(in oklch, var(--punto-surface-bright, #FFFBFE) 18%, transparent);
+    color: var(--punto-surface-bright, #FFFBFE);
+  }
+
+  &--overdue {
+    background: color-mix(in oklch, var(--punto-surface-bright, #FFFBFE) 20%, transparent);
+    color: var(--punto-surface-bright, #FFFBFE);
+    padding: 2px 10px;
+  }
 }
 

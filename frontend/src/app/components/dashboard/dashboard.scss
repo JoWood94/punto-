@@ -240,6 +240,16 @@
   display: flex;
   align-items: center;
   gap: 5px;
+  // Il titolo deve consumare lo spazio centrale; le icone trailing
+  // (status promemoria) si posizionano alla fine della riga senza far
+  // wrappare il titolo. ellipsis su titolo se troppo lungo.
+  > .note-item-title {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
 }
 
 .note-card-bell,
@@ -249,6 +259,13 @@
   height: 14px !important;
   flex-shrink: 0;
   color: var(--mat-sys-on-secondary-container, #21005d);
+}
+
+// Trailing bells: posizionati a fine riga dopo il titolo (ricorrenza,
+// status completato, notifiche). Margin-left auto sul primo per
+// spingere il gruppo a destra anche con icone leading mancanti.
+.note-card-bell--trail {
+  &:first-of-type { margin-inline-start: auto; }
 }
 
 // ─── Sezione "Condivise con me" — header differenziato ──────────
@@ -895,7 +912,7 @@
 .mobile-fab-overlay {
   @media (max-width: 599.98px) {
     right: 20px;
-    bottom: calc(28px + env(safe-area-inset-bottom, 0px));
+    bottom: calc(6px + env(safe-area-inset-bottom, 0px));
   }
 }
 .mobile-fab-overlay .new-note-fab {
@@ -999,7 +1016,7 @@
   display: flex;
   align-items: center;
   position: fixed;
-  bottom: calc(28px + env(safe-area-inset-bottom, 0px));
+  bottom: calc(6px + env(safe-area-inset-bottom, 0px));
   left: 20px;
   z-index: 300;
   background: #1C1B1F;

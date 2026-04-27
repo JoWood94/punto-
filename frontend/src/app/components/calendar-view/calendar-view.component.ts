@@ -417,7 +417,6 @@ export class CalendarViewComponent implements OnChanges, OnInit, AfterViewInit {
     // (es. eventStart e reminderTime divergenti).
     const start = (note as any).eventStart;
     if (typeof start !== 'number') {
-      console.warn('[DBG-EVT-CAL] event without eventStart, skipping', { id: note.id, title: note.title, reminderTime: note.reminderTime });
       return [];
     }
     const end = (note as any).eventEnd;
@@ -429,14 +428,6 @@ export class CalendarViewComponent implements OnChanges, OnInit, AfterViewInit {
     while (cursor.getTime() <= endDay.getTime()) {
       days.push(new Date(cursor));
       cursor.setDate(cursor.getDate() + 1);
-    }
-    if (days.length > 1) {
-      console.log('[DBG-EVT-CAL] multi-day event', {
-        id: note.id, title: note.title,
-        eventStart: new Date(start).toISOString(),
-        eventEnd: new Date(endTs).toISOString(),
-        days: days.map(d => d.toISOString().slice(0, 10)),
-      });
     }
     return days;
   }

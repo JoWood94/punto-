@@ -1,14 +1,44 @@
 <div class="rps-card" role="dialog" [attr.aria-label]="'EVENT.REMINDER' | translate">
-  <button
-    *ngFor="let preset of presets"
-    class="rps-pill"
-    [class.rps-pill--selected]="preset.key === data.current"
-    type="button"
-    (click)="select(preset)">
-    <span class="rps-pill-text">
-      <span class="rps-pill-label">{{ preset.labelKey | translate }}</span>
-      <span class="rps-pill-when" *ngIf="preset.key !== 'NONE' && subLabel(preset)">{{ subLabel(preset) }}</span>
-    </span>
-    <mat-icon *ngIf="preset.key === data.current" class="rps-pill-check">check</mat-icon>
-  </button>
+
+  <!-- Lista preset standard -->
+  <ng-container *ngIf="!showCustomInline()">
+    <button
+      *ngFor="let preset of presets"
+      class="rps-pill"
+      [class.rps-pill--selected]="preset.key === data.current"
+      type="button"
+      (click)="select(preset)">
+      <span class="rps-pill-text">
+        <span class="rps-pill-label">{{ labelFor(preset) | translate }}</span>
+        <span class="rps-pill-when" *ngIf="preset.key !== 'NONE' && subLabel(preset)">{{ subLabel(preset) }}</span>
+      </span>
+      <mat-icon *ngIf="preset.key === data.current" class="rps-pill-check">check</mat-icon>
+    </button>
+  </ng-container>
+
+  <!-- Form inline CUSTOM (solo memo mode) -->
+  <div *ngIf="showCustomInline()" class="rps-custom-inline">
+    <p class="rps-custom-hint">{{ 'MEMO.REMINDER_CUSTOM_HINT' | translate }}</p>
+    <label class="rps-custom-label">
+      <input
+        type="datetime-local"
+        class="rps-custom-input"
+        [ngModel]="customDatetimeValue()"
+        (ngModelChange)="customDatetimeValue.set($event); customError.set('')"
+        [max]="customMaxDatetime"
+      />
+    </label>
+    <p *ngIf="customError()" class="rps-custom-error" role="alert">
+      {{ customError() | translate }}
+    </p>
+    <div class="rps-custom-actions">
+      <button type="button" class="rps-custom-btn rps-custom-btn--cancel" (click)="cancelCustom()">
+        {{ 'MEMO.REMINDER_CUSTOM_CANCEL' | translate }}
+      </button>
+      <button type="button" class="rps-custom-btn rps-custom-btn--confirm" (click)="confirmCustom()">
+        {{ 'MEMO.REMINDER_CUSTOM_CONFIRM' | translate }}
+      </button>
+    </div>
+  </div>
+
 </div>

@@ -19,20 +19,32 @@ export class PushNotificationService {
   }
 
   async requestPermission(): Promise<string | null> {
+    console.log('[Push] requestPermission start');
+    if (typeof Notification === 'undefined') {
+      console.warn('[Push] Notification API non supportata in questo browser');
+      return null;
+    }
+    if (!('serviceWorker' in navigator)) {
+      console.warn('[Push] serviceWorker non disponibile');
+      return null;
+    }
     try {
       const permission = await Notification.requestPermission();
+      console.log('[Push] permission =', permission);
       if (permission === 'granted') {
         // Ensure the service worker is registered (idempotent — Angular provideServiceWorker
         // handles this, but we call it explicitly to guarantee the correct path on both
         // production /punto-/ and staging / base hrefs).
         const baseHref = document.querySelector('base')?.getAttribute('href') || '/';
         const swUrl = `${baseHref}combined-sw.js`;
+        console.log('[Push] registering SW at', swUrl);
         await navigator.serviceWorker.register(swUrl);
 
         // Wait for an active SW before requesting the push token.
         // Calling getToken() while the SW is still in installing/waiting state triggers
         // AbortError: Registration failed - push service error from the browser Push API.
         const registration = await navigator.serviceWorker.ready;
+        console.log('[Push] SW ready, requesting FCM token');
 
         let token: string | null = null;
 
@@ -57,11 +69,13 @@ export class PushNotificationService {
         console.log('Firebase Cloud Messaging Token:', token);
         
         const uid = this.authService.getCurrentUserId();
+        console.log('[Push] uid for save:', uid, 'token len:', token?.length ?? 0);
         if (uid && token) {
           const userRef = doc(this.db, `users/${uid}`);
           // arrayUnion è atomic: safe con scritture concorrenti da più dispositivi.
           // Aggiunge il token solo se non già presente, senza sovrascrivere l'array.
           await setDoc(userRef, { fcmTokens: arrayUnion(token) }, { merge: true });
+          console.log('[Push] FCM token saved to Firestore for uid', uid);
 
           // Cleanup asincrono: se l'array supera 5 token, tronca i più vecchi.
           // Separato dall'arrayUnion per non introdurre race condition.

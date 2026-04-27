@@ -43,26 +43,39 @@ const messaging = admin.messaging();
 /**
  * Calcola il prossimo orario di promemoria in base alla ricorrenza.
  * @param {number} currentTime - Timestamp attuale del promemoria (ms)
- * @param {string} recurrence - 'daily' | 'weekly' | 'monthly'
+ * @param {string} recurrence - 'daily' | 'weekly' | 'monthly' | 'yearly'
  * @returns {number} - Prossimo timestamp (ms)
  */
 function calculateNextReminder(currentTime, recurrence) {
   const d = new Date(currentTime);
   switch (recurrence) {
-    case 'daily':   d.setDate(d.getDate() + 1);     break;
-    case 'weekly':  d.setDate(d.getDate() + 7);     break;
-    case 'monthly': d.setMonth(d.getMonth() + 1);   break;
+    case 'daily':   d.setDate(d.getDate() + 1);          break;
+    case 'weekly':  d.setDate(d.getDate() + 7);          break;
+    case 'monthly': d.setMonth(d.getMonth() + 1);        break;
+    case 'yearly':  d.setFullYear(d.getFullYear() + 1);  break;
   }
   return d.getTime();
 }
 
+/** Massimo offset notifica supportato dall'editor (DAY_1 = 1440 min).
+ *  La query Firestore viene allargata di questa finestra in avanti così che
+ *  un doc con reminderTime = T e notifyOffsetMin = 1440 venga comunque
+ *  pescato quando now ≥ T - 1440*60000.
+ *  Filtro in-memory scarta i doc la cui notifyTime è ancora nel futuro. */
+const MAX_NOTIFY_OFFSET_MS = 1440 * 60_000; // 1 giorno
+
 async function checkAndSendReminders() {
   const now = Date.now();
   console.log(`[${new Date().toISOString()}] Controllo promemoria in sospeso...`);
-  
+
   try {
+    // Query allargata: recupera i doc il cui reminderTime è nei prossimi MAX_NOTIFY_OFFSET_MS.
+    // Questo copre il caso in cui l'utente ha impostato un offset (es. 1 giorno prima):
+    // reminderTime = 18:00 domani, ma notifyTime = 18:00 oggi → senza allargamento il doc
+    // non sarebbe incluso nella query `reminderTime <= now`.
     const notesSnapshot = await db.collection('notes')
       .where('reminderStatus', '==', 'pending')
+      .where('reminderTime', '<=', now + MAX_NOTIFY_OFFSET_MS)
       .get();
 
     if (notesSnapshot.empty) {
@@ -121,7 +134,18 @@ async function checkAndSendReminders() {
         ? note.reminderTime.toMillis()
         : Number(note.reminderTime);
 
-      if (!reminderMs || reminderMs > now) {
+      if (!reminderMs) continue;
+
+      // Calcola il momento effettivo di notifica applicando l'offset (se presente).
+      // notifyTime = reminderTime - notifyOffsetMin * 60000.
+      // Doc legacy senza notifyOffsetMin → offset 0 → notifyTime = reminderTime.
+      const offsetMin = typeof note.notifyOffsetMin === 'number' && note.notifyOffsetMin > 0
+        ? note.notifyOffsetMin
+        : 0;
+      const notifyTime = reminderMs - offsetMin * 60_000;
+
+      // Filtro in-memory: scarta i doc la cui notifyTime è ancora nel futuro.
+      if (notifyTime > now) {
         continue;
       }
 
@@ -260,21 +284,44 @@ async function checkAndSendReminders() {
       const recurrence = note.recurrence ?? 'none';
       const endDate = typeof note.recurrenceEndDate === 'number' ? note.recurrenceEndDate : null;
       if (recurrence !== 'none' && reminderMs) {
-        const nextTime = calculateNextReminder(reminderMs, recurrence);
+        // Skip-ahead: avanza finché nextTime > now (evita raffica di catch-up
+        // quando il cron è restato indietro o il doc era pending da giorni).
+        // Cap a 10000 iterazioni come safeguard contro recurrence sconosciute.
+        let nextTime = calculateNextReminder(reminderMs, recurrence);
+        let skipped = 0;
+        while (nextTime <= now && (!endDate || nextTime <= endDate) && skipped < 10000) {
+          const advanced = calculateNextReminder(nextTime, recurrence);
+          if (advanced <= nextTime) break; // recurrence non riconosciuta → stop
+          nextTime = advanced;
+          skipped++;
+        }
+        if (skipped > 0) {
+          console.log(`Skipped ${skipped} occorrenze passate per ${recurrence} (note ${doc.id}).`);
+        }
         const expired = endDate && nextTime > endDate;
 
         if (!expired) {
-          const updatePayload = { reminderStatus: 'pending', reminderTime: nextTime };
+          // notifyOffsetMin invariato al reschedule: è un delta rispetto a reminderTime,
+          // non dipende dall'istanza specifica. Solo reminderTime avanza.
+          const updatePayload = {
+            reminderStatus: 'pending',
+            reminderTime: nextTime,
+            // Propaga notifyOffsetMin se presente (null = legacy, nessuna modifica necessaria)
+            ...(offsetMin > 0 ? { notifyOffsetMin: offsetMin } : {}),
+          };
           if (note.blocks && Array.isArray(note.blocks)) {
             updatePayload.blocks = note.blocks.map(b => {
               if (b.type === 'reminder') {
-                return { ...b, time: nextTime, status: 'pending' };
+                // Preserva notifyOffsetMin nel block (se presente)
+                const next = { ...b, time: nextTime, status: 'pending' };
+                if (offsetMin > 0 && !next.notifyOffsetMin) next.notifyOffsetMin = offsetMin;
+                return next;
               }
               return b;
             });
           }
           updates.push(doc.ref.update(updatePayload));
-          console.log(`Promemoria ricorrente (${recurrence}) rischedulato a ${new Date(nextTime).toISOString()}`);
+          console.log(`Promemoria ricorrente (${recurrence}) rischedulato a ${new Date(nextTime).toISOString()}${offsetMin > 0 ? ` (notifica ${offsetMin}min prima)` : ''}`);
         } else {
           const updatePayload = { reminderStatus: 'sent' };
           if (note.blocks && Array.isArray(note.blocks)) {

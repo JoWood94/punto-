@@ -52,6 +52,20 @@
     "MEMO": "Promemoria",
     "EVENT": "Evento"
   },
+  "MEMO": {
+    "REMINDER_AT_TIME": "All'orario del promemoria",
+    "REMINDER_CUSTOM_LABEL": "Notifica personalizzata",
+    "REMINDER_CUSTOM_HINT": "Scegli data e ora a cui ricevere la notifica (deve essere prima del promemoria).",
+    "REMINDER_CUSTOM_AFTER": "Imposta una notifica anticipata rispetto al promemoria",
+    "REMINDER_CUSTOM_REQUIRED": "Inserisci una data e ora",
+    "REMINDER_CUSTOM_CANCEL": "Annulla",
+    "REMINDER_CUSTOM_CONFIRM": "Conferma",
+    "ADD_REPETITION": "+ Ripetizione",
+    "ADD_END_DATE": "+ Fine ripetizione",
+    "NEXT_OCCURRENCE": "Prossima",
+    "EVADED_INLINE": "Occorrenza del {{date}} evasa",
+    "UNDO": "Annulla"
+  },
   "EVENT": {
     "CALENDAR_LABEL": "Calendario",
     "WHEN": "Quando",

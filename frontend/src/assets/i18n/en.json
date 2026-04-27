@@ -52,6 +52,20 @@
     "MEMO": "Reminder",
     "EVENT": "Event"
   },
+  "MEMO": {
+    "REMINDER_AT_TIME": "At reminder time",
+    "REMINDER_CUSTOM_LABEL": "Custom notification",
+    "REMINDER_CUSTOM_HINT": "Choose the date and time to receive the notification (must be before the reminder).",
+    "REMINDER_CUSTOM_AFTER": "Set a notification before the reminder time",
+    "REMINDER_CUSTOM_REQUIRED": "Please enter a date and time",
+    "REMINDER_CUSTOM_CANCEL": "Cancel",
+    "REMINDER_CUSTOM_CONFIRM": "Confirm",
+    "ADD_REPETITION": "+ Repetition",
+    "ADD_END_DATE": "+ End date",
+    "NEXT_OCCURRENCE": "Next",
+    "EVADED_INLINE": "Occurrence of {{date}} marked done",
+    "UNDO": "Undo"
+  },
   "EVENT": {
     "CALENDAR_LABEL": "Calendar",
     "WHEN": "When",

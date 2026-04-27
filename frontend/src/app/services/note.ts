@@ -72,6 +72,10 @@ export interface ReminderBlock {
   status: 'pending' | 'sent' | 'completed' | null;
   completedAt?: number;   // FE-01: timestamp completamento (opzionale B)
   completedBy?: string;   // FE-01: uid di chi ha completato
+  /** Minuti di anticipo notifica rispetto a `time`. 0 = al momento esatto.
+   *  notifyTime effettivo = time - notifyOffsetMin * 60000.
+   *  Assente su doc legacy → equivale a 0 (retrocompat). */
+  notifyOffsetMin?: number;
 }
 
 export interface ImageBlock {
@@ -907,16 +911,38 @@ export class NoteService {
   }
 
   async getUserDoc(): Promise<any | null> {
+    const result = await this.getUserDocResult();
+    return result === 'error' ? null : result;
+  }
+
+  /**
+   * Variante esplicita di getUserDoc che distingue tre stati:
+   *  - oggetto: doc esiste, dati restituiti
+   *  - null:    doc non esiste (utente nuovo)
+   *  - 'error': errore di rete dopo retry esauriti
+   *
+   * Critico per initEncryption: se ritornasse semplicemente null in caso di errore,
+   * il chiamante non potrebbe distinguere "nuovo utente" da "rete giù" e potrebbe
+   * mostrare il setup dialog a un utente che ha già le chiavi sul server,
+   * causando overwrite delle chiavi e perdita di accesso alle note cifrate.
+   */
+  async getUserDocResult(): Promise<any | null | 'error'> {
     const uid = this.authService.getCurrentUserId();
-    if (!uid) return null;
+    if (!uid) return 'error';
     const userRef = doc(this.db, `users/${uid}`);
-    try {
-      // Forza lettura dal server: evita dati stale dalla cache locale (persistentLocalCache)
-      const snap = await getDocFromServer(userRef);
-      return snap.exists() ? snap.data() : null;
-    } catch {
-      return null;  // Server non raggiungibile: evita cache stale (BF-10)
+    // Retry con backoff: PWA fresh install + auth token-ready race causa
+    // fallimenti intermittenti del primo getDocFromServer.
+    const delays = [0, 300, 1200];
+    for (let i = 0; i < delays.length; i++) {
+      if (delays[i] > 0) await new Promise(r => setTimeout(r, delays[i]));
+      try {
+        const snap = await getDocFromServer(userRef);
+        return snap.exists() ? snap.data() : null;
+      } catch {
+        if (i === delays.length - 1) return 'error';
+      }
     }
+    return 'error';
   }
 
   async saveUsername(username: string): Promise<void> {

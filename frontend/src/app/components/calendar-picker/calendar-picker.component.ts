@@ -30,8 +30,6 @@ export class CalendarPickerComponent {
   }
 
   onChange(newCalId: string): void {
-    const from = this.selectedCalendarId;
-    console.log('[DBG-EVT-CAL-PICKER] change', { from, to: newCalId });
     this.calendarChange.emit(newCalId);
   }
 }

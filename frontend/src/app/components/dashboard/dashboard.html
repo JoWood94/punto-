@@ -265,9 +265,6 @@
 
           <div class="note-card-body">
             <div class="note-card-title-row">
-              <mat-icon class="note-card-bell" *ngIf="noteReminderStatus(note) === 'completed'">task_alt</mat-icon>
-              <mat-icon class="note-card-bell" *ngIf="noteIsRecurring(note)">repeat</mat-icon>
-              <mat-icon class="note-card-bell" *ngIf="noteHasReminder(note) && noteReminderStatus(note) !== 'completed' && !noteIsRecurring(note)">notifications</mat-icon>
               <mat-icon class="note-card-bell note-card-shared--owned"
                         *ngIf="note.isShared && note.myRole !== 'guest'"
                         [attr.aria-label]="'SHARING.SHARED' | translate">group</mat-icon>
@@ -275,6 +272,9 @@
                         *ngIf="note.myRole === 'guest'"
                         [attr.aria-label]="'SHARING.SHARED_WITH_YOU' | translate">group_add</mat-icon>
               <span class="note-item-title">{{ note.title || ('NOTE.UNTITLED' | translate) }}</span>
+              <mat-icon class="note-card-bell note-card-bell--trail" *ngIf="noteReminderStatus(note) === 'completed'">task_alt</mat-icon>
+              <mat-icon class="note-card-bell note-card-bell--trail" *ngIf="noteIsRecurring(note) && noteReminderStatus(note) !== 'completed'">repeat</mat-icon>
+              <mat-icon class="note-card-bell note-card-bell--trail" *ngIf="noteHasReminder(note) && noteReminderStatus(note) !== 'completed' && !noteIsRecurring(note)">notifications</mat-icon>
             </div>
 
             <span class="note-item-preview"
