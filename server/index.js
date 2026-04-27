@@ -370,20 +370,15 @@ async function checkAndSendReminders() {
           const response = await messaging.sendEachForMulticast({
             tokens: allTokens,
             webpush: {
+              // SOLO notification: il `data` top-level su iOS Firebase Messaging compat
+              // causava una seconda notifica (silent push interpretato come visible).
+              // I dati per il click handler sono in `notification.data`.
               notification: {
                 title: msgTitle,
                 body: bodyText,
                 icon: '/icons/icon-192x192.png',
                 tag: doc.id,
                 data: { noteId: doc.id }
-              },
-              // fcm_options.link rimosso: il custom notificationclick handler nel SW
-              // gestisce tutta la navigazione. Mantenerlo causava doppia apertura finestra
-              // e conflitto con l'handler FCM SDK.
-              data: {
-                title: msgTitle,
-                body: bodyText,
-                noteId: doc.id,
               }
             }
           });
@@ -533,7 +528,6 @@ async function checkAndSendCompletions() {
               tag: `completion-${doc.id}`,
               data: { noteId: doc.id, kind: 'completion' },
             },
-            data: { title, body, noteId: doc.id, kind: 'completion' },
           },
         });
         sentCount++;
@@ -692,14 +686,14 @@ async function checkAndSendEventReminders() {
           const resp = await messaging.sendEachForMulticast({
             tokens,
             webpush: {
+              // SOLO notification (vedi commento in checkAndSendReminders)
               notification: {
                 title: msgTitle,
                 body: bodyText,
                 icon: '/icons/icon-192x192.png',
                 tag: `event-${eventDoc.id}-${offset}`,
                 data: { noteId: eventDoc.id }
-              },
-              data: { title: msgTitle, body: bodyText, noteId: eventDoc.id }
+              }
             }
           });
 
