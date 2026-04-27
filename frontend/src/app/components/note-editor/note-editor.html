@@ -410,7 +410,7 @@
           </div>
           <div class="checklist-items">
             <div class="checklist-item" *ngFor="let item of $any(block).items; let j = index; let last = last">
-              <mat-checkbox [(ngModel)]="item.done" [disabled]="!guestCanEdit" (ngModelChange)="onChecklistItemChange()"></mat-checkbox>
+              <mat-checkbox [(ngModel)]="item.done" [disabled]="!guestCanToggleChecklist" (ngModelChange)="onChecklistItemToggle()"></mat-checkbox>
               <div class="checklist-input-wrap">
                 <input class="checklist-input" [class.item-done]="item.done"
                        [disabled]="!guestCanEdit"

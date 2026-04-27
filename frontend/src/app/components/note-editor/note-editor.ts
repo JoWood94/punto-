@@ -448,6 +448,8 @@ export class NoteEditorComponent implements OnInit, OnChanges, DoCheck, AfterVie
   /** Block index to focus after next DOM init (used to open keyboard on new text block). */
   private pendingFocusBlockIndex: number | null = null;
   private pendingFocusChecklistBlockIndex: number | null = null;
+  /** When true, onTextFocus() skips signal updates to avoid interrupting iOS keyboard gesture chain. */
+  private _skipTextFocusSignals = false;
   /** Set to true when a new note is created — focuses the title input after DOM init. */
   private pendingFocusTitleInput = false;
 
@@ -785,6 +787,13 @@ export class NoteEditorComponent implements OnInit, OnChanges, DoCheck, AfterVie
     return !this.isGuest || !!(this.note.myPermissions?.editReminders);
   }
 
+  /** True se l'utente può spuntare/de-spuntare checklist (ma non modificare il testo).
+   *  Permesso più ampio di guestCanEdit: vale per tutti i collaboratori diretti della nota,
+   *  ma NON per i subscriber del calendario (isReadOnlyEvent). */
+  get guestCanToggleChecklist(): boolean {
+    return !this.isReadOnlyEvent;
+  }
+
   // ─── Sharing ────────────────────────────────────────────────────────────────
 
   async openSharePanel() {
@@ -948,14 +957,16 @@ export class NoteEditorComponent implements OnInit, OnChanges, DoCheck, AfterVie
     }
     const el = this.textBlockEls.toArray()[textElIdx]?.nativeElement;
     if (!el) return;
+    // Stessa tecnica di applyPendingChecklistFocus: sopprimiamo gli aggiornamenti
+    // segnale durante el.focus() per non innescare un re-render che interrompe
+    // la catena gesture-iOS e blocca l'apertura della tastiera virtuale.
+    this._skipTextFocusSignals = true;
     el.focus();
-    // Posiziona il cursore alla fine del contenuto
-    const range = document.createRange();
-    range.selectNodeContents(el);
-    range.collapse(false);
-    const sel = window.getSelection();
-    sel?.removeAllRanges();
-    sel?.addRange(range);
+    this._skipTextFocusSignals = false;
+    this.activeTextBlockIndex.set(targetIdx);
+    this.activeBlockIndex.set(targetIdx);
+    this.updateFormatState();
+    el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
   }
 
   private initTextBlockElements() {
@@ -1435,6 +1446,7 @@ export class NoteEditorComponent implements OnInit, OnChanges, DoCheck, AfterVie
   }
 
   onTextFocus(blockIndex: number) {
+    if (this._skipTextFocusSignals) return;
     this.activeTextBlockIndex.set(blockIndex);
     this.activeBlockIndex.set(blockIndex);
     this.updateFormatState();
@@ -1608,8 +1620,16 @@ export class NoteEditorComponent implements OnInit, OnChanges, DoCheck, AfterVie
     }
   }
 
+  /** Salva la modifica al testo di un item: richiede editContent. */
   onChecklistItemChange() {
     if (!this.guestCanEdit) return;
+    this.signalActivity();
+    this.triggerAutoSave();
+  }
+
+  /** Salva il toggle done/undone di un item: disponibile a tutti i collaboratori diretti. */
+  onChecklistItemToggle() {
+    if (!this.guestCanToggleChecklist) return;
     this.signalActivity();
     this.triggerAutoSave();
   }

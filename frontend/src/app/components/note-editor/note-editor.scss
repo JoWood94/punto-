@@ -1031,7 +1031,11 @@
     color: #1C1B1F;
   }
 
-  @media (max-width: 599.98px) { opacity: 0.45; }
+  // Mobile: visibile solo quando il blocco è attivo (evita × flottante sempre visibile
+  // che confonde col + del checklist-add-trigger e crea disordine visivo).
+  .block-item--active & {
+    @media (max-width: 599.98px) { opacity: 0.55; }
+  }
 }
 
 // ─── Block system (CDK DragDrop) ────────────────────────────
