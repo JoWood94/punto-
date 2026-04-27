@@ -146,7 +146,7 @@ async function checkAndSendReminders() {
     }
 
     const tokensCache = {};
-    const updates = [];
+    const snoozeUpdates = [];
     let sentCount = 0;
 
     for (const doc of notesSnapshot.docs) {
@@ -170,6 +170,86 @@ async function checkAndSendReminders() {
 
       // Filtro in-memory: scarta i doc la cui notifyTime è ancora nel futuro.
       if (notifyTime > now) {
+        continue;
+      }
+
+      // Calcola l'updatePayload prima della transaction (ricorrenza vs one-shot).
+      const recurrence = note.recurrence ?? 'none';
+      const endDate = typeof note.recurrenceEndDate === 'number' ? note.recurrenceEndDate : null;
+      let updatePayload;
+      if (recurrence !== 'none') {
+        // Skip-ahead: avanza finché nextTime > now (evita raffica di catch-up
+        // quando il cron è restato indietro o il doc era pending da giorni).
+        let nextTime = calculateNextReminder(reminderMs, recurrence);
+        let skipped = 0;
+        while (nextTime <= now && (!endDate || nextTime <= endDate) && skipped < 10000) {
+          const advanced = calculateNextReminder(nextTime, recurrence);
+          if (advanced <= nextTime) break;
+          nextTime = advanced;
+          skipped++;
+        }
+        if (skipped > 0) {
+          console.log(`Skipped ${skipped} occorrenze passate per ${recurrence} (note ${doc.id}).`);
+        }
+        const expired = endDate && nextTime > endDate;
+        if (!expired) {
+          updatePayload = {
+            reminderStatus: 'pending',
+            reminderTime: nextTime,
+            ...(offsetMin > 0 ? { notifyOffsetMin: offsetMin } : {}),
+          };
+          if (note.blocks && Array.isArray(note.blocks)) {
+            updatePayload.blocks = note.blocks.map(b => {
+              if (b.type === 'reminder') {
+                const next = { ...b, time: nextTime, status: 'pending' };
+                if (offsetMin > 0 && !next.notifyOffsetMin) next.notifyOffsetMin = offsetMin;
+                return next;
+              }
+              return b;
+            });
+          }
+          console.log(`Promemoria ricorrente (${recurrence}) rischedulato a ${new Date(nextTime).toISOString()}${offsetMin > 0 ? ` (notifica ${offsetMin}min prima)` : ''}`);
+        } else {
+          updatePayload = { reminderStatus: 'sent' };
+          if (note.blocks && Array.isArray(note.blocks)) {
+            updatePayload.blocks = note.blocks.map(b => {
+              if (b.type === 'reminder') return { ...b, status: 'sent' };
+              return b;
+            });
+          }
+          console.log(`Ricorrenza ${recurrence} terminata (endDate superata), promemoria segnato come sent`);
+        }
+      } else {
+        updatePayload = { reminderStatus: 'sent' };
+        if (note.blocks && Array.isArray(note.blocks)) {
+          updatePayload.blocks = note.blocks.map(b => {
+            if (b.type === 'reminder') return { ...b, status: 'sent' };
+            return b;
+          });
+        }
+      }
+
+      // Claim atomico: applica updatePayload solo se reminderStatus è ancora 'pending'
+      // E reminderTime non è cambiato. Questo previene duplicati quando due run del cron
+      // si sovrappongono: il secondo run trova il doc già aggiornato e skippa.
+      let claimed = false;
+      try {
+        claimed = await db.runTransaction(async t => {
+          const snap = await t.get(doc.ref);
+          if (!snap.exists) return false;
+          const d = snap.data();
+          if (d.reminderStatus !== 'pending') return false;
+          const currentMs = d.reminderTime?.toMillis ? d.reminderTime.toMillis() : Number(d.reminderTime);
+          if (currentMs !== reminderMs) return false; // già rischedulato da un altro run
+          t.update(doc.ref, updatePayload);
+          return true;
+        });
+      } catch (e) {
+        console.error(`[claim] Transaction fallita per nota ${doc.id}:`, e.message);
+        continue;
+      }
+      if (!claimed) {
+        console.log(`[claim] Nota ${doc.id} già processata da altro run, skip.`);
         continue;
       }
 
@@ -254,9 +334,7 @@ async function checkAndSendReminders() {
         const msgTitle = (notifTitleEnabled && rawTitle && !isEncrypted(rawTitle))
           ? rawTitle
           : strings.defaultTitle;
-        const bodyText = reminderDate
-          ? strings.bodyWithDate(reminderDate)
-          : strings.bodyNoDate;
+        const bodyText = reminderDate ? reminderDate : strings.bodyNoDate;
 
         try {
           const response = await messaging.sendEachForMulticast({
@@ -279,7 +357,7 @@ async function checkAndSendReminders() {
               }
             }
           });
-          
+
           // Group failed tokens by uid for per-user cleanup
           const failedByUid = {};
           response.responses.forEach((resp, idx) => {
@@ -297,76 +375,11 @@ async function checkAndSendReminders() {
           for (const [failUid, failTokens] of Object.entries(failedByUid)) {
             await removeInvalidTokens(failUid, failTokens, tokensCache[failUid]?.fcmDevices ?? {});
           }
-          
+
           sentCount++;
         } catch (e) {
           console.error("Failed to send notification for note", doc.id, e);
         }
-      }
-      
-      // Ricorrenza: rischedulare invece di segnare come 'sent'
-      const recurrence = note.recurrence ?? 'none';
-      const endDate = typeof note.recurrenceEndDate === 'number' ? note.recurrenceEndDate : null;
-      if (recurrence !== 'none' && reminderMs) {
-        // Skip-ahead: avanza finché nextTime > now (evita raffica di catch-up
-        // quando il cron è restato indietro o il doc era pending da giorni).
-        // Cap a 10000 iterazioni come safeguard contro recurrence sconosciute.
-        let nextTime = calculateNextReminder(reminderMs, recurrence);
-        let skipped = 0;
-        while (nextTime <= now && (!endDate || nextTime <= endDate) && skipped < 10000) {
-          const advanced = calculateNextReminder(nextTime, recurrence);
-          if (advanced <= nextTime) break; // recurrence non riconosciuta → stop
-          nextTime = advanced;
-          skipped++;
-        }
-        if (skipped > 0) {
-          console.log(`Skipped ${skipped} occorrenze passate per ${recurrence} (note ${doc.id}).`);
-        }
-        const expired = endDate && nextTime > endDate;
-
-        if (!expired) {
-          // notifyOffsetMin invariato al reschedule: è un delta rispetto a reminderTime,
-          // non dipende dall'istanza specifica. Solo reminderTime avanza.
-          const updatePayload = {
-            reminderStatus: 'pending',
-            reminderTime: nextTime,
-            // Propaga notifyOffsetMin se presente (null = legacy, nessuna modifica necessaria)
-            ...(offsetMin > 0 ? { notifyOffsetMin: offsetMin } : {}),
-          };
-          if (note.blocks && Array.isArray(note.blocks)) {
-            updatePayload.blocks = note.blocks.map(b => {
-              if (b.type === 'reminder') {
-                // Preserva notifyOffsetMin nel block (se presente)
-                const next = { ...b, time: nextTime, status: 'pending' };
-                if (offsetMin > 0 && !next.notifyOffsetMin) next.notifyOffsetMin = offsetMin;
-                return next;
-              }
-              return b;
-            });
-          }
-          updates.push(doc.ref.update(updatePayload));
-          console.log(`Promemoria ricorrente (${recurrence}) rischedulato a ${new Date(nextTime).toISOString()}${offsetMin > 0 ? ` (notifica ${offsetMin}min prima)` : ''}`);
-        } else {
-          const updatePayload = { reminderStatus: 'sent' };
-          if (note.blocks && Array.isArray(note.blocks)) {
-            updatePayload.blocks = note.blocks.map(b => {
-              if (b.type === 'reminder') return { ...b, status: 'sent' };
-              return b;
-            });
-          }
-          updates.push(doc.ref.update(updatePayload));
-          console.log(`Ricorrenza ${recurrence} terminata (endDate superata), promemoria segnato come sent`);
-        }
-      } else {
-        const updatePayload = { reminderStatus: 'sent' };
-        // Aggiorna anche il ReminderBlock nell'array blocks (nuovo formato)
-        if (note.blocks && Array.isArray(note.blocks)) {
-          updatePayload.blocks = note.blocks.map(b => {
-            if (b.type === 'reminder') return { ...b, status: 'sent' };
-            return b;
-          });
-        }
-        updates.push(doc.ref.update(updatePayload));
       }
 
       // Cleanup snoozes temporanei processati: lo scope è l'istanza appena emessa/rischedulata.
@@ -380,11 +393,11 @@ async function checkAndSendReminders() {
           batch.delete(db.collection('notes').doc(doc.id)
             .collection('reminderSnoozes').doc(snoozedUid));
         }
-        updates.push(batch.commit());
+        snoozeUpdates.push(batch.commit());
       }
     }
 
-    await Promise.all(updates);
+    await Promise.all(snoozeUpdates);
     if (sentCount > 0) {
       console.log(`Inviate ${sentCount} notifiche con successo.`);
     } else {
@@ -643,7 +656,7 @@ async function checkAndSendEventReminders() {
         const msgTitle = (notifTitleEnabled && rawTitle && !isEncrypted(rawTitle))
           ? rawTitle
           : strings.defaultTitle;
-        const bodyText = strings.bodyWithDate(eventDateStr);
+        const bodyText = eventDateStr;
 
         try {
           const resp = await messaging.sendEachForMulticast({
@@ -702,14 +715,14 @@ async function checkAndSendEventReminders() {
 
 const NOTIF_STRINGS = {
   it: {
-    defaultTitle: 'punto! — Promemoria',
-    bodyWithDate: (d) => `Hai un promemoria per il ${d}`,
-    bodyNoDate: 'Hai un promemoria in scadenza!',
+    defaultTitle: 'Promemoria',
+    bodyWithDate: (d) => d,
+    bodyNoDate: 'Promemoria in scadenza',
   },
   en: {
-    defaultTitle: 'punto! — Reminder',
-    bodyWithDate: (d) => `You have a reminder for ${d}`,
-    bodyNoDate: 'You have an upcoming reminder!',
+    defaultTitle: 'Reminder',
+    bodyWithDate: (d) => d,
+    bodyNoDate: 'Upcoming reminder',
   },
 };
 
