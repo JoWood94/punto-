@@ -1,11 +1,14 @@
 import { Injectable, inject, Injector, runInInjectionContext } from '@angular/core';
 import { Messaging, getToken, deleteToken, onMessage } from '@angular/fire/messaging';
-import { getFirestore, doc, setDoc, updateDoc, arrayRemove } from 'firebase/firestore';
+import { getFirestore, doc, getDoc, setDoc, updateDoc, deleteField, arrayRemove } from 'firebase/firestore';
 import { getApp, getApps, initializeApp } from 'firebase/app';
 import { AuthService } from './auth';
 import { environment } from '../../environments/environment';
 
-const DEVICE_ID_KEY = 'punto_device_id';
+/** Chiave fcmDevices: `${platform}-${maxDim}x${minDim}` — risoluzione fisica come
+ *  identificatore stabile del device (sopravvive a reinstall PWA, OS update, browser update).
+ *  Le chiavi che non matchano questo pattern sono orphan da schema legacy (random UUID). */
+const PLATFORM_KEY_RE = /^(ios|android|desktop)-\d+x\d+$/;
 
 @Injectable({
   providedIn: 'root'
@@ -20,15 +23,24 @@ export class PushNotificationService {
     return getFirestore(app);
   }
 
-  private getOrCreateDeviceId(): string {
-    let id = localStorage.getItem(DEVICE_ID_KEY);
-    if (!id) {
-      id = typeof crypto.randomUUID === 'function'
-        ? crypto.randomUUID()
-        : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-      localStorage.setItem(DEVICE_ID_KEY, id);
-    }
-    return id;
+  /** Identifica univocamente questo device tramite (platform, risoluzione fisica).
+   *  La risoluzione `screen.width/height` è stabile attraverso reinstall PWA, OS update
+   *  e browser update — a differenza di UUID in localStorage (wipeato a reinstall su iOS)
+   *  o userAgent (cambia a ogni aggiornamento). */
+  private getDeviceKey(): { key: string; label: string; platform: string } {
+    const ua = navigator.userAgent;
+    const platform = /iPhone|iPad|iPod/.test(ua) ? 'ios'
+      : /Android/.test(ua) ? 'android'
+      : 'desktop';
+    const w = Math.max(screen.width || 0, screen.height || 0);
+    const h = Math.min(screen.width || 0, screen.height || 0);
+    const key = `${platform}-${w}x${h}`;
+    const friendlyName = platform === 'ios'
+      ? (/iPad/.test(ua) ? 'iPad' : 'iPhone')
+      : platform === 'android' ? 'Android'
+      : 'Desktop';
+    const label = `${friendlyName} ${w}×${h}`;
+    return { key, label, platform };
   }
 
   async requestPermission(): Promise<string | null> {
@@ -82,17 +94,42 @@ export class PushNotificationService {
         console.log('Firebase Cloud Messaging Token:', token);
 
         const uid = this.authService.getCurrentUserId();
-        const deviceId = this.getOrCreateDeviceId();
-        console.log('[Push] uid:', uid, 'deviceId:', deviceId, 'token len:', token?.length ?? 0);
+        const { key: deviceKey, label } = this.getDeviceKey();
+        console.log('[Push] uid:', uid, 'deviceKey:', deviceKey, 'token len:', token?.length ?? 0);
         if (uid && token) {
           const userRef = doc(this.db, `users/${uid}`);
-          // Un device = un token: sovrascrive sempre la entry di questo dispositivo.
-          // Niente duplicati anche su reinstall PWA o refresh token.
-          await setDoc(userRef, { fcmDevices: { [deviceId]: token } }, { merge: true });
-          // Migrazione: rimuove questo token dall'array legacy fcmTokens (se presente).
-          // Chirurgico: rimuove solo il token di questo device, non tocca gli altri.
+          const entry = {
+            token,
+            label,
+            userAgent: navigator.userAgent,
+            lastSeen: Date.now(),
+          };
+          // Scrive la entry per questa chiave (crea il doc se non esiste).
+          await setDoc(userRef, { fcmDevices: { [deviceKey]: entry } }, { merge: true });
+
+          // Cleanup orphan: rimuove entry con chiavi che non matchano il pattern attuale
+          // (random UUID dal vecchio schema). Preserva entry di altri platform-key validi
+          // (es. desktop dell'utente se sto registrando da iOS).
+          try {
+            const userSnap = await getDoc(userRef);
+            const current = userSnap.data()?.['fcmDevices'] ?? {};
+            const cleanup: Record<string, any> = {};
+            for (const oldKey of Object.keys(current)) {
+              if (oldKey !== deviceKey && !PLATFORM_KEY_RE.test(oldKey)) {
+                cleanup[`fcmDevices.${oldKey}`] = deleteField();
+              }
+            }
+            if (Object.keys(cleanup).length > 0) {
+              await updateDoc(userRef, cleanup);
+              console.log('[Push] Cleanup orphan keys:', Object.keys(cleanup).length);
+            }
+          } catch (e) {
+            console.warn('[Push] orphan cleanup skipped:', e);
+          }
+
+          // Migrazione legacy: rimuove questo token dall'array fcmTokens se presente.
           await updateDoc(userRef, { fcmTokens: arrayRemove(token) }).catch(() => {});
-          console.log('[Push] FCM token saved to fcmDevices for deviceId', deviceId);
+          console.log('[Push] FCM token saved to fcmDevices for', deviceKey);
         }
 
         return token;

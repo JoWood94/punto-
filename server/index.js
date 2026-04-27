@@ -45,9 +45,15 @@ const messaging = admin.messaging();
  * Priorità: fcmDevices (un token per device) + fcmTokens legacy deduplicati.
  */
 function extractTokens(userData) {
-  const fromDevices = Object.values(userData.fcmDevices ?? {}).filter(t => typeof t === 'string');
-  // Se fcmDevices è presente, ignora completamente fcmTokens legacy per evitare duplicati
-  // (il client fa arrayRemove solo del token corrente, token diversi resterebbero)
+  // fcmDevices supporta due schemi:
+  //  - legacy: { uuid: "token..." } (string value)
+  //  - nuovo:  { ios-WxH: { token, label, userAgent, lastSeen } } (object value)
+  const fromDevices = [];
+  for (const v of Object.values(userData.fcmDevices ?? {})) {
+    if (typeof v === 'string') fromDevices.push(v);
+    else if (v && typeof v.token === 'string') fromDevices.push(v.token);
+  }
+  // Se fcmDevices è presente, ignora completamente fcmTokens legacy per evitare duplicati.
   if (fromDevices.length > 0) return fromDevices;
   return (userData.fcmTokens ?? []).filter(t => typeof t === 'string');
 }
@@ -58,7 +64,8 @@ function extractTokens(userData) {
  */
 async function removeInvalidTokens(uid, failedTokens, deviceMap) {
   const update = { fcmTokens: admin.firestore.FieldValue.arrayRemove(...failedTokens) };
-  for (const [devId, tok] of Object.entries(deviceMap)) {
+  for (const [devId, val] of Object.entries(deviceMap)) {
+    const tok = typeof val === 'string' ? val : (val && val.token);
     if (failedTokens.includes(tok)) {
       update[`fcmDevices.${devId}`] = admin.firestore.FieldValue.delete();
     }
