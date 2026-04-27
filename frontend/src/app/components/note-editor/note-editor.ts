@@ -1410,7 +1410,7 @@ export class NoteEditorComponent implements OnInit, OnChanges, DoCheck, AfterVie
     this.activeBlockIndex.set(index);
   }
 
-  /** Apre l'azione di modifica del blocco location/link dal menu (3 dots). */
+  /** Apre l'azione di modifica del blocco location/link/image dal menu (3 dots). */
   editBlockFromMenu(index: number): void {
     const block = this.note?.blocks?.[index] as any;
     if (!block) return;
@@ -1419,7 +1419,25 @@ export class NoteEditorComponent implements OnInit, OnChanges, DoCheck, AfterVie
     } else if (block.type === 'location') {
       block.editing = true;
       this.cdr.markForCheck();
+    } else if (block.type === 'image') {
+      this.pickImageReplacement(index);
     }
+  }
+
+  /** Apre un file picker programmatico per sostituire l'immagine del blocco.
+   *  onImageBlockFileSelected sovrascrive block.data, quindi la vecchia immagine
+   *  viene automaticamente rimpiazzata. */
+  private pickImageReplacement(blockIndex: number): void {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/jpeg,image/png,image/webp,image/heic,image/heif';
+    input.style.display = 'none';
+    input.addEventListener('change', (event) => {
+      this.onImageBlockFileSelected(blockIndex, event);
+      setTimeout(() => input.remove(), 0);
+    });
+    document.body.appendChild(input);
+    input.click();
   }
 
   /** Listener globale: click fuori da qualunque .block-item / overlay CDK
