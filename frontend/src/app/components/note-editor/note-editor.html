@@ -323,13 +323,16 @@
   </section>
 
   <!-- ═══ CALENDARIO (pill attiva) — full-width, sopra il reminder ═══ -->
-  <div *ngIf="note.type === 'event' && ownedCalendars.length > 1"
+  <!-- Owner con ≥2 calendari: interattivo. Guest su evento condiviso: read-only (disabled). -->
+  <div *ngIf="showCalendarPicker"
        class="event-calendar-active-wrapper">
     <button type="button"
             class="event-calendar-active-pill"
-            (click)="openCalendarPickerSheet()"
+            [class.event-calendar-active-pill--readonly]="isReadOnlyEvent"
+            (click)="!isReadOnlyEvent && openCalendarPickerSheet()"
             [attr.aria-label]="'EVENT.PICK_CALENDAR' | translate">
       <mat-icon class="event-calendar-active-icon">event</mat-icon>
+      <mat-icon class="event-calendar-active-shared-icon" *ngIf="isReadOnlyEvent">group</mat-icon>
       <span class="event-calendar-active-label">{{ selectedCalendarTitle }}</span>
       <span class="event-calendar-active-dot" [style.background-color]="selectedCalendarColor"></span>
     </button>
