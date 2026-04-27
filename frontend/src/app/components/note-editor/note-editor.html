@@ -362,7 +362,7 @@
          cdkDrag class="block-item" [ngClass]="'block-type-' + block.type"
          [class.block-item--active]="activeBlockIndex() === i"
          [cdkDragStartDelay]="350"
-         [cdkDragDisabled]="draggableBlockCount <= 1 || isReadOnlyEvent || block.type === 'text' || block.type === 'checklist'"
+         [cdkDragDisabled]="draggableBlockCount <= 1 || isReadOnlyEvent || block.type === 'text' || block.type === 'checklist' || block.type === 'image'"
          (pointerdown)="setActiveBlock(i)"
          (click)="setActiveBlock(i)">
 
@@ -409,29 +409,30 @@
             <span class="block-label">Checklist</span>
           </div>
           <div class="checklist-items">
-            <div class="checklist-item" *ngFor="let item of $any(block).items; let j = index">
+            <div class="checklist-item" *ngFor="let item of $any(block).items; let j = index; let last = last">
               <mat-checkbox [(ngModel)]="item.done" [disabled]="!guestCanEdit" (ngModelChange)="onChecklistItemChange()"></mat-checkbox>
               <div class="checklist-input-wrap">
                 <input class="checklist-input" [class.item-done]="item.done"
                        [disabled]="!guestCanEdit"
                        [(ngModel)]="item.text" (ngModelChange)="onChecklistItemChange()"
                        (keydown.enter)="onChecklistItemEnter($event, $any(block), j)"
+                       (blur)="onChecklistInputBlur($any(block), $event)"
                        placeholder="Voce..." />
                 <button mat-icon-button class="remove-item-btn" [disabled]="!guestCanEdit" (click)="removeChecklistItem($any(block), j)" type="button">
                   <mat-icon>close</mat-icon>
                 </button>
               </div>
+              <!-- Trigger inline: visibile sull'ULTIMO item quando il blocco è
+                   attivo (o hover desktop). Aggiunge una voce vuota in coda e
+                   ne fa focus, replicando la logica dell'invio da tastiera. -->
+              <button *ngIf="last && !isReadOnlyEvent" type="button"
+                      class="checklist-add-trigger"
+                      [disabled]="!guestCanEdit"
+                      (click)="addChecklistItemTrailing($any(block), $event)"
+                      aria-label="Aggiungi voce">
+                <mat-icon>add</mat-icon>
+              </button>
             </div>
-          </div>
-          <div class="checklist-add-row">
-            <input class="checklist-add-input" #newItemInput placeholder="Aggiungi voce..."
-                   [disabled]="!guestCanEdit"
-                   (keydown.enter)="onChecklistEnter($event, $any(block), newItemInput)">
-            <button mat-icon-button type="button" class="checklist-add-btn"
-                    [disabled]="!guestCanEdit"
-                    (click)="onChecklistEnter($event, $any(block), newItemInput)">
-              <mat-icon>add_circle</mat-icon>
-            </button>
           </div>
         </div>
       </ng-container>

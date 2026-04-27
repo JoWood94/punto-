@@ -447,6 +447,7 @@ export class NoteEditorComponent implements OnInit, OnChanges, DoCheck, AfterVie
   private pendingOwnWrite = false;
   /** Block index to focus after next DOM init (used to open keyboard on new text block). */
   private pendingFocusBlockIndex: number | null = null;
+  private pendingFocusChecklistBlockIndex: number | null = null;
   /** Set to true when a new note is created — focuses the title input after DOM init. */
   private pendingFocusTitleInput = false;
 
@@ -902,6 +903,38 @@ export class NoteEditorComponent implements OnInit, OnChanges, DoCheck, AfterVie
       this.initTextBlockElements();
       this.applyPendingFocus();
     }
+    if (this.pendingFocusChecklistBlockIndex !== null) {
+      this.applyPendingChecklistFocus();
+    }
+  }
+
+  /** Foca il primo input checklist del blocco appena creato.
+   *  I blocchi reminder non hanno un .block-item DOM (sono renderizzati a parte),
+   *  quindi mappiamo l'indice della collezione note.blocks all'indice DOM
+   *  contando solo i blocchi non-reminder. */
+  private applyPendingChecklistFocus(): void {
+    const targetIdx = this.pendingFocusChecklistBlockIndex;
+    if (targetIdx === null) return;
+    let domIdx = 0;
+    for (let i = 0; i < targetIdx; i++) {
+      if (this.note.blocks[i].type !== 'reminder') domIdx++;
+    }
+    const root = this.editorContent?.nativeElement;
+    if (!root) return;
+    const blockEls = root.querySelectorAll<HTMLElement>('.block-item');
+    const blockEl = blockEls[domIdx];
+    const input = blockEl?.querySelector<HTMLInputElement>('.checklist-input');
+    if (!input) return;
+    this.pendingFocusChecklistBlockIndex = null;
+    // focus() prima di activeBlockIndex.set(): su iOS il re-render di ⋮/+
+    // scatenato dal signal può interrompere il focus e bloccare l'apertura
+    // della tastiera virtuale. Il blocco diventa "attivo" dopo il focus.
+    input.focus();
+    this.activeBlockIndex.set(targetIdx);
+    // block: 'nearest' scrolla solo il minimo per rendere visibile l'input,
+    // evitando di posizionarlo al centro della viewport intera (che con la
+    // tastiera aperta corrisponde a troppo in alto).
+    input.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
   }
 
   private applyPendingFocus() {
@@ -1181,7 +1214,7 @@ export class NoteEditorComponent implements OnInit, OnChanges, DoCheck, AfterVie
         newBlock = { type: 'text', html: '' };
         break;
       case 'checklist':
-        newBlock = { type: 'checklist', items: [] } as ChecklistBlock;
+        newBlock = { type: 'checklist', items: [{ text: '', done: false }] } as ChecklistBlock;
         break;
       case 'location':
         newBlock = { type: 'location', address: '', searchQuery: '', editing: true, addressOptions: [] } as any;
@@ -1210,22 +1243,30 @@ export class NoteEditorComponent implements OnInit, OnChanges, DoCheck, AfterVie
       this.note.blocks.length === 1 &&
       this.note.blocks[0].type === 'text' &&
       !(this.note.blocks[0] as TextBlock).html;
+    let createdAt: number;
     if (isOnlyEmptyText) {
       this.note.blocks = [newBlock];
+      createdAt = 0;
     } else {
-      const insertAt = afterIndex !== undefined ? afterIndex + 1 : this.note.blocks.length;
+      createdAt = afterIndex !== undefined ? afterIndex + 1 : this.note.blocks.length;
       this.note.blocks = [
-        ...this.note.blocks.slice(0, insertAt),
+        ...this.note.blocks.slice(0, createdAt),
         newBlock,
-        ...this.note.blocks.slice(insertAt)
+        ...this.note.blocks.slice(createdAt)
       ];
-      if (type === 'text') this.pendingFocusBlockIndex = insertAt;
+      if (type === 'text') this.pendingFocusBlockIndex = createdAt;
     }
     this.textBlocksNeedInit = true;
     // I blocchi testo si auto-focalizzano: iOS keyboard avoidance gestisce lo scroll.
     // scrollEditorToBottom sovrascrive quella posizione e mostra il nuovo blocco
     // in fondo con il padding-bottom bianco visibile sopra la toolbar.
     if (type !== 'text') this.scrollEditorToBottom();
+    if (type === 'checklist') {
+      // activeBlockIndex viene impostato DOPO input.focus() in applyPendingChecklistFocus
+      // per evitare che il re-render di ⋮/+ su iOS interrompa il focus prima che
+      // il browser apra la tastiera virtuale.
+      this.pendingFocusChecklistBlockIndex = createdAt;
+    }
     this.triggerAutoSave();
   }
 
@@ -1507,21 +1548,21 @@ export class NoteEditorComponent implements OnInit, OnChanges, DoCheck, AfterVie
 
   // ─── Checklist Block ────────────────────────────────────────────────────────
 
-  addChecklistItem(block: ChecklistBlock, text: string) {
-    if (text.trim()) {
-      block.items.push({ text: text.trim(), done: false });
-      this.scrollEditorToBottom();
-      this.triggerAutoSave();
-    }
-  }
-
-  onChecklistEnter(event: Event, block: ChecklistBlock, input: HTMLInputElement) {
-    event.preventDefault(); // evita newline / submit su mobile
-    const text = input.value;
-    this.addChecklistItem(block, text);
-    input.value = '';
-    // Su iOS il focus sincrono dopo clear non funziona — setTimeout necessario
-    setTimeout(() => input.focus(), 30);
+  /** Click sul trigger "+" inline (ultimo item): aggiunge una voce vuota in
+   *  coda e ne fa focus, replicando la logica dell'invio da tastiera. */
+  addChecklistItemTrailing(block: ChecklistBlock, event: Event): void {
+    event.preventDefault();
+    event.stopPropagation();
+    const newIndex = block.items.length;
+    block.items.push({ text: '', done: false });
+    this.triggerAutoSave();
+    const target = event.currentTarget as HTMLElement | null;
+    setTimeout(() => {
+      const wrap = target?.closest('.checklist-items')
+        ?? this.editorContent?.nativeElement.querySelector('.block-item--active .checklist-items');
+      const inputs = wrap?.querySelectorAll<HTMLInputElement>('.checklist-input');
+      inputs?.[newIndex]?.focus();
+    }, 30);
   }
 
   /** Invio da un item esistente: inserisce una NUOVA riga vuota subito dopo e
@@ -1546,6 +1587,25 @@ export class NoteEditorComponent implements OnInit, OnChanges, DoCheck, AfterVie
   removeChecklistItem(block: ChecklistBlock, index: number) {
     block.items.splice(index, 1);
     this.triggerAutoSave();
+  }
+
+  /** Blur su un input checklist: se il focus esce dallo stesso .checklist-items
+   *  rimuove gli item finali vuoti (utente preme Invio creando l'item, poi blur
+   *  senza scrivere). Lascia almeno un item per non rendere il blocco "morto"
+   *  privo di trigger "+" inline. */
+  onChecklistInputBlur(block: ChecklistBlock, event: FocusEvent): void {
+    const next = event.relatedTarget as HTMLElement | null;
+    const currentItems = (event.target as HTMLElement | null)?.closest('.checklist-items');
+    if (next && currentItems && currentItems.contains(next)) return;
+    let changed = false;
+    while (block.items.length > 1 && !block.items[block.items.length - 1].text.trim()) {
+      block.items.pop();
+      changed = true;
+    }
+    if (changed) {
+      this.triggerAutoSave();
+      this.cdr.markForCheck();
+    }
   }
 
   onChecklistItemChange() {

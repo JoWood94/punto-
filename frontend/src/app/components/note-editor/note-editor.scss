@@ -74,8 +74,17 @@
   }
   .image-preview-img {
     display: block; max-width: 100%; max-height: 420px; width: auto; height: auto;
-    object-fit: contain; -webkit-user-drag: none;
+    object-fit: contain;
     border-radius: var(--punto-shape-lg, 16px);
+    // Long-press iOS: cdkDrag (anche se disabilitato) applica al host
+    // -webkit-touch-callout: none / user-select: none che si ereditano sull'<img>
+    // bloccando la preview nativa (copia/condividi/salva). Forziamo i default.
+    -webkit-touch-callout: default !important;
+    -webkit-user-select: auto !important;
+    user-select: auto !important;
+    -webkit-user-drag: auto !important;
+    pointer-events: auto !important;
+    touch-action: auto !important;
   }
 }
 
@@ -879,6 +888,7 @@
 }
 
 .checklist-item {
+  position: relative; // anchor per .checklist-add-trigger
   display: flex;
   align-items: center;
   gap: 8px;
@@ -890,18 +900,90 @@
   ::ng-deep .mdc-checkbox { touch-action: manipulation; }
 }
 
-// Primo item della checklist: stesso ridimensionamento di .location-pill /
-// .link-anchor — quando il blocco è attivo (o hover desktop) il trigger 3-dots
-// è visibile in alto a destra, quindi riserviamo spazio per non sovrapporsi.
-.checklist-item:first-child {
+// Primo item: spazio per il ⋮. Ultimo item: spazio per il +.
+// Quando è l'unico item (primo E ultimo), servono entrambi gli spazi → 76px.
+.checklist-item:first-child,
+.checklist-item:last-child {
   margin-right: 0;
   transition: margin-right 160ms cubic-bezier(0.2, 0, 0, 1);
 
   .block-item--active & { margin-right: 36px; }
 }
 
+// Unico item: è sia :first-child sia :last-child — deve fare spazio a ⋮ e +.
+// 6px + 28px(⋮) + 6px + 28px(+) + 8px(respiro) = 76px.
+.checklist-item:first-child:last-child {
+  .block-item--active & { margin-right: 76px; }
+}
+
 @media (hover: hover) {
-  .block-item:hover .checklist-item:first-child { margin-right: 36px; }
+  .block-item:hover .checklist-item:first-child,
+  .block-item:hover .checklist-item:last-child { margin-right: 36px; }
+
+  .block-item:hover .checklist-item:first-child:last-child { margin-right: 76px; }
+}
+
+// Con unico item, il "+" va spostato a sinistra del ⋮ (che è a right: 6px del
+// block-item). Calcolo: item.padding-box.right = block-item.right − 76 − 8px(pad)
+// = −84px. Vogliamo "+" a right: −40px dal block-item → offset = 44px → right: −44px.
+.checklist-item:first-child:last-child .checklist-add-trigger {
+  right: -44px;
+}
+
+// Trigger inline "Aggiungi voce" (solo ultimo item): stessa estetica del
+// .block-actions-trigger, posizionato a destra dell'ultimo item, visibile
+// quando il blocco è attivo o (desktop) in hover.
+// Allineamento X col .block-actions-trigger (right: 6px del .block-item):
+// l'item ha padding-right: 8px e, quando attivo, margin-right: 36px → la
+// padding-box-right è a -44px dal bordo del block-item. Per portare il
+// bottone a -6px dal bordo (uguale al ⋮): offset +38px → right: -38px.
+.checklist-add-trigger {
+  position: absolute;
+  top: 50%;
+  right: -38px;
+  transform: translateY(-50%) scale(0.85);
+  width: 28px !important;
+  height: 28px !important;
+  padding: 0 !important;
+  background: var(--punto-on-surface, #1C1B1F) !important;
+  border: 0;
+  border-radius: 50%;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+  opacity: 0;
+  pointer-events: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition:
+    opacity 160ms cubic-bezier(0.2, 0, 0, 1),
+    transform 160ms cubic-bezier(0.2, 0, 0, 1);
+  z-index: 4;
+
+  mat-icon {
+    font-size: 16px;
+    width: 16px;
+    height: 16px;
+    color: var(--punto-surface-bright, #FFFBFE);
+  }
+
+  .block-item--active & {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateY(-50%) scale(1);
+  }
+
+  &:active { transform: translateY(-50%) scale(0.94); }
+
+  &:disabled { opacity: 0.38; cursor: not-allowed; }
+}
+
+@media (hover: hover) {
+  .block-item:hover .checklist-add-trigger {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateY(-50%) scale(1);
+  }
 }
 
 // Wrapper input + × — contiene visivamente tutto all'interno del tile
@@ -950,51 +1032,6 @@
   }
 
   @media (max-width: 599.98px) { opacity: 0.45; }
-}
-
-// ─── Checklist add row ───────────────────────────────────────
-.checklist-add-row {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  margin-top: 6px;
-  padding: 4px 0;
-  background: transparent;
-  border-bottom: 1px solid var(--mat-sys-outline-variant);
-  transition: border-color var(--_t);
-
-  &:focus-within {
-    border-bottom: 2px solid var(--punto-primary);
-  }
-}
-
-.checklist-add-input {
-  flex: 1;
-  border: none;
-  background: transparent;
-  outline: none;
-  // font-size >= 16px su mobile per prevenire l'auto-zoom di iOS Safari al focus
-  font-size: 1rem;
-  color: var(--mat-sys-on-surface);
-
-  &::placeholder {
-    color: color-mix(in srgb, var(--punto-primary) 60%, transparent);
-    font-style: italic;
-  }
-}
-
-.checklist-add-btn {
-  flex-shrink: 0;
-  overflow: visible !important;
-  width: 36px !important;
-  height: 36px !important;
-  mat-icon {
-    font-size: 22px;
-    width: 22px;
-    height: 22px;
-    color: var(--punto-primary);
-    overflow: visible;
-  }
 }
 
 // ─── Block system (CDK DragDrop) ────────────────────────────
@@ -1544,8 +1581,7 @@ $rs-hover-bg: rgba(28, 27, 31, 0.05);
   -webkit-user-select: none;
 }
 
-.checklist-input:disabled,
-.checklist-add-input:disabled {
+.checklist-input:disabled {
   opacity: 0.38;
   cursor: not-allowed;
 }
