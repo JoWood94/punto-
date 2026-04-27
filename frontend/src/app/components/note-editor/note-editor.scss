@@ -529,6 +529,7 @@
   -webkit-overflow-scrolling: touch;
   overscroll-behavior-y: contain;
   padding: 0 24px calc(62px + env(safe-area-inset-bottom, 0px) + 16px);
+  background: transparent;
   // Forza GPU compositing: previene l'artefatto WebKit (div bianco) che appare quando
   // --vh cambia e il layer composited non si invalida finché l'utente non scrolla.
   transform: translateZ(0);
@@ -604,20 +605,19 @@
 // dell'editor scrolla fino al bordo inferiore e i FAB fluttuano sopra,
 // niente fascia bianca di spacer sotto l'ultimo blocco.
 .floating-toolbar-area {
-  // Mobile: position:fixed + env(keyboard-inset-height) ancorato sopra la
-  // tastiera + UI native browser (iOS 17+, Chrome 108+).
-  // Desktop: position:absolute rispetto al :host (dentro l'editor-wrapper, a
-  // destra della sidenav), così la toolbar non finisce DIETRO il sidenav.
-  position: fixed;
+  // position:absolute rispetto a :host (position:relative, height:var(--vh)).
+  // Su mobile --vh = visualViewport.height che si riduce con la tastiera (iOS +
+  // Android): la toolbar resta visibile senza env(keyboard-inset-height) tricks.
+  // Desktop: idem, bottom:10px per allineamento con la sidenav.
+  position: absolute;
   left: 0;
   right: 0;
-  bottom: env(keyboard-inset-height, 0px);
+  bottom: 0;
   height: calc(62px + min(env(safe-area-inset-bottom, 0px), 44px));
   pointer-events: none;
   z-index: 5;
 
   @media (min-width: 768px) {
-    position: absolute;
     // Allineato al bottom della .lmt-pill della sidenav (sticky bottom:0 +
     // padding-bottom:16px ⇒ bottom edge a 16px dal viewport). I FAB interni
     // hanno già bottom:6+safe rispetto all'area, quindi 10 + 6 ≈ 16 px.
@@ -1892,6 +1892,7 @@ $rs-hover-bg: rgba(28, 27, 31, 0.05);
   transition: transform 140ms cubic-bezier(0.2, 0, 0, 1), opacity 140ms cubic-bezier(0.2, 0, 0, 1);
 
   &:active { transform: scale(0.99); opacity: 0.92; }
+  &--readonly { cursor: default; opacity: 0.75; &:active { transform: none; opacity: 0.75; } }
 }
 
 .event-calendar-active-icon {
@@ -1900,6 +1901,16 @@ $rs-hover-bg: rgba(28, 27, 31, 0.05);
   height: 18px;
   color: inherit;
   flex-shrink: 0;
+}
+
+.event-calendar-active-shared-icon {
+  font-size: 14px;
+  width: 14px;
+  height: 14px;
+  color: inherit;
+  opacity: 0.7;
+  flex-shrink: 0;
+  margin-left: -6px;
 }
 
 .event-calendar-active-label {

@@ -85,6 +85,8 @@ export class NoteEditorComponent implements OnInit, OnChanges, DoCheck, AfterVie
   @Input() initialCalendarId?: string;
   /** Calendari owned dall'utente corrente (Fase 4 G). Passato dal dashboard. */
   @Input() ownedCalendars: Calendar[] = [];
+  /** Tutti i calendari visibili (owned + subscribed). Usato per lookup read-only su eventi guest. */
+  @Input() allCalendars: Calendar[] = [];
   /** Emette la nota corrente (o null) per permettere al dashboard di sincronizzare la vista. */
   @Output() closeEditor = new EventEmitter<Partial<Note> | null>();
   @Output() noteCreated = new EventEmitter<string>();
@@ -680,9 +682,9 @@ export class NoteEditorComponent implements OnInit, OnChanges, DoCheck, AfterVie
     return this.note.blocks.some(b => b.type === 'reminder');
   }
 
-  /** Mostra il calendar picker solo per eventi con almeno 2 calendari owned disponibili. */
+  /** Mostra la calendar pill: interattiva per owner con ≥2 calendari, read-only per guest. */
   get showCalendarPicker(): boolean {
-    return this.note?.type === 'event' && this.ownedCalendars.length > 1;
+    return this.note?.type === 'event' && (this.ownedCalendars.length > 1 || this.isReadOnlyEvent);
   }
 
   /**
@@ -703,13 +705,15 @@ export class NoteEditorComponent implements OnInit, OnChanges, DoCheck, AfterVie
   /** Colore del calendario attualmente selezionato per il dot del mini-FAB. */
   get selectedCalendarColor(): string {
     if (!this.note?.calendarId) return '#1C1B1F';
-    const cal = this.ownedCalendars.find(c => c.id === this.note.calendarId);
+    const cal = this.allCalendars.find(c => c.id === this.note.calendarId)
+             ?? this.ownedCalendars.find(c => c.id === this.note.calendarId);
     return cal?.color || '#1C1B1F';
   }
 
   get selectedCalendarTitle(): string {
     if (!this.note?.calendarId) return '';
-    const cal = this.ownedCalendars.find(c => c.id === this.note.calendarId);
+    const cal = this.allCalendars.find(c => c.id === this.note.calendarId)
+             ?? this.ownedCalendars.find(c => c.id === this.note.calendarId);
     return cal?.title || '';
   }
 
@@ -1268,9 +1272,15 @@ export class NoteEditorComponent implements OnInit, OnChanges, DoCheck, AfterVie
       if (type === 'text') this.pendingFocusBlockIndex = createdAt;
     }
     this.textBlocksNeedInit = true;
-    // I blocchi testo si auto-focalizzano: iOS keyboard avoidance gestisce lo scroll.
-    // scrollEditorToBottom sovrascrive quella posizione e mostra il nuovo blocco
-    // in fondo con il padding-bottom bianco visibile sopra la toolbar.
+    if (type === 'text') {
+      // iOS: il focus deve avvenire nello stesso task dell'evento utente perché
+      // il browser apra la tastiera virtuale. detectChanges() forza il render
+      // sincrono del nuovo elemento (#textBlockEl entra nella QueryList), poi
+      // applyPendingFocus() chiama el.focus() prima che zone.js chiuda il task.
+      // La seconda chiamata da ngAfterViewChecked sarà no-op (pendingFocusBlockIndex = null).
+      this.cdr.detectChanges();
+      this.applyPendingFocus();
+    }
     if (type !== 'text') this.scrollEditorToBottom();
     if (type === 'checklist') {
       // activeBlockIndex viene impostato DOPO input.focus() in applyPendingChecklistFocus
