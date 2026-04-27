@@ -81,6 +81,22 @@ function calculateNextReminder(currentTime, recurrence) {
   return d.getTime();
 }
 
+function formatSmartDate(ms, language = 'it') {
+  if (!ms) return null;
+  const tz = 'Europe/Rome';
+  const toDay = (d) => new Intl.DateTimeFormat('it-IT', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit' }).format(d);
+  const reminderDate = new Date(ms);
+  const now = new Date();
+  const tomorrow = new Date(now);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const time = new Intl.DateTimeFormat('it-IT', { timeZone: tz, hour: '2-digit', minute: '2-digit' }).format(reminderDate);
+  const labels = language === 'en' ? { today: 'Today', tomorrow: 'Tomorrow' } : { today: 'Oggi', tomorrow: 'Domani' };
+  if (toDay(reminderDate) === toDay(now)) return `${labels.today} ${time}`;
+  if (toDay(reminderDate) === toDay(tomorrow)) return `${labels.tomorrow} ${time}`;
+  const dayMonth = new Intl.DateTimeFormat('it-IT', { timeZone: tz, day: '2-digit', month: '2-digit' }).format(reminderDate);
+  return `${dayMonth} ${time}`;
+}
+
 /** Massimo offset notifica supportato dall'editor (DAY_1 = 1440 min).
  *  La query Firestore viene allargata di questa finestra in avanti così che
  *  un doc con reminderTime = T e notifyOffsetMin = 1440 venga comunque
@@ -322,19 +338,11 @@ async function checkAndSendReminders() {
         const PGP_MARKER = '-----BEGIN PGP MESSAGE-----';
         const isEncrypted = (val) => typeof val === 'string' && val.startsWith(PGP_MARKER);
 
-        // Sempre it-IT locale e Europe/Rome: la lingua cambia solo il testo, non il formato data/ora
-        const reminderDate = reminderMs
-          ? new Date(reminderMs).toLocaleString('it-IT', {
-              day: '2-digit', month: '2-digit', year: 'numeric',
-              hour: '2-digit', minute: '2-digit',
-              timeZone: 'Europe/Rome'
-            })
-          : null;
         const rawTitle = note.title;
         const msgTitle = (notifTitleEnabled && rawTitle && !isEncrypted(rawTitle))
           ? rawTitle
           : strings.defaultTitle;
-        const bodyText = reminderDate ? reminderDate : strings.bodyNoDate;
+        const bodyText = formatSmartDate(reminderMs, language) ?? strings.bodyNoDate;
 
         try {
           const response = await messaging.sendEachForMulticast({
@@ -647,16 +655,11 @@ async function checkAndSendEventReminders() {
         const PGP_MARKER = '-----BEGIN PGP MESSAGE-----';
         const isEncrypted = (val) => typeof val === 'string' && val.startsWith(PGP_MARKER);
         const strings = NOTIF_STRINGS[language] ?? NOTIF_STRINGS.it;
-        const eventDateStr = new Date(eventStart).toLocaleString('it-IT', {
-          day: '2-digit', month: '2-digit', year: 'numeric',
-          hour: '2-digit', minute: '2-digit',
-          timeZone: 'Europe/Rome'
-        });
         const rawTitle = event.title;
         const msgTitle = (notifTitleEnabled && rawTitle && !isEncrypted(rawTitle))
           ? rawTitle
           : strings.defaultTitle;
-        const bodyText = eventDateStr;
+        const bodyText = formatSmartDate(eventStart, language) ?? strings.bodyNoDate;
 
         try {
           const resp = await messaging.sendEachForMulticast({
