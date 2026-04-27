@@ -562,11 +562,12 @@ async function checkAndSendEventReminders() {
   const now = Date.now();
   console.log(`[${new Date().toISOString()}] Controllo event reminders per-user...`);
 
-  // Finestra eventi: da [now - 1h] a [now + 1day + 1h]. L'offset massimo supportato
-  // dall'editor è DAY_1 (1440min = 1 giorno). 1h di grace prima/dopo gestisce
-  // skew di scheduling cron.
+  // Finestra eventi: da [now - 1h] a [now + 8gg]. L'offset "Custom" può superare
+  // DAY_1 (1440min): un utente può impostare un reminder 2+ giorni prima dell'evento.
+  // 8 giorni copre qualsiasi offset ragionevole; il filtro in-memory su targetTime
+  // scarta gli eventi il cui reminder non è ancora scaduto.
   const windowStart = now - 60 * 60 * 1000;
-  const windowEnd = now + (24 + 1) * 60 * 60 * 1000;
+  const windowEnd = now + 8 * 24 * 60 * 60 * 1000;
 
   let eventsSnap;
   try {
