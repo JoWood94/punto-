@@ -668,6 +668,8 @@ export class NoteEditorComponent implements OnInit, OnChanges, DoCheck, AfterVie
     this.memoInlineToastTimer = setTimeout(() => {
       this.memoInlineToast.set(null);
       this.memoInlineToastTimer = null;
+      block._evaded = false;
+      block._prevTime = null;
     }, 6000);
   }
 
