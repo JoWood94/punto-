@@ -1,0 +1,74 @@
+name: Inspect FCM Devices (One-shot)
+
+on:
+  workflow_dispatch:
+    inputs:
+      target_uid:
+        description: 'UID dell utente da ispezionare'
+        required: true
+        default: 'W42XL7UVYFRMakpZJdrpcGkgsQr1'
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        working-directory: ./server
+        run: npm ci
+
+      - name: Inspect fcmDevices
+        working-directory: ./server
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          GITHUB_ACTIONS: "true"
+          TARGET_UID: ${{ inputs.target_uid }}
+        run: |
+          node -e "
+          const admin = require('firebase-admin');
+          admin.initializeApp({ credential: admin.credential.cert(JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT)) });
+          const db = admin.firestore();
+          const uid = process.env.TARGET_UID;
+          db.collection('users').doc(uid).get().then(doc => {
+            if (!doc.exists) { console.log('User not found:', uid); process.exit(0); }
+            const d = doc.data();
+            const devices = d.fcmDevices || {};
+            const legacy = d.fcmTokens || [];
+            console.log('=== USER', uid, '===');
+            console.log('language:', d.language || '(none)');
+            console.log('notifTitleEnabled:', d.notifTitleEnabled === true);
+            console.log('');
+            console.log('--- fcmDevices entries:', Object.keys(devices).length, '---');
+            for (const [devId, tok] of Object.entries(devices)) {
+              const tokStr = typeof tok === 'string' ? tok : '(non-string)';
+              console.log('  deviceId:', devId);
+              console.log('    token len:', tokStr.length, '| prefix:', tokStr.slice(0, 30), '| suffix:', tokStr.slice(-10));
+            }
+            console.log('');
+            console.log('--- fcmTokens legacy count:', legacy.length, '---');
+            for (const tok of legacy) {
+              const tokStr = typeof tok === 'string' ? tok : '(non-string)';
+              console.log('    token len:', tokStr.length, '| prefix:', tokStr.slice(0, 30), '| suffix:', tokStr.slice(-10));
+            }
+            console.log('');
+            console.log('--- duplicate token check ---');
+            const allTokens = [...Object.values(devices).filter(t => typeof t === 'string'), ...legacy];
+            const seen = new Map();
+            for (const t of allTokens) seen.set(t, (seen.get(t) || 0) + 1);
+            for (const [t, count] of seen) {
+              if (count > 1) console.log('  DUPLICATE x' + count + ':', t.slice(0,30), '...', t.slice(-10));
+            }
+            if ([...seen.values()].every(c => c === 1)) console.log('  no duplicates (token uniche)');
+            process.exit(0);
+          }).catch(e => { console.error('Error:', e.message); process.exit(1); });
+          "
