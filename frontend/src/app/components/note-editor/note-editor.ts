@@ -2159,9 +2159,6 @@ export class NoteEditorComponent implements OnInit, OnChanges, DoCheck, AfterVie
 
   private isPristine(): boolean {
     if (this.userHasModifiedContent) return false;
-    // Per eventi: la creazione dal FAB → "Evento" è già un'azione esplicita,
-    // eventStart è valorizzato di default. Non considerare pristine se è un evento.
-    if (this.note.type === 'event' && typeof this.note.eventStart === 'number') return false;
     const title = (this.note.title || '').trim();
     if (title && title !== this.PLACEHOLDER_TITLE) return false;
     // Se c'è un reminder block con tempo configurato, la nota non è pristine

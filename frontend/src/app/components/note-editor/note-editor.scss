@@ -84,7 +84,7 @@
     user-select: auto !important;
     -webkit-user-drag: auto !important;
     pointer-events: auto !important;
-    touch-action: auto !important;
+    touch-action: pan-y !important;
   }
 }
 

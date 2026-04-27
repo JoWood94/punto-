@@ -70,9 +70,12 @@
              [class.today]="day.isToday"
              [class.has-notes]="day.notes.length > 0"
              (click)="selectDay(day)">
-          <span class="day-number">{{ day.date.getDate() }}</span>
+          <div class="day-number-row">
+            <span class="day-number">{{ day.date.getDate() }}</span>
+            <span class="more-notes more-notes--top" *ngIf="day.notes.length > 2">+{{ day.notes.length - 2 }}</span>
+          </div>
           <div class="day-notes">
-            <ng-container *ngFor="let note of day.notes.slice(0, 1)">
+            <ng-container *ngFor="let note of day.notes.slice(0, 2)">
               <!-- Dot compatto per giorni intermedi di evento multigiorno -->
               <div class="day-note-dot"
                    *ngIf="isEventMid(note, day.date)"
@@ -94,7 +97,6 @@
                 </span>
               </div>
             </ng-container>
-            <div class="more-notes" *ngIf="day.notes.length > 1">+{{ day.notes.length - 1 }}</div>
           </div>
         </div>
       </div>
@@ -113,23 +115,47 @@
           <span class="week-day-number" [class.today-circle]="day.isToday">{{ day.date.getDate() }}</span>
         </div>
 
-        <!-- Mobile + Desktop: note chips (stesso template della month view) -->
-        <div class="week-day-notes" *ngIf="day.notes.length > 0">
-          <ng-container *ngFor="let note of day.notes.slice(0, isMobile ? 2 : day.notes.length)">
-            <!-- Dot compatto per giorni intermedi di evento multigiorno -->
+        <!-- Mobile: card stile day-view -->
+        <div class="week-day-cards" *ngIf="isMobile && day.notes.length > 0">
+          <ng-container *ngFor="let note of day.notes.slice(0, 3)">
             <div class="day-note-dot"
                  *ngIf="isEventMid(note, day.date)"
                  [style.background-color]="getNoteAccentColor(note)"
                  [attr.title]="note.title"
                  (click)="selectNote(note, $event)">
             </div>
-            <!-- Chip pieno -->
+            <div class="week-day-note-card"
+                 *ngIf="!isEventMid(note, day.date)"
+                 [style.background-color]="getNoteAccentColor(note)"
+                 (click)="selectNote(note, $event)">
+              <div class="week-card-meta">
+                <mat-icon class="week-card-icon" *ngIf="hasReminder(note)">notifications</mat-icon>
+                <mat-icon class="week-card-icon" *ngIf="note.type === 'event'" [attr.aria-label]="'Evento'">event</mat-icon>
+                <mat-icon class="week-card-icon" *ngIf="!hasReminder(note) && hasReminderRepeat(note)">repeat</mat-icon>
+                <span class="week-card-time" *ngIf="note.type === 'event' && note.eventStart">{{ formatTime(note.eventStart) }}</span>
+                <span class="week-card-time" *ngIf="note.type !== 'event' && note.reminderTime">{{ formatTime(note.reminderTime) }}</span>
+              </div>
+              <div class="week-card-title">{{ note.title || 'Senza titolo' }}</div>
+            </div>
+          </ng-container>
+          <div class="more-notes" *ngIf="day.notes.length > 3">+{{ day.notes.length - 3 }}</div>
+        </div>
+
+        <!-- Desktop: chips compatti -->
+        <div class="week-day-notes" *ngIf="!isMobile && day.notes.length > 0">
+          <ng-container *ngFor="let note of day.notes">
+            <div class="day-note-dot"
+                 *ngIf="isEventMid(note, day.date)"
+                 [style.background-color]="getNoteAccentColor(note)"
+                 [attr.title]="note.title"
+                 (click)="selectNote(note, $event)">
+            </div>
             <div class="note-chip"
                  *ngIf="!isEventMid(note, day.date)"
                  [class.note-chip-reminder]="hasReminder(note)"
                  [style.background-color]="getNoteAccentColor(note)"
                  (click)="selectNote(note, $event)"
-                 [matTooltip]="!isMobile ? (note.title || 'Nota senza titolo') : ''">
+                 [matTooltip]="note.title || 'Nota senza titolo'">
               <div class="chip-row">
                 <mat-icon class="chip-bell" *ngIf="hasReminder(note)">notifications</mat-icon>
                 <mat-icon class="chip-event-icon" *ngIf="note.type === 'event'" [attr.aria-label]="'Evento'">event</mat-icon>
@@ -142,7 +168,6 @@
               <div class="chip-time" *ngIf="hasReminder(note) && formatTime(note.reminderTime)">{{ formatTime(note.reminderTime) }}</div>
             </div>
           </ng-container>
-          <div class="more-notes" *ngIf="isMobile && day.notes.length > 2">+{{ day.notes.length - 2 }}</div>
         </div>
       </div>
     </div>
@@ -151,23 +176,19 @@
   <!-- ── Day view ── -->
   <div class="day-view" *ngIf="viewType === 'day'">
     <div class="day-notes-list" *ngIf="dayNotes.length > 0">
-      <div class="day-note-item"
+      <div class="day-note-card"
            *ngFor="let note of dayNotes"
-           [class.day-note-reminder]="hasReminder(note)"
            [style.background-color]="getNoteAccentColor(note)"
            (click)="selectNote(note, $event)">
-        <div class="day-note-time">
-          <mat-icon class="day-bell" *ngIf="hasReminder(note)">notifications</mat-icon>
-          <mat-icon class="chip-event-icon" *ngIf="note.type === 'event'" [attr.aria-label]="'Evento'">event</mat-icon>
-          <mat-icon class="chip-repeat" *ngIf="hasReminderRepeat(note)">repeat</mat-icon>
-          <span>{{ formatTime(note.reminderTime) }}</span>
+        <div class="day-note-card-meta">
+          <mat-icon class="day-note-card-icon" *ngIf="hasReminder(note)">notifications</mat-icon>
+          <mat-icon class="day-note-card-icon" *ngIf="note.type === 'event'" [attr.aria-label]="'Evento'">event</mat-icon>
+          <mat-icon class="day-note-card-icon" *ngIf="!hasReminder(note) && hasReminderRepeat(note)">repeat</mat-icon>
+          <span class="day-note-card-time">{{ note.type === 'event' ? formatTime(note.eventStart) : formatTime(note.reminderTime) }}</span>
         </div>
-        <div class="day-note-content">
-          <div class="day-note-title">
-            {{ note.title || 'Senza titolo' }}
-            <span *ngIf="isEventLast(note, currentDate)" class="chip-end-tag">← fine</span>
-          </div>
-          <div class="day-note-preview" [innerHTML]="note.content"></div>
+        <div class="day-note-card-title">
+          {{ note.title || 'Senza titolo' }}
+          <span *ngIf="isEventLast(note, currentDate)" class="chip-end-tag">← fine</span>
         </div>
       </div>
     </div>
