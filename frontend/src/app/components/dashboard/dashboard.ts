@@ -1393,12 +1393,12 @@ export class DashboardComponent implements OnInit, OnDestroy {
   }
 
   private computeDefaultReminderDate(): Date {
-    // Use calendarCurrentDate for the day (respects day-view navigation),
-    // with current time + 5 min for the hour/minute
-    const calDate = new Date(this.calendarCurrentDate);
+    // Sempre oggi + ora corrente + 5 min (arrotondata al multiplo di 5).
+    // Non usare calendarCurrentDate: se il calendario è navigato su un altro giorno,
+    // il promemoria partirebbe da quella data invece che da oggi.
     const now = new Date(Date.now() + 5 * 60 * 1000);
     const roundedMinutes = Math.ceil(now.getMinutes() / 5) * 5;
-    const d = new Date(calDate);
+    const d = new Date();
     d.setHours(now.getHours());
     if (roundedMinutes >= 60) {
       d.setHours(d.getHours() + 1);

@@ -10,6 +10,7 @@
     "RETRY": "Retry"
   },
   "COMMON": {
+    "OK": "OK",
     "CANCEL": "Cancel",
     "CONFIRM": "Confirm",
     "DELETE": "Delete",

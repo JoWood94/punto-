@@ -10,6 +10,7 @@
     "RETRY": "Riprova"
   },
   "COMMON": {
+    "OK": "OK",
     "CANCEL": "Annulla",
     "CONFIRM": "Conferma",
     "DELETE": "Elimina",
