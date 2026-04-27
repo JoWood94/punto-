@@ -2,6 +2,27 @@
 // Combined Service Worker: Firebase Messaging + Angular NGSW
 // Unico SW registrato per lo scope /punto-/ — elimina il conflitto tra i due SW.
 
+// ── 0. Custom push handler (PRIMA di tutto) ────────────────────────────────
+// Su iOS PWA, sia Firebase Messaging compat sia ngsw-worker.js registrano
+// listener `push` che chiamano showNotification → 2 notifiche identiche per push.
+// Questo handler si registra come FIRST listener, mostra la notifica e blocca
+// gli altri via stopImmediatePropagation.
+self.addEventListener('push', (event) => {
+  event.stopImmediatePropagation();
+  if (!event.data) return;
+  let payload;
+  try { payload = event.data.json(); } catch { return; }
+  const notif = payload.notification;
+  if (!notif) return;
+  const options = {
+    body: notif.body || '',
+    icon: notif.icon || '/icons/icon-192x192.png',
+    tag: notif.tag,
+    data: notif.data || {}
+  };
+  event.waitUntil(self.registration.showNotification(notif.title || 'punto!', options));
+}, false);
+
 // ── 1. Firebase Messaging ──────────────────────────────────────────────────
 importScripts("https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js");
 importScripts("https://www.gstatic.com/firebasejs/10.8.0/firebase-messaging-compat.js");
