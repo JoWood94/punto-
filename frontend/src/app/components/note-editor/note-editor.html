@@ -595,25 +595,25 @@
             *ngIf="type === 'location' || type === 'link' || type === 'image'"
             (click)="editBlockFromMenu(i)">
       <mat-icon>edit</mat-icon>
-      <span>Modifica</span>
+      <span>{{ 'EDITOR.BLOCK_EDIT' | translate }}</span>
     </button>
     <button mat-menu-item type="button"
             (click)="moveBlockUp(i)"
             [disabled]="!canMoveBlockUp(i)">
       <mat-icon>arrow_upward</mat-icon>
-      <span>Sposta su</span>
+      <span>{{ 'EDITOR.BLOCK_MOVE_UP' | translate }}</span>
     </button>
     <button mat-menu-item type="button"
             (click)="moveBlockDown(i)"
             [disabled]="!canMoveBlockDown(i)">
       <mat-icon>arrow_downward</mat-icon>
-      <span>Sposta giù</span>
+      <span>{{ 'EDITOR.BLOCK_MOVE_DOWN' | translate }}</span>
     </button>
     <button mat-menu-item type="button"
             (click)="removeBlock(i)"
             [disabled]="!canRemoveBlock(i)">
       <mat-icon>delete_outline</mat-icon>
-      <span>Elimina</span>
+      <span>{{ 'EDITOR.BLOCK_DELETE' | translate }}</span>
     </button>
   </ng-template>
 </mat-menu>

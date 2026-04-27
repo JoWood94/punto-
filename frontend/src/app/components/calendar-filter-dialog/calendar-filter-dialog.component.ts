@@ -1,4 +1,4 @@
-import { Component, Inject, OnInit } from '@angular/core';
+import { Component, EventEmitter, Inject, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MAT_DIALOG_DATA, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
@@ -51,6 +51,8 @@ export class CalendarFilterDialogComponent implements OnInit {
   hiddenCalendarIds = new Set<string>();
   currentUid: string | null = null;
 
+  readonly prefsChange = new EventEmitter<{ showMemos: boolean; showAllNotes: boolean; hiddenCalendarIds: string[] }>();
+
   constructor(
     public dialogRef: MatDialogRef<CalendarFilterDialogComponent, CalendarFilterDialogResult>,
     @Inject(MAT_DIALOG_DATA) public data: CalendarFilterDialogData,
@@ -88,20 +90,29 @@ export class CalendarFilterDialogComponent implements OnInit {
     } else {
       this.hiddenCalendarIds.add(calId);
     }
-    console.log('[DBG-EVT-FILTER] toggle calendar', {
-      id: calId,
-      hiddenAfter: this.hiddenCalendarIds.has(calId),
-    });
+    this.persistPrefs();
   }
 
   toggleShowMemos(): void {
     this.showMemos = !this.showMemos;
-    console.log('[DBG-EVT-FILTER] toggle showMemos', { value: this.showMemos });
+    this.persistPrefs();
   }
 
   toggleShowAllNotes(): void {
     this.showAllNotes = !this.showAllNotes;
-    console.log('[DBG-EVT-FILTER] toggle showAllNotes', { value: this.showAllNotes });
+    this.persistPrefs();
+  }
+
+  private persistPrefs(): void {
+    const hiddenCalendarIds = Array.from(this.hiddenCalendarIds);
+    this.prefsChange.emit({ showMemos: this.showMemos, showAllNotes: this.showAllNotes, hiddenCalendarIds });
+    Promise.all([
+      this.noteService.setUserPreference('calendarView', {
+        showMemos: this.showMemos,
+        hiddenCalendarIds,
+      }),
+      this.noteService.setUserPreference('calendarShowAllNotes', this.showAllNotes),
+    ]).catch(err => console.error('[calendar-filter] persistPrefs failed', err));
   }
 
   isCalendarVisible(calId: string): boolean {
@@ -129,24 +140,7 @@ export class CalendarFilterDialogComponent implements OnInit {
     this.dialogRef.close({ unsubscribe: cal.id });
   }
 
-  async save(): Promise<void> {
-    const hiddenCalendarIds = Array.from(this.hiddenCalendarIds);
-    console.log('[DBG-EVT-FILTER] save', {
-      showMemos: this.showMemos,
-      showAllNotes: this.showAllNotes,
-      hiddenCalendarIds,
-    });
-    await Promise.all([
-      this.noteService.setUserPreference('calendarView', {
-        showMemos: this.showMemos,
-        hiddenCalendarIds,
-      }),
-      this.noteService.setUserPreference('calendarShowAllNotes', this.showAllNotes),
-    ]);
-    this.dialogRef.close({ applied: true });
-  }
-
-  cancel(): void {
-    this.dialogRef.close({ applied: false });
+  close(): void {
+    this.dialogRef.close({});
   }
 }

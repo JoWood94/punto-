@@ -1,8 +1,8 @@
 :host {
   --_t: var(--punto-duration-medium1, 200ms) var(--punto-easing-standard, cubic-bezier(0.2, 0, 0, 1));
   --_e: var(--punto-easing-standard, cubic-bezier(0.2, 0, 0, 1));
-  // Altezza header: 80px contenuto + safe-area iOS (Dynamic Island / status bar)
-  --app-header-h: calc(80px + env(safe-area-inset-top, 0px));
+  // Altezza header: 64px contenuto + safe-area iOS (Dynamic Island / status bar)
+  --app-header-h: calc(64px + env(safe-area-inset-top, 0px));
   display: block;
   height: var(--vh, 100vh);
   overflow: hidden;
@@ -542,10 +542,14 @@
 // .app-header — stilato globalmente in styles.scss
 
 .header-logo {
-  height: 55px;
+  height: 36px;
   width: auto;
-  margin-left: 20px;
+  margin-left: 0;
   filter: brightness(0);
+
+  @media (min-width: 600px) {
+    margin-left: 4px;
+  }
 }
 
 .spacer {
@@ -604,15 +608,18 @@
   }
 }
 
-.mobile-center-logo {
-  position: absolute;
-  left: 50%;
-  transform: translateX(-50%);
-  height: 45px;
-  width: auto;
-  filter: brightness(0);
+// ─── Header compact mode (editor/settings su mobile) ────────
+// Quando l'utente apre una nota o settings su mobile l'header si riduce a
+// 48px (senza logo) per cedere spazio verticale al contenuto.
+.app-header.app-header--compact {
+  &.mat-toolbar {
+    height: calc(48px + env(safe-area-inset-top, 0px)) !important;
+  }
 }
 
+.dashboard-container.dashboard-container--compact {
+  height: calc(var(--vh, 100vh) - (48px + env(safe-area-inset-top, 0px)));
+}
 
 .mobile-full {
   width: 100vw !important;
@@ -1138,7 +1145,7 @@
 // animazione stagger. Posizionato absolute rispetto al viewport (fixed).
 .punto-settings-dropdown {
   position: fixed;
-  top: calc(var(--app-header-h, 80px) - 8px);
+  top: calc(var(--app-header-h, 64px) - 8px);
   right: 12px;
   z-index: 1200;
   display: flex;

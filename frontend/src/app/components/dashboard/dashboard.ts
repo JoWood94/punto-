@@ -1193,10 +1193,14 @@ export class DashboardComponent implements OnInit, OnDestroy {
       maxWidth: '95vw',
       data: { calendars: this.myCalendars, currentUid },
     });
+    ref.componentInstance.prefsChange.subscribe(prefs => {
+      this.calendarPref = { showMemos: prefs.showMemos, hiddenCalendarIds: prefs.hiddenCalendarIds };
+      this.calendarShowAllNotes = prefs.showAllNotes;
+    });
     const result = await firstValueFrom(ref.afterClosed());
     console.log('[DBG-EVT-FILTER] dialog closed', result);
 
-    if (result?.applied) {
+    if (!result?.manage && !(result?.newCalendar || result?.addCalendar) && !result?.unsubscribe) {
       const [updatedPref, updatedShowAll] = await Promise.all([
         this.noteService.getUserPreference<{ showMemos: boolean; hiddenCalendarIds: string[] }>(
           'calendarView',
@@ -1249,6 +1253,9 @@ export class DashboardComponent implements OnInit, OnDestroy {
       width: '480px',
       maxWidth: '95vw',
       data: { calendar: cal },
+    });
+    ref.componentInstance.calendarChange.subscribe(({ title, color }: { title: string; color: string }) => {
+      this.myCalendars = this.myCalendars.map(c => c.id === cal.id ? { ...c, title, color } : c);
     });
     ref.afterClosed().subscribe(r => {
       console.log('[DBG-EVT-MANAGE] dialog closed', r);
