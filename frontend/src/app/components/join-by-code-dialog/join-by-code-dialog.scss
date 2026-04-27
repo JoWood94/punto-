@@ -46,6 +46,16 @@
   color: var(--mat-sys-error);
 }
 
+// ── Hint unificato ────────────────────────────────────────────────────────────
+
+.join-hint {
+  font-size: 13px;
+  color: var(--mat-sys-on-surface-variant);
+  margin: 4px 0 8px;
+  line-height: 1.4;
+  opacity: 0.8;
+}
+
 // ── State hints ────────────────────────────────────────────────────────────────
 
 .join-state-hint {
@@ -84,6 +94,20 @@
   font-weight: 500;
   color: #1C1B1F;
   line-height: 1.5;
+
+  &--calendar {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+}
+
+.join-preview__title {
+  margin: 4px 0 0;
+  font-size: 16px;
+  font-weight: 500;
+  color: #1C1B1F;
+  line-height: 1.4;
 }
 
 // ── Notification consent (memo/event only) ─────────────────────────────────────

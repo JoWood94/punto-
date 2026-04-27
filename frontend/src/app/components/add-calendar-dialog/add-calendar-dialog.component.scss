@@ -1,0 +1,110 @@
+// add-calendar-dialog — crea un nuovo calendario di proprietà dell'utente.
+// Aesthetic: editorial minimalism, near-black/off-white, M3 structure.
+
+.add-cal-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.add-cal-icon {
+  font-size: 22px;
+  width: 22px;
+  height: 22px;
+  color: var(--mat-sys-primary);
+  flex-shrink: 0;
+}
+
+.add-cal-content {
+  padding: 8px 24px 16px;
+  min-width: min(320px, 90vw);
+}
+
+// ── Input nome ────────────────────────────────────────────────────────────────
+
+.add-cal-field {
+  width: 100%;
+  margin-top: 4px;
+}
+
+.add-cal-name-input {
+  font-size: 15px;
+}
+
+// ── Palette colore ────────────────────────────────────────────────────────────
+
+.add-cal-color-section {
+  margin-top: 16px;
+}
+
+.add-cal-color-label {
+  display: block;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--mat-sys-on-surface-variant);
+  margin-bottom: 10px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.add-cal-palette {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.add-cal-swatch {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  transition: transform 120ms ease, border-color 120ms ease;
+  outline: none;
+
+  &--selected {
+    border-color: var(--mat-sys-outline);
+    transform: scale(1.15);
+  }
+
+  &:focus-visible {
+    box-shadow: 0 0 0 3px var(--mat-sys-primary);
+  }
+}
+
+.add-cal-swatch-check {
+  font-size: 16px;
+  width: 16px;
+  height: 16px;
+  color: #fff;
+  // Swatch scuro (#1C1B1F) → check bianco visibile; swatch chiari → check bianco
+  // con mix-blend-mode difference per contrasto automatico.
+  mix-blend-mode: difference;
+}
+
+// ── Actions ────────────────────────────────────────────────────────────────────
+
+.add-cal-submit-btn {
+  background: #1C1B1F;
+  color: #FFFBFE;
+  gap: 6px;
+
+  &:disabled {
+    opacity: 0.38;
+  }
+
+  mat-icon {
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
+  }
+}
+
+.btn-spinner {
+  display: inline-block;
+  vertical-align: middle;
+}

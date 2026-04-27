@@ -106,7 +106,17 @@ export class DashboardComponent implements OnInit, OnDestroy {
   navIndicatorTransform = 'translateX(0px)';
   private navDragStartX = 0;
   private navDragStartIndex = 0;
-  private readonly NAV_SEGMENTS: Array<'notes' | 'reminders' | 'calendar'> = ['notes', 'reminders', 'calendar'];
+  // Su tablet/desktop (!isMobile) il calendario è già visibile a destra accanto
+  // alla note-list: il segmento "Calendario" nella toolbar è ridondante e va
+  // filtrato dall'array. Solo su mobile mostriamo tutti e tre i segmenti.
+  get NAV_SEGMENTS(): Array<'notes' | 'reminders' | 'calendar'> {
+    return this.isMobile ? ['notes', 'reminders', 'calendar'] : ['notes', 'reminders'];
+  }
+  readonly NAV_SEGMENT_META: Record<'notes' | 'reminders' | 'calendar', { icon: string; labelKey: string }> = {
+    notes: { icon: 'edit_note', labelKey: 'NAV.NOTES' },
+    reminders: { icon: 'notifications', labelKey: 'NAV.REMINDERS' },
+    calendar: { icon: 'calendar_month', labelKey: 'NAV.CALENDAR' },
+  };
   private readonly NAV_SEG_WIDTH = 52; // deve corrispondere al CSS
   isOffline = !navigator.onLine;
   hasFirestoreError = false;
@@ -361,7 +371,46 @@ export class DashboardComponent implements OnInit, OnDestroy {
       };
       vv.addEventListener('resize', setVh);
       vv.addEventListener('scroll', setVh);
+      // Bug PWA primo avvio iOS: visualViewport.height + env(safe-area-inset-*)
+      // a volte sono stale finché un evento di layout non li rinfresca.
+      // Combiniamo più tecniche: minHeight kick (forza reflow), scroll kick (forza
+      // visualViewport recompute), pipeline lunga di setTimeout (alcuni device
+      // stabilizzano dopo >1s), listener visibilitychange (ritorno da background).
+      const kick = () => {
+        document.body.style.minHeight = '101vh';
+        requestAnimationFrame(() => {
+          document.body.style.minHeight = '';
+          // scroll kick: alcuni iOS aggiornano visualViewport solo dopo uno scroll.
+          // Usiamo +1/-1 per non spostare visivamente nulla.
+          window.scrollTo(0, 1);
+          requestAnimationFrame(() => {
+            window.scrollTo(0, 0);
+            setVh();
+          });
+        });
+      };
       setVh();
+      requestAnimationFrame(() => requestAnimationFrame(setVh));
+      // Pipeline aggressiva per coprire device lenti / first-launch PWA.
+      // Costa ~zero (ogni tick è un assignment di CSS var) ma risolve il glitch.
+      setTimeout(kick, 50);
+      setTimeout(kick, 300);
+      setTimeout(kick, 800);
+      setTimeout(kick, 1500);
+      setTimeout(kick, 3000);
+      window.addEventListener('orientationchange', () => {
+        setVh();
+        setTimeout(setVh, 250);
+        setTimeout(kick, 500);
+      });
+      window.addEventListener('pageshow', setVh);
+      // PWA torna in foreground (es. dopo background → home → riapertura): forza ricalcolo
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') {
+          kick();
+          setTimeout(kick, 200);
+        }
+      });
     }
 
     this.notes$ = this.noteService.getNotes();
@@ -450,6 +499,11 @@ export class DashboardComponent implements OnInit, OnDestroy {
   private checkMobile() {
     this.breakpointObserver.observe([Breakpoints.Handset]).subscribe(result => {
       this.isMobile = result.matches;
+      // Resize mobile→tablet con mobileNav='calendar': il segmento sparisce
+      // dall'array filtrato, l'indicator finirebbe a -52px. Riallinea su 'notes'.
+      if (!this.isMobile && this.mobileNav === 'calendar') {
+        this.setMobileNav('notes');
+      }
     });
     this.breakpointObserver.observe(['(min-width: 1280px)']).subscribe(result => {
       this.isWideDesktop = result.matches;
@@ -610,8 +664,10 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   // ─── Condivise con me (solo senza reminder) ───────────────────
   // Le condivise con reminder vivono in vista Promemoria insieme alle proprie.
+  // Gli eventi (type='event') sono ESCLUSI: vivono solo nella vista calendario,
+  // mai nella lista note (anche per il guest del calendario).
   get sharedWithMeNotes(): Note[] {
-    return this.filteredNotes.filter(n => n.myRole === 'guest' && !hasReminder(n));
+    return this.filteredNotes.filter(n => n.myRole === 'guest' && n.type !== 'event' && !hasReminder(n));
   }
 
   private autoSelectView() {
@@ -842,7 +898,21 @@ export class DashboardComponent implements OnInit, OnDestroy {
     const uid = this.authService.getCurrentUserId();
     if (!uid) return;
 
-    const userDoc = await this.noteService.getUserDoc();
+    const userDocResult = await this.noteService.getUserDocResult();
+    console.log('[E2E] userDocResult kind:',
+      userDocResult === 'error' ? 'error' : userDocResult === null ? 'missing' : 'doc');
+
+    // Errore di rete dopo retry esauriti: NON mostrare alcun dialog (mai setup —
+    // sovrascriverebbe le chiavi server di un utente esistente). Esci silenzioso;
+    // lo snapshot listener su userDoc, attivato più avanti, recupererà non appena
+    // la rete torna, e l'utente può ricaricare per riprovare initEncryption.
+    if (userDocResult === 'error') {
+      console.error('[E2E] getUserDocResult fallito dopo retry. Salto init encryption per evitare setup improprio.');
+      this.toast.show(this.translationService.instant('CRYPTO.NETWORK_ERROR') || 'Errore di rete, ricarica la pagina', 6000);
+      return;
+    }
+
+    const userDoc = userDocResult;
     console.log('[E2E] userDoc:', userDoc ? JSON.stringify({
       encryptionSetup: userDoc['encryptionSetup'],
       hasPublicKey: !!userDoc['publicKey'],
@@ -850,16 +920,14 @@ export class DashboardComponent implements OnInit, OnDestroy {
       sessionVersion: userDoc['sessionVersion']
     }) : 'null');
 
-    // Bug 1 fix: se getUserDoc ritorna null (offline/errore) e c'è già una chiave locale,
-    // procedi senza mostrare alcun dialog (evita setup improprio).
+    // userDoc null = doc non esiste (nuovo utente). Sicuro mostrare setup.
     if (!userDoc) {
       const localKey = this.cryptoService.getLocalPrivateKey(uid);
       if (localKey) {
-        // Non abbiamo la publicKey → sessione non attivabile, ma non mostriamo setup
-        console.warn('[Encryption] UserDoc non disponibile offline, cifratura disabilitata per questa sessione');
+        // Edge case storico: chiave locale presente ma userDoc cancellato → non mostriamo setup
+        console.warn('[Encryption] UserDoc inesistente ma chiave locale presente, cifratura disabilitata per questa sessione');
         return;
       }
-      // Nessun documento e nessuna chiave locale → nuovo utente, mostra setup
       await this.showSetupDialog(uid);
       return;
     }

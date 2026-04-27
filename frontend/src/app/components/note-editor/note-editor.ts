@@ -41,6 +41,11 @@ import {
   ReminderPresetSheetComponent, ReminderPresetSheetData, ReminderPresetSheetResult, ReminderPresetKey
 } from '../reminder-preset-sheet/reminder-preset-sheet.component';
 import {
+  EventReminderCustomDialogComponent,
+  EventReminderCustomDialogData,
+  EventReminderCustomDialogResult,
+} from '../event-reminder-custom-dialog/event-reminder-custom-dialog.component';
+import {
   CalendarPickerSheetComponent, CalendarPickerSheetData, CalendarPickerSheetResult
 } from '../calendar-picker-sheet/calendar-picker-sheet.component';
 // TODO: import Storage riabilitare con piano Firebase Storage
@@ -62,7 +67,10 @@ import {
     CalendarPickerSheetComponent,
   ],
   templateUrl: './note-editor.html',
-  styleUrls: ['./note-editor.scss']
+  styleUrls: ['./note-editor.scss'],
+  host: {
+    '[class.editor-readonly-event]': 'isReadOnlyEvent',
+  },
 })
 export class NoteEditorComponent implements OnInit, OnChanges, DoCheck, AfterViewInit, AfterViewChecked, OnDestroy {
   @Input() selectedNote: Note | null = null;
@@ -89,6 +97,10 @@ export class NoteEditorComponent implements OnInit, OnChanges, DoCheck, AfterVie
   /** Datepicker nascosti per event start/end nel nuovo layout inline. */
   @ViewChild('eventStartDp') eventStartDp?: MatDatepicker<Date>;
   @ViewChild('eventEndDp') eventEndDp?: MatDatepicker<Date>;
+  /** Datepicker nascosto per memo start (nuovo header). */
+  @ViewChild('memoStartDp') memoStartDp?: MatDatepicker<Date>;
+  /** Datepicker nascosto per memo recurrenceEndDate. */
+  @ViewChild('memoEndDp') memoEndDp?: MatDatepicker<Date>;
 
   note: Partial<Note> & { blocks: NoteBlock[]; tags: string[] } = {
     title: '',
@@ -372,9 +384,16 @@ export class NoteEditorComponent implements OnInit, OnChanges, DoCheck, AfterVie
     if (result.key === 'NONE') {
       nextOffsetMin = null;
     } else if (result.key === 'CUSTOM') {
-      // TODO: dialog datetime-picker per offset libero. Per ora no-op.
+      // Apre il dialog "Personalizza": l'utente sceglie data/ora esatta del
+      // reminder; calcoliamo offsetMin = (eventStart - selected) / 60000.
+      const ref = this.dialog.open<EventReminderCustomDialogComponent, EventReminderCustomDialogData, EventReminderCustomDialogResult | null>(
+        EventReminderCustomDialogComponent,
+        { data: { eventStart }, width: '420px', maxWidth: '95vw' }
+      );
+      const customResult = await firstValueFrom(ref.afterClosed());
+      if (!customResult) return;
+      nextOffsetMin = customResult.offsetMin;
       this.reminderPresetKey = 'CUSTOM';
-      return;
     } else {
       const offset = this.presetOffsetMin(result.key);
       if (typeof offset !== 'number') return;
@@ -479,6 +498,177 @@ export class NoteEditorComponent implements OnInit, OnChanges, DoCheck, AfterVie
   /** Cache uid→username per evitare fetch ripetuti nel completion toast. */
   private readonly usernameCache = new Map<string, string>();
 
+  // ─── Memo header: inline toast per evasione ricorrenza ───────────────────
+  /** Messaggio del micro-toast inline (null = nascosto). */
+  readonly memoInlineToast = signal<string | null>(null);
+  private memoInlineToastTimer: ReturnType<typeof setTimeout> | null = null;
+
+  /**
+   * Inferisce la ReminderPresetKey dal campo `notifyOffsetMin` del ReminderBlock.
+   * Usato per derivare la label della bell-pill senza signal interno.
+   */
+  private inferMemoPresetKey(offsetMin: number | undefined): ReminderPresetKey {
+    switch (offsetMin) {
+      case 0:
+      case undefined: return 'AT_START';
+      case 5:         return 'MIN_5';
+      case 15:        return 'MIN_15';
+      case 60:        return 'HOUR_1';
+      case 120:       return 'HOUR_2';
+      case 1440:      return 'DAY_1';
+      default:        return 'CUSTOM';
+    }
+  }
+
+  /**
+   * Label i18n della bell-pill memo. Derivata da `block.notifyOffsetMin` anziché da
+   * un signal interno — così resta sempre in sync con il documento senza stato locale.
+   */
+  get memoReminderPresetLabel(): string {
+    const rb = this.reminderBlock;
+    const offset = (rb as any)?.notifyOffsetMin as number | undefined;
+    const key = this.inferMemoPresetKey(offset);
+    const map: Record<ReminderPresetKey, string> = {
+      NONE:     'EVENT.REMINDER_NONE',
+      AT_START: 'MEMO.REMINDER_AT_TIME',
+      MIN_5:    'EVENT.REMINDER_5MIN',
+      MIN_15:   'EVENT.REMINDER_15MIN',
+      HOUR_1:   'EVENT.REMINDER_1H',
+      HOUR_2:   'EVENT.REMINDER_2H',
+      DAY_1:    'EVENT.REMINDER_1DAY',
+      CUSTOM:   'MEMO.REMINDER_CUSTOM_LABEL',
+    };
+    return map[key] ?? 'MEMO.REMINDER_AT_TIME';
+  }
+
+  /**
+   * Timestamp effettivo di notifica mostrato nella sub-label della bell-pill.
+   * notifyTime = block.time - notifyOffsetMin * 60000.
+   * Retrocompat: se notifyOffsetMin è assente, coincide con block.time.
+   */
+  get memoNotifyTime(): number | null {
+    const rb = this.reminderBlock;
+    if (!rb || !rb.time) return null;
+    const offset = (rb as any).notifyOffsetMin as number | undefined;
+    return rb.time - (offset ?? 0) * 60_000;
+  }
+
+  /** Apre la bell-pill bottom-sheet in modalità memo: tutti i preset (no NONE). */
+  /**
+   * Resetta lo stato di consegna del reminder in modo che il server lo
+   * rinotifichi. Chiamato ogni volta che si cambia offset o ricorrenza —
+   * qualsiasi modifica che altera il momento effettivo della notifica.
+   */
+  private resetReminderForRedeliver(rb: any): void {
+    rb.status = 'pending';
+    rb._evaded = false;
+    rb._prevTime = null;
+  }
+
+  async openMemoReminderPill(): Promise<void> {
+    const rb = this.reminderBlock;
+    if (!rb || !rb.time) return;
+    const anchor = rb.time as number;
+    const prevOffset: number = (rb as any).notifyOffsetMin ?? 0;
+    const currentKey = this.inferMemoPresetKey(prevOffset);
+    const data: ReminderPresetSheetData = {
+      eventStart: anchor,
+      current: currentKey,
+      mode: 'memo',
+    };
+    const ref = this.bottomSheet.open(ReminderPresetSheetComponent, {
+      data,
+      panelClass: 'reminder-preset-sheet-pane',
+    });
+    const result: ReminderPresetSheetResult | undefined = await firstValueFrom(ref.afterDismissed());
+    if (!result) return;
+
+    // Mappa result.key → notifyOffsetMin e persisti sul block.
+    // block.time NON viene mai modificato qui: rappresenta l'orario logico del promemoria.
+    const offsetMap: Partial<Record<ReminderPresetKey, number>> = {
+      AT_START: 0,
+      MIN_5:    5,
+      MIN_15:   15,
+      HOUR_1:   60,
+      HOUR_2:   120,
+      DAY_1:    1440,
+    };
+
+    if (result.key === 'CUSTOM' && result.time != null) {
+      // L'utente ha scelto un datetime assoluto (sempre < block.time, validato nel sheet).
+      // Calcola l'offset come delta in minuti.
+      const computed = Math.round((anchor - result.time) / 60_000);
+      (rb as any).notifyOffsetMin = computed > 0 ? computed : 0;
+    } else if (result.key in offsetMap) {
+      (rb as any).notifyOffsetMin = offsetMap[result.key as keyof typeof offsetMap];
+    }
+    // Nessun branch NONE: il bottom-sheet in memo mode non espone NONE.
+    // Il toggle Mute (già implementato) gestisce "nessuna notifica".
+
+    // Resetta lo stato di consegna SOLO se l'offset è effettivamente cambiato,
+    // evitando reset spuri quando l'utente apre il sheet e conferma lo stesso valore.
+    const newOffset: number = (rb as any).notifyOffsetMin ?? 0;
+    if (newOffset !== prevOffset) {
+      this.resetReminderForRedeliver(rb as any);
+    }
+    this.triggerAutoSave();
+  }
+
+  /** Cambia ricorrenza del memo. Azzeramento a 'none' rimuove anche recurrenceEndDate. */
+  setMemoRecurrence(recurrence: string): void {
+    const rb = this.reminderBlock;
+    if (!rb) return;
+    rb.recurrence = recurrence;
+    if (recurrence === 'none') {
+      rb.recurrenceEndDate = null;
+      rb._endDate = null;
+    }
+    this.onReminderChange();
+  }
+
+  /** Label leggibile della ricorrenza corrente del memo. */
+  get memoRecurrenceLabel(): string {
+    const rb = this.reminderBlock;
+    if (!rb || rb.recurrence === 'none') return '';
+    const map: Record<string, string> = {
+      daily:   'EDITOR.RECURRENCE.DAILY',
+      weekly:  'EDITOR.RECURRENCE.WEEKLY',
+      monthly: 'EDITOR.RECURRENCE.MONTHLY',
+      yearly:  'EDITOR.RECURRENCE.YEARLY',
+    };
+    return map[rb.recurrence] ?? '';
+  }
+
+  /**
+   * Mostra un micro-toast inline per 6s con l'opzione undo dopo evasione ricorrente.
+   * Sostituisce markReminderCompleted per il memo header: chiama il parent e poi
+   * visualizza il toast. Il toast sparisce al timeout o se l'utente clicca undo.
+   */
+  markMemoRecurringEvaded(block: any): void {
+    // Salva il timestamp corrente per il toast label prima di avanzare
+    const currentTime: number = block.date
+      ? (() => { const d = new Date(block.date); d.setHours(parseInt(block.hour ?? '12', 10), parseInt(block.minute ?? '00', 10), 0, 0); return d.getTime(); })()
+      : (block.time as number ?? Date.now());
+    const dateLabel = new Date(currentTime).toLocaleDateString(this.translationService.locale, { day: 'numeric', month: 'short' });
+
+    this.markReminderCompleted(block, this.isOverdueRecurring(block));
+
+    // Mostra toast inline
+    if (this.memoInlineToastTimer) clearTimeout(this.memoInlineToastTimer);
+    this.memoInlineToast.set(dateLabel);
+    this.memoInlineToastTimer = setTimeout(() => {
+      this.memoInlineToast.set(null);
+      this.memoInlineToastTimer = null;
+    }, 6000);
+  }
+
+  undoMemoEvasionInline(block: any): void {
+    if (this.memoInlineToastTimer) clearTimeout(this.memoInlineToastTimer);
+    this.memoInlineToast.set(null);
+    this.memoInlineToastTimer = null;
+    this.undoRecurringEvasion(block);
+  }
+
   get hasReminderBlock(): boolean {
     return this.note.blocks.some(b => b.type === 'reminder');
   }
@@ -499,7 +689,6 @@ export class NoteEditorComponent implements OnInit, OnChanges, DoCheck, AfterVie
   }
 
   onCalendarPickerChange(newCalId: string): void {
-    console.log('[DBG-EVT-CAL-PICKER] editor change', { from: this.note.calendarId, to: newCalId });
     this.note.calendarId = newCalId;
     this.triggerAutoSave();
   }
@@ -521,7 +710,6 @@ export class NoteEditorComponent implements OnInit, OnChanges, DoCheck, AfterVie
     if (result?.calendarId && result.calendarId !== this.note.calendarId) {
       this.note.calendarId = result.calendarId;
       this.triggerAutoSave();
-      console.log('[DBG-EVT-CAL-PICKER] sheet pick', result.calendarId);
     }
   }
 
@@ -1252,19 +1440,86 @@ export class NoteEditorComponent implements OnInit, OnChanges, DoCheck, AfterVie
 
   private addressSearchTimeout: any;
 
+  /** Estrae il numero civico dalla query digitata (es. "via roma 12B" → "12B").
+   *  Tollera suffissi alfabetici brevi (12A, 12bis è meno comune ma ok). */
+  private extractHouseNumberFromQuery(q: string): string | null {
+    // Ultima sequenza di cifre (con eventuale lettera A-Z) preceduta da spazio
+    // o da virgola, posizionata dopo un nome di via plausibile.
+    const m = q.match(/(?:^|[\s,])(\d+[A-Za-z]?)(?:\s|,|$)/);
+    return m ? m[1] : null;
+  }
+
   onAddressInput(block: any, event: Event) {
     const val = (event.target as HTMLInputElement).value;
     clearTimeout(this.addressSearchTimeout);
     if (!val || val.length < 3) { block.addressOptions = []; this.cdr.detectChanges(); return; }
     this.addressSearchTimeout = setTimeout(async () => {
       try {
-        const res = await fetch(
-          `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(val)}&limit=5`
-        );
-        block.addressOptions = await res.json();
+        // addressdetails=1 → struttura `address.house_number/road/city/...`
+        // accept-language=it → display_name in italiano
+        // limit=10 → più risultati (anche Nominatim a volte mette i civici dopo i punti generici)
+        const lang = this.translationService.currentLang || 'it';
+        const url = `https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&accept-language=${lang}&limit=10&q=${encodeURIComponent(val)}`;
+        const res = await fetch(url);
+        const raw = await res.json() as any[];
+        // Re-rank: i risultati con house_number salgono in cima quando l'utente
+        // ha digitato cifre nella query (segnale chiaro: vuole un civico preciso).
+        const queryHasNumber = /\d/.test(val);
+        const ranked = queryHasNumber
+          ? [...raw].sort((a, b) => {
+              const ah = a?.address?.house_number ? 1 : 0;
+              const bh = b?.address?.house_number ? 1 : 0;
+              return bh - ah;
+            })
+          : raw;
+        // Fallback civico: se la query contiene un numero ma OSM non lo ha
+        // indicizzato per quella via, aggiungiamo NOI il numero al display
+        // (fix per zone italiane con civici mancanti su OpenStreetMap).
+        // Il `lat/lon` resta quello della via — la nav app risolve da display_name.
+        const queryNumber = this.extractHouseNumberFromQuery(val);
+        for (const o of ranked) {
+          const a = o.address || {};
+          const road = a.road || a.pedestrian || a.footway || '';
+          const num = a.house_number || (queryNumber && road ? queryNumber : '');
+          const city = a.city || a.town || a.village || a.hamlet || '';
+          if (road && num) {
+            o.display_label = `${road} ${num}${city ? ', ' + city : ''}`;
+            // Sovrascriviamo anche il display_name per coerenza al save.
+            if (!a.house_number && queryNumber) {
+              o._injected_house_number = queryNumber;
+              o.display_name = `${road} ${num}${city ? ', ' + city : ''}, ${o.display_name.replace(road + ',', '').trim()}`;
+            }
+          } else {
+            o.display_label = o.display_name;
+          }
+        }
+        block.addressOptions = ranked;
         this.cdr.detectChanges();
       } catch (e) { console.error(e); }
     }, 600);
+  }
+
+  /** Compatta un display_name lungo di Nominatim a "via, città, country".
+   *  Heuristica: la "città" è la prima parte (dopo la via) che ricorre più volte
+   *  nella stringa; se non trovata, prende la seconda parte. Il country è l'ultima.
+   *  Usato come fallback quando block.shortAddress non è disponibile (indirizzi
+   *  salvati prima dell'introduzione di shortAddress). */
+  compactAddress(displayName: string): string {
+    if (!displayName) return '';
+    const parts = displayName.split(',').map(p => p.trim()).filter(Boolean);
+    if (parts.length <= 3) return displayName;
+    const via = parts[0];
+    const country = parts[parts.length - 1];
+    // Trova la prima parte (idx >= 1) che appare almeno 2 volte → tipica
+    // ridondanza di Nominatim (city locality + city metropolitan area).
+    let city: string | null = null;
+    for (let i = 1; i < parts.length - 1; i++) {
+      const p = parts[i];
+      const dupCount = parts.reduce((n, x) => n + (x === p ? 1 : 0), 0);
+      if (dupCount >= 2) { city = p; break; }
+    }
+    if (!city) city = parts[1]; // fallback: subito dopo la via
+    return `${via}, ${city}, ${country}`;
   }
 
   selectAddress(block: any, option: any) {
@@ -1275,6 +1530,18 @@ export class NoteEditorComponent implements OnInit, OnChanges, DoCheck, AfterVie
     block.editing = false;
     block.mapUrl = this.generateMapUrl(block.lat, block.lon);
     block.addressOptions = [];
+    // Versione "pill" compatta dell'indirizzo: solo via [num], città, provincia.
+    // Fallback al display_name completo se i campi strutturati mancano.
+    const a = option.address || {};
+    const road = a.road || a.pedestrian || a.footway || a.path || '';
+    const num = a.house_number || option._injected_house_number || '';
+    const city = a.city || a.town || a.village || a.hamlet || '';
+    const province = a.county || a.state_district || a.state || '';
+    const parts: string[] = [];
+    if (road) parts.push(num ? `${road} ${num}` : road);
+    if (city) parts.push(city);
+    if (province && province !== city) parts.push(province);
+    block.shortAddress = parts.length > 0 ? parts.join(', ') : option.display_name;
     this.triggerAutoSave();
   }
 
@@ -1294,7 +1561,8 @@ export class NoteEditorComponent implements OnInit, OnChanges, DoCheck, AfterVie
    *  Usiamo window.open invece di <a target="_blank"> perché iOS PWA
    *  standalone ignora target="_blank" (ricarica la PWA). */
   openMaps(block: LocationBlock) {
-    if (!this.guestCanEdit) return;
+    // Aprire la mappa è un'azione di lettura: consentita anche al guest
+    // readonly (subscriber del calendario di un evento altrui).
     if (!block.lat || !block.lon) return;
     const query = `${block.lat},${block.lon}`;
     const label = encodeURIComponent(block.address ?? '');
@@ -1348,6 +1616,44 @@ export class NoteEditorComponent implements OnInit, OnChanges, DoCheck, AfterVie
   onNonTextFieldFocus() { this.nonTextFieldFocused.set(true); }
   onNonTextFieldBlur()  { this.nonTextFieldFocused.set(false); }
 
+  /** Apre il datepicker nascosto per la data start del memo. */
+  openMemoStartPicker(): void {
+    this.memoStartDp?.open();
+  }
+
+  /** Apre il datepicker nascosto per la end date di ricorrenza del memo. */
+  openMemoEndPicker(): void {
+    this.memoEndDp?.open();
+  }
+
+  /** Gestisce il cambio data del datepicker memo-start: preserva l'ora corrente. */
+  onMemoStartDateChange(date: Date | null): void {
+    if (!date) return;
+    const rb = this.reminderBlock;
+    if (!rb) return;
+    const h = parseInt(rb.hour ?? '12', 10);
+    const m = parseInt(rb.minute ?? '00', 10);
+    date.setHours(h, m, 0, 0);
+    rb.date = date;
+    this.onReminderChange();
+  }
+
+  /** Getter per il Date corrente del memo-start (per il datepicker [value]).
+   *  Usa cache sul timestamp per evitare new Date() ad ogni CD (stesso pattern
+   *  di eventStartAsDate — prevenzione loop reference-change → valueChange). */
+  private _memoStartDateCache: Date | null = null;
+  private _memoStartTimeCache: number | null = null;
+  get memoStartAsDate(): Date | null {
+    const rb = this.reminderBlock;
+    const ts = rb?.time as number | null;
+    if (!ts) { this._memoStartDateCache = null; this._memoStartTimeCache = null; return null; }
+    if (this._memoStartTimeCache !== ts) {
+      this._memoStartDateCache = new Date(ts);
+      this._memoStartTimeCache = ts;
+    }
+    return this._memoStartDateCache;
+  }
+
   onReminderChange() {
     // L'utente ha modificato il reminder → ricalcola time e resetta status/flag evasione
     this.note.blocks.forEach(b => {
@@ -1384,7 +1690,9 @@ export class NoteEditorComponent implements OnInit, OnChanges, DoCheck, AfterVie
   onRecurrenceEndDateChange(date: Date | null) {
     const rb = this.reminderBlock;
     if (!rb) return;
+    // Scrive sia il timestamp persistito sia il Date runtime usato dal template (*ngIf/_endDate).
     rb.recurrenceEndDate = date ? date.getTime() : null;
+    (rb as any)._endDate = date ?? null;
     this.onReminderChange();
   }
 
@@ -1583,6 +1891,11 @@ export class NoteEditorComponent implements OnInit, OnChanges, DoCheck, AfterVie
     const blocks: NoteBlock[] = this.note.blocks.map(block => {
       if (block.type === 'reminder') {
         const rb = block as any;
+        // notifyOffsetMin: persisti solo se valorizzato e > 0 (0 = AT_START = default).
+        const notifyOffsetMin: number | undefined =
+          typeof rb.notifyOffsetMin === 'number' && rb.notifyOffsetMin > 0
+            ? rb.notifyOffsetMin
+            : undefined;
         if (rb.date) {
           const d = new Date(rb.date);
           d.setHours(parseInt(rb.hour ?? '12', 10));
@@ -1590,9 +1903,13 @@ export class NoteEditorComponent implements OnInit, OnChanges, DoCheck, AfterVie
           d.setSeconds(0); d.setMilliseconds(0);
           // Preserva lo status esistente (es. 'sent', 'completed'): solo onReminderChange lo resetta a 'pending'
           const status: 'pending' | 'sent' | 'completed' | null = rb.status ?? 'pending';
-          return { type: 'reminder' as const, time: d.getTime(), recurrence: rb.recurrence ?? 'none',
+          const reminderOut: ReminderBlock & { evaded: boolean; wasOverdue: boolean } = {
+            type: 'reminder', time: d.getTime(), recurrence: rb.recurrence ?? 'none',
             recurrenceEndDate: rb.recurrenceEndDate ?? null, status,
-            evaded: rb._evaded ?? false, wasOverdue: rb._wasOverdue ?? false };
+            evaded: rb._evaded ?? false, wasOverdue: rb._wasOverdue ?? false,
+          } as any;
+          if (notifyOffsetMin !== undefined) (reminderOut as any).notifyOffsetMin = notifyOffsetMin;
+          return reminderOut;
         }
         return { type: 'reminder' as const, time: null, recurrence: rb.recurrence ?? 'none',
           recurrenceEndDate: rb.recurrenceEndDate ?? null, status: null,
@@ -1614,6 +1931,13 @@ export class NoteEditorComponent implements OnInit, OnChanges, DoCheck, AfterVie
     // reminder top-level vengono azzerati al save (anche per migrare via gli
     // eventuali legacy reminderTime degli eventi esistenti).
     const isEvent = this.note.type === 'event';
+    // notifyOffsetMin flat: esposto top-level perché il server legge `note.reminderTime`
+    // flat. Con l'offset, il server calcola notifyTime = reminderTime - notifyOffsetMin*60000.
+    // Assente (undefined→null) = retrocompat offset 0.
+    const reminderNotifyOffset: number | null =
+      !isEvent && reminder && typeof (reminder as any).notifyOffsetMin === 'number' && (reminder as any).notifyOffsetMin > 0
+        ? (reminder as any).notifyOffsetMin
+        : null;
     const payload: any = {
       ...this.note,
       blocks,
@@ -1623,6 +1947,7 @@ export class NoteEditorComponent implements OnInit, OnChanges, DoCheck, AfterVie
       recurrence: isEvent ? 'none' : (reminder?.recurrence ?? 'none'),
       reminderRepeat: isEvent ? null : repeatValue,
       recurrenceEndDate: isEvent ? null : (reminder?.recurrenceEndDate ?? null),
+      notifyOffsetMin: reminderNotifyOffset,
     };
     delete payload.address; delete payload.lat; delete payload.lon; delete payload.checklist;
     // Strip read-only ownership/sharing metadata — mai scrivibili dal client direttamente
@@ -1900,10 +2225,16 @@ export class NoteEditorComponent implements OnInit, OnChanges, DoCheck, AfterVie
     this.showSnoozeSheet.update(v => !v);
   }
 
-  /** Mini-FAB campanella: snooze sheet per memo, preset sheet per event. */
+  /** Mini-FAB campanella.
+   * - event  → preset sheet (reminder per-user sub-doc)
+   * - memo   → preset sheet notifica (openMemoReminderPill) — il FAB è la stessa azione della pill nera
+   * - note   → non dovrebbe accadere (FAB nascosto per type='note')
+   */
   onBellTap(): void {
     if (this.note?.type === 'event') {
       this.openReminderPresetSheet();
+    } else if (this.note?.type === 'memo') {
+      this.openMemoReminderPill();
     } else {
       this.openSnoozeSheet();
     }
@@ -2062,6 +2393,7 @@ export class NoteEditorComponent implements OnInit, OnChanges, DoCheck, AfterVie
     console.log('[applyRemoteUpdate] applying — noteId:', this.savedNoteId,
       'remoteAt:', data['updatedAt'], 'lastSavedAt (unchanged):', this.lastSavedAt,
       'blocks count:', blocks.length, 'collaboratorUids:', remoteCollabUids.length);
+    const isEventDoc = data['type'] === 'event' || this.note.type === 'event';
     this.note = {
       ...this.note,
       title: data['title'] ?? this.note.title,
@@ -2070,7 +2402,26 @@ export class NoteEditorComponent implements OnInit, OnChanges, DoCheck, AfterVie
       // "group" non appena un guest accetta l'invito (collaboratorUids cresce remoto).
       collaboratorUids: remoteCollabUids,
       isShared: remoteCollabUids.length > 0,
+      // Eventi: propaga al guest gli spostamenti di start/end e i cambi di calendario
+      // o di stato cancelled. Senza questo il guest non vede in tempo reale che
+      // l'owner ha spostato l'evento, e la pill reminder mostra l'orario sbagliato.
+      ...(isEventDoc ? {
+        eventStart: typeof data['eventStart'] === 'number' ? data['eventStart'] : this.note.eventStart,
+        eventEnd: typeof data['eventEnd'] === 'number'
+          ? data['eventEnd']
+          : (data['eventEnd'] === null ? undefined : this.note.eventEnd),
+        calendarId: typeof data['calendarId'] === 'string' ? data['calendarId'] : this.note.calendarId,
+        cancelled: data['cancelled'] === true,
+      } : {}),
     };
+    // Per type=event: ricalcola reminderTime locale dal nuovo eventStart × offset
+    // attuale, così la pill reminder si aggiorna senza aspettare il watcher subdoc.
+    if (isEventDoc && this.reminderEnabled && typeof this.note.eventStart === 'number') {
+      const offsetMin = this.presetOffsetMin(this.reminderPresetKey);
+      if (typeof offsetMin === 'number') {
+        this.note.reminderTime = this.note.eventStart - offsetMin * 60_000;
+      }
+    }
     // NOTE: lastSavedAt is intentionally NOT updated here.
     // It tracks the timestamp of our OWN writes (set in performAutoSave) to filter
     // Firestore echo-back. Updating it from remote snapshots would block subsequent
@@ -2091,6 +2442,7 @@ export class NoteEditorComponent implements OnInit, OnChanges, DoCheck, AfterVie
     this.stopLiveSync();
     this.vvResizeListener?.();
     if (this.overdueTicker) { clearInterval(this.overdueTicker); this.overdueTicker = null; }
+    if (this.memoInlineToastTimer) { clearTimeout(this.memoInlineToastTimer); this.memoInlineToastTimer = null; }
     // Forza sincronizzazione valore input titolo prima di salvare (fix: swipe-back senza blur)
     if (this.titleInputRef?.nativeElement) {
       this.note.title = this.titleInputRef.nativeElement.value;

@@ -1,0 +1,26 @@
+:host {
+  display: block;
+}
+
+.calendar-picker-field {
+  width: 100%;
+}
+
+.cal-dot {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  margin-right: 8px;
+  vertical-align: middle;
+  flex-shrink: 0;
+}
+
+.cal-name {
+  vertical-align: middle;
+}
+
+// In mat-select-trigger the content is flex by default; align items
+::ng-deep .calendar-picker-field .mat-mdc-select-trigger {
+  align-items: center;
+}

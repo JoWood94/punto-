@@ -265,9 +265,6 @@
 
           <div class="note-card-body">
             <div class="note-card-title-row">
-              <mat-icon class="note-card-bell" *ngIf="noteReminderStatus(note) === 'completed'">task_alt</mat-icon>
-              <mat-icon class="note-card-bell" *ngIf="noteIsRecurring(note)">repeat</mat-icon>
-              <mat-icon class="note-card-bell" *ngIf="noteHasReminder(note) && noteReminderStatus(note) !== 'completed' && !noteIsRecurring(note)">notifications</mat-icon>
               <mat-icon class="note-card-bell note-card-shared--owned"
                         *ngIf="note.isShared && note.myRole !== 'guest'"
                         [attr.aria-label]="'SHARING.SHARED' | translate">group</mat-icon>
@@ -275,6 +272,9 @@
                         *ngIf="note.myRole === 'guest'"
                         [attr.aria-label]="'SHARING.SHARED_WITH_YOU' | translate">group_add</mat-icon>
               <span class="note-item-title">{{ note.title || ('NOTE.UNTITLED' | translate) }}</span>
+              <mat-icon class="note-card-bell note-card-bell--trail" *ngIf="noteReminderStatus(note) === 'completed'">task_alt</mat-icon>
+              <mat-icon class="note-card-bell note-card-bell--trail" *ngIf="noteIsRecurring(note) && noteReminderStatus(note) !== 'completed'">repeat</mat-icon>
+              <mat-icon class="note-card-bell note-card-bell--trail" *ngIf="noteHasReminder(note) && noteReminderStatus(note) !== 'completed' && !noteIsRecurring(note)">notifications</mat-icon>
             </div>
 
             <span class="note-item-preview"
@@ -336,6 +336,7 @@
       <app-note-editor #noteEditor [selectedNote]="activeNote" [initialReminderDate]="newNoteCalendarDate"
                        [initialNoteType]="newNoteType"
                        [initialCalendarId]="newNoteCalendarId"
+                       [ownedCalendars]="ownedCalendars"
                        (closeEditor)="closeEditor($event)"
                        (noteCreated)="onNoteCreated($event)"
                        (noteLiveUpdate)="onNoteLiveUpdate($event)">
@@ -345,10 +346,13 @@
     <div class="calendar-wrapper" *ngIf="isReady && (currentMainView === 'calendar' || (!isMobile && currentMainView === 'list')) && activeNote === undefined && !settingsOpen">
       <app-calendar-view [notes]="calendarNotes" [isMobile]="isMobile"
         [initialViewType]="lastCalendarView"
+        [currentDate]="calendarCurrentDate"
+        [currentViewType]="lastCalendarView"
         [calendars]="myCalendars"
         (viewTypeChange)="lastCalendarView = $event"
         (noteSelected)="onCalendarNoteSelected($event)"
-        (currentDateChange)="onCalendarCurrentDateChange($event)">
+        (currentDateChange)="onCalendarCurrentDateChange($event)"
+        (openFilter)="onOpenCalendarFilter()">
       </app-calendar-view>
     </div>
 
@@ -381,26 +385,12 @@
        [style.transform]="navIndicatorTransform"
        [class.unified-toolbar-indicator--dragging]="navDragging">
   </div>
-  <button class="unified-toolbar-seg" type="button"
-          [class.unified-toolbar-seg--active]="mobileNav === 'notes'"
-          (click)="setMobileNav('notes')"
-          aria-label="Note">
-    <mat-icon>edit_note</mat-icon>
-    <span class="seg-label">{{ 'NAV.NOTES' | translate }}</span>
-  </button>
-  <button class="unified-toolbar-seg" type="button"
-          [class.unified-toolbar-seg--active]="mobileNav === 'reminders'"
-          (click)="setMobileNav('reminders')"
-          [attr.aria-label]="'NAV.REMINDERS' | translate">
-    <mat-icon>notifications</mat-icon>
-    <span class="seg-label">{{ 'NAV.REMINDERS' | translate }}</span>
-  </button>
-  <button class="unified-toolbar-seg" type="button"
-          [class.unified-toolbar-seg--active]="mobileNav === 'calendar'"
-          (click)="setMobileNav('calendar')"
-          [attr.aria-label]="'NAV.CALENDAR' | translate">
-    <mat-icon>calendar_month</mat-icon>
-    <span class="seg-label">{{ 'NAV.CALENDAR' | translate }}</span>
+  <button *ngFor="let seg of NAV_SEGMENTS" class="unified-toolbar-seg" type="button"
+          [class.unified-toolbar-seg--active]="mobileNav === seg"
+          (click)="setMobileNav(seg)"
+          [attr.aria-label]="NAV_SEGMENT_META[seg].labelKey | translate">
+    <mat-icon>{{ NAV_SEGMENT_META[seg].icon }}</mat-icon>
+    <span class="seg-label">{{ NAV_SEGMENT_META[seg].labelKey | translate }}</span>
   </button>
 </div>
 

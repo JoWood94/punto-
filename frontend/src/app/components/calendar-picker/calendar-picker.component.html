@@ -1,0 +1,22 @@
+<mat-form-field appearance="outline" class="calendar-picker-field">
+  <mat-label>{{ 'EVENT.CALENDAR_LABEL' | translate }}</mat-label>
+
+  <mat-select
+    [value]="selectedCalendarId ?? selectedCalendar?.id"
+    [disabled]="disabled"
+    (selectionChange)="onChange($event.value)">
+
+    <mat-select-trigger>
+      <ng-container *ngIf="selectedCalendar as cal">
+        <span class="cal-dot" [style.background]="cal.color"></span>
+        <span class="cal-name">{{ cal.title }}</span>
+      </ng-container>
+    </mat-select-trigger>
+
+    <mat-option *ngFor="let cal of calendars" [value]="cal.id">
+      <span class="cal-dot" [style.background]="cal.color"></span>
+      <span class="cal-name">{{ cal.title }}</span>
+    </mat-option>
+
+  </mat-select>
+</mat-form-field>

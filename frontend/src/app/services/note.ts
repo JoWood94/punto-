@@ -72,6 +72,10 @@ export interface ReminderBlock {
   status: 'pending' | 'sent' | 'completed' | null;
   completedAt?: number;   // FE-01: timestamp completamento (opzionale B)
   completedBy?: string;   // FE-01: uid di chi ha completato
+  /** Minuti di anticipo notifica rispetto a `time`. 0 = al momento esatto.
+   *  notifyTime effettivo = time - notifyOffsetMin * 60000.
+   *  Assente su doc legacy → equivale a 0 (retrocompat). */
+  notifyOffsetMin?: number;
 }
 
 export interface ImageBlock {
@@ -413,7 +417,14 @@ export class NoteService {
     };
 
     let payload: any;
+    const isEvent = (noteData as any).type === 'event';
     if (!this.cryptoService.isEnabled) {
+      payload = base;
+    } else if (isEvent) {
+      // Gli eventi sono "broadcast" nel calendario condiviso: leggibili a
+      // chiunque sia subscriber del calendar. Non possono essere PGP-cifrati
+      // (la chiave privata è dell'owner: i subscribers non potrebbero leggerli).
+      // Restano sempre in chiaro.
       payload = base;
     } else if (hasCollaborators) {
       // Per note gia condivise alla creazione (caso raro), cifra con AES se disponibile
@@ -825,9 +836,12 @@ export class NoteService {
     const noteRef = doc(this.db, `notes/${id}`);
     const skipFields: (keyof Note)[] = this.notifTitleEnabled ? ['title'] : [];
     const hasCollaborators = (noteSnap.data()?.['collaboratorUids']?.length ?? 0) > 0;
+    // isEvent: true se il doc esistente è event o se data.type lo sta settando a event.
+    const isEvent = effectiveType === 'event' || noteSnap.data()?.['type'] === 'event';
 
     let payload: any;
-    if (!this.cryptoService.isEnabled || options?.skipEncryption) {
+    if (!this.cryptoService.isEnabled || options?.skipEncryption || isEvent) {
+      // Eventi: sempre in chiaro (broadcast a tutti i subscribers del calendar).
       payload = { ...data, updatedAt: Date.now() };
     } else if (hasCollaborators) {
       // Nota condivisa: cifra con AES se la chiave e disponibile in cache
@@ -897,16 +911,38 @@ export class NoteService {
   }
 
   async getUserDoc(): Promise<any | null> {
+    const result = await this.getUserDocResult();
+    return result === 'error' ? null : result;
+  }
+
+  /**
+   * Variante esplicita di getUserDoc che distingue tre stati:
+   *  - oggetto: doc esiste, dati restituiti
+   *  - null:    doc non esiste (utente nuovo)
+   *  - 'error': errore di rete dopo retry esauriti
+   *
+   * Critico per initEncryption: se ritornasse semplicemente null in caso di errore,
+   * il chiamante non potrebbe distinguere "nuovo utente" da "rete giù" e potrebbe
+   * mostrare il setup dialog a un utente che ha già le chiavi sul server,
+   * causando overwrite delle chiavi e perdita di accesso alle note cifrate.
+   */
+  async getUserDocResult(): Promise<any | null | 'error'> {
     const uid = this.authService.getCurrentUserId();
-    if (!uid) return null;
+    if (!uid) return 'error';
     const userRef = doc(this.db, `users/${uid}`);
-    try {
-      // Forza lettura dal server: evita dati stale dalla cache locale (persistentLocalCache)
-      const snap = await getDocFromServer(userRef);
-      return snap.exists() ? snap.data() : null;
-    } catch {
-      return null;  // Server non raggiungibile: evita cache stale (BF-10)
+    // Retry con backoff: PWA fresh install + auth token-ready race causa
+    // fallimenti intermittenti del primo getDocFromServer.
+    const delays = [0, 300, 1200];
+    for (let i = 0; i < delays.length; i++) {
+      if (delays[i] > 0) await new Promise(r => setTimeout(r, delays[i]));
+      try {
+        const snap = await getDocFromServer(userRef);
+        return snap.exists() ? snap.data() : null;
+      } catch {
+        if (i === delays.length - 1) return 'error';
+      }
     }
+    return 'error';
   }
 
   async saveUsername(username: string): Promise<void> {
