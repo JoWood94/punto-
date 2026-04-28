@@ -2317,7 +2317,6 @@ export class NoteEditorComponent implements OnInit, OnChanges, DoCheck, AfterVie
       // Firestore rules negano la lettura di notes/{noteId}. L'onSnapshot emette un
       // errore permission-denied invece della doc aggiornata — il data callback non
       // viene mai chiamato. Trattiamo l'errore come segnale di kick-out.
-      console.log('[watchNote] error — code:', err?.code, 'role:', this.note.myRole, 'noteId:', this.savedNoteId);
       if (this.note.myRole === 'guest') {
         if (err?.code === 'not-found') {
           this._handleKickout('deleted');
