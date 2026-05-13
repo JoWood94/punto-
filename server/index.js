@@ -722,7 +722,8 @@ async function checkAndSendEventReminders() {
 
       const subInfo = subsByUid.get(uid);
       if (!subInfo) continue; // utente non più subscriber del calendario
-      if (subInfo.notificationsEnabled === false) continue;
+      // notificationsEnabled NON gatea i reminder per-evento: avere un doc eventReminders
+      // è già l'opt-in esplicito. Il flag rimane per future notifiche push "nuova aggiunta".
 
       const newSent = [...sentOffsets];
       let triggered = false;
