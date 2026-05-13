@@ -1,0 +1,11 @@
+<svg viewBox="0 0 148 56" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <text
+    x="0" y="45"
+    font-family="'Plus Jakarta Sans',sans-serif"
+    font-size="46"
+    font-weight="700"
+    fill="#1C1B1F"
+    letter-spacing="-1">punto</text>
+  <!-- cy=33: x-height center Roboto Bold (baseline 45 − xh 24.3 / 2 ≈ 33) -->
+  <circle cx="146" cy="33" r="10" fill="#1C1B1F"/>
+</svg>

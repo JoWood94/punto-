@@ -1,0 +1,129 @@
+{
+  "configVersion": 1,
+  "timestamp": 1778707987246,
+  "index": "/punto-/index.html",
+  "assetGroups": [
+    {
+      "name": "app",
+      "installMode": "prefetch",
+      "updateMode": "prefetch",
+      "cacheQueryOptions": {
+        "ignoreVary": true
+      },
+      "urls": [
+        "/punto-/chunk-3YHA2XHQ.js",
+        "/punto-/chunk-MVHCBGRV.js",
+        "/punto-/combined-sw.js",
+        "/punto-/favicon.ico",
+        "/punto-/index.html",
+        "/punto-/main-UIEZIVNW.js",
+        "/punto-/manifest.webmanifest",
+        "/punto-/polyfills-DOYHMSTV.js",
+        "/punto-/styles-L4MNQ44A.css",
+        "/punto-/worker-6NJKKYWH.js"
+      ],
+      "patterns": []
+    },
+    {
+      "name": "assets",
+      "installMode": "lazy",
+      "updateMode": "prefetch",
+      "cacheQueryOptions": {
+        "ignoreVary": true
+      },
+      "urls": [
+        "/punto-/assets/punto_logo_no_bg.png",
+        "/punto-/favicon-light.png",
+        "/punto-/favicon.png",
+        "/punto-/favicon_512.png",
+        "/punto-/favicon_black_test.png",
+        "/punto-/icons/icon-128x128-light.png",
+        "/punto-/icons/icon-128x128.png",
+        "/punto-/icons/icon-144x144-light.png",
+        "/punto-/icons/icon-144x144.png",
+        "/punto-/icons/icon-152x152-light.png",
+        "/punto-/icons/icon-152x152.png",
+        "/punto-/icons/icon-192x192-light.png",
+        "/punto-/icons/icon-192x192.png",
+        "/punto-/icons/icon-384x384-light.png",
+        "/punto-/icons/icon-384x384.png",
+        "/punto-/icons/icon-512x512-light.png",
+        "/punto-/icons/icon-512x512.png",
+        "/punto-/icons/icon-72x72-light.png",
+        "/punto-/icons/icon-72x72.png",
+        "/punto-/icons/icon-96x96-light.png",
+        "/punto-/icons/icon-96x96.png",
+        "/punto-/logo.png",
+        "/punto-/media/layers-2x-TBM42ERR.png",
+        "/punto-/media/layers-55W3Q4RM.png",
+        "/punto-/media/marker-icon-2V3QKKVC.png",
+        "/punto-/punto_icon.png",
+        "/punto-/punto_logo.png",
+        "/punto-/punto_logo_no_bg.png",
+        "/punto-/punto_logo_wordmark.svg"
+      ],
+      "patterns": []
+    }
+  ],
+  "dataGroups": [],
+  "hashTable": {
+    "/punto-/assets/punto_logo_no_bg.png": "c9e72d89f71042182b3c2a1928f2900c67e59213",
+    "/punto-/chunk-3YHA2XHQ.js": "8c64f5777f358f6fcfef3d97450eeac8d0bf1e71",
+    "/punto-/chunk-MVHCBGRV.js": "7b84a2d01541df6a66eac7eef2a132d503f29b1b",
+    "/punto-/combined-sw.js": "53130cf30e0597c9e40a7c49c0e7627f9eb5fe6b",
+    "/punto-/favicon-light.png": "1c9f9c56ae469ac7d411482363dd09b100b96bdb",
+    "/punto-/favicon.ico": "37d4c72a3509f20fb90263c210e03994d2939e29",
+    "/punto-/favicon.png": "c62f490c7792b273b44a52e14c32e3d9e153b456",
+    "/punto-/favicon_512.png": "0372dbcb799d1755ca8da171835a0177726b467c",
+    "/punto-/favicon_black_test.png": "50f0a71d04f03d1aaef0799e1e867d3f52b75792",
+    "/punto-/icons/icon-128x128-light.png": "97ca78be9c1c47d5999b1e5e033d9eb7aa6ca699",
+    "/punto-/icons/icon-128x128.png": "65583c848a1b1ce710d9429cd1b6cc0887df0623",
+    "/punto-/icons/icon-144x144-light.png": "136f40c61071d4bf969541097c299730fad875c7",
+    "/punto-/icons/icon-144x144.png": "d56184e380baec8f9b62904490bce88e06c2b395",
+    "/punto-/icons/icon-152x152-light.png": "666dfbd7a1c99e1ee6d5a9768ca047d65de8d5db",
+    "/punto-/icons/icon-152x152.png": "d960e3e0e3d929dd464952ab4cf5195ef4fb543f",
+    "/punto-/icons/icon-192x192-light.png": "a786a188991fafb26d6ab7ce23a42dd7b0602402",
+    "/punto-/icons/icon-192x192.png": "ae1e923e2e90a78d86f6ca5faacb75e2f966adec",
+    "/punto-/icons/icon-384x384-light.png": "f5427aec9ca091212cc7be7d7c80c76c4f5be2f7",
+    "/punto-/icons/icon-384x384.png": "5f926e52cd3d8adc61befb898a3aa4262aaaf364",
+    "/punto-/icons/icon-512x512-light.png": "f2ca4eab3ed36efce6537f13f64e0a9518012361",
+    "/punto-/icons/icon-512x512.png": "f684bd4d97631e408278c875fd93b0f38a630b9d",
+    "/punto-/icons/icon-72x72-light.png": "d7a88cabdc49af9b4c7532c3c3b3711edbbd1589",
+    "/punto-/icons/icon-72x72.png": "9b274632eefa7442a1f613c9c89cafcace6f32a0",
+    "/punto-/icons/icon-96x96-light.png": "543717df1b393e9b1698d0950521079d73858657",
+    "/punto-/icons/icon-96x96.png": "de61dc57c116e9250e5db6d274b6b339a3fe9637",
+    "/punto-/index.html": "b53684a51736886cfe88970b1d98ba0f6a6b1d9b",
+    "/punto-/logo.png": "50e5173b6c75239a66f5231d52cc911c2349c8a8",
+    "/punto-/main-UIEZIVNW.js": "bc07ae7319858fd2760acc3de217dec5d40c4e22",
+    "/punto-/manifest.webmanifest": "6ca2ff3c6d3251df8148c10d13f1d284807843ed",
+    "/punto-/media/layers-2x-TBM42ERR.png": "152a162333e46d24f9d89f566312fc0c64011dee",
+    "/punto-/media/layers-55W3Q4RM.png": "c9e7528e491a39232ba24a2706c6c739d6fb0f06",
+    "/punto-/media/marker-icon-2V3QKKVC.png": "60a90bcbb2b42b7ddb4556db94eb7c1084b0e5da",
+    "/punto-/polyfills-DOYHMSTV.js": "319677ff7765c7c037e3df2d2078e2407d4b85d6",
+    "/punto-/punto_icon.png": "b78200e28fbaf54ff6e7ddcde107f40cbc9f985a",
+    "/punto-/punto_logo.png": "50e5173b6c75239a66f5231d52cc911c2349c8a8",
+    "/punto-/punto_logo_no_bg.png": "c9e72d89f71042182b3c2a1928f2900c67e59213",
+    "/punto-/punto_logo_wordmark.svg": "419837f86f96fffe9a048eea91931ac04cdf54d9",
+    "/punto-/styles-L4MNQ44A.css": "782f178593a3380bf82d2e0f6b1d9f538860ecd6",
+    "/punto-/worker-6NJKKYWH.js": "d9e73905c70dc46c2547964511fc6c7d070bc73d"
+  },
+  "navigationUrls": [
+    {
+      "positive": true,
+      "regex": "^\\/.*$"
+    },
+    {
+      "positive": false,
+      "regex": "^\\/(?:.+\\/)?[^/]*\\.[^/]*$"
+    },
+    {
+      "positive": false,
+      "regex": "^\\/(?:.+\\/)?[^/]*__[^/]*$"
+    },
+    {
+      "positive": false,
+      "regex": "^\\/(?:.+\\/)?[^/]*__[^/]*\\/.*$"
+    }
+  ],
+  "navigationRequestStrategy": "performance"
+}
